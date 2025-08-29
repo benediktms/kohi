@@ -168,7 +168,9 @@ typedef u16 krenderbuffer;
 
 #define KRENDERBUFFER_NAME_GLOBAL_VERTEX "vertex_globalgeometry"
 #define KRENDERBUFFER_NAME_GLOBAL_INDEX "index_globalgeometry"
-#define KRENDERBUFFER_NAME_GLOBAL_MATERIALS "storage_globalmaterials"
+#define KRENDERBUFFER_NAME_GLOBAL_MATERIALS "Kohi.Renderer.Storage.Materials"
+#define KRENDERBUFFER_NAME_GLOBAL_TRANSFORM "Kohi.Renderer.Storage.Transform"
+#define KRENDERBUFFER_NAME_GLOBAL_LIGHTING "Kohi.Renderer.Storage.Lighting"
 
 typedef enum renderer_config_flag_bits {
     /** @brief Indicates that vsync should be enabled. */
@@ -269,6 +271,14 @@ typedef struct renderer_backend_interface {
      * @return True if initialized successfully; otherwise false.
      */
     b8 (*initialize)(struct renderer_backend_interface* backend, const renderer_backend_config* config);
+
+    /**
+     * @brief Performs post-initialization setup (i.e. things that need to happen after the frontend is initialized)
+     *
+     * @param backend A pointer to the renderer backend interface.
+     * @return True if success; otherwise false.
+     */
+    b8 (*renderer_post_initialize)(struct renderer_backend_interface* backend);
 
     /**
      * @brief Shuts the renderer backend down.
@@ -495,7 +505,7 @@ typedef struct renderer_backend_interface {
      * @param shader_asset A constant pointer to the shader asset.
      * @return b8 True on success; otherwise false.
      */
-    b8 (*shader_create)(struct renderer_backend_interface* backend, kshader shader, kname name, shader_flags flags, u32 topology_types, face_cull_mode cull_mode, u32 stage_count, shader_stage* stages, kname* stage_names, const char** stage_sources, u32 max_groups, u32 max_draw_ids, u32 attribute_count, const shader_attribute* attributes, u32 uniform_count, const shader_uniform* d_uniforms);
+    b8 (*shader_create)(struct renderer_backend_interface* backend, kshader shader, kname name, shader_flags flags, u32 topology_types, face_cull_mode cull_mode, u32 stage_count, shader_stage* stages, kname* stage_names, const char** stage_sources, u32 max_groups, u32 max_draw_ids, u8 attribute_count, const shader_attribute* attributes, u8 binding_set_count, const shader_binding_set_config* d_uniforms);
 
     /**
      * @brief Destroys the given shader and releases any resources held by it.

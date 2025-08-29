@@ -92,18 +92,6 @@ typedef enum shader_stage {
     SHADER_STAGE_COMPUTE = 0x0000008
 } shader_stage;
 
-/**
- * @brief Defines shader update frequencies, typically used for uniforms.
- */
-typedef enum shader_update_frequency {
-    /** @brief The uniform is updated once per frame. */
-    SHADER_UPDATE_FREQUENCY_PER_FRAME = 0,
-    /** @brief The uniform is updated once per "group", it is up to the shader using this to determine what this means. */
-    SHADER_UPDATE_FREQUENCY_PER_GROUP = 1,
-    /** @brief The uniform is updated once per draw call (i.e. "instance" of an object in the world). */
-    SHADER_UPDATE_FREQUENCY_PER_DRAW = 2,
-} shader_update_frequency;
-
 /** @brief Available attribute types. */
 typedef enum shader_attribute_type {
     SHADER_ATTRIB_TYPE_FLOAT32 = 0U,
@@ -126,30 +114,26 @@ typedef enum shader_attribute_type {
 } shader_attribute_type;
 
 /** @brief Available uniform types. */
-typedef enum shader_uniform_type {
-    SHADER_UNIFORM_TYPE_FLOAT32 = 0U,
-    SHADER_UNIFORM_TYPE_FLOAT32_2 = 1U,
-    SHADER_UNIFORM_TYPE_FLOAT32_3 = 2U,
-    SHADER_UNIFORM_TYPE_FLOAT32_4 = 3U,
-    SHADER_UNIFORM_TYPE_INT8 = 4U,
-    SHADER_UNIFORM_TYPE_UINT8 = 5U,
-    SHADER_UNIFORM_TYPE_INT16 = 6U,
-    SHADER_UNIFORM_TYPE_UINT16 = 7U,
-    SHADER_UNIFORM_TYPE_INT32 = 8U,
-    SHADER_UNIFORM_TYPE_UINT32 = 9U,
-    SHADER_UNIFORM_TYPE_MATRIX_4 = 10U,
-    // Struct uniform type. Requires size to be used.
-    SHADER_UNIFORM_TYPE_STRUCT = 11U,
-    SHADER_UNIFORM_TYPE_TEXTURE_1D = 12U,
-    SHADER_UNIFORM_TYPE_TEXTURE_2D = 13U,
-    SHADER_UNIFORM_TYPE_TEXTURE_3D = 14U,
-    SHADER_UNIFORM_TYPE_TEXTURE_CUBE = 15U,
-    SHADER_UNIFORM_TYPE_TEXTURE_1D_ARRAY = 16U,
-    SHADER_UNIFORM_TYPE_TEXTURE_2D_ARRAY = 17U,
-    SHADER_UNIFORM_TYPE_TEXTURE_CUBE_ARRAY = 18U,
-    SHADER_UNIFORM_TYPE_SAMPLER = 19U,
-    SHADER_UNIFORM_TYPE_CUSTOM = 255U
-} shader_uniform_type;
+
+typedef enum shader_texture_type {
+    SHADER_TEXTURE_TYPE_1D,
+    SHADER_TEXTURE_TYPE_2D,
+    SHADER_TEXTURE_TYPE_3D,
+    SHADER_TEXTURE_TYPE_CUBE,
+    SHADER_TEXTURE_TYPE_1D_ARRAY,
+    SHADER_TEXTURE_TYPE_2D_ARRAY,
+    SHADER_TEXTURE_TYPE_CUBE_ARRAY,
+} shader_texture_type;
+
+typedef enum shader_sampler_type {
+    SHADER_SAMPLER_TYPE_1D,
+    SHADER_SAMPLER_TYPE_2D,
+    SHADER_SAMPLER_TYPE_3D,
+    SHADER_SAMPLER_TYPE_CUBE,
+    SHADER_SAMPLER_TYPE_1D_ARRAY,
+    SHADER_SAMPLER_TYPE_2D_ARRAY,
+    SHADER_SAMPLER_TYPE_CUBE_ARRAY,
+} shader_sampler_type;
 
 typedef enum shader_generic_sampler {
     SHADER_GENERIC_SAMPLER_LINEAR_REPEAT,
@@ -192,31 +176,6 @@ typedef enum renderer_default_texture {
 } renderer_default_texture;
 
 /**
- * @brief Represents a single entry in the internal uniform array.
- */
-typedef struct shader_uniform {
-    kname name;
-    /** @brief The offset in bytes from the beginning of the uniform set (per-frame/per-group/per-draw) */
-    u64 offset;
-    /**
-     * @brief The location to be used as a lookup.
-     * For samplers and textures, this is the index within the internal sampler/texture array at the given frequency (per-frame/per-group/per-draw).
-     * Otherwise, index into the uniform array within the shader.
-     */
-    u16 location;
-    /** @brief Index into the internal sampler/texture array depending on type. */
-    u16 tex_samp_index;
-    /** @brief The size of the uniform, or 0 for samplers. */
-    u16 size;
-    /** @brief The update frequency of the uniform. */
-    shader_update_frequency frequency;
-    /** @brief The type of uniform. */
-    shader_uniform_type type;
-    /** @brief The length of the array if it is one; otherwise 0 */
-    u32 array_length;
-} shader_uniform;
-
-/**
  * @brief Represents a single shader vertex attribute.
  */
 typedef struct shader_attribute {
@@ -250,28 +209,6 @@ typedef enum shader_flag_bits {
 
 /** @brief A combination of topology bit flags. */
 typedef u32 shader_flags;
-
-/**
- * @brief Represents data required for a particular update frequency within a shader.
- */
-typedef struct shader_frequency_data {
-    /** @brief The number of non-sampler and non-texture uniforms for this frequency. */
-    u8 uniform_count;
-    /** @brief The number of sampler uniforms for this frequency. */
-    u8 uniform_sampler_count;
-    // Keeps the uniform indices of samplers for fast lookups.
-    u32* sampler_indices;
-    /** @brief The number of texture uniforms for this frequency. */
-    u8 uniform_texture_count;
-    // Keeps the uniform indices of textures for fast lookups.
-    u32* texture_indices;
-    /** @brief The actual size of the uniform buffer object for this frequency. */
-    u64 ubo_size;
-
-    /** @brief The identifier of the currently bound group/per_draw. Ignored for per_frame */
-    u32 bound_id;
-
-} shader_frequency_data;
 
 /**
  * @brief Represents the current state of a given shader.
@@ -313,21 +250,38 @@ typedef struct shader_attribute_config {
     shader_attribute_type type;
 } shader_attribute_config;
 
-/** @brief Configuration for a uniform. */
-typedef struct shader_uniform_config {
-    /** @brief The name of the uniform. */
+typedef enum shader_binding_type {
+    SHADER_BINDING_TYPE_UBO,
+    SHADER_BINDING_TYPE_SSBO,
+    SHADER_BINDING_TYPE_TEXTURE,
+    SHADER_BINDING_TYPE_SAMPLER,
+    SHADER_BINDING_TYPE_COUNT
+} shader_binding_type;
+
+typedef struct shader_binding_config {
+    shader_binding_type binding_type;
     kname name;
-    /** @brief The size of the uniform. If arrayed, this is the per-element size */
-    u16 size;
-    /** @brief The location of the uniform. */
-    u32 location;
-    /** @brief The type of the uniform. */
-    shader_uniform_type type;
-    /** @brief The array length, if uniform is an array. */
-    u32 array_length;
-    /** @brief The update frequency of the uniform. */
-    shader_update_frequency frequency;
-} shader_uniform_config;
+    u64 data_size;
+    u64 offset;
+    union {
+        shader_texture_type texture_type;
+        shader_sampler_type sampler_type;
+    };
+    // Array size for arrayed textures or samplers. Assumes a array_size of 1 unless set to > 1.
+    u8 array_size;
+} shader_binding_config;
+
+typedef struct shader_binding_set_config {
+    kname name;
+    u32 max_use_count;
+    u8 binding_count;
+    u8 sampler_count;
+    u8 texture_count;
+    // binding index of the UBO. INVALID_ID_U8 if none.
+    u8 ubo_index;
+    u8 ssbo_count;
+    shader_binding_config* bindings;
+} shader_binding_set_config;
 
 typedef enum kmaterial_type {
     KMATERIAL_TYPE_UNKNOWN = 0,

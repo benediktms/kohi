@@ -1,3 +1,16 @@
+/**
+ * LEFTOFF:
+ * - Unify all material shaders - fragment. Vertex will have in_bone_ids and in_weights additional.
+ * - Any get_shader_for_material_type call should include whether or not it's for a static/skinned mesh and
+ *   return accordingly.
+ * - Move all base material data to SSBO.
+ * - Move all material instance data to SSBO.
+ * - Move all lightning data to SSBO.
+ * - Move all transforms data to SSBO.
+ * - Add bone transform data to SSBO (maybe its own?)
+ * -
+ */
+
 #include "kmaterial_renderer.h"
 #include "assets/kasset_types.h"
 #include "core/engine.h"

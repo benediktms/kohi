@@ -140,6 +140,8 @@ STATIC_ASSERT(sizeof(f64) == 8, "Expected f64 to be 8 bytes.");
 #define I32_MIN (-I32_MAX - 1)
 #define I64_MIN (-I64_MAX - 1)
 
+#define KWHOLE_SIZE U64_MAX
+
 /**
  * @brief Any id set to this should be considered invalid,
  * and not actually pointing to a real object.

@@ -741,7 +741,7 @@ KAPI b8 renderer_renderbuffer_unbind(krenderbuffer buffer);
  * This memory should be considered invalid once unmapped.
  * @param buffer A handle to the buffer to map.
  * @param offset The number of bytes from the beginning of the buffer to map.
- * @param size The amount of memory in the buffer to map.
+ * @param size The amount of memory in the buffer to map. Use KWHOLE_SIZE to map the entire buffer.
  * @returns A mapped block of memory. Freed and invalid once unmapped.
  */
 KAPI void* renderer_renderbuffer_map_memory(krenderbuffer buffer, u64 offset, u64 size);
