@@ -273,7 +273,7 @@ typedef struct shader_binding_config {
 
 typedef struct shader_binding_set_config {
     kname name;
-    u32 max_use_count;
+    u32 max_instance_count;
     u8 binding_count;
     u8 sampler_count;
     u8 texture_count;

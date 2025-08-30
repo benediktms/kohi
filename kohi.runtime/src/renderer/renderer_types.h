@@ -163,6 +163,14 @@ typedef enum renderbuffer_track_type {
     RENDERBUFFER_TRACK_TYPE_LINEAR = 2
 } renderbuffer_track_type;
 
+typedef enum renderbuffer_flag_bits {
+    RENDERBUFFER_FLAG_NONE = 0,
+    // Automatically map the buffer memory on creation. Maps the entire buffer range.
+    RENDERBUFFER_FLAG_AUTO_MAP_MEMORY_BIT = 1 << 0
+} renderbuffer_flag_bits;
+
+typedef u32 renderbuffer_flags;
+
 typedef u16 krenderbuffer;
 #define KRENDERBUFFER_INVALID INVALID_ID_U16
 
@@ -505,7 +513,20 @@ typedef struct renderer_backend_interface {
      * @param shader_asset A constant pointer to the shader asset.
      * @return b8 True on success; otherwise false.
      */
-    b8 (*shader_create)(struct renderer_backend_interface* backend, kshader shader, kname name, shader_flags flags, u32 topology_types, face_cull_mode cull_mode, u32 stage_count, shader_stage* stages, kname* stage_names, const char** stage_sources, u32 max_groups, u32 max_draw_ids, u8 attribute_count, const shader_attribute* attributes, u8 binding_set_count, const shader_binding_set_config* d_uniforms);
+    b8 (*shader_create)(
+        struct renderer_backend_interface* backend,
+        kshader shader,
+        kname name,
+        shader_flags flags,
+        u32 topology_types,
+        u32 stage_count,
+        shader_stage* stages,
+        kname* stage_names,
+        const char** stage_sources,
+        u8 attribute_count,
+        const shader_attribute* attributes,
+        u8 binding_set_count,
+        const shader_binding_set_config* binding_sets);
 
     /**
      * @brief Destroys the given shader and releases any resources held by it.
@@ -565,118 +586,13 @@ typedef struct renderer_backend_interface {
      */
     void (*shader_flag_set)(struct renderer_backend_interface* backend, kshader shader, shader_flags flag, b8 enabled);
 
-    /**
-     * @brief Binds the per-frame frequency.
-     *
-     * @param backend A pointer to the renderer backend interface.
-     * @param shader A handle to the shader to be used.
-     * @returns True on success; otherwise false.
-     */
-    b8 (*shader_bind_per_frame)(struct renderer_backend_interface* backend, kshader shader);
+    b8 (*shader_set_immediate_data)(struct renderer_backend_interface* backend, kshader shader, void* data, u8 size);
+    b8 (*shader_set_binding_data)(struct renderer_backend_interface* backend, kshader shader, u8 binding_set, u32 instance_id, u8 binding_index, u64 offset, void* data, u64 size);
+    b8 (*shader_set_binding_texture)(struct renderer_backend_interface* backend, kshader shader, u8 binding_set, u32 instance_id, u8 binding_index, u8 array_index, ktexture texture);
+    b8 (*shader_set_binding_sampler)(struct renderer_backend_interface* backend, kshader shader, u8 binding_set, u32 instance_id, u8 binding_index, u8 array_index, ksampler_backend sampler);
 
-    /**
-     * @brief Binds the given per-group frequency id.
-     *
-     * @param backend A pointer to the renderer backend interface.
-     * @param shader A handle to the shader to be used.
-     * @param group_id The per-group frequency id.
-     * @returns True on success; otherwise false.
-     */
-    b8 (*shader_bind_per_group)(struct renderer_backend_interface* backend, kshader shader, u32 group_id);
-
-    /**
-     * @brief Binds the given per-draw frequency id.
-     *
-     * @param backend A pointer to the renderer backend interface.
-     * @param shader A handle to the shader to be used.
-     * @param draw_id The per-draw frequency id.
-     * @returns True on success; otherwise false.
-     */
-    b8 (*shader_bind_per_draw)(struct renderer_backend_interface* backend, kshader shader, u32 draw_id);
-
-    /**
-     * @brief Applies per-frame data to the uniform buffer.
-     *
-     * @param backend A pointer to the renderer backend interface.
-     * @param shader A handle to the shader to apply the global data for.
-     * @param renderer_frame_number The renderer's frame number, internally used as the generation of the per-frame data. Used for synchronization by the backend.
-     * @return True on success; otherwise false.
-     */
-    b8 (*shader_apply_per_frame)(struct renderer_backend_interface* backend, kshader shader, u16 renderer_frame_number);
-
-    /**
-     * @brief Applies data for the currently bound group.
-     *
-     * @param backend A pointer to the renderer backend interface.
-     * @param shader A handle to the shader to apply the instance data for.
-     * @param generation The current generation of the group's data. Used for synchronization by the backend.
-     * @return True on success; otherwise false.
-     */
-    b8 (*shader_apply_per_group)(struct renderer_backend_interface* backend, kshader shader, u16 generation);
-
-    /**
-     * @brief Applies per-draw data to the uniform buffer.
-     *
-     * @param backend A pointer to the renderer backend interface.
-     * @param shader A handle to the shader to apply the instance data for.
-     * @param generation The current generation of the per-draw data. Used for synchronization by the backend.
-     * @return True on success; otherwise false.
-     */
-    b8 (*shader_apply_per_draw)(struct renderer_backend_interface* backend, kshader shader, u16 generation);
-
-    /**
-     * @brief Acquires internal instance-level resources and provides an instance id.
-     *
-     * @param backend A pointer to the renderer backend interface.
-     * @param shader A handle to the shader to acquire resources from.
-     * @param out_instance_id A pointer to hold the new instance identifier.
-     * @return True on success; otherwise false.
-     */
-    b8 (*shader_per_group_resources_acquire)(struct renderer_backend_interface* backend, kshader shader, u32* out_instance_id);
-
-    /**
-     * @brief Releases internal instance-level resources for the given instance id.
-     *
-     * @param backend A pointer to the renderer backend interface.
-     * @param shader A handle to the shader to release resources from.
-     * @param instance_id The instance identifier whose resources are to be released.
-     * @return True on success; otherwise false.
-     */
-    b8 (*shader_per_group_resources_release)(struct renderer_backend_interface* backend, kshader shader, u32 instance_id);
-
-    /**
-     * @brief Acquires internal local-level resources and provides an instance id.
-     *
-     * @param backend A pointer to the renderer backend interface.
-     * @param shader A handle to the shader to acquire resources from.
-     * @param texture_map_count The number of texture maps used.
-     * @param maps An array of pointers to texture maps. Must be one map per instance texture.
-     * @param out_local_id A pointer to hold the new local identifier.
-     * @return True on success; otherwise false.
-     */
-    b8 (*shader_per_draw_resources_acquire)(struct renderer_backend_interface* backend, kshader shader, u32* out_local_id);
-
-    /**
-     * @brief Releases internal local-level resources for the given instance id.
-     *
-     * @param backend A pointer to the renderer backend interface.
-     * @param shader A handle to the shader to release resources from.
-     * @param instance_id The local identifier whose resources are to be released.
-     * @return True on success; otherwise false.
-     */
-    b8 (*shader_per_draw_resources_release)(struct renderer_backend_interface* backend, kshader shader, u32 local_id);
-
-    /**
-     * @brief Sets the uniform of the given shader to the provided value.
-     *
-     * @param backend A pointer to the renderer backend interface.
-     * @param shader A handle to the shader.
-     * @param uniform A constant pointer to the uniform.
-     * @param array_index The array index to set, if the uniform is an array. Ignored otherwise.
-     * @param value A pointer to the value to be set.
-     * @return b8 True on success; otherwise false.
-     */
-    b8 (*shader_uniform_set)(struct renderer_backend_interface* backend, kshader shader, struct shader_uniform* uniform, u32 array_index, const void* value);
+    u32 (*shader_acquire_binding_set_instance)(struct renderer_backend_interface* backend, kshader shader, u8 binding_set);
+    void (*shader_release_binding_set_instance)(struct renderer_backend_interface* backend, kshader shader, u8 binding_set, u32 instance_id);
 
     /**
      * @brief Acquires a internal sampler and returns a handle to it.
@@ -755,10 +671,14 @@ typedef struct renderer_backend_interface {
      * @brief Creates and assigns the renderer-backend-specific buffer.
      *
      * @param backend A pointer to the renderer backend interface.
-     * @param buffer A handle to create the internal buffer for.
+     * @param name The name of the renderbuffer.
+     * @param size The size of the renderbuffer in bytes.
+     * @param type The type of renderbuffer to create.
+     * @param flags The renderbuffer flags.
+     * @param buffer A handle to create the renderbuffer for.
      * @returns True on success; otherwise false.
      */
-    b8 (*renderbuffer_internal_create)(struct renderer_backend_interface* backend, kname name, u64 size, renderbuffer_type type, krenderbuffer buffer);
+    b8 (*renderbuffer_create)(struct renderer_backend_interface* backend, kname name, u64 size, renderbuffer_type type, renderbuffer_flags flags, krenderbuffer buffer);
 
     /**
      * @brief Destroys the given buffer.
@@ -766,7 +686,7 @@ typedef struct renderer_backend_interface {
      * @param backend A pointer to the renderer backend interface.
      * @param buffer A handle to the buffer to be destroyed.
      */
-    void (*renderbuffer_internal_destroy)(struct renderer_backend_interface* backend, krenderbuffer buffer);
+    void (*renderbuffer_destroy)(struct renderer_backend_interface* backend, krenderbuffer buffer);
 
     /**
      * @brief Binds the given buffer at the provided offset.
@@ -807,6 +727,16 @@ typedef struct renderer_backend_interface {
      * @param size The amount of memory in the buffer to unmap.
      */
     void (*renderbuffer_unmap_memory)(struct renderer_backend_interface* backend, krenderbuffer buffer, u64 offset, u64 size);
+
+    /**
+     * @brief Obtains the mapped memory of the buffer, if mapped.
+     * This memory should be considered invalid once unmapped.
+     *
+     * @param backend A pointer to the renderer backend interface.
+     * @param buffer A handle to the buffer whose mapped memory is to be obtained.
+     * @return A pointer to the mapped memory, if mapped. Otherwise KNULL.
+     */
+    void* (*renderbuffer_get_mapped_memory)(struct renderer_backend_interface* backend, krenderbuffer handle);
 
     /**
      * @brief Flushes buffer memory at the given range. Should be done after a write.

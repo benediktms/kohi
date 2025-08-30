@@ -68,23 +68,9 @@ b8 kplugin_create(kruntime_plugin* out_plugin) {
 
     backend->shader_create = vulkan_renderer_shader_create;
     backend->shader_destroy = vulkan_renderer_shader_destroy;
-    backend->shader_uniform_set = vulkan_renderer_shader_uniform_set;
     backend->shader_reload = vulkan_renderer_shader_reload;
     backend->shader_use = vulkan_renderer_shader_use;
     backend->shader_supports_wireframe = vulkan_renderer_shader_supports_wireframe;
-
-    backend->shader_bind_per_frame = vulkan_renderer_shader_bind_per_frame;
-    backend->shader_bind_per_group = vulkan_renderer_shader_bind_per_group;
-    backend->shader_bind_per_draw = vulkan_renderer_shader_bind_per_draw;
-
-    backend->shader_apply_per_frame = vulkan_renderer_shader_apply_per_frame;
-    backend->shader_apply_per_group = vulkan_renderer_shader_apply_per_group;
-    backend->shader_apply_per_draw = vulkan_renderer_shader_apply_per_draw;
-    backend->shader_per_group_resources_acquire = vulkan_renderer_shader_per_group_resources_acquire;
-    backend->shader_per_group_resources_release = vulkan_renderer_shader_per_group_resources_release;
-    backend->shader_per_draw_resources_acquire = vulkan_renderer_shader_per_draw_resources_acquire;
-    backend->shader_per_draw_resources_release = vulkan_renderer_shader_per_draw_resources_release;
-    backend->shader_uniform_set = vulkan_renderer_shader_uniform_set;
 
     backend->shader_flag_get = vulkan_renderer_shader_flag_get;
     backend->shader_flag_set = vulkan_renderer_shader_flag_set;
@@ -95,12 +81,13 @@ b8 kplugin_create(kruntime_plugin* out_plugin) {
 
     backend->max_anisotropy_get = vulkan_renderer_max_anisotropy_get;
 
-    backend->renderbuffer_internal_create = vulkan_buffer_create_internal;
-    backend->renderbuffer_internal_destroy = vulkan_buffer_destroy_internal;
+    backend->renderbuffer_create = vulkan_renderbuffer_create;
+    backend->renderbuffer_destroy = vulkan_renderbuffer_destroy;
     backend->renderbuffer_bind = vulkan_buffer_bind;
     backend->renderbuffer_unbind = vulkan_buffer_unbind;
     backend->renderbuffer_map_memory = vulkan_buffer_map_memory;
     backend->renderbuffer_unmap_memory = vulkan_buffer_unmap_memory;
+    backend->renderbuffer_get_mapped_memory = vulkan_renderbuffer_get_mapped_memory;
     backend->renderbuffer_flush = vulkan_buffer_flush;
     backend->renderbuffer_read = vulkan_buffer_read;
     backend->renderbuffer_resize = vulkan_buffer_resize;

@@ -23,7 +23,7 @@ typedef struct skybox {
     ktexture cubemap;
 
     kgeometry geometry;
-    u32 group_id;
+    u32 shader_set0_instance_id;
 } skybox;
 
 /**

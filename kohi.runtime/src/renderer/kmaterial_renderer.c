@@ -25,6 +25,7 @@
 #include "renderer/renderer_types.h"
 #include "runtime_defines.h"
 #include "serializers/kasset_shader_serializer.h"
+#include "strings/kname.h"
 #include "systems/kmaterial_system.h"
 #include "systems/kshader_system.h"
 #include "systems/texture_system.h"
@@ -98,9 +99,6 @@ b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material
         mat_std_shader.colour_write = true;
         mat_std_shader.colour_read = false;
         mat_std_shader.supports_wireframe = true;
-        mat_std_shader.cull_mode = FACE_CULL_MODE_BACK;
-        mat_std_shader.max_groups = max_material_count;
-        mat_std_shader.max_draw_ids = max_material_instance_count;
         mat_std_shader.topology_types = PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_LIST_BIT;
 
         mat_std_shader.stage_count = 2;
@@ -126,63 +124,83 @@ b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material
         mat_std_shader.attributes[4].name = "in_tangent";
         mat_std_shader.attributes[4].type = SHADER_ATTRIB_TYPE_FLOAT32_4;
 
-        mat_std_shader.uniform_count = 9;
-        mat_std_shader.uniforms = KALLOC_TYPE_CARRAY(kasset_shader_uniform, mat_std_shader.uniform_count);
+        mat_std_shader.binding_set_count = 2;
+        mat_std_shader.binding_sets = KALLOC_TYPE_CARRAY(shader_binding_set_config, mat_std_shader.binding_set_count);
 
-        // per_frame
-        u32 uidx = 0;
-        mat_std_shader.uniforms[uidx].name = "material_frame_ubo";
-        mat_std_shader.uniforms[uidx].type = SHADER_UNIFORM_TYPE_STRUCT;
-        mat_std_shader.uniforms[uidx].size = sizeof(kmaterial_global_uniform_data);
-        mat_std_shader.uniforms[uidx].frequency = SHADER_UPDATE_FREQUENCY_PER_FRAME;
-        uidx++;
+        shader_binding_set_config* set_0 = &mat_std_shader.binding_sets[0];
+        set_0->max_instance_count = 1;
+        set_0->binding_count = 8;
+        set_0->bindings = KALLOC_TYPE_CARRAY(shader_binding_config, set_0->binding_count);
 
-        mat_std_shader.uniforms[uidx].name = "shadow_texture";
-        mat_std_shader.uniforms[uidx].type = SHADER_UNIFORM_TYPE_TEXTURE_2D_ARRAY;
-        mat_std_shader.uniforms[uidx].frequency = SHADER_UPDATE_FREQUENCY_PER_FRAME;
-        uidx++;
+        u8 bidx = 0;
+        set_0->bindings[bidx].binding_type = SHADER_BINDING_TYPE_UBO;
+        set_0->bindings[bidx].name = kname_create("material standard global UBO");
+        set_0->bindings[bidx].data_size = sizeof(kmaterial_global_uniform_data); // FIXME: New UBO structure
+        set_0->bindings[bidx].offset = 0;
+        set_0->ubo_index = bidx;
+        bidx++;
 
-        mat_std_shader.uniforms[uidx].name = "irradiance_cube_textures";
-        mat_std_shader.uniforms[uidx].type = SHADER_UNIFORM_TYPE_TEXTURE_CUBE;
-        mat_std_shader.uniforms[uidx].array_size = KMATERIAL_MAX_IRRADIANCE_CUBEMAP_COUNT;
-        mat_std_shader.uniforms[uidx].frequency = SHADER_UPDATE_FREQUENCY_PER_FRAME;
-        uidx++;
+        set_0->bindings[bidx].binding_type = SHADER_BINDING_TYPE_SSBO;
+        set_0->bindings[bidx].name = kname_create(KRENDERBUFFER_NAME_GLOBAL_TRANSFORM);
+        set_0->ssbo_count++;
+        bidx++;
 
-        mat_std_shader.uniforms[uidx].name = "shadow_sampler";
-        mat_std_shader.uniforms[uidx].type = SHADER_UNIFORM_TYPE_SAMPLER;
-        mat_std_shader.uniforms[uidx].frequency = SHADER_UPDATE_FREQUENCY_PER_FRAME;
-        uidx++;
+        set_0->bindings[bidx].binding_type = SHADER_BINDING_TYPE_SSBO;
+        set_0->bindings[bidx].name = kname_create(KRENDERBUFFER_NAME_GLOBAL_LIGHTING);
+        set_0->ssbo_count++;
+        bidx++;
 
-        mat_std_shader.uniforms[uidx].name = "irradiance_sampler";
-        mat_std_shader.uniforms[uidx].type = SHADER_UNIFORM_TYPE_SAMPLER;
-        mat_std_shader.uniforms[uidx].frequency = SHADER_UPDATE_FREQUENCY_PER_FRAME;
-        uidx++;
+        set_0->bindings[bidx].binding_type = SHADER_BINDING_TYPE_SSBO;
+        set_0->bindings[bidx].name = kname_create(KRENDERBUFFER_NAME_GLOBAL_MATERIALS);
+        set_0->ssbo_count++;
+        bidx++;
 
-        // per_group
-        mat_std_shader.uniforms[uidx].name = "material_group_ubo";
-        mat_std_shader.uniforms[uidx].type = SHADER_UNIFORM_TYPE_STRUCT;
-        mat_std_shader.uniforms[uidx].size = sizeof(kmaterial_standard_base_uniform_data);
-        mat_std_shader.uniforms[uidx].frequency = SHADER_UPDATE_FREQUENCY_PER_GROUP;
-        uidx++;
+        set_0->bindings[bidx].binding_type = SHADER_BINDING_TYPE_TEXTURE;
+        set_0->bindings[bidx].name = kname_create("material standard shadow cascade maps");
+        set_0->bindings[bidx].texture_type = SHADER_TEXTURE_TYPE_2D_ARRAY;
+        set_0->bindings[bidx].array_size = 4;
+        set_0->texture_count++;
+        bidx++;
 
-        mat_std_shader.uniforms[uidx].name = "material_textures";
-        mat_std_shader.uniforms[uidx].type = SHADER_UNIFORM_TYPE_TEXTURE_2D;
-        mat_std_shader.uniforms[uidx].array_size = MATERIAL_STANDARD_TEXTURE_COUNT;
-        mat_std_shader.uniforms[uidx].frequency = SHADER_UPDATE_FREQUENCY_PER_GROUP;
-        uidx++;
+        set_0->bindings[bidx].binding_type = SHADER_BINDING_TYPE_SAMPLER;
+        set_0->bindings[bidx].name = kname_create("material standard shadow cascade map samplers");
+        set_0->bindings[bidx].sampler_type = SHADER_SAMPLER_TYPE_2D_ARRAY;
+        set_0->bindings[bidx].array_size = 4;
+        set_0->sampler_count++;
+        bidx++;
 
-        mat_std_shader.uniforms[uidx].name = "material_samplers";
-        mat_std_shader.uniforms[uidx].type = SHADER_UNIFORM_TYPE_SAMPLER;
-        mat_std_shader.uniforms[uidx].array_size = MATERIAL_STANDARD_SAMPLER_COUNT;
-        mat_std_shader.uniforms[uidx].frequency = SHADER_UPDATE_FREQUENCY_PER_GROUP;
-        uidx++;
+        set_0->bindings[bidx].binding_type = SHADER_BINDING_TYPE_TEXTURE;
+        set_0->bindings[bidx].name = kname_create("material standard IBL probe cubemaps");
+        set_0->bindings[bidx].texture_type = SHADER_TEXTURE_TYPE_CUBE;
+        set_0->bindings[bidx].array_size = 4;
+        set_0->texture_count++;
+        bidx++;
 
-        // per_draw
-        mat_std_shader.uniforms[uidx].name = "material_draw_ubo";
-        mat_std_shader.uniforms[uidx].type = SHADER_UNIFORM_TYPE_STRUCT;
-        mat_std_shader.uniforms[uidx].size = sizeof(kmaterial_standard_instance_uniform_data);
-        mat_std_shader.uniforms[uidx].frequency = SHADER_UPDATE_FREQUENCY_PER_DRAW;
-        uidx++;
+        set_0->bindings[bidx].binding_type = SHADER_BINDING_TYPE_SAMPLER;
+        set_0->bindings[bidx].name = kname_create("material standard IBL probe samplers");
+        set_0->bindings[bidx].sampler_type = SHADER_SAMPLER_TYPE_CUBE;
+        set_0->bindings[bidx].array_size = 4;
+        set_0->sampler_count++;
+        bidx++;
+
+        // Set 1
+        shader_binding_set_config* set_1 = &mat_std_shader.binding_sets[1];
+        set_1->max_instance_count = max_material_count;
+
+        set_1->bindings[bidx].binding_type = SHADER_BINDING_TYPE_TEXTURE;
+        set_1->bindings[bidx].name = kname_create("material texture maps");
+        set_1->bindings[bidx].texture_type = SHADER_TEXTURE_TYPE_2D;
+        set_1->bindings[bidx].array_size = 7;
+        set_1->texture_count++;
+        bidx++;
+
+        bidx = 0;
+        set_1->bindings[bidx].binding_type = SHADER_BINDING_TYPE_SAMPLER;
+        set_1->bindings[bidx].name = kname_create("material texture samplers");
+        set_1->bindings[bidx].sampler_type = SHADER_SAMPLER_TYPE_2D;
+        set_1->bindings[bidx].array_size = 7;
+        set_1->sampler_count++;
+        bidx++;
 
         // Serialize
         const char* config_source = kasset_shader_serialize(&mat_std_shader);
@@ -190,30 +208,17 @@ b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material
         // Destroy the temp asset.
         KFREE_TYPE_CARRAY(mat_std_shader.stages, kasset_shader_stage, mat_std_shader.stage_count);
         KFREE_TYPE_CARRAY(mat_std_shader.attributes, kasset_shader_attribute, mat_std_shader.attribute_count);
-        KFREE_TYPE_CARRAY(mat_std_shader.uniforms, kasset_shader_uniform, mat_std_shader.uniform_count);
+        for (u8 bs = 0; bs < mat_std_shader.binding_set_count; ++bs) {
+            KFREE_TYPE_CARRAY(mat_std_shader.binding_sets[bs].bindings, shader_binding_config, mat_std_shader.binding_sets[bs].binding_count);
+        }
+        KFREE_TYPE_CARRAY(mat_std_shader.binding_sets, shader_binding_set_config, mat_std_shader.binding_set_count);
         kzero_memory(&mat_std_shader, sizeof(kasset_shader));
 
         // Create/load the shader from the serialized source.
         out_state->material_standard_shader = kshader_system_get_from_source(mat_std_shader_name, config_source);
-
-        // Save off the shader's uniform locations.
-        {
-            // Per frame
-            out_state->material_standard_locations.material_frame_ubo = kshader_system_uniform_location(out_state->material_standard_shader, kname_create("material_frame_ubo"));
-            out_state->material_standard_locations.shadow_texture = kshader_system_uniform_location(out_state->material_standard_shader, kname_create("shadow_texture"));
-            out_state->material_standard_locations.irradiance_cube_textures = kshader_system_uniform_location(out_state->material_standard_shader, kname_create("irradiance_cube_textures"));
-            out_state->material_standard_locations.shadow_sampler = kshader_system_uniform_location(out_state->material_standard_shader, kname_create("shadow_sampler"));
-            out_state->material_standard_locations.irradiance_sampler = kshader_system_uniform_location(out_state->material_standard_shader, kname_create("irradiance_sampler"));
-
-            // Per group
-            out_state->material_standard_locations.material_textures = kshader_system_uniform_location(out_state->material_standard_shader, kname_create("material_textures"));
-            out_state->material_standard_locations.material_samplers = kshader_system_uniform_location(out_state->material_standard_shader, kname_create("material_samplers"));
-            out_state->material_standard_locations.material_group_ubo = kshader_system_uniform_location(out_state->material_standard_shader, kname_create("material_group_ubo"));
-
-            // Per draw.
-            out_state->material_standard_locations.material_draw_ubo = kshader_system_uniform_location(out_state->material_standard_shader, kname_create("material_draw_ubo"));
-        }
     }
+
+    // LEFTOFF: Define the below shaders similar to the above using binding sets.
 
     // Standard Skinned material shader (skinned meshes).
     {
@@ -227,9 +232,6 @@ b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material
         mat_std_skinned_shader.colour_write = true;
         mat_std_skinned_shader.colour_read = false;
         mat_std_skinned_shader.supports_wireframe = true;
-        mat_std_skinned_shader.cull_mode = FACE_CULL_MODE_BACK;
-        mat_std_skinned_shader.max_groups = max_material_count;
-        mat_std_skinned_shader.max_draw_ids = max_material_instance_count;
         mat_std_skinned_shader.topology_types = PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_LIST_BIT;
 
         mat_std_skinned_shader.stage_count = 2;

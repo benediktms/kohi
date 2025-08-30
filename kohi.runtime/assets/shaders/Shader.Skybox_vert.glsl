@@ -11,15 +11,11 @@ layout(location = 2) in vec2 in_texcoord;
 layout(location = 3) in vec4 in_colour;
 layout(location = 4) in vec4 in_tangent;
 
-// per frame
 layout(set = 0, binding = 0) uniform per_frame_ubo {
 	mat4 view;
     mat4 projection;
 } skybox_frame_ubo;
 
-// per group NOTE: No per-group UBO for this shader
-
-// NOTE: nothing per-draw for this shader 
 
 // =========================================================
 // Outputs

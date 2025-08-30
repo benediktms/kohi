@@ -1,3 +1,7 @@
+/**
+ * FIXME: Remove static state_ptr and require state to be passed in all functions instead.
+ */
+
 #include "renderer_frontend.h"
 
 #include "containers/darray.h"
@@ -263,7 +267,7 @@ b8 renderer_system_initialize(u64* memory_requirement, renderer_system_state* st
     // Geometry vertex buffer
     // TODO: make this configurable.
     const u64 vertex_buffer_size = sizeof(vertex_3d) * 20 * 1024 * 1024;
-    state->geometry_vertex_buffer = renderer_renderbuffer_create(kname_create(KRENDERBUFFER_NAME_GLOBAL_VERTEX), RENDERBUFFER_TYPE_VERTEX, vertex_buffer_size, RENDERBUFFER_TRACK_TYPE_FREELIST);
+    state->geometry_vertex_buffer = renderer_renderbuffer_create(state, kname_create(KRENDERBUFFER_NAME_GLOBAL_VERTEX), RENDERBUFFER_TYPE_VERTEX, vertex_buffer_size, RENDERBUFFER_TRACK_TYPE_FREELIST, RENDERBUFFER_FLAG_NONE);
     if (state->geometry_vertex_buffer == KRENDERBUFFER_INVALID) {
         KERROR("Error creating vertex buffer.");
         return false;
@@ -272,7 +276,7 @@ b8 renderer_system_initialize(u64* memory_requirement, renderer_system_state* st
     // Geometry index buffer
     // TODO: Make this configurable.
     const u64 index_buffer_size = sizeof(u32) * 100 * 1024 * 1024;
-    state->geometry_index_buffer = renderer_renderbuffer_create(kname_create(KRENDERBUFFER_NAME_GLOBAL_INDEX), RENDERBUFFER_TYPE_INDEX, index_buffer_size, RENDERBUFFER_TRACK_TYPE_FREELIST);
+    state->geometry_index_buffer = renderer_renderbuffer_create(state, kname_create(KRENDERBUFFER_NAME_GLOBAL_INDEX), RENDERBUFFER_TYPE_INDEX, index_buffer_size, RENDERBUFFER_TRACK_TYPE_FREELIST, RENDERBUFFER_FLAG_NONE);
     if (state->geometry_index_buffer == KRENDERBUFFER_INVALID) {
         KERROR("Error creating index buffer.");
         return false;
@@ -280,35 +284,23 @@ b8 renderer_system_initialize(u64* memory_requirement, renderer_system_state* st
 
     // Global material storage buffer
     // TODO: Make this configurable.
-    // FIXME: change to not use allocation tracking.
     const u64 material_storage_buffer_size = MEBIBYTES(32);
-    state->global_material_storage_buffer = renderer_renderbuffer_create(kname_create(KRENDERBUFFER_NAME_GLOBAL_MATERIALS), RENDERBUFFER_TYPE_STORAGE, material_storage_buffer_size, RENDERBUFFER_TRACK_TYPE_FREELIST);
-    if (state->global_material_storage_buffer == KRENDERBUFFER_INVALID) {
-        KERROR("Error creating global material storage buffer.");
-        return false;
-    }
+    state->global_material_storage_buffer = renderer_renderbuffer_create(state, kname_create(KRENDERBUFFER_NAME_GLOBAL_MATERIALS), RENDERBUFFER_TYPE_STORAGE, material_storage_buffer_size, RENDERBUFFER_TRACK_TYPE_NONE, RENDERBUFFER_FLAG_AUTO_MAP_MEMORY_BIT);
+    KASSERT(state->global_material_storage_buffer != KRENDERBUFFER_INVALID);
     KDEBUG("Created global material storage buffer.");
 
     // Global lighting storage buffer
     // TODO: Make this configurable.
-    // FIXME: change to not use allocation tracking.
     const u64 lighting_storage_buffer_size = MEBIBYTES(32);
-    state->global_lighting_storage_buffer = renderer_renderbuffer_create(kname_create(KRENDERBUFFER_NAME_GLOBAL_LIGHTING), RENDERBUFFER_TYPE_STORAGE, lighting_storage_buffer_size, RENDERBUFFER_TRACK_TYPE_FREELIST);
-    if (state->global_lighting_storage_buffer == KRENDERBUFFER_INVALID) {
-        KERROR("Error creating global lighting storage buffer.");
-        return false;
-    }
+    state->global_lighting_storage_buffer = renderer_renderbuffer_create(state, kname_create(KRENDERBUFFER_NAME_GLOBAL_LIGHTING), RENDERBUFFER_TYPE_STORAGE, lighting_storage_buffer_size, RENDERBUFFER_TRACK_TYPE_NONE, RENDERBUFFER_FLAG_AUTO_MAP_MEMORY_BIT);
+    KASSERT(state->global_lighting_storage_buffer != KRENDERBUFFER_INVALID);
     KDEBUG("Created global lighting storage buffer.");
 
     // Global transform storage buffer
     // TODO: Make this configurable.
-    // FIXME: change to not use allocation tracking.
     const u64 transform_storage_buffer_size = MEBIBYTES(32);
-    state->global_transform_storage_buffer = renderer_renderbuffer_create(kname_create(KRENDERBUFFER_NAME_GLOBAL_TRANSFORM), RENDERBUFFER_TYPE_STORAGE, transform_storage_buffer_size, RENDERBUFFER_TRACK_TYPE_FREELIST);
-    if (state->global_transform_storage_buffer == KRENDERBUFFER_INVALID) {
-        KERROR("Error creating global transform storage buffer.");
-        return false;
-    }
+    state->global_transform_storage_buffer = renderer_renderbuffer_create(state, kname_create(KRENDERBUFFER_NAME_GLOBAL_TRANSFORM), RENDERBUFFER_TYPE_STORAGE, transform_storage_buffer_size, RENDERBUFFER_TRACK_TYPE_NONE, RENDERBUFFER_FLAG_AUTO_MAP_MEMORY_BIT);
+    KASSERT(state->global_transform_storage_buffer != KRENDERBUFFER_INVALID);
     KDEBUG("Created global transform storage buffer.");
 
     // Call into backend a 'post-initialize' to map these buffers internally, etc.
@@ -322,16 +314,15 @@ b8 renderer_system_initialize(u64* memory_requirement, renderer_system_state* st
 
 void renderer_system_shutdown(renderer_system_state* state) {
     if (state) {
-        renderer_system_state* typed_state = (renderer_system_state*)state;
 
         // renderer_wait_for_idle();
 
         // Destroy buffers.
-        renderer_renderbuffer_destroy(typed_state->geometry_vertex_buffer);
-        renderer_renderbuffer_destroy(typed_state->geometry_index_buffer);
-        renderer_renderbuffer_destroy(typed_state->global_material_storage_buffer);
-        renderer_renderbuffer_destroy(typed_state->global_lighting_storage_buffer);
-        renderer_renderbuffer_destroy(typed_state->global_transform_storage_buffer);
+        renderer_renderbuffer_destroy(state, state->geometry_vertex_buffer);
+        renderer_renderbuffer_destroy(state, state->geometry_index_buffer);
+        renderer_renderbuffer_destroy(state, state->global_material_storage_buffer);
+        renderer_renderbuffer_destroy(state, state->global_lighting_storage_buffer);
+        renderer_renderbuffer_destroy(state, state->global_transform_storage_buffer);
 
         // Destroy generic samplers.
         for (u32 i = 0; i < SHADER_GENERIC_SAMPLER_COUNT; ++i) {
@@ -339,7 +330,7 @@ void renderer_system_shutdown(renderer_system_state* state) {
         }
 
         // Shutdown the plugin
-        typed_state->backend->shutdown(typed_state->backend);
+        state->backend->shutdown(state->backend);
     }
 }
 
@@ -712,7 +703,7 @@ b8 renderer_geometry_upload(kgeometry* g) {
     // Vertex data.
     if (!is_reupload) {
         // Allocate space in the buffer.
-        if (!renderer_renderbuffer_allocate(state_ptr->geometry_vertex_buffer, vertex_size, &g->vertex_buffer_offset)) {
+        if (!renderer_renderbuffer_allocate(state_ptr, state_ptr->geometry_vertex_buffer, vertex_size, &g->vertex_buffer_offset)) {
             KERROR("vulkan_renderer_geometry_upload failed to allocate from the vertex buffer!");
             return false;
         }
@@ -720,7 +711,7 @@ b8 renderer_geometry_upload(kgeometry* g) {
 
     // Load the data.
     // TODO: Passing false here produces a queue wait and should be offloaded to another queue.
-    if (!renderer_renderbuffer_load_range(state_ptr->geometry_vertex_buffer, g->vertex_buffer_offset + vertex_offset, vertex_size, g->vertices + vertex_offset, false)) {
+    if (!renderer_renderbuffer_load_range(state_ptr, state_ptr->geometry_vertex_buffer, g->vertex_buffer_offset + vertex_offset, vertex_size, g->vertices + vertex_offset, false)) {
         KERROR("vulkan_renderer_geometry_upload failed to upload to the vertex buffer!");
         return false;
     }
@@ -729,7 +720,7 @@ b8 renderer_geometry_upload(kgeometry* g) {
     if (index_size) {
         if (!is_reupload) {
             // Allocate space in the buffer.
-            if (!renderer_renderbuffer_allocate(state_ptr->geometry_index_buffer, index_size, &g->index_buffer_offset)) {
+            if (!renderer_renderbuffer_allocate(state_ptr, state_ptr->geometry_index_buffer, index_size, &g->index_buffer_offset)) {
                 KERROR("vulkan_renderer_geometry_upload failed to allocate from the index buffer!");
                 return false;
             }
@@ -737,7 +728,7 @@ b8 renderer_geometry_upload(kgeometry* g) {
 
         // Load the data.
         // TODO: Passing false here produces a queue wait and should be offloaded to another queue.
-        if (!renderer_renderbuffer_load_range(state_ptr->geometry_index_buffer, g->index_buffer_offset + index_offset, index_size, g->indices + index_offset, false)) {
+        if (!renderer_renderbuffer_load_range(state_ptr, state_ptr->geometry_index_buffer, g->index_buffer_offset + index_offset, index_size, g->indices + index_offset, false)) {
             KERROR("vulkan_renderer_geometry_upload failed to upload to the index buffer!");
             return false;
         }
@@ -752,7 +743,7 @@ void renderer_geometry_vertex_update(kgeometry* g, u32 offset, u32 vertex_count,
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
     // Load the data.
     u32 size = g->vertex_element_size * vertex_count;
-    if (!renderer_renderbuffer_load_range(state_ptr->geometry_vertex_buffer, g->vertex_buffer_offset + offset, size, vertices + offset, include_in_frame_workload)) {
+    if (!renderer_renderbuffer_load_range(state_ptr, state_ptr->geometry_vertex_buffer, g->vertex_buffer_offset + offset, size, vertices + offset, include_in_frame_workload)) {
         KERROR("vulkan_renderer_geometry_vertex_update failed to upload to the vertex buffer!");
     }
 }
@@ -764,7 +755,7 @@ void renderer_geometry_destroy(kgeometry* g) {
         // Free vertex data
         u64 vertex_data_size = g->vertex_element_size * g->vertex_count;
         if (vertex_data_size) {
-            if (!renderer_renderbuffer_free(state_ptr->geometry_vertex_buffer, vertex_data_size, g->vertex_buffer_offset)) {
+            if (!renderer_renderbuffer_free(state_ptr, state_ptr->geometry_vertex_buffer, vertex_data_size, g->vertex_buffer_offset)) {
                 KERROR("vulkan_renderer_destroy_geometry failed to free vertex buffer range.");
             }
         }
@@ -772,7 +763,7 @@ void renderer_geometry_destroy(kgeometry* g) {
         // Free index data, if applicable
         u64 index_data_size = g->index_element_size * g->index_count;
         if (index_data_size) {
-            if (!renderer_renderbuffer_free(state_ptr->geometry_index_buffer, index_data_size, g->index_buffer_offset)) {
+            if (!renderer_renderbuffer_free(state_ptr, state_ptr->geometry_index_buffer, index_data_size, g->index_buffer_offset)) {
                 KERROR("vulkan_renderer_destroy_geometry failed to free index buffer range.");
             }
         }
@@ -787,13 +778,13 @@ void renderer_geometry_destroy(kgeometry* g) {
 void renderer_geometry_draw(geometry_render_data* data) {
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
     b8 includes_index_data = data->index_count > 0;
-    if (!renderer_renderbuffer_draw(state_ptr->geometry_vertex_buffer, data->vertex_buffer_offset, data->vertex_count, includes_index_data)) {
+    if (!renderer_renderbuffer_draw(state_ptr, state_ptr->geometry_vertex_buffer, data->vertex_buffer_offset, data->vertex_count, includes_index_data)) {
         KERROR("vulkan_renderer_draw_geometry failed to draw vertex buffer;");
         return;
     }
 
     if (includes_index_data) {
-        if (!renderer_renderbuffer_draw(state_ptr->geometry_index_buffer, data->index_buffer_offset, data->index_count, !includes_index_data)) {
+        if (!renderer_renderbuffer_draw(state_ptr, state_ptr->geometry_index_buffer, data->index_buffer_offset, data->index_count, !includes_index_data)) {
             KERROR("vulkan_renderer_draw_geometry failed to draw index buffer;");
             return;
         }
@@ -856,8 +847,35 @@ void renderer_texture_prepare_for_sampling(struct renderer_system_state* state, 
     KERROR("renderer_texture_prepare_for_sampling requires a valid handle to a texture. Nothing was done.");
 }
 
-b8 renderer_shader_create(struct renderer_system_state* state, kshader shader, kname name, shader_flags flags, u32 topology_types, face_cull_mode cull_mode, u32 stage_count, shader_stage* stages, kname* stage_names, const char** stage_sources, u32 max_groups, u32 max_draw_ids, u32 attribute_count, const shader_attribute* attributes, u32 uniform_count, const shader_uniform* d_uniforms) {
-    return state->backend->shader_create(state->backend, shader, name, flags, topology_types, cull_mode, stage_count, stages, stage_names, stage_sources, max_groups, max_draw_ids, attribute_count, attributes, uniform_count, d_uniforms);
+b8 renderer_shader_create(
+    struct renderer_system_state* state,
+    kshader shader,
+    kname name,
+    shader_flags flags,
+    u32 topology_types,
+    u32 stage_count,
+    shader_stage* stages,
+    kname* stage_names,
+    const char** stage_sources,
+    u32 attribute_count,
+    const shader_attribute* attributes,
+    u8 binding_set_count,
+    const shader_binding_set_config* binding_sets) {
+
+    return state->backend->shader_create(
+        state->backend,
+        shader,
+        name,
+        flags,
+        topology_types,
+        stage_count,
+        stages,
+        stage_names,
+        stage_sources,
+        attribute_count,
+        attributes,
+        binding_set_count,
+        binding_sets);
 }
 
 void renderer_shader_destroy(struct renderer_system_state* state, kshader shader) {
@@ -884,49 +902,46 @@ void renderer_shader_flag_set(struct renderer_system_state* state, kshader shade
     state->backend->shader_flag_set(state->backend, shader, flag, enabled);
 }
 
-b8 renderer_shader_bind_per_frame(struct renderer_system_state* state, kshader shader) {
-    return state->backend->shader_bind_per_frame(state->backend, shader);
+void renderer_shader_set_immediate_data(struct renderer_system_state* state, kshader shader, void* data, u8 size) {
+    KASSERT_DEBUG(state);
+    KASSERT_DEBUG(data);
+    KASSERT_DEBUG(size);
+    KASSERT_DEBUG(shader != KSHADER_INVALID);
+    KASSERT_DEBUG(state->backend->shader_set_immediate_data(state->backend, shader, data, size));
 }
 
-b8 renderer_shader_bind_per_group(struct renderer_system_state* state, kshader shader, u32 group_id) {
-    return state->backend->shader_bind_per_group(state->backend, shader, group_id);
+void renderer_shader_set_binding_data(struct renderer_system_state* state, kshader shader, u8 binding_set, u32 instance_id, u8 binding_index, u64 offset, void* data, u64 size) {
+    KASSERT_DEBUG(state);
+    KASSERT_DEBUG(data);
+    KASSERT_DEBUG(size);
+    KASSERT_DEBUG(shader != KSHADER_INVALID);
+    KASSERT_DEBUG(state->backend->shader_set_binding_data(state->backend, shader, binding_set, instance_id, binding_index, offset, data, size));
 }
 
-b8 renderer_shader_bind_per_draw(struct renderer_system_state* state, kshader shader, u32 draw_id) {
-    return state->backend->shader_bind_per_draw(state->backend, shader, draw_id);
+void renderer_shader_set_binding_texture(struct renderer_system_state* state, kshader shader, u8 binding_set, u32 instance_id, u8 binding_index, u8 array_index, ktexture texture) {
+    KASSERT_DEBUG(state);
+    KASSERT_DEBUG(texture != INVALID_KTEXTURE);
+    KASSERT_DEBUG(shader != KSHADER_INVALID);
+    KASSERT_DEBUG(state->backend->shader_set_binding_texture(state->backend, shader, binding_set, instance_id, binding_index, array_index, texture));
 }
 
-b8 renderer_shader_apply_per_frame(struct renderer_system_state* state, kshader shader) {
-    return state->backend->shader_apply_per_frame(state->backend, shader, state->frame_number);
+void renderer_shader_set_binding_sampler(struct renderer_system_state* state, kshader shader, u8 binding_set, u32 instance_id, u8 binding_index, u8 array_index, ksampler_backend sampler) {
+    KASSERT_DEBUG(state);
+    KASSERT_DEBUG(sampler != KSAMPLER_BACKEND_INVALID);
+    KASSERT_DEBUG(shader != KSHADER_INVALID);
+    KASSERT_DEBUG(state->backend->shader_set_binding_sampler(state->backend, shader, binding_set, instance_id, binding_index, array_index, sampler));
 }
 
-b8 renderer_shader_apply_per_group(struct renderer_system_state* state, kshader shader) {
-    return state->backend->shader_apply_per_group(state->backend, shader, state->frame_number);
+u32 renderer_shader_acquire_binding_set_instance(struct renderer_system_state* state, kshader shader, u8 binding_set) {
+    KASSERT_DEBUG(state);
+    KASSERT_DEBUG(shader != KSHADER_INVALID);
+    return state->backend->shader_acquire_binding_set_instance(state->backend, shader, binding_set);
 }
 
-b8 renderer_shader_apply_per_draw(struct renderer_system_state* state, kshader shader) {
-    return state->backend->shader_apply_per_draw(state->backend, shader, state->frame_number);
-}
-
-b8 renderer_shader_per_group_resources_acquire(struct renderer_system_state* state, kshader shader, u32* out_group_id) {
-    return state->backend->shader_per_group_resources_acquire(state->backend, shader, out_group_id);
-}
-
-b8 renderer_shader_per_group_resources_release(struct renderer_system_state* state, kshader shader, u32 group_id) {
-    return state->backend->shader_per_group_resources_release(state->backend, shader, group_id);
-}
-
-b8 renderer_shader_per_draw_resources_acquire(struct renderer_system_state* state, kshader shader, u32* out_draw_id) {
-    return state->backend->shader_per_draw_resources_acquire(state->backend, shader, out_draw_id);
-}
-
-b8 renderer_shader_per_draw_resources_release(struct renderer_system_state* state, kshader shader, u32 draw_id) {
-    return state->backend->shader_per_draw_resources_release(state->backend, shader, draw_id);
-}
-
-b8 renderer_shader_uniform_set(struct renderer_system_state* state, kshader shader, shader_uniform* uniform, u32 array_index, const void* value) {
-    renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
-    return state_ptr->backend->shader_uniform_set(state_ptr->backend, shader, uniform, array_index, value);
+void renderer_shader_release_binding_set_instance(struct renderer_system_state* state, kshader shader, u8 binding_set, u32 instance_id) {
+    KASSERT_DEBUG(state);
+    KASSERT_DEBUG(shader != KSHADER_INVALID);
+    state->backend->shader_release_binding_set_instance(state->backend, shader, binding_set, instance_id);
 }
 
 ksampler_backend renderer_generic_sampler_get(struct renderer_system_state* state, shader_generic_sampler sampler) {
@@ -973,8 +988,7 @@ f32 renderer_max_anisotropy_get(void) {
     return state_ptr->backend->max_anisotropy_get(state_ptr->backend);
 }
 
-krenderbuffer renderer_renderbuffer_create(kname name, renderbuffer_type type, u64 total_size, renderbuffer_track_type track_type) {
-    renderer_system_state* state = engine_systems_get()->renderer_system;
+krenderbuffer renderer_renderbuffer_create(struct renderer_system_state* state, kname name, renderbuffer_type type, u64 total_size, renderbuffer_track_type track_type, renderbuffer_flags flags) {
 
     // Look for a free slot or create a new one.
     krenderbuffer out_handle = KRENDERBUFFER_INVALID;
@@ -1009,7 +1023,7 @@ krenderbuffer renderer_renderbuffer_create(kname name, renderbuffer_type type, u
     }
 
     // Create the internal buffer from the backend.
-    if (!state->backend->renderbuffer_internal_create(state->backend, name, total_size, type, out_handle)) {
+    if (!state->backend->renderbuffer_create(state->backend, name, total_size, type, out_handle, flags)) {
         KFATAL("Unable to create backing buffer for renderbuffer. Application cannot continue.");
         return false;
     }
@@ -1020,8 +1034,7 @@ krenderbuffer renderer_renderbuffer_create(kname name, renderbuffer_type type, u
     return out_handle;
 }
 
-void renderer_renderbuffer_destroy(krenderbuffer handle) {
-    renderer_system_state* state = engine_systems_get()->renderer_system;
+void renderer_renderbuffer_destroy(struct renderer_system_state* state, krenderbuffer handle) {
     if (handle == KRENDERBUFFER_INVALID) {
         KERROR("%s - Called with invalid handle.", __FUNCTION__);
         return;
@@ -1047,47 +1060,44 @@ void renderer_renderbuffer_destroy(krenderbuffer handle) {
     buffer->delete_queue = 0;
 
     // Free up the backend resources.
-    state->backend->renderbuffer_internal_destroy(state->backend, handle);
+    state->backend->renderbuffer_destroy(state->backend, handle);
 }
 
-b8 renderer_renderbuffer_bind(krenderbuffer buffer, u64 offset) {
-    renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
+b8 renderer_renderbuffer_bind(struct renderer_system_state* state, krenderbuffer buffer, u64 offset) {
     if (buffer == KRENDERBUFFER_INVALID) {
         KERROR("renderer_renderbuffer_bind requires a valid buffer.");
         return false;
     }
 
-    return state_ptr->backend->renderbuffer_bind(state_ptr->backend, buffer, offset);
+    return state->backend->renderbuffer_bind(state->backend, buffer, offset);
 }
 
-b8 renderer_renderbuffer_unbind(krenderbuffer buffer) {
-    renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
-    return state_ptr->backend->renderbuffer_unbind(state_ptr->backend, buffer);
+b8 renderer_renderbuffer_unbind(struct renderer_system_state* state, krenderbuffer buffer) {
+    return state->backend->renderbuffer_unbind(state->backend, buffer);
 }
 
-void* renderer_renderbuffer_map_memory(krenderbuffer buffer, u64 offset, u64 size) {
-    renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
-    return state_ptr->backend->renderbuffer_map_memory(state_ptr->backend, buffer, offset, size);
+void* renderer_renderbuffer_map_memory(struct renderer_system_state* state, krenderbuffer buffer, u64 offset, u64 size) {
+    return state->backend->renderbuffer_map_memory(state->backend, buffer, offset, size);
 }
 
-void renderer_renderbuffer_unmap_memory(krenderbuffer buffer, u64 offset, u64 size) {
-    renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
-    state_ptr->backend->renderbuffer_unmap_memory(state_ptr->backend, buffer, offset, size);
+void renderer_renderbuffer_unmap_memory(struct renderer_system_state* state, krenderbuffer buffer, u64 offset, u64 size) {
+    state->backend->renderbuffer_unmap_memory(state->backend, buffer, offset, size);
 }
 
-b8 renderer_renderbuffer_flush(krenderbuffer buffer, u64 offset, u64 size) {
-    renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
-    return state_ptr->backend->renderbuffer_flush(state_ptr->backend, buffer, offset, size);
+void* renderer_renderbuffer_get_mapped_memory(struct renderer_system_state* state, krenderbuffer buffer) {
+    return state->backend->renderbuffer_get_mapped_memory(state->backend, buffer);
 }
 
-b8 renderer_renderbuffer_read(krenderbuffer buffer, u64 offset, u64 size, void** out_memory) {
-    renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
-    return state_ptr->backend->renderbuffer_read(state_ptr->backend, buffer, offset, size, out_memory);
+b8 renderer_renderbuffer_flush(struct renderer_system_state* state, krenderbuffer buffer, u64 offset, u64 size) {
+    return state->backend->renderbuffer_flush(state->backend, buffer, offset, size);
 }
 
-b8 renderer_renderbuffer_resize(krenderbuffer handle, u64 new_total_size) {
-    renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
-    krenderbuffer_data* buffer = &state_ptr->renderbuffers[handle];
+b8 renderer_renderbuffer_read(struct renderer_system_state* state, krenderbuffer buffer, u64 offset, u64 size, void** out_memory) {
+    return state->backend->renderbuffer_read(state->backend, buffer, offset, size, out_memory);
+}
+
+b8 renderer_renderbuffer_resize(struct renderer_system_state* state, krenderbuffer handle, u64 new_total_size) {
+    krenderbuffer_data* buffer = &state->renderbuffers[handle];
 
     // Sanity check.
     if (new_total_size <= buffer->total_size) {
@@ -1113,7 +1123,7 @@ b8 renderer_renderbuffer_resize(krenderbuffer handle, u64 new_total_size) {
         buffer->freelist_block = new_block;
     }
 
-    b8 result = state_ptr->backend->renderbuffer_resize(state_ptr->backend, handle, new_total_size);
+    b8 result = state->backend->renderbuffer_resize(state->backend, handle, new_total_size);
     if (result) {
         buffer->total_size = new_total_size;
     } else {
@@ -1122,9 +1132,8 @@ b8 renderer_renderbuffer_resize(krenderbuffer handle, u64 new_total_size) {
     return result;
 }
 
-b8 renderer_renderbuffer_allocate(krenderbuffer handle, u64 size, u64* out_offset) {
-    renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
-    krenderbuffer_data* buffer = &state_ptr->renderbuffers[handle];
+b8 renderer_renderbuffer_allocate(struct renderer_system_state* state, krenderbuffer handle, u64 size, u64* out_offset) {
+    krenderbuffer_data* buffer = &state->renderbuffers[handle];
     if (!buffer || !size || !out_offset) {
         KERROR("renderer_renderbuffer_allocate requires valid buffer, a nonzero size and valid pointer to hold offset.");
         return false;
@@ -1143,9 +1152,8 @@ b8 renderer_renderbuffer_allocate(krenderbuffer handle, u64 size, u64* out_offse
     return freelist_allocate_block(&buffer->buffer_freelist, size, out_offset);
 }
 
-b8 renderer_renderbuffer_free(krenderbuffer handle, u64 size, u64 offset) {
-    renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
-    krenderbuffer_data* buffer = &state_ptr->renderbuffers[handle];
+b8 renderer_renderbuffer_free(struct renderer_system_state* state, krenderbuffer handle, u64 size, u64 offset) {
+    krenderbuffer_data* buffer = &state->renderbuffers[handle];
     if (!buffer || !size) {
         KERROR("renderer_renderbuffer_free requires valid buffer and a nonzero size.");
         return false;
@@ -1187,9 +1195,8 @@ b8 renderer_renderbuffer_free(krenderbuffer handle, u64 size, u64 offset) {
     return true;
 }
 
-b8 renderer_renderbuffer_clear(krenderbuffer handle, b8 zero_memory) {
-    renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
-    krenderbuffer_data* buffer = &state_ptr->renderbuffers[handle];
+b8 renderer_renderbuffer_clear(struct renderer_system_state* state, krenderbuffer handle, b8 zero_memory) {
+    krenderbuffer_data* buffer = &state->renderbuffers[handle];
     if (!buffer) {
         KERROR("renderer_renderbuffer_clear requires valid buffer and a nonzero size.");
         return false;
@@ -1213,26 +1220,22 @@ b8 renderer_renderbuffer_clear(krenderbuffer handle, b8 zero_memory) {
     return true;
 }
 
-b8 renderer_renderbuffer_load_range(krenderbuffer buffer, u64 offset, u64 size, const void* data, b8 include_in_frame_workload) {
-    renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
-    return state_ptr->backend->renderbuffer_load_range(state_ptr->backend, buffer, offset, size, data, include_in_frame_workload);
+b8 renderer_renderbuffer_load_range(struct renderer_system_state* state, krenderbuffer buffer, u64 offset, u64 size, const void* data, b8 include_in_frame_workload) {
+    return state->backend->renderbuffer_load_range(state->backend, buffer, offset, size, data, include_in_frame_workload);
 }
 
-b8 renderer_renderbuffer_copy_range(krenderbuffer source, u64 source_offset, krenderbuffer dest, u64 dest_offset, u64 size, b8 include_in_frame_workload) {
-    renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
-    return state_ptr->backend->renderbuffer_copy_range(state_ptr->backend, source, source_offset, dest, dest_offset, size, include_in_frame_workload);
+b8 renderer_renderbuffer_copy_range(struct renderer_system_state* state, krenderbuffer source, u64 source_offset, krenderbuffer dest, u64 dest_offset, u64 size, b8 include_in_frame_workload) {
+    return state->backend->renderbuffer_copy_range(state->backend, source, source_offset, dest, dest_offset, size, include_in_frame_workload);
 }
 
-b8 renderer_renderbuffer_draw(krenderbuffer buffer, u64 offset, u32 element_count, b8 bind_only) {
-    renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
-    return state_ptr->backend->renderbuffer_draw(state_ptr->backend, buffer, offset, element_count, bind_only);
+b8 renderer_renderbuffer_draw(struct renderer_system_state* state, krenderbuffer buffer, u64 offset, u32 element_count, b8 bind_only) {
+    return state->backend->renderbuffer_draw(state->backend, buffer, offset, element_count, bind_only);
 }
 
-krenderbuffer renderer_renderbuffer_get(kname name) {
-    renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
-    u16 len = darray_length(state_ptr->renderbuffers);
+krenderbuffer renderer_renderbuffer_get(struct renderer_system_state* state, kname name) {
+    u16 len = darray_length(state->renderbuffers);
     for (u16 i = 0; i < len; ++i) {
-        if (state_ptr->renderbuffers[i].name == name) {
+        if (state->renderbuffers[i].name == name) {
             return (krenderbuffer)i;
         }
     }

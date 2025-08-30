@@ -358,6 +358,21 @@ i32 string_format_v_unsafe(char* dest, const char* format, void* va_listp) {
     return -1;
 }
 
+i32 string_nformat(char* dest, u32 max_len, const char* format, ...) {
+    __builtin_va_list arg_ptr;
+    va_start(arg_ptr, format);
+    i32 written = string_nformat_v(dest, max_len, format, arg_ptr);
+    va_end(arg_ptr);
+    return written;
+}
+
+i32 string_nformat_v(char* dest, u32 max_len, const char* format, void* va_listp) {
+    if (dest) {
+        return vsnprintf(dest, max_len, format, va_listp);
+    }
+    return -1;
+}
+
 char* string_empty(char* str) {
     if (str) {
         str[0] = 0;

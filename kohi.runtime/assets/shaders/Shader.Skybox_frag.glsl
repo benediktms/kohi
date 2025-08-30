@@ -4,16 +4,13 @@
 // Inputs
 // =========================================================
 
-// per frame
 layout(set = 0, binding = 0) uniform per_frame_ubo {
     mat4 view;
     mat4 projection;
 } skybox_frame_ubo;
 
-// per group NOTE: No per-group UBO for this shader
-layout(set = 1, binding = 0) uniform textureCube cube_texture;
-layout(set = 1, binding = 1) uniform sampler cube_sampler;
-// per group NOTE: No per-group UBO for this shader
+layout(set = 0, binding = 0) uniform textureCube cube_texture;
+layout(set = 0, binding = 1) uniform sampler cube_sampler;
 
 // Data Transfer Object from vertex shader.
 layout(location = 0) in dto {

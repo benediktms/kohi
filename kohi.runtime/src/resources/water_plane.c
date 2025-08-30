@@ -56,24 +56,26 @@ b8 water_plane_load(water_plane* plane) {
         // FIXME: Make this configurable.
         plane->material = kmaterial_system_get_default_water(engine_systems_get()->material_system);
 
-        krenderbuffer vertex_buffer = renderer_renderbuffer_get(kname_create(KRENDERBUFFER_NAME_GLOBAL_VERTEX));
-        krenderbuffer index_buffer = renderer_renderbuffer_get(kname_create(KRENDERBUFFER_NAME_GLOBAL_INDEX));
+        struct renderer_system_state* renderer_system = engine_systems_get()->renderer_system;
+
+        krenderbuffer vertex_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_GLOBAL_VERTEX));
+        krenderbuffer index_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_GLOBAL_INDEX));
         // Allocate space
-        if (!renderer_renderbuffer_allocate(vertex_buffer, sizeof(water_plane_vertex) * 4, &plane->vertex_buffer_offset)) {
+        if (!renderer_renderbuffer_allocate(renderer_system, vertex_buffer, sizeof(water_plane_vertex) * 4, &plane->vertex_buffer_offset)) {
             KERROR("Failed to allocate space in vertex buffer.");
             return false;
         }
-        if (!renderer_renderbuffer_allocate(index_buffer, sizeof(u32) * 6, &plane->index_buffer_offset)) {
+        if (!renderer_renderbuffer_allocate(renderer_system, index_buffer, sizeof(u32) * 6, &plane->index_buffer_offset)) {
             KERROR("Failed to allocate space in index buffer.");
             return false;
         }
 
         // Load data
-        if (!renderer_renderbuffer_load_range(vertex_buffer, plane->vertex_buffer_offset, sizeof(water_plane_vertex) * 4, plane->vertices, false)) {
+        if (!renderer_renderbuffer_load_range(renderer_system, vertex_buffer, plane->vertex_buffer_offset, sizeof(water_plane_vertex) * 4, plane->vertices, false)) {
             KERROR("Failed to load data into vertex buffer.");
             return false;
         }
-        if (!renderer_renderbuffer_load_range(index_buffer, plane->index_buffer_offset, sizeof(u32) * 6, plane->indices, false)) {
+        if (!renderer_renderbuffer_load_range(renderer_system, index_buffer, plane->index_buffer_offset, sizeof(u32) * 6, plane->indices, false)) {
             KERROR("Failed to load data into index buffer.");
             return false;
         }
@@ -86,14 +88,16 @@ b8 water_plane_load(water_plane* plane) {
 b8 water_plane_unload(water_plane* plane) {
     if (plane) {
 
-        krenderbuffer vertex_buffer = renderer_renderbuffer_get(kname_create(KRENDERBUFFER_NAME_GLOBAL_VERTEX));
-        krenderbuffer index_buffer = renderer_renderbuffer_get(kname_create(KRENDERBUFFER_NAME_GLOBAL_INDEX));
+        struct renderer_system_state* renderer_system = engine_systems_get()->renderer_system;
+
+        krenderbuffer vertex_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_GLOBAL_VERTEX));
+        krenderbuffer index_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_GLOBAL_INDEX));
         // Free space
-        if (!renderer_renderbuffer_free(vertex_buffer, sizeof(water_plane_vertex) * 4, plane->vertex_buffer_offset)) {
+        if (!renderer_renderbuffer_free(renderer_system, vertex_buffer, sizeof(water_plane_vertex) * 4, plane->vertex_buffer_offset)) {
             KERROR("Failed to free space in vertex buffer.");
             return false;
         }
-        if (!renderer_renderbuffer_free(index_buffer, sizeof(u32) * 6, plane->index_buffer_offset)) {
+        if (!renderer_renderbuffer_free(renderer_system, index_buffer, sizeof(u32) * 6, plane->index_buffer_offset)) {
             KERROR("Failed to allfreeocate space in index buffer.");
             return false;
         }

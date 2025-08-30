@@ -10,7 +10,6 @@
  */
 #pragma once
 
-#include "assets/kasset_types.h"
 #include "defines.h"
 #include "strings/kname.h"
 
@@ -221,7 +220,7 @@ KAPI void vfs_asset_data_cleanup(vfs_asset_data* data);
 #if KOHI_HOT_RELOAD
 /**
  * @brief Watches a given asset for on-disk updates. Only available when hot-reloading of assets is enabled.
- * 
+ *
  * @param state A pointer to the VFS state.
  * @param asset_name The name of the asset to watch.
  * @param package_name The name of the package containing the asset.
@@ -232,7 +231,7 @@ KAPI u32 vfs_asset_watch(vfs_state* state, kname asset_name, kname package_name,
 
 /**
  * @brief Unwatches an asset with the given id.
- * 
+ *
  * @param state A pointer to the VFS state.
  * @param watch_id The id of the watch to stop.
  * @return True if successful; otherwise false.

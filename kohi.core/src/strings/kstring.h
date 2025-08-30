@@ -166,7 +166,7 @@ KAPI char* string_format_v(const char* format, void* va_list);
  * @param ... The format arguments.
  * @returns The length of the newly-formatted string.
  */
-KDEPRECATED("This version of string format is legacy, and unsafe. Use string_format() instead.")
+KDEPRECATED("This version of string format is legacy, and unsafe. Use string_nformat() or string_format() instead.")
 KAPI i32 string_format_unsafe(char* dest, const char* format, ...);
 
 /**
@@ -178,8 +178,30 @@ KAPI i32 string_format_unsafe(char* dest, const char* format, ...);
  * @param va_list The variadic argument list.
  * @returns The size of the data written.
  */
-KDEPRECATED("This version of string format variadic is legacy, and unsafe. Use string_format_v() instead.")
+KDEPRECATED("This version of string format variadic is legacy, and unsafe. Use string_nformat_v() or string_format_v() instead.")
 KAPI i32 string_format_v_unsafe(char* dest, const char* format, void* va_list);
+
+/**
+ * @brief Performs string formatting to dest given format string up to max_len length in bytes and parameters.
+ *
+ * @param dest A pointer to the destination buffer. Must be at least max_len large.
+ * @param max_len The maximum number of bytes to be output.
+ * @param format The string to be formatted.
+ * @param ... The format arguments.
+ * @returns The size of the data written. -1 if failed.
+ */
+i32 string_nformat(char* dest, u32 max_len, const char* format, ...);
+
+/**
+ * @brief Performs variadic string formatting to dest given format string up to max_len length in bytes and va_list.
+ *
+ * @param dest A pointer to the destination buffer. Must be at least max_len large.
+ * @param max_len The maximum number of bytes to be output.
+ * @param format The string to be formatted.
+ * @param va_list The variadic argument list.
+ * @returns The size of the data written. -1 if failed.
+ */
+i32 string_nformat_v(char* dest, u32 max_len, const char* format, void* va_list);
 
 /**
  * @brief Empties the provided string by setting the first character to 0.

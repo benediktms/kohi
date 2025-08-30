@@ -362,22 +362,6 @@ typedef struct kasset_shader_attribute {
 } kasset_shader_attribute;
 
 /**
- * @brief Represents a shader uniform within a shader asset.
- */
-typedef struct kasset_shader_uniform {
-    /** @brief The uniform name */
-    const char* name;
-    /** @brief The uniform type. */
-    shader_uniform_type type;
-    /** @brief The uniform size. Only used for struct type uniforms, ignored otherwise. */
-    u32 size;
-    /** @brief The number of elements for array uniforms. Treated as an array if > 1. */
-    u32 array_size;
-    /** @brief The uniform update frequency (i.e. per-frame, per-group, per-draw) */
-    shader_update_frequency frequency;
-} kasset_shader_uniform;
-
-/**
  * @brief Represents a shader asset, typically loaded from disk.
  */
 typedef struct kasset_shader {
@@ -392,19 +376,14 @@ typedef struct kasset_shader {
     b8 supports_wireframe;
     primitive_topology_types topology_types;
 
-    face_cull_mode cull_mode;
-
-    u16 max_groups;
-    u16 max_draw_ids;
-
-    u32 stage_count;
+    u8 stage_count;
     kasset_shader_stage* stages;
 
-    u32 attribute_count;
+    u8 attribute_count;
     kasset_shader_attribute* attributes;
 
-    u32 uniform_count;
-    kasset_shader_uniform* uniforms;
+    u8 binding_set_count;
+    shader_binding_set_config* binding_sets;
 } kasset_shader;
 
 #define KASSET_TYPE_NAME_SYSTEM_FONT "SystemFont"

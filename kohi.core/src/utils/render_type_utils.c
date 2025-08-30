@@ -8,30 +8,6 @@
 #include "math/math_types.h"
 #include "strings/kstring.h"
 
-b8 uniform_type_is_sampler(shader_uniform_type type) {
-    switch (type) {
-    case SHADER_UNIFORM_TYPE_SAMPLER:
-        return true;
-    default:
-        return false;
-    }
-}
-
-b8 uniform_type_is_texture(shader_uniform_type type) {
-    switch (type) {
-    case SHADER_UNIFORM_TYPE_TEXTURE_1D:
-    case SHADER_UNIFORM_TYPE_TEXTURE_2D:
-    case SHADER_UNIFORM_TYPE_TEXTURE_3D:
-    case SHADER_UNIFORM_TYPE_TEXTURE_CUBE:
-    case SHADER_UNIFORM_TYPE_TEXTURE_1D_ARRAY:
-    case SHADER_UNIFORM_TYPE_TEXTURE_2D_ARRAY:
-    case SHADER_UNIFORM_TYPE_TEXTURE_CUBE_ARRAY:
-        return true;
-    default:
-        return false;
-    }
-}
-
 const char* texture_repeat_to_string(texture_repeat repeat) {
     switch (repeat) {
     case TEXTURE_REPEAT_REPEAT:
@@ -112,105 +88,6 @@ texture_channel string_to_texture_channel(const char* str) {
     } else {
         KERROR("Texture channel not supported: '%s'. Defaulting to TEXTURE_CHANNEL_R.", str);
         return TEXTURE_CHANNEL_R;
-    }
-}
-
-const char* shader_uniform_type_to_string(shader_uniform_type type) {
-    switch (type) {
-    case SHADER_UNIFORM_TYPE_FLOAT32:
-        return "f32";
-    case SHADER_UNIFORM_TYPE_FLOAT32_2:
-        return "vec2";
-    case SHADER_UNIFORM_TYPE_FLOAT32_3:
-        return "vec3";
-    case SHADER_UNIFORM_TYPE_FLOAT32_4:
-        return "vec4";
-    case SHADER_UNIFORM_TYPE_INT8:
-        return "i8";
-    case SHADER_UNIFORM_TYPE_INT16:
-        return "i16";
-    case SHADER_UNIFORM_TYPE_INT32:
-        return "i32";
-    case SHADER_UNIFORM_TYPE_UINT8:
-        return "u8";
-    case SHADER_UNIFORM_TYPE_UINT16:
-        return "u16";
-    case SHADER_UNIFORM_TYPE_UINT32:
-        return "u32";
-    case SHADER_UNIFORM_TYPE_MATRIX_4:
-        return "mat4";
-    case SHADER_UNIFORM_TYPE_STRUCT:
-        return "struct";
-    case SHADER_UNIFORM_TYPE_TEXTURE_1D:
-        return "texture1d";
-    case SHADER_UNIFORM_TYPE_TEXTURE_2D:
-        return "texture2d";
-    case SHADER_UNIFORM_TYPE_TEXTURE_3D:
-        return "texture3d";
-    case SHADER_UNIFORM_TYPE_TEXTURE_1D_ARRAY:
-        return "texture1dArray";
-    case SHADER_UNIFORM_TYPE_TEXTURE_2D_ARRAY:
-        return "texture2dArray";
-    case SHADER_UNIFORM_TYPE_TEXTURE_CUBE:
-        return "textureCube";
-    case SHADER_UNIFORM_TYPE_TEXTURE_CUBE_ARRAY:
-        return "textureCubeArray";
-    case SHADER_UNIFORM_TYPE_SAMPLER:
-        return "sampler";
-    case SHADER_UNIFORM_TYPE_CUSTOM:
-        return "custom";
-    default:
-        KASSERT_MSG(false, "Unrecognized uniform type.");
-        return 0;
-    }
-}
-
-shader_uniform_type string_to_shader_uniform_type(const char* str) {
-    if (strings_equali("f32", str)) {
-        return SHADER_UNIFORM_TYPE_FLOAT32;
-    } else if (strings_equali("vec2", str)) {
-        return SHADER_UNIFORM_TYPE_FLOAT32_2;
-    } else if (strings_equali("vec3", str)) {
-        return SHADER_UNIFORM_TYPE_FLOAT32_3;
-    } else if (strings_equali("vec4", str)) {
-        return SHADER_UNIFORM_TYPE_FLOAT32_4;
-    } else if (strings_equali("i8", str)) {
-        return SHADER_UNIFORM_TYPE_INT8;
-    } else if (strings_equali("i16", str)) {
-        return SHADER_UNIFORM_TYPE_INT16;
-    } else if (strings_equali("i32", str)) {
-        return SHADER_UNIFORM_TYPE_INT32;
-    } else if (strings_equali("u8", str)) {
-        return SHADER_UNIFORM_TYPE_UINT8;
-    } else if (strings_equali("u16", str)) {
-        return SHADER_UNIFORM_TYPE_UINT16;
-    } else if (strings_equali("u32", str)) {
-        return SHADER_UNIFORM_TYPE_UINT32;
-    } else if (strings_equali("mat4", str)) {
-        return SHADER_UNIFORM_TYPE_MATRIX_4;
-    } else if (strings_equali("texture1d", str)) {
-        return SHADER_UNIFORM_TYPE_TEXTURE_1D;
-    } else if (strings_equali("texture2d", str) || strings_equali("texture", str)) {
-        return SHADER_UNIFORM_TYPE_TEXTURE_2D;
-    } else if (strings_equali("texture3d", str)) {
-        return SHADER_UNIFORM_TYPE_TEXTURE_3D;
-    } else if (strings_equali("texture1dArray", str)) {
-        return SHADER_UNIFORM_TYPE_TEXTURE_1D_ARRAY;
-    } else if (strings_equali("texture2dArray", str)) {
-        return SHADER_UNIFORM_TYPE_TEXTURE_2D_ARRAY;
-    } else if (strings_equali("textureCube", str)) {
-        return SHADER_UNIFORM_TYPE_TEXTURE_CUBE;
-    } else if (strings_equali("textureCubeArray", str)) {
-        return SHADER_UNIFORM_TYPE_TEXTURE_CUBE_ARRAY;
-    } else if (string_starts_withi(str, "struct")) {
-        return SHADER_UNIFORM_TYPE_STRUCT;
-    } else if (strings_equali("sampler", str)) {
-        return SHADER_UNIFORM_TYPE_SAMPLER;
-    } else if (strings_equali("custom", str)) {
-        return SHADER_UNIFORM_TYPE_CUSTOM;
-    } else {
-        KERROR("Unrecognized uniform type '%s'. Defaulting to float.", str);
-        return SHADER_UNIFORM_TYPE_FLOAT32;
     }
 }
 
@@ -325,30 +202,6 @@ shader_stage string_to_shader_stage(const char* str) {
     }
 }
 
-const char* shader_update_frequency_to_string(shader_update_frequency frequency) {
-    switch (frequency) {
-    case SHADER_UPDATE_FREQUENCY_PER_FRAME:
-        return "frame";
-    case SHADER_UPDATE_FREQUENCY_PER_GROUP:
-        return "group";
-    case SHADER_UPDATE_FREQUENCY_PER_DRAW:
-        return "draw";
-    }
-}
-
-shader_update_frequency string_to_shader_update_frequency(const char* str) {
-    if (strings_equali("frame", str)) {
-        return SHADER_UPDATE_FREQUENCY_PER_FRAME;
-    } else if (strings_equali("group", str)) {
-        return SHADER_UPDATE_FREQUENCY_PER_GROUP;
-    } else if (strings_equali("draw", str)) {
-        return SHADER_UPDATE_FREQUENCY_PER_DRAW;
-    } else {
-        KERROR("Unknown shader scope '%s'. Defaulting to per-frame.", str);
-        return SHADER_UPDATE_FREQUENCY_PER_FRAME;
-    }
-}
-
 const char* face_cull_mode_to_string(face_cull_mode mode) {
     switch (mode) {
     default:
@@ -452,51 +305,6 @@ u16 size_from_shader_attribute_type(shader_attribute_type type) {
         return 64;
     default:
         KFATAL("Attribute type not handled. Check enums.");
-        return 0;
-    }
-}
-
-u16 size_from_shader_uniform_type(shader_uniform_type type) {
-    switch (type) {
-    case SHADER_UNIFORM_TYPE_FLOAT32:
-        return 4;
-    case SHADER_UNIFORM_TYPE_FLOAT32_2:
-        return 8;
-    case SHADER_UNIFORM_TYPE_FLOAT32_3:
-        return 12;
-    case SHADER_UNIFORM_TYPE_FLOAT32_4:
-        return 16;
-    case SHADER_UNIFORM_TYPE_UINT8:
-        return 1;
-    case SHADER_UNIFORM_TYPE_UINT16:
-        return 2;
-    case SHADER_UNIFORM_TYPE_UINT32:
-        return 4;
-    case SHADER_UNIFORM_TYPE_INT8:
-        return 1;
-    case SHADER_UNIFORM_TYPE_INT16:
-        return 2;
-    case SHADER_UNIFORM_TYPE_INT32:
-        return 4;
-    case SHADER_UNIFORM_TYPE_MATRIX_4:
-        return 64;
-    case SHADER_UNIFORM_TYPE_STRUCT:
-    case SHADER_UNIFORM_TYPE_CUSTOM:
-        KERROR("size_from_shader_uniform_type(): Uniform size cannot be extracted directly from struct or custom types. 0 will be returned.");
-        return 0;
-    case SHADER_UNIFORM_TYPE_TEXTURE_1D:
-    case SHADER_UNIFORM_TYPE_TEXTURE_2D:
-    case SHADER_UNIFORM_TYPE_TEXTURE_3D:
-    case SHADER_UNIFORM_TYPE_TEXTURE_CUBE:
-    case SHADER_UNIFORM_TYPE_TEXTURE_1D_ARRAY:
-    case SHADER_UNIFORM_TYPE_TEXTURE_2D_ARRAY:
-    case SHADER_UNIFORM_TYPE_TEXTURE_CUBE_ARRAY:
-    case SHADER_UNIFORM_TYPE_SAMPLER:
-        // These don't occupy any "space", so return 0.
-        return 0;
-        break;
-    default:
-        KFATAL("Uniform type not handled. Check enums.");
         return 0;
     }
 }
@@ -722,5 +530,116 @@ mat4 generate_projection_matrix(rect_2di rect, f32 fov, f32 near_clip, f32 far_c
         f32 mod = fov;
         return mat4_orthographic(-rect.width * mod, rect.width * mod, -rect.height * mod, rect.height * mod, near_clip, far_clip);
     } break;
+    }
+}
+
+shader_binding_type shader_binding_type_from_string(const char* str) {
+    if (strings_equali(str, "ubo")) {
+        return SHADER_BINDING_TYPE_UBO;
+    } else if (strings_equali(str, "ssbo") || strings_equali(str, "storage")) {
+        return SHADER_BINDING_TYPE_SSBO;
+    } else if (strings_equali(str, "texture")) {
+        return SHADER_BINDING_TYPE_TEXTURE;
+    } else if (strings_equali(str, "sampler")) {
+        return SHADER_BINDING_TYPE_SAMPLER;
+    } else {
+        KASSERT_MSG(false, str);
+        return SHADER_BINDING_TYPE_UBO;
+    }
+}
+
+const char* shader_binding_type_to_string(shader_binding_type type) {
+    switch (type) {
+    case SHADER_BINDING_TYPE_UBO:
+        return "ubo";
+    case SHADER_BINDING_TYPE_SSBO:
+        return "storage";
+    case SHADER_BINDING_TYPE_TEXTURE:
+        return "texture";
+    case SHADER_BINDING_TYPE_SAMPLER:
+        return "sampler";
+    default:
+        KASSERT_MSG(false, "Unknown binding type");
+        return 0;
+    }
+}
+
+shader_texture_type shader_texture_type_from_string(const char* str) {
+    if (strings_equali(str, "texture1D") || strings_equali(str, "1D")) {
+        return SHADER_TEXTURE_TYPE_1D;
+    } else if (strings_equali(str, "texture2D") || strings_equali(str, "2D")) {
+        return SHADER_TEXTURE_TYPE_2D;
+    } else if (strings_equali(str, "texture3D") || strings_equali(str, "3D")) {
+        return SHADER_TEXTURE_TYPE_3D;
+    } else if (strings_equali(str, "textureCube") || strings_equali(str, "cube")) {
+        return SHADER_TEXTURE_TYPE_CUBE;
+    } else if (strings_equali(str, "texture1DArray") || strings_equali(str, "1DArray")) {
+        return SHADER_TEXTURE_TYPE_1D_ARRAY;
+    } else if (strings_equali(str, "texture2DArray") || strings_equali(str, "2DArray")) {
+        return SHADER_TEXTURE_TYPE_2D_ARRAY;
+    } else if (strings_equali(str, "textureCubeArray") || strings_equali(str, "cubeArray")) {
+        return SHADER_TEXTURE_TYPE_CUBE_ARRAY;
+    } else {
+        KWARN("%s - Unknown texture type '%s', defaulting to 2d");
+        return SHADER_TEXTURE_TYPE_2D;
+    }
+}
+
+const char* shader_texture_type_to_string(shader_texture_type type) {
+    switch (type) {
+    case SHADER_TEXTURE_TYPE_1D:
+        return "texture1D";
+    case SHADER_TEXTURE_TYPE_2D:
+        return "texture2D";
+    case SHADER_TEXTURE_TYPE_3D:
+        return "texture3D";
+    case SHADER_TEXTURE_TYPE_CUBE:
+        return "textureCube";
+    case SHADER_TEXTURE_TYPE_1D_ARRAY:
+        return "texture1DArray";
+    case SHADER_TEXTURE_TYPE_2D_ARRAY:
+        return "texture2DArray";
+    case SHADER_TEXTURE_TYPE_CUBE_ARRAY:
+        return "textureCubeArray";
+    }
+}
+
+shader_sampler_type shader_sampler_type_from_string(const char* str) {
+    if (strings_equali(str, "sampler1D") || strings_equali(str, "1D")) {
+        return SHADER_SAMPLER_TYPE_1D;
+    } else if (strings_equali(str, "sampler2D") || strings_equali(str, "2D")) {
+        return SHADER_SAMPLER_TYPE_2D;
+    } else if (strings_equali(str, "sampler3D") || strings_equali(str, "3D")) {
+        return SHADER_SAMPLER_TYPE_3D;
+    } else if (strings_equali(str, "samplerCube") || strings_equali(str, "cube")) {
+        return SHADER_SAMPLER_TYPE_CUBE;
+    } else if (strings_equali(str, "sampler1DArray") || strings_equali(str, "1DArray")) {
+        return SHADER_SAMPLER_TYPE_1D_ARRAY;
+    } else if (strings_equali(str, "sampler2DArray") || strings_equali(str, "2DArray")) {
+        return SHADER_SAMPLER_TYPE_2D_ARRAY;
+    } else if (strings_equali(str, "samplerCubeArray") || strings_equali(str, "cubeArray")) {
+        return SHADER_SAMPLER_TYPE_CUBE_ARRAY;
+    } else {
+        KWARN("%s - Unknown sampler type '%s', defaulting to 2d");
+        return SHADER_SAMPLER_TYPE_2D;
+    }
+}
+
+const char* shader_sampler_type_to_string(shader_sampler_type type) {
+    switch (type) {
+    case SHADER_SAMPLER_TYPE_1D:
+        return "sampler1D";
+    case SHADER_SAMPLER_TYPE_2D:
+        return "sampler2D";
+    case SHADER_SAMPLER_TYPE_3D:
+        return "sampler3D";
+    case SHADER_SAMPLER_TYPE_CUBE:
+        return "samplerCube";
+    case SHADER_SAMPLER_TYPE_1D_ARRAY:
+        return "sampler1DArray";
+    case SHADER_SAMPLER_TYPE_2D_ARRAY:
+        return "sampler2DArray";
+    case SHADER_SAMPLER_TYPE_CUBE_ARRAY:
+        return "samplerCubeArray";
     }
 }

@@ -42,22 +42,27 @@ attributes = [
     }
 ]
 
-uniforms = {
-    per_frame = [
-        {
-            name = "skybox_frame_ubo"
-            type = "struct"
-            size = 320
-        }
-    ]
-    per_group = [
-        {
-            name = "cube_texture"
-            type = "textureCube"
-        }
-        {
-            name = "cube_sampler"
-            type = "sampler"
-        }
-    ]
-}
+binding_sets = [
+    {
+        name = "skybox global set",
+        max_instance_count = 1,
+        bindings = [
+            {
+                type = "ubo"
+                name = "skybox global ubo"
+                data_size = 128
+            }
+            {
+                type = "texture"
+                name = "skybox_cubemap_texture"
+                texture_type = "cube"
+            }
+            {
+                type = "sampler"
+                name = "skybox_cubemap_sampler"
+                sampler_type = "cube"
+            }
+        ]
+    }
+]
+

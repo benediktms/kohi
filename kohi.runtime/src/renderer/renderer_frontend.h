@@ -451,7 +451,20 @@ KAPI void renderer_texture_prepare_for_sampling(struct renderer_system_state* st
  * @param shader_asset A constant pointer to the shader asset.
  * @return b8 True on success; otherwise false.
  */
-KAPI b8 renderer_shader_create(struct renderer_system_state* state, kshader shader, kname name, shader_flags flags, u32 topology_types, face_cull_mode cull_mode, u32 stage_count, shader_stage* stages, kname* stage_names, const char** stage_sources, u32 max_groups, u32 max_draw_ids, u32 attribute_count, const shader_attribute* attributes, u32 uniform_count, const shader_uniform* d_uniforms);
+KAPI b8 renderer_shader_create(
+    struct renderer_system_state* state,
+    kshader shader,
+    kname name,
+    shader_flags flags,
+    u32 topology_types,
+    u32 stage_count,
+    shader_stage* stages,
+    kname* stage_names,
+    const char** stage_sources,
+    u32 attribute_count,
+    const shader_attribute* attributes,
+    u8 binding_set_count,
+    const shader_binding_set_config* binding_sets);
 
 /**
  * @brief Destroys the given shader and releases any resources held by it.
@@ -511,116 +524,12 @@ KAPI b8 renderer_shader_flag_get(struct renderer_system_state* state, kshader sh
  */
 KAPI void renderer_shader_flag_set(struct renderer_system_state* state, kshader shader, shader_flags flag, b8 enabled);
 
-/**
- * @brief Binds the per-frame frequency.
- *
- * @param state A pointer to the renderer state.
- * @param shader A handle to the shader to be used.
- * @returns True on success; otherwise false.
- */
-KAPI b8 renderer_shader_bind_per_frame(struct renderer_system_state* state, kshader shader);
-
-/**
- * @brief Binds the given per-group frequency id.
- *
- * @param state A pointer to the renderer state.
- * @param shader A handle to the shader to be used.
- * @param group_id The per-group frequency id.
- * @returns True on success; otherwise false.
- */
-KAPI b8 renderer_shader_bind_per_group(struct renderer_system_state* state, kshader shader, u32 group_id);
-
-/**
- * @brief Binds the given per-draw frequency id.
- *
- * @param state A pointer to the renderer state.
- * @param shader A handle to the shader to be used.
- * @param draw_id The per-draw frequency id.
- * @returns True on success; otherwise false.
- */
-KAPI b8 renderer_shader_bind_per_draw(struct renderer_system_state* state, kshader shader, u32 draw_id);
-
-/**
- * @brief Applies per-frame data to the uniform buffer.
- *
- * @param state A pointer to the renderer state.
- * @param shader A handle to the shader to apply the global data for.
- * @return True on success; otherwise false.
- */
-KAPI b8 renderer_shader_apply_per_frame(struct renderer_system_state* state, kshader shader);
-
-/**
- * @brief Applies data for the currently bound group.
- *
- * @param state A pointer to the renderer state.
- * @param shader A handle to the shader to apply the instance data for.
- * @return True on success; otherwise false.
- */
-KAPI b8 renderer_shader_apply_per_group(struct renderer_system_state* state, kshader shader);
-
-/**
- * @brief Triggers the upload of per-draw uniform data to the GPU.
- *
- * @param state A pointer to the renderer state.
- * @param shader A handle to the shader.
- * @return True on success; otherwise false.
- */
-KAPI b8 renderer_shader_apply_per_draw(struct renderer_system_state* state, kshader shader);
-
-/**
- * @brief Acquires internal per-group resources and provides a group id.
- *
- * @param state A pointer to the renderer state.
- * @param shader A handle to the shader to acquire resources from.
- * @param config A constant pointer to the configuration of the group to be used while acquiring resources.
- * @param out_group_id A pointer to hold the new per-group identifier.
- * @return True on success; otherwise false.
- */
-KAPI b8 renderer_shader_per_group_resources_acquire(struct renderer_system_state* state, kshader shader, u32* out_group_id);
-
-/**
- * @brief Releases internal per-group resources for the given group id.
- *
- * @param state A pointer to the renderer state.
- * @param shader A handle to the shader to release resources from.
- * @param group_id The per-group identifier whose resources are to be released.
- * @return True on success; otherwise false.
- */
-KAPI b8 renderer_shader_per_group_resources_release(struct renderer_system_state* state, kshader shader, u32 group_id);
-
-/**
- * @brief Acquires internal per-draw resources and provides a per-draw id.
- *
- * @param state A pointer to the renderer state.
- * @param shader A handle to the shader to acquire resources from.
- * @param texture_map_count The number of texture maps used.
- * @param maps An array of pointers to texture maps. Must be one map for each per-group texture.
- * @param out_draw_id A pointer to hold the new per-draw identifier.
- * @return True on success; otherwise false.
- */
-KAPI b8 renderer_shader_per_draw_resources_acquire(struct renderer_system_state* state, kshader shader, u32* out_draw_id);
-
-/**
- * @brief Releases internal per-draw resources for the given per-draw id.
- *
- * @param state A pointer to the renderer state.
- * @param shader A handle to the shader to release resources from.
- * @param draw_id The per-draw identifier whose resources are to be released.
- * @return True on success; otherwise false.
- */
-KAPI b8 renderer_shader_per_draw_resources_release(struct renderer_system_state* state, kshader shader, u32 draw_id);
-
-/**
- * @brief Sets the uniform of the given shader to the provided value.
- *
- * @param state A pointer to the renderer state.
- * @param shader A handle to the shader.
- * @param uniform A constant pointer to the uniform.
- * @param array_index The index of the uniform array to be set, if it is an array. For non-array types, this value is ignored.
- * @param value A pointer to the value to be set.
- * @return True on success; otherwise false.
- */
-KAPI b8 renderer_shader_uniform_set(struct renderer_system_state* state, kshader shader, struct shader_uniform* uniform, u32 array_index, const void* value);
+KAPI void renderer_shader_set_immediate_data(struct renderer_system_state* state, kshader shader, void* data, u8 size);
+KAPI void renderer_shader_set_binding_data(struct renderer_system_state* state, kshader shader, u8 binding_set, u32 instance_id, u8 binding_index, u64 offset, void* data, u64 size);
+KAPI void renderer_shader_set_binding_texture(struct renderer_system_state* state, kshader shader, u8 binding_set, u32 instance_id, u8 binding_index, u8 array_index, ktexture texture);
+KAPI void renderer_shader_set_binding_sampler(struct renderer_system_state* state, kshader shader, u8 binding_set, u32 instance_id, u8 binding_index, u8 array_index, ksampler_backend sampler);
+KAPI u32 renderer_shader_acquire_binding_set_instance(struct renderer_system_state* state, kshader shader, u8 binding_set);
+KAPI void renderer_shader_release_binding_set_instance(struct renderer_system_state* state, kshader shader, u8 binding_set, u32 instance_id);
 
 /**
  * @brief Gets a handle to a generic sampler of the given type.
@@ -704,131 +613,155 @@ KAPI f32 renderer_max_anisotropy_get(void);
  * @brief Creates a new renderbuffer to hold data for a given purpose/use. Backed by a
  * renderer-backend-specific buffer resource.
  *
+ * @param state A pointer to the renderer state.
  * @param name The name of the renderbuffer.
  * @param type The type of buffer, indicating it's use (i.e. vertex/index data, uniforms, etc.)
  * @param total_size The total size in bytes of the buffer.
  * @param track_type Indicates what type of allocation tracking should be used.
  * @return out_buffer A handle to hold the newly created buffer.
  */
-KAPI krenderbuffer renderer_renderbuffer_create(kname name, renderbuffer_type type, u64 total_size, renderbuffer_track_type track_type);
+KAPI krenderbuffer renderer_renderbuffer_create(struct renderer_system_state* state, kname name, renderbuffer_type type, u64 total_size, renderbuffer_track_type track_type, renderbuffer_flags);
 
 /**
  * @brief Destroys the given renderbuffer.
  *
+ * @param state A pointer to the renderer state.
  * @param buffer A handle to the buffer to be destroyed.
  */
-KAPI void renderer_renderbuffer_destroy(krenderbuffer buffer);
+KAPI void renderer_renderbuffer_destroy(struct renderer_system_state* state, krenderbuffer buffer);
 
 /**
  * @brief Binds the given buffer at the provided offset.
  *
+ * @param state A pointer to the renderer state.
  * @param buffer A handle to the buffer to bind.
  * @param offset The offset in bytes from the beginning of the buffer.
  * @returns True on success; otherwise false.
  */
-KAPI b8 renderer_renderbuffer_bind(krenderbuffer buffer, u64 offset);
+KAPI b8 renderer_renderbuffer_bind(struct renderer_system_state* state, krenderbuffer buffer, u64 offset);
 
 /**
  * @brief Unbinds the given buffer.
  *
+ * @param state A pointer to the renderer state.
  * @param buffer A handle to the buffer to be unbound.
  * @returns True on success; otherwise false.
  */
-KAPI b8 renderer_renderbuffer_unbind(krenderbuffer buffer);
+KAPI b8 renderer_renderbuffer_unbind(struct renderer_system_state* state, krenderbuffer buffer);
 
 /**
  * @brief Maps memory from the given buffer in the provided range to a block of memory and returns it.
  * This memory should be considered invalid once unmapped.
+ * @param state A pointer to the renderer state.
  * @param buffer A handle to the buffer to map.
  * @param offset The number of bytes from the beginning of the buffer to map.
  * @param size The amount of memory in the buffer to map. Use KWHOLE_SIZE to map the entire buffer.
  * @returns A mapped block of memory. Freed and invalid once unmapped.
  */
-KAPI void* renderer_renderbuffer_map_memory(krenderbuffer buffer, u64 offset, u64 size);
+KAPI void* renderer_renderbuffer_map_memory(struct renderer_system_state* state, krenderbuffer buffer, u64 offset, u64 size);
 
 /**
  * @brief Unmaps memory from the given buffer in the provided range to a block of memory.
  * This memory should be considered invalid once unmapped.
+ * @param state A pointer to the renderer state.
  * @param buffer A handle to the buffer to unmap.
  * @param offset The number of bytes from the beginning of the buffer to unmap.
  * @param size The amount of memory in the buffer to unmap.
  */
-KAPI void renderer_renderbuffer_unmap_memory(krenderbuffer buffer, u64 offset, u64 size);
+KAPI void renderer_renderbuffer_unmap_memory(struct renderer_system_state* state, krenderbuffer buffer, u64 offset, u64 size);
+
+/**
+ * @brief Obtains the mapped memory of the buffer, if mapped.
+ * This memory should be considered invalid once unmapped.
+ *
+ * @param state A pointer to the renderer state.
+ * @param buffer A handle to the buffer whose mapped memory is to be obtained.
+ * @return A pointer to the mapped memory, if mapped. Otherwise KNULL.
+ */
+KAPI void* renderer_renderbuffer_get_mapped_memory(struct renderer_system_state* state, krenderbuffer buffer);
 
 /**
  * @brief Flushes buffer memory at the given range. Should be done after a write.
+ * @param state A pointer to the renderer state.
  * @param buffer A handle to the buffer to unmap.
  * @param offset The number of bytes from the beginning of the buffer to flush.
  * @param size The amount of memory in the buffer to flush.
  * @returns True on success; otherwise false.
  */
-KAPI b8 renderer_renderbuffer_flush(krenderbuffer buffer, u64 offset, u64 size);
+KAPI b8 renderer_renderbuffer_flush(struct renderer_system_state* state, krenderbuffer buffer, u64 offset, u64 size);
 
 /**
  * @brief Reads memory from the provided buffer at the given range to the output variable.
+ * @param state A pointer to the renderer state.
  * @param buffer A handle to the buffer to read from.
  * @param offset The number of bytes from the beginning of the buffer to read.
  * @param size The amount of memory in the buffer to read.
  * @param out_memory A pointer to a block of memory to read to. Must be of appropriate size.
  * @returns True on success; otherwise false.
  */
-KAPI b8 renderer_renderbuffer_read(krenderbuffer buffer, u64 offset, u64 size, void** out_memory);
+KAPI b8 renderer_renderbuffer_read(struct renderer_system_state* state, krenderbuffer buffer, u64 offset, u64 size, void** out_memory);
 
 /**
  * @brief Resizes the given buffer to new_total_size. new_total_size must be
  * greater than the current buffer size. Data from the old internal buffer is copied
  * over.
  *
+ * @param state A pointer to the renderer state.
  * @param buffer A handle to the buffer to be resized.
  * @param new_total_size The new size in bytes. Must be larger than the current size.
  * @returns True on success; otherwise false.
  */
-KAPI b8 renderer_renderbuffer_resize(krenderbuffer buffer, u64 new_total_size);
+KAPI b8 renderer_renderbuffer_resize(struct renderer_system_state* state, krenderbuffer buffer, u64 new_total_size);
 
 /**
  * @brief Attempts to allocate memory from the given buffer. Should only be used on
  * buffers that were created with use_freelist = true.
  *
+ * @param state A pointer to the renderer state.
  * @param buffer A handle to the buffer to be allocated from.
  * @param size The size in bytes to allocate.
  * @param out_offset A pointer to hold the offset in bytes of the allocation from the beginning of the buffer.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_renderbuffer_allocate(krenderbuffer buffer, u64 size, u64* out_offset);
+KAPI b8 renderer_renderbuffer_allocate(struct renderer_system_state* state, krenderbuffer buffer, u64 size, u64* out_offset);
 
 /**
  * @brief Frees memory from the given buffer.
  *
+ * @param state A pointer to the renderer state.
  * @param buffer A handle to the buffer to be freed from.
  * @param size The size in bytes to free.
  * @param offset The offset in bytes from the beginning of the buffer to free.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_renderbuffer_free(krenderbuffer buffer, u64 size, u64 offset);
+KAPI b8 renderer_renderbuffer_free(struct renderer_system_state* state, krenderbuffer buffer, u64 size, u64 offset);
 
 /**
  * @brief Clears the given buffer. Internally, resets the free list if one is used.
  *
+ * @param state A pointer to the renderer state.
  * @param buffer A handle to the buffer to be freed from.
  * @param zero_memory True if memory should be zeroed; otherwise false. NOTE: this can be an expensive operation on large sums of memory.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_renderbuffer_clear(krenderbuffer buffer, b8 zero_memory);
+KAPI b8 renderer_renderbuffer_clear(struct renderer_system_state* state, krenderbuffer buffer, b8 zero_memory);
 
 /**
  * @brief Loads provided data into the specified rage of the given buffer.
  *
+ * @param state A pointer to the renderer state.
  * @param buffer A handle to the buffer to load data into.
  * @param offset The offset in bytes from the beginning of the buffer.
  * @param size The size of the data in bytes to be loaded.
  * @param data The data to be loaded.
  * @returns True on success; otherwise false.
  */
-KAPI b8 renderer_renderbuffer_load_range(krenderbuffer buffer, u64 offset, u64 size, const void* data, b8 include_in_frame_workload);
+KAPI b8 renderer_renderbuffer_load_range(struct renderer_system_state* state, krenderbuffer buffer, u64 offset, u64 size, const void* data, b8 include_in_frame_workload);
 
 /**
  * @brief Copies data in the specified rage fron the source to the destination buffer.
  *
+ * @param state A pointer to the renderer state.
  * @param source A handle to the source buffer to copy data from.
  * @param source_offset The offset in bytes from the beginning of the source buffer.
  * @param dest A pointer to the destination buffer to copy data to.
@@ -836,26 +769,28 @@ KAPI b8 renderer_renderbuffer_load_range(krenderbuffer buffer, u64 offset, u64 s
  * @param size The size of the data in bytes to be copied.
  * @returns True on success; otherwise false.
  */
-KAPI b8 renderer_renderbuffer_copy_range(krenderbuffer source, u64 source_offset, krenderbuffer dest, u64 dest_offset, u64 size, b8 include_in_frame_workload);
+KAPI b8 renderer_renderbuffer_copy_range(struct renderer_system_state* state, krenderbuffer source, u64 source_offset, krenderbuffer dest, u64 dest_offset, u64 size, b8 include_in_frame_workload);
 
 /**
  * @brief Attempts to draw the contents of the provided buffer at the given offset
  * and element count. Only meant to be used with vertex and index buffers.
  *
+ * @param state A pointer to the renderer state.
  * @param buffer A handle to the buffer to be drawn.
  * @param offset The offset in bytes from the beginning of the buffer.
  * @param element_count The number of elements to be drawn.
  * @param bind_only Only bind the buffer, but don't draw.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_renderbuffer_draw(krenderbuffer buffer, u64 offset, u32 element_count, b8 bind_only);
+KAPI b8 renderer_renderbuffer_draw(struct renderer_system_state* state, krenderbuffer buffer, u64 offset, u32 element_count, b8 bind_only);
 
 /**
  * @brief Attempts retrieve the renderer's internal buffer of the given name.
+ * @param state A pointer to the renderer state.
  * @param type The name of buffer to retrieve.
  * @returnshader A handle to the buffer on success; otherwise 0/null.
  */
-KAPI krenderbuffer renderer_renderbuffer_get(kname name);
+KAPI krenderbuffer renderer_renderbuffer_get(struct renderer_system_state* state, kname name);
 
 /**
  * Waits for the renderer backend to be completely idle of work before returning.

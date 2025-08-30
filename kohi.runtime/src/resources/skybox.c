@@ -1,6 +1,7 @@
 #include "skybox.h"
 
 #include "core/engine.h"
+#include "debug/kassert.h"
 #include "defines.h"
 #include "logger.h"
 #include "math/geometry.h"
@@ -29,7 +30,7 @@ b8 skybox_initialize(skybox* sb) {
         return false;
     }
 
-    sb->group_id = INVALID_ID;
+    sb->shader_set0_instance_id = INVALID_ID;
 
     sb->state = SKYBOX_STATE_INITIALIZED;
 
@@ -50,11 +51,11 @@ b8 skybox_load(skybox* sb) {
 
     sb->cubemap = texture_cubemap_acquire_sync(sb->cubemap_name);
 
+    struct renderer_system_state* renderer_system = engine_systems_get()->renderer_system;
+
     kshader skybox_shader = kshader_system_get(kname_create(SHADER_NAME_RUNTIME_SKYBOX), kname_create(PACKAGE_NAME_RUNTIME)); // TODO: allow configurable shader.
-    if (!renderer_shader_per_group_resources_acquire(engine_systems_get()->renderer_system, skybox_shader, &sb->group_id)) {
-        KFATAL("Unable to acquire shader per-group resources for skybox.");
-        return false;
-    }
+    sb->shader_set0_instance_id = renderer_shader_acquire_binding_set_instance(renderer_system, skybox_shader, 0);
+    KASSERT_DEBUG(sb->shader_set0_instance_id != INVALID_ID_U32);
     sb->state = SKYBOX_STATE_LOADED;
 
     return true;
@@ -67,12 +68,11 @@ b8 skybox_unload(skybox* sb) {
     }
     sb->state = SKYBOX_STATE_UNDEFINED;
 
+    struct renderer_system_state* renderer_system = engine_systems_get()->renderer_system;
+
     kshader skybox_shader = kshader_system_get(kname_create(SHADER_NAME_RUNTIME_SKYBOX), kname_create(PACKAGE_NAME_RUNTIME)); // TODO: allow configurable shader.
-    if (!renderer_shader_per_group_resources_release(engine_systems_get()->renderer_system, skybox_shader, sb->group_id)) {
-        KWARN("Unable to release shader group resources for skybox.");
-        return false;
-    }
-    sb->group_id = INVALID_ID;
+    renderer_shader_release_binding_set_instance(renderer_system, skybox_shader, 0, sb->shader_set0_instance_id);
+    sb->shader_set0_instance_id = INVALID_ID;
 
     renderer_geometry_destroy(&sb->geometry);
     geometry_destroy(&sb->geometry);
@@ -102,7 +102,7 @@ void skybox_destroy(skybox* sb) {
     sb->state = SKYBOX_STATE_UNDEFINED;
 
     // If loaded, unload first, then destroy.
-    if (sb->group_id != INVALID_ID) {
+    if (sb->shader_set0_instance_id != INVALID_ID) {
         b8 result = skybox_unload(sb);
         if (!result) {
             KERROR("skybox_destroy() - Failed to successfully unload skybox before destruction.");

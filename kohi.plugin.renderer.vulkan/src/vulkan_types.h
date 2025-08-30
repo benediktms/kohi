@@ -52,7 +52,7 @@ typedef struct vulkan_buffer {
     /** @brief The handle to the internal buffer. */
     VkBuffer handle;
     /** @brief The usage flags. */
-    VkBufferUsageFlagBits usage;
+    VkBufferUsageFlags usage;
     /** @brief Indicates if the buffer's memory is currently locked. */
     b8 is_locked;
     /** @brief The memory used by the buffer. */
@@ -66,6 +66,8 @@ typedef struct vulkan_buffer {
     u64 size;
     kname name;
     renderbuffer_type type;
+
+    renderbuffer_flags flags;
 
     // 0 unless buffer has been mapped to it.
     void* mapped_memory;
@@ -468,16 +470,16 @@ typedef struct vulkan_shader_binding_set_use_state {
     // Also the binding set index. Just here for debugging purposes (debug builds only)
     u32 descriptor_set_index;
 #endif
-} vulkan_shader_binding_set_use_state;
+} vulkan_shader_binding_set_instance_state;
 
 /**
  * @brief The state for a shader binding set.
  */
 typedef struct vulkan_shader_binding_set_state {
     // Total number of uses.
-    u32 max_use_count;
+    u32 max_instance_count;
     // Binding set state per use. Array size = max_use_count
-    vulkan_shader_binding_set_use_state* uses;
+    vulkan_shader_binding_set_instance_state* instances;
 
     // The number of bindings in this set.
     u8 binding_count;
