@@ -1,15 +1,15 @@
 #version 450
 
-
 // TODO: All these types should be defined in some #include file when #includes are implemented.
 
 const float PI = 3.14159265359;
 
-const uint KMATERIAL_MAX_SHADOW_CASCADES = 4;
-const uint KMATERIAL_MAX_GLOBAL_POINT_LIGHTS = 64;
-const uint KMATERIAL_MAX_WATER_PLANES = 4;
-// One view for regular camera, plus one reflection view per water plane.
-const uint KMATERIAL_MAX_VIEWS = KMATERIAL_MAX_WATER_PLANES + 1;
+const uint KMATERIAL_UBO_MAX_SHADOW_CASCADES = 4;
+const uint KMATERIAL_UBO_MAX_VIEWS = 16;
+const uint KMATERIAL_UBO_MAX_PROJECTIONS = 4;
+
+const uint KANIMATION_SSBO_MAX_BONES_PER_MESH = 64;
+
 const uint MATERIAL_STANDARD_TEXTURE_COUNT = 7;
 const uint MATERIAL_STANDARD_SAMPLER_COUNT = 7;
 const uint MATERIAL_MAX_IRRADIANCE_CUBEMAP_COUNT = 4;
@@ -22,18 +22,6 @@ const uint MAT_STANDARD_IDX_ROUGHNESS = 3;
 const uint MAT_STANDARD_IDX_AO = 4;
 const uint MAT_STANDARD_IDX_MRA = 5;
 const uint MAT_STANDARD_IDX_EMISSIVE = 6;
-
-// Option indices
-const uint MAT_OPTION_IDX_RENDER_MODE = 0;
-const uint MAT_OPTION_IDX_USE_PCF = 1;
-const uint MAT_OPTION_IDX_UNUSED_0 = 2;
-const uint MAT_OPTION_IDX_UNUSED_1 = 3;
-
-// Param indices
-const uint MAT_PARAM_IDX_SHADOW_BIAS = 0;
-const uint MAT_PARAM_IDX_DELTA_TIME = 1;
-const uint MAT_PARAM_IDX_GAME_TIME = 2;
-const uint MAT_PARAM_IDX_UNUSED_0 = 3;
 
 const uint KMATERIAL_FLAG_HAS_TRANSPARENCY_BIT = 0x0001;
 const uint KMATERIAL_FLAG_DOUBLE_SIDED_BIT = 0x0002;
@@ -55,62 +43,33 @@ const uint MATERIAL_STANDARD_FLAG_USE_AO_TEX = 0x0010;
 const uint MATERIAL_STANDARD_FLAG_USE_MRA_TEX = 0x0020;
 const uint MATERIAL_STANDARD_FLAG_USE_EMISSIVE_TEX = 0x0040;
 
-struct directional_light {
+struct light_data {
+    // Directional light: .rgb = colour, .w = ignored - Point lights: .rgb = colour, .a = linear 
     vec4 colour;
-    vec4 direction;
-    float shadow_distance;
-    float shadow_fade_distance;
-    float shadow_split_mult;
-    float padding;
-};
-
-struct point_light {
-    // .rgb = colour, .a = linear 
-    vec4 colour;
-    // .xyz = position, .w = quadratic
+    // Directional Light: .xyz = direction, .w = ignored - Point lights: .xyz = position, .w = quadratic
     vec4 position;
-};
+} light_data;
 
-// =========================================================
-// Inputs
-// =========================================================
-
-// per-frame, "global" data
-layout(std140, set = 0, binding = 0) uniform kmaterial_global_uniform_data {
-    point_light p_lights[KMATERIAL_MAX_GLOBAL_POINT_LIGHTS]; // 2048 bytes @ 32 bytes each
-    // Light space for shadow mapping. Per cascade
-    mat4 directional_light_spaces[KMATERIAL_MAX_SHADOW_CASCADES]; // 256 bytes
-    mat4 views[KMATERIAL_MAX_VIEWS];                             // 320 bytes
-    vec4 view_positions[KMATERIAL_MAX_VIEWS];                     // 80 bytes
-    mat4 projection;                                             // 64 bytes
-    directional_light dir_light;                                 // 48 bytes
-    vec4 cascade_splits;                                         // 16 bytes
-    // [shadow_bias, delta_time, game_time, padding]
-    vec4 params;
-    // [render_mode, use_pcf, padding, padding]
-    uvec4 options;
-    vec4 padding;  // 16 bytes
-} material_frame_ubo;
-layout(set = 0, binding = 1) uniform texture2DArray shadow_texture;
-layout(set = 0, binding = 2) uniform textureCube irradiance_textures[MATERIAL_MAX_IRRADIANCE_CUBEMAP_COUNT];
-layout(set = 0, binding = 3) uniform sampler shadow_sampler;
-layout(set = 0, binding = 4) uniform sampler irradiance_sampler;
-
-// per-group, "base material" data
-layout(set = 1, binding = 0) uniform kmaterial_standard_base_uniform_data {
-    // Packed texture channels for various maps requiring it.
-    uint texture_channels; // [metallic, roughness, ao, unused]
+struct base_material_data {
+    uint metallic_texture_channel;
+    uint roughness_texture_channel;
+    uint ao_texture_channel;
     /** @brief The material lighting model. */
     uint lighting_model;
+
     // Base set of flags for the material. Copied to the material instance when created.
     uint flags;
     // Texture use flags
     uint tex_flags;
+    float refraction_scale;
+    float padding;
 
     vec4 base_colour;
     vec4 emissive;
+
     vec3 normal;
     float metallic;
+
     vec3 mra;
     float roughness;
 
@@ -120,23 +79,95 @@ layout(set = 1, binding = 0) uniform kmaterial_standard_base_uniform_data {
     // Multiplied against uv coords of vertex data. Overridden by instance data.
     vec3 uv_scale;
     float emissive_texture_intensity;
+};
 
-    float refraction_scale;
-    vec3 padding;
-} material_group_ubo;
-layout(set = 1, binding = 1) uniform texture2D material_textures[MATERIAL_STANDARD_TEXTURE_COUNT];
-layout(set = 1, binding = 2) uniform sampler material_samplers[MATERIAL_STANDARD_SAMPLER_COUNT];
+struct animation_skin_data {
+    mat4 bones[KANIMATION_SSBO_MAX_BONES_PER_MESH];
+};
 
-// per-draw, "material instance" data
-layout(push_constant) uniform per_draw_ubo {
-    mat4 model;
-    vec4 clipping_plane;
+
+// =========================================================
+// Inputs
+// =========================================================
+
+// Binding Set 0
+
+// Global settings for the scene.
+layout(std140, set = 0, binding = 0) uniform kmaterial_settings_ubo {
+    float delta_time;
+    float game_time;
+    uint render_mode;
+    uint use_pcf;
+
+    // Shadow settings
+    float shadow_bias;
+    float shadow_distance;
+    float shadow_fade_distance;
+    float shadow_split_mult;
+
+    // Light space for shadow mapping. Per cascade
+    mat4 directional_light_spaces[KMATERIAL_UBO_MAX_SHADOW_CASCADES]; // 256 bytes
+    vec4 cascade_splits;                                         // 16 bytes
+
+    vec4 view_positions[KMATERIAL_UBO_MAX_VIEWS]; // indexed by immediate.view_index
+    mat4 views[KMATERIAL_UBO_MAX_VIEWS]; // indexed by immediate.view_index
+    mat4 projections[KMATERIAL_UBO_MAX_PROJECTIONS]; // indexed by immediate.projection_index
+} global_settings;
+
+// All transforms
+layout(std430, set = 0, binding = 1) readonly buffer global_transforms_ssbo {
+    mat4 transforms[]; // indexed by immediate.transform_index
+} global_transforms;
+
+// All lighting
+layout(std430, set = 0, binding = 2) readonly buffer global_lighting_ssbo {
+    light_data lights[]; // indexed by immediate.packed_point_light_indices (needs unpacking to 16x u8s)
+} global_lighting;
+
+// All materials
+layout(std430, set = 0, binding = 3) readonly buffer global_materials_ssbo {
+    base_material_data base_materials[]; // indexed by immediate.transform_index
+} global_materials;
+
+// All animation data
+layout(std430, set = 0, binding = 4) readonly buffer global_animations_ssbo {
+    animation_skin_data animations[]; // indexed by immediate.animation_index;
+} global_animations;
+
+layout(set = 0, binding = 5) uniform texture2DArray shadow_texture;
+layout(set = 0, binding = 6) uniform sampler shadow_sampler;
+layout(set = 0, binding = 7) uniform textureCube irradiance_textures[MATERIAL_MAX_IRRADIANCE_CUBEMAP_COUNT];
+layout(set = 0, binding = 8) uniform sampler irradiance_sampler;
+
+// Binding Set 1 
+layout(set = 1, binding = 0) uniform texture2D material_textures[MATERIAL_STANDARD_TEXTURE_COUNT];
+layout(set = 1, binding = 1) uniform sampler material_samplers[MATERIAL_STANDARD_SAMPLER_COUNT];
+
+// Immediate data
+layout(push_constant) uniform immediate_data {
+    // bytes 0-15
+    uint view_index;
+    uint projection_index;
+    uint transform_index;
+    uint base_material_index;
+
+    // bytes 16-31
     // Index into the global point lights array. Up to 16 indices as u8s packed into 2 uints.
     uvec2 packed_point_light_indices; // 8 bytes
     uint num_p_lights;
     uint irradiance_cubemap_index;
-    uint view_index;
-} material_draw_ubo;
+
+    // bytes 32-47
+    vec4 clipping_plane;
+
+    // bytes 48-63
+    uint dir_light_index;
+    float tiling;
+    float wave_strength;
+    float wave_speed;
+
+    // 64-127 available
+} immediate;
 
 // Data Transfer Object
 layout(location = 0) in dto {
@@ -144,12 +175,11 @@ layout(location = 0) in dto {
 	vec4 light_space_frag_pos[KMATERIAL_MAX_SHADOW_CASCADES];
     vec4 vertex_colour;
 	vec3 normal;
-    uint metallic_texture_channel;
+    float padding;
 	vec3 tangent;
-    uint roughness_texture_channel;
+    float padding2;
 	vec2 tex_coord;
-    uint ao_texture_channel;
-    uint unused_texture_channel;
+    vec2 padding3;
 } in_dto;
 
 // =========================================================
@@ -158,20 +188,20 @@ layout(location = 0) in dto {
 layout(location = 0) out vec4 out_colour;
 
 vec3 calculate_reflectance(vec3 albedo, vec3 normal, vec3 view_direction, vec3 light_direction, float metallic, float roughness, vec3 base_reflectivity, vec3 radiance);
-vec3 calculate_point_light_radiance(point_light light, vec3 view_direction, vec3 frag_position_xyz);
-vec3 calculate_directional_light_radiance(directional_light light, vec3 view_direction);
+vec3 calculate_point_light_radiance(light_data point_light, vec3 view_direction, vec3 frag_position_xyz);
+vec3 calculate_directional_light_radiance(vec3 colour, vec3 view_direction);
 float calculate_pcf(vec3 projected, int cascade_index, float shadow_bias);
 float calculate_unfiltered(vec3 projected, int cascade_index, float shadow_bias);
-float calculate_shadow(vec4 light_space_frag_pos, vec3 normal, directional_light light, int cascade_index);
+float calculate_shadow(vec4 light_space_frag_pos, vec3 normal, int cascade_index);
 float geometry_schlick_ggx(float normal_dot_direction, float roughness);
 void unpack_u32(uint n, out uint x, out uint y, out uint z, out uint w);
 bool flag_get(uint flags, uint flag);
 uint flag_set(uint flags, uint flag, bool enabled);
 
 void main() {
-    uint render_mode = material_frame_ubo.options[MAT_OPTION_IDX_RENDER_MODE];
-	vec4 view_position = material_frame_ubo.view_positions[material_draw_ubo.view_index];
-    vec3 cascade_colour = vec3(1.0);
+    mat4 view = global_settings.views[immediate.view_index];
+    vec3 view_position = global_settings.view_positions[immediate.view_index];
+    base_material_data base_material = global_materials.base_materials[immediate.base_material_index];
 
     vec3 normal = in_dto.normal;
     vec3 tangent = in_dto.tangent;
@@ -179,22 +209,26 @@ void main() {
     vec3 bitangent = cross(in_dto.normal, in_dto.tangent);
     mat3 TBN = mat3(tangent, bitangent, normal);
 
+    vec3 cascade_colour = vec3(1.0);
+
+    light_data directional_light = global_lighting.lights[immediate.dir_light_index];
+
     // Base colour
     vec4 base_colour_samp;
-    if(flag_get(material_group_ubo.flags, KMATERIAL_FLAG_USE_VERTEX_COLOUR_AS_BASE_COLOUR_BIT)) {
+    if(flag_get(base_material.flags, KMATERIAL_FLAG_USE_VERTEX_COLOUR_AS_BASE_COLOUR_BIT)) {
         // Pass through the vertex colour
         base_colour_samp = in_dto.vertex_colour;
     } else {
         // Use base colour texture if provided; otherwise use the colour.
-        if(flag_get(material_group_ubo.tex_flags, MATERIAL_STANDARD_FLAG_USE_BASE_COLOUR_TEX)) {
+        if(flag_get(base_material.tex_flags, MATERIAL_STANDARD_FLAG_USE_BASE_COLOUR_TEX)) {
             base_colour_samp = texture(sampler2D(material_textures[MAT_STANDARD_IDX_BASE_COLOUR], material_samplers[MAT_STANDARD_IDX_BASE_COLOUR]), in_dto.tex_coord);
         } else {
-            base_colour_samp = material_group_ubo.base_colour;
+            base_colour_samp = base_material.base_colour;
         }
     }
 
     // discard the fragment if using transparency and masking, and the alpha falls below a given threshold.
-    if(base_colour_samp.a < 0.1 && flag_get(material_group_ubo.flags, KMATERIAL_FLAG_HAS_TRANSPARENCY_BIT) && flag_get(material_group_ubo.flags, KMATERIAL_FLAG_MASKED_BIT)) {
+    if(base_colour_samp.a < 0.1 && flag_get(base_material.flags, KMATERIAL_FLAG_HAS_TRANSPARENCY_BIT) && flag_get(base_material.flags, KMATERIAL_FLAG_MASKED_BIT)) {
         discard;
     }
     vec3 albedo = pow(base_colour_samp.rgb, vec3(2.2));
@@ -203,12 +237,12 @@ void main() {
     // If enabled, get the normal from the normal map if used, or the supplied vector if not.
     // Otherwise, just use a default z-up
     vec3 local_normal = vec3(0, 0, 1.0);
-    if(flag_get(material_group_ubo.flags, KMATERIAL_FLAG_NORMAL_ENABLED_BIT)){
-        if(flag_get(material_group_ubo.tex_flags, MATERIAL_STANDARD_FLAG_USE_NORMAL_TEX)) {
+    if(flag_get(base_material.flags, KMATERIAL_FLAG_NORMAL_ENABLED_BIT)){
+        if(flag_get(base_material.tex_flags, MATERIAL_STANDARD_FLAG_USE_NORMAL_TEX)) {
             local_normal = texture(sampler2D(material_textures[MAT_STANDARD_IDX_NORMAL], material_samplers[MAT_STANDARD_IDX_NORMAL]), in_dto.tex_coord).rgb;
             local_normal = (2.0 * local_normal - 1.0);
         } else {
-            local_normal = material_group_ubo.normal;
+            local_normal = base_material.normal;
         }
     } 
     // Update the normal to use a sample from the normal map.
@@ -216,53 +250,53 @@ void main() {
 
     // Either use combined MRA (metallic/roughness/ao) or individual maps, depending on settings.
     vec3 mra;
-    if(flag_get(material_group_ubo.flags, KMATERIAL_FLAG_MRA_ENABLED_BIT)) { 
-        if(flag_get(material_group_ubo.tex_flags, MATERIAL_STANDARD_FLAG_USE_MRA_TEX)) {
+    if(flag_get(base_material.flags, KMATERIAL_FLAG_MRA_ENABLED_BIT)) { 
+        if(flag_get(base_material.tex_flags, MATERIAL_STANDARD_FLAG_USE_MRA_TEX)) {
             mra = texture(sampler2D(material_textures[MAT_STANDARD_IDX_MRA], material_samplers[MAT_STANDARD_IDX_MRA]), in_dto.tex_coord).rgb;
         } else {
-            mra = material_group_ubo.mra;
+            mra = base_material.mra;
         }
     } else {
         // Sample individual maps.
 
         // Metallic 
-        if(flag_get(material_group_ubo.tex_flags, MATERIAL_STANDARD_FLAG_USE_METALLIC_TEX)) {
+        if(flag_get(base_material.tex_flags, MATERIAL_STANDARD_FLAG_USE_METALLIC_TEX)) {
             vec4 sampled = texture(sampler2D(material_textures[MAT_STANDARD_IDX_METALLIC], material_samplers[MAT_STANDARD_IDX_METALLIC]), in_dto.tex_coord);
             // Load metallic into the red channel from the configured source texture channel.
             mra.r = sampled[in_dto.metallic_texture_channel];
         } else {
-            mra.r = material_group_ubo.metallic;
+            mra.r = base_material.metallic;
         }
 
         // Roughness 
-        if(flag_get(material_group_ubo.tex_flags, MATERIAL_STANDARD_FLAG_USE_ROUGHNESS_TEX)) {
+        if(flag_get(base_material.tex_flags, MATERIAL_STANDARD_FLAG_USE_ROUGHNESS_TEX)) {
             vec4 sampled = texture(sampler2D(material_textures[MAT_STANDARD_IDX_ROUGHNESS], material_samplers[MAT_STANDARD_IDX_ROUGHNESS]), in_dto.tex_coord);
             // Load roughness into the green channel from the configured source texture channel.
             mra.g = sampled[in_dto.roughness_texture_channel];
         } else {
-            mra.g = material_group_ubo.roughness;
+            mra.g = base_material.roughness;
         }
 
         // AO - default to 1.0 (i.e. no effect), and only read in a value if this is enabled.
         mra.b = 1.0;
-        if(flag_get(material_group_ubo.flags, KMATERIAL_FLAG_AO_ENABLED_BIT)) { 
-            if(flag_get(material_group_ubo.tex_flags, MATERIAL_STANDARD_FLAG_USE_AO_TEX)) {
+        if(flag_get(base_material.flags, KMATERIAL_FLAG_AO_ENABLED_BIT)) { 
+            if(flag_get(base_material.tex_flags, MATERIAL_STANDARD_FLAG_USE_AO_TEX)) {
                 vec4 sampled = texture(sampler2D(material_textures[MAT_STANDARD_IDX_AO], material_samplers[MAT_STANDARD_IDX_AO]), in_dto.tex_coord);
                 // Load AO into the blue channel from the configured source texture channel.
                 mra.b = sampled[in_dto.ao_texture_channel];
             } else {
-                mra.b = material_group_ubo.ao;
+                mra.b = base_material.ao;
             }
         }
     }
 
     // Emissive - defaults to 0 if not used.
     vec3 emissive = vec3(0.0);
-    if(flag_get(material_group_ubo.flags, KMATERIAL_FLAG_EMISSIVE_ENABLED_BIT)) { 
-        if(flag_get(material_group_ubo.tex_flags, MATERIAL_STANDARD_FLAG_USE_EMISSIVE_TEX)) {
+    if(flag_get(base_material.flags, KMATERIAL_FLAG_EMISSIVE_ENABLED_BIT)) { 
+        if(flag_get(base_material.tex_flags, MATERIAL_STANDARD_FLAG_USE_EMISSIVE_TEX)) {
             emissive = texture(sampler2D(material_textures[MAT_STANDARD_IDX_EMISSIVE], material_samplers[MAT_STANDARD_IDX_EMISSIVE]), in_dto.tex_coord).rgb;
         } else {
-            emissive = material_group_ubo.emissive.rgb;
+            emissive = base_material.emissive.rgb;
         }
     }
 
@@ -273,16 +307,16 @@ void main() {
     // Shadows: 1.0 means NOT in shadow, which is the default.
     float shadow = 1.0;
     // Only perform shadow calculations if this receives shadows.
-    if(flag_get(material_group_ubo.flags, KMATERIAL_FLAG_RECIEVES_SHADOW_BIT)) { 
+    if(flag_get(base_material.flags, KMATERIAL_FLAG_RECIEVES_SHADOW_BIT)) { 
 
         // Generate shadow value based on current fragment position vs shadow map.
         // Light and normal are also taken in the case that a bias is to be used.
-        vec4 frag_position_view_space = material_frame_ubo.views[material_draw_ubo.view_index] * in_dto.frag_position;
+        vec4 frag_position_view_space = view * in_dto.frag_position;
         float depth = abs(frag_position_view_space).z;
         // Get the cascade index from the current fragment's position.
         int cascade_index = -1;
         for(int i = 0; i < KMATERIAL_MAX_SHADOW_CASCADES; ++i) {
-            if(depth < material_frame_ubo.cascade_splits[i]) {
+            if(depth < global_settings.cascade_splits[i]) {
                 cascade_index = i;
                 break;
             }
@@ -291,7 +325,7 @@ void main() {
             cascade_index = int(KMATERIAL_MAX_SHADOW_CASCADES);
         }
 
-        if(render_mode == 3) {
+        if(global_settings.render_mode == 3) {
             switch(cascade_index) {
                 case 0:
                     cascade_colour = vec3(1.0, 0.25, 0.25);
@@ -307,11 +341,11 @@ void main() {
                     break;
             }
         }
-        shadow = calculate_shadow(in_dto.light_space_frag_pos[cascade_index], normal, material_frame_ubo.dir_light, cascade_index);
+        shadow = calculate_shadow(in_dto.light_space_frag_pos[cascade_index], normal, cascade_index);
 
         // Fade out the shadow map past a certain distance.
-        float fade_start = material_frame_ubo.dir_light.shadow_distance;
-        float fade_distance = material_frame_ubo.dir_light.shadow_fade_distance;
+        float fade_start = global_settings.shadow_distance;
+        float fade_distance = global_settings.shadow_fade_distance;
 
         // The end of the fade-out range.
         float fade_end = fade_start + fade_distance;
@@ -327,7 +361,7 @@ void main() {
     vec3 base_reflectivity = vec3(0.04); 
     base_reflectivity = mix(base_reflectivity, albedo, metallic);
 
-    if(render_mode == 0 || render_mode == 1 || render_mode == 3) {
+    if(immediate.render_mode == 0 || immediate.render_mode == 1 || immediate.render_mode == 3) {
         vec3 view_direction = normalize(view_position.xyz - in_dto.frag_position.xyz);
 
         // Don't include albedo in mode 1 (lighting-only). Do this by using white 
@@ -335,7 +369,7 @@ void main() {
         // then add this colour to albedo and clamp it. This will result in pure 
         // white for the albedo in mode 1, and normal albedo in mode 0, all without
         // branching.
-        albedo += (vec3(1.0) * render_mode);         
+        albedo += (vec3(1.0) * immediate.render_mode);         
         albedo = clamp(albedo, vec3(0.0), vec3(1.0));
 
         // This is based off the Cook-Torrance BRDF (Bidirectional Reflective Distribution Function).
@@ -347,23 +381,22 @@ void main() {
 
         // Directional light radiance.
         {
-            directional_light light = material_frame_ubo.dir_light;
-            vec3 light_direction = normalize(-light.direction.xyz);
-            vec3 radiance = calculate_directional_light_radiance(light, view_direction);
+            vec3 light_direction = normalize(-directional_light.position.xyz); // position = direction for directional light
+            vec3 radiance = calculate_directional_light_radiance(directional_light.colour.rgb, view_direction);
 
             // Only directional light should be affected by shadow map.
             total_reflectance += (shadow * calculate_reflectance(albedo, normal, view_direction, light_direction, metallic, roughness, base_reflectivity, radiance));
         }
 
         // Point light radiance
-        // Get point light indices by unpacking each element of material_draw_ubo.packed_point_light_indices
+        // Get point light indices by unpacking each element of immediate.packed_point_light_indices
         uint plights_rendered = 0;
-        for(uint ppli = 0; ppli < 2 && plights_rendered < material_draw_ubo.num_p_lights; ++ppli) {
-            uint packed = material_draw_ubo.packed_point_light_indices[ppli];
+        for(uint ppli = 0; ppli < 2 && plights_rendered < immediate.num_p_lights; ++ppli) {
+            uint packed = immediate.packed_point_light_indices[ppli];
             uint unpacked[4];
             unpack_u32(packed, unpacked[0], unpacked[1], unpacked[2], unpacked[3]);
-            for(uint upi = 0; upi < 4 && plights_rendered < material_draw_ubo.num_p_lights; ++upi) {
-                point_light light = material_frame_ubo.p_lights[unpacked[upi]];
+            for(uint upi = 0; upi < 4 && plights_rendered < immediate.num_p_lights; ++upi) {
+                light_data light = global_lighting.lights[unpacked[upi]];
                 vec3 light_direction = normalize(light.position.xyz - in_dto.frag_position.xyz);
                 vec3 radiance = calculate_point_light_radiance(light, view_direction, in_dto.frag_position.xyz);
 
@@ -372,7 +405,7 @@ void main() {
         }
 
         // Irradiance holds all the scene's indirect diffuse light. Use the surface normal to sample from it.
-        vec3 irradiance = texture(samplerCube(irradiance_textures[material_draw_ubo.irradiance_cubemap_index], irradiance_sampler), normal).rgb;
+        vec3 irradiance = texture(samplerCube(irradiance_textures[immediate.irradiance_cubemap_index], irradiance_sampler), normal).rgb;
 
         // Combine irradiance with albedo and ambient occlusion. 
         // Also add in total accumulated reflectance.
@@ -394,13 +427,13 @@ void main() {
         // Ensure the alpha is based on the albedo's original alpha value if transparency is enabled.
         // If it's not enabled, just use 1.0.
         float alpha = 1.0;
-        if(flag_get(material_group_ubo.flags, KMATERIAL_FLAG_HAS_TRANSPARENCY_BIT)) {
+        if(flag_get(base_material.flags, KMATERIAL_FLAG_HAS_TRANSPARENCY_BIT)) {
             alpha = base_colour_samp.a;
         }
         out_colour = vec4(colour, alpha);
-    } else if(render_mode == 2) {
+    } else if(immediate.render_mode == 2) {
         out_colour = vec4(abs(normal), 1.0);
-    } else if(render_mode == 4) {
+    } else if(immediate.render_mode == 4) {
         // wireframe, just render a solid colour.
         out_colour = vec4(0.0, 1.0, 1.0, 1.0); // cyan
     }
@@ -454,7 +487,7 @@ vec3 calculate_reflectance(vec3 albedo, vec3 normal, vec3 view_direction, vec3 l
     return (refraction_diffuse * albedo / PI + specular) * radiance * normal_dot_light_direction;  
 }
 
-vec3 calculate_point_light_radiance(point_light light, vec3 view_direction, vec3 frag_position_xyz) {
+vec3 calculate_point_light_radiance(light_data light, vec3 view_direction, vec3 frag_position_xyz) {
     float constant_f = 1.0f;
     // Per-light radiance based on the point light's attenuation.
     float distance = length(light.position.xyz - frag_position_xyz);
@@ -465,11 +498,11 @@ vec3 calculate_point_light_radiance(point_light light, vec3 view_direction, vec3
     return (light.colour.rgb * energy_multiplier) * attenuation;
 }
 
-vec3 calculate_directional_light_radiance(directional_light light, vec3 view_direction) {
+vec3 calculate_directional_light_radiance(vec3 colour, vec3 view_direction) {
     // For directional lights, radiance is just the same as the light colour itself.
     // PBR lights are energy-based, so convert to a scale of 0-100.
     float energy_multiplier = 100.0;
-    return light.colour.rgb * energy_multiplier;
+    return colour * energy_multiplier;
 }
 
 // Percentage-Closer Filtering
@@ -497,7 +530,7 @@ float calculate_unfiltered(vec3 projected, int cascade_index, float shadow_bias)
 
 // Compare the fragment position against the depth buffer, and if it is further 
 // back than the shadow map, it's in shadow. 0.0 = in shadow, 1.0 = not
-float calculate_shadow(vec4 light_space_frag_pos, vec3 normal, directional_light light, int cascade_index) {
+float calculate_shadow(vec4 light_space_frag_pos, vec3 normal, int cascade_index) {
     // Perspective divide - note that while this is pointless for ortho projection,
     // perspective will require this.
     vec3 projected = light_space_frag_pos.xyz / light_space_frag_pos.w;
@@ -507,13 +540,11 @@ float calculate_shadow(vec4 light_space_frag_pos, vec3 normal, directional_light
     // NOTE: Transform to NDC not needed for Vulkan, but would be for OpenGL.
     // projected.xy = projected.xy * 0.5 + 0.5;
 
-    uint use_pcf = material_frame_ubo.options[MAT_OPTION_IDX_USE_PCF];
-    float shadow_bias = material_frame_ubo.params[MAT_PARAM_IDX_SHADOW_BIAS];
-    if(use_pcf == 1) {
-        return calculate_pcf(projected, cascade_index, shadow_bias);
+    if(global.use_pcf == 1) {
+        return calculate_pcf(projected, cascade_index, global.shadow_bias);
     } 
 
-    return calculate_unfiltered(projected, cascade_index, shadow_bias);
+    return calculate_unfiltered(projected, cascade_index, global.shadow_bias);
 }
 
 // Based on a combination of GGX and Schlick-Beckmann approximation to calculate probability

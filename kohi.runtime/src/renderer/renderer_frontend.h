@@ -524,7 +524,7 @@ KAPI b8 renderer_shader_flag_get(struct renderer_system_state* state, kshader sh
  */
 KAPI void renderer_shader_flag_set(struct renderer_system_state* state, kshader shader, shader_flags flag, b8 enabled);
 
-KAPI void renderer_shader_set_immediate_data(struct renderer_system_state* state, kshader shader, void* data, u8 size);
+KAPI void renderer_shader_set_immediate_data(struct renderer_system_state* state, kshader shader, const void* data, u8 size);
 KAPI void renderer_shader_set_binding_data(struct renderer_system_state* state, kshader shader, u8 binding_set, u32 instance_id, u8 binding_index, u64 offset, void* data, u64 size);
 KAPI void renderer_shader_set_binding_texture(struct renderer_system_state* state, kshader shader, u8 binding_set, u32 instance_id, u8 binding_index, u8 array_index, ktexture texture);
 KAPI void renderer_shader_set_binding_sampler(struct renderer_system_state* state, kshader shader, u8 binding_set, u32 instance_id, u8 binding_index, u8 array_index, ksampler_backend sampler);

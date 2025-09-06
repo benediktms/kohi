@@ -119,8 +119,6 @@ typedef struct kmaterial_instance_data {
     // Multiplied against uv coords of vertex data.
     vec3 uv_scale;
 
-    // Shader draw id for per-draw uniforms.
-    u32 per_draw_id;
 } kmaterial_instance_data;
 
 // Represents a base material.
@@ -189,8 +187,8 @@ typedef struct kmaterial_data {
     f32 wave_speed;
     f32 tiling;
 
-    // Shader group id for per-group uniforms.
-    u32 group_id;
+    // Shader binding set id for base material data.
+    u32 binding_set_id;
 
 } kmaterial_data;
 
@@ -325,6 +323,8 @@ KAPI b8 kmaterial_system_acquire(struct kmaterial_system_state* state, kname nam
 KAPI void kmaterial_system_release(struct kmaterial_system_state* state, kmaterial_instance* instance);
 
 KAPI const kmaterial_data* kmaterial_get_base_material_data(struct kmaterial_system_state* state, kmaterial base_material);
+
+KAPI const kmaterial_data* kmaterial_system_get_all_base_materials(struct kmaterial_system_state* state);
 
 KAPI const kmaterial_instance_data* kmaterial_get_material_instance_data(struct kmaterial_system_state* state, kmaterial_instance instance);
 

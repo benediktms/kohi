@@ -11,6 +11,8 @@ typedef struct ktransform_system_config {
     u32 initial_slot_count;
 } ktransform_system_config;
 
+#define KRENDERBUFFER_NAME_TRANSFORMS_GLOBAL "Kohi.StorageBuffer.TransformsGlobal"
+
 b8 ktransform_system_initialize(u64* memory_requirement, void* state, void* config);
 
 void ktransform_system_shutdown(void* state);

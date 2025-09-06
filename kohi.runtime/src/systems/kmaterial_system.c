@@ -406,6 +406,10 @@ const kmaterial_data* kmaterial_get_base_material_data(kmaterial_system_state* s
     return &state->materials[base_material];
 }
 
+const kmaterial_data* kmaterial_system_get_all_base_materials(struct kmaterial_system_state* state) {
+    return state->materials;
+}
+
 const kmaterial_instance_data* kmaterial_get_material_instance_data(kmaterial_system_state* state, kmaterial_instance instance) {
     return &state->instances[instance.base_material][instance.instance_id];
 }

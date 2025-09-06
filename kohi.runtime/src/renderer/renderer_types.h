@@ -166,7 +166,9 @@ typedef enum renderbuffer_track_type {
 typedef enum renderbuffer_flag_bits {
     RENDERBUFFER_FLAG_NONE = 0,
     // Automatically map the buffer memory on creation. Maps the entire buffer range.
-    RENDERBUFFER_FLAG_AUTO_MAP_MEMORY_BIT = 1 << 0
+    RENDERBUFFER_FLAG_AUTO_MAP_MEMORY_BIT = 1 << 0,
+    // The buffer should be setup to have multiple internal buffers, one per frame buffer (i.e. triple-buffered = 3)
+    RENDERBUFFER_FLAG_TRIPLE_BUFFERED_BIT = 1 << 1
 } renderbuffer_flag_bits;
 
 typedef u32 renderbuffer_flags;
@@ -176,9 +178,6 @@ typedef u16 krenderbuffer;
 
 #define KRENDERBUFFER_NAME_GLOBAL_VERTEX "vertex_globalgeometry"
 #define KRENDERBUFFER_NAME_GLOBAL_INDEX "index_globalgeometry"
-#define KRENDERBUFFER_NAME_GLOBAL_MATERIALS "Kohi.Renderer.Storage.Materials"
-#define KRENDERBUFFER_NAME_GLOBAL_TRANSFORM "Kohi.Renderer.Storage.Transform"
-#define KRENDERBUFFER_NAME_GLOBAL_LIGHTING "Kohi.Renderer.Storage.Lighting"
 
 typedef enum renderer_config_flag_bits {
     /** @brief Indicates that vsync should be enabled. */
@@ -279,14 +278,6 @@ typedef struct renderer_backend_interface {
      * @return True if initialized successfully; otherwise false.
      */
     b8 (*initialize)(struct renderer_backend_interface* backend, const renderer_backend_config* config);
-
-    /**
-     * @brief Performs post-initialization setup (i.e. things that need to happen after the frontend is initialized)
-     *
-     * @param backend A pointer to the renderer backend interface.
-     * @return True if success; otherwise false.
-     */
-    b8 (*renderer_post_initialize)(struct renderer_backend_interface* backend);
 
     /**
      * @brief Shuts the renderer backend down.
@@ -586,7 +577,7 @@ typedef struct renderer_backend_interface {
      */
     void (*shader_flag_set)(struct renderer_backend_interface* backend, kshader shader, shader_flags flag, b8 enabled);
 
-    b8 (*shader_set_immediate_data)(struct renderer_backend_interface* backend, kshader shader, void* data, u8 size);
+    b8 (*shader_set_immediate_data)(struct renderer_backend_interface* backend, kshader shader, const void* data, u8 size);
     b8 (*shader_set_binding_data)(struct renderer_backend_interface* backend, kshader shader, u8 binding_set, u32 instance_id, u8 binding_index, u64 offset, void* data, u64 size);
     b8 (*shader_set_binding_texture)(struct renderer_backend_interface* backend, kshader shader, u8 binding_set, u32 instance_id, u8 binding_index, u8 array_index, ktexture texture);
     b8 (*shader_set_binding_sampler)(struct renderer_backend_interface* backend, kshader shader, u8 binding_set, u32 instance_id, u8 binding_index, u8 array_index, ksampler_backend sampler);

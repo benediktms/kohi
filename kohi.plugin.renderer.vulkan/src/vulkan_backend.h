@@ -95,7 +95,7 @@ b8 vulkan_renderer_shader_use(renderer_backend_interface* backend, kshader shade
 b8 vulkan_renderer_shader_supports_wireframe(const renderer_backend_interface* backend, const kshader shader);
 b8 vulkan_renderer_shader_flag_get(const renderer_backend_interface* backend, kshader shader, shader_flags flag);
 void vulkan_renderer_shader_flag_set(renderer_backend_interface* backend, kshader shader, shader_flags flag, b8 enabled);
-b8 vulkan_renderer_shader_set_immediate_data(renderer_backend_interface* backend, kshader shader, void* data, u8 size);
+b8 vulkan_renderer_shader_set_immediate_data(renderer_backend_interface* backend, kshader shader, const void* data, u8 size);
 b8 vulkan_renderer_shader_set_binding_data(renderer_backend_interface* backend, kshader shader, u8 binding_set, u32 use_id, u8 binding_index, u64 offset, void* data, u64 size);
 b8 vulkan_renderer_shader_set_binding_texture(renderer_backend_interface* backend, kshader shader, u8 binding_set, u32 use_id, u8 binding_index, u8 array_index, ktexture texture);
 b8 vulkan_renderer_shader_set_binding_sampler(renderer_backend_interface* backend, kshader shader, u8 binding_set, u32 use_id, u8 binding_index, u8 array_index, ksampler_backend sampler);
@@ -120,7 +120,7 @@ void vulkan_renderbuffer_destroy(renderer_backend_interface* backend, krenderbuf
 b8 vulkan_buffer_resize(renderer_backend_interface* backend, krenderbuffer handle, u64 new_size);
 b8 vulkan_buffer_bind(renderer_backend_interface* backend, krenderbuffer handle, u64 offset);
 b8 vulkan_buffer_unbind(renderer_backend_interface* backend, krenderbuffer handle);
-void* vulkan_buffer_map_memory(renderer_backend_interface* backend, krenderbuffer handle, u64 offset, u64 size);
+void vulkan_buffer_map_memory(renderer_backend_interface* backend, krenderbuffer handle, u64 offset, u64 size);
 void vulkan_buffer_unmap_memory(renderer_backend_interface* backend, krenderbuffer handle, u64 offset, u64 size);
 void* vulkan_renderbuffer_get_mapped_memory(renderer_backend_interface* backend, krenderbuffer handle);
 b8 vulkan_buffer_flush(renderer_backend_interface* backend, krenderbuffer handle, u64 offset, u64 size);

@@ -44,19 +44,25 @@
 
 struct vulkan_context;
 
+typedef struct vkbuffer_info {
+    VkBuffer handle;
+    VkDeviceMemory memory;
+    // 0 unless buffer has been mapped to it.
+    void* mapped_memory;
+} vkbuffer_info;
+
 /**
  * @brief Represents a Vulkan-specific buffer.
  * Used to load data onto the GPU.
  */
 typedef struct vulkan_buffer {
-    /** @brief The handle to the internal buffer. */
-    VkBuffer handle;
+    u8 handle_count;
+    /** @brief An array of vulkan buffer infos, 3 if triple-buffering, otherwise 1 */
+    vkbuffer_info* infos;
     /** @brief The usage flags. */
     VkBufferUsageFlags usage;
     /** @brief Indicates if the buffer's memory is currently locked. */
     b8 is_locked;
-    /** @brief The memory used by the buffer. */
-    VkDeviceMemory memory;
     /** @brief The memory requirements for this buffer. */
     VkMemoryRequirements memory_requirements;
     /** @brief The index of the memory used by the buffer. */
@@ -69,8 +75,6 @@ typedef struct vulkan_buffer {
 
     renderbuffer_flags flags;
 
-    // 0 unless buffer has been mapped to it.
-    void* mapped_memory;
 } vulkan_buffer;
 
 /** @brief Contains swapchain support information and capabilities. */
@@ -502,8 +506,6 @@ typedef struct vulkan_shader_binding_set_state {
 typedef struct vulkan_shader {
     // The name of the shader (mostly kept for debugging purposes).
     kname name;
-    /** @brief The block of memory mapped to the each per-colourbuffer-image uniform buffer. */
-    void* mapped_uniform_buffer_blocks[VULKAN_RESOURCE_IMAGE_COUNT];
 
     /** @brief The shader identifier. */
     u32 id;
@@ -548,8 +550,8 @@ typedef struct vulkan_shader {
     /** @brief The descriptor pool used for this shader. */
     VkDescriptorPool descriptor_pool;
 
-    /** @brief The uniform buffers used by this shader, one per colourbuffer image. */
-    krenderbuffer uniform_buffers[VULKAN_RESOURCE_IMAGE_COUNT];
+    /** @brief The uniform buffer used by this shader. Triple-buffered by default */
+    krenderbuffer uniform_buffer;
 
     /** @brief An array of pointers to pipelines associated with this shader. */
     vulkan_pipeline** pipelines;
@@ -712,15 +714,6 @@ typedef struct vulkan_context {
 
     /** @brief Collection of vulkan shaders (internal shader data). Matches size of shader array in shader system. */
     vulkan_shader* shaders;
-
-    /**
-     * @brief A function pointer to find a memory index of the given type and with the given properties.
-     * @param context A pointer to the renderer context.
-     * @param type_filter The types of memory to search for.
-     * @param property_flags The required properties which must be present.
-     * @returns The index of the found memory type. Returns -1 if not found.
-     */
-    i32 (*find_memory_index)(struct vulkan_context* context, u32 type_filter, u32 property_flags);
 
     PFN_vkCmdSetPrimitiveTopologyEXT vkCmdSetPrimitiveTopologyEXT;
     PFN_vkCmdSetFrontFaceEXT vkCmdSetFrontFaceEXT;

@@ -54,8 +54,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL vk_debug_callback(
     VkDebugUtilsMessageTypeFlagsEXT message_types,
     const VkDebugUtilsMessengerCallbackDataEXT* callback_data, void* user_data);
 
-static i32 find_memory_index(vulkan_context* context, u32 type_filter,
-                             u32 property_flags);
+static i32 find_memory_index(vulkan_context* context, u32 type_filter, u32 property_flags);
 
 static b8 recreate_swapchain(renderer_backend_interface* backend, kwindow* window);
 static b8 create_shader_module(vulkan_context* context, vulkan_shader* internal_shader, shader_stage stage, const char* source, const char* filename, vulkan_shader_stage* out_stage);
@@ -115,9 +114,6 @@ b8 vulkan_renderer_backend_initialize(renderer_backend_interface* backend, const
         context->validation_enabled = true;
     }
     context->flags = config->flags;
-
-    // Function pointers
-    context->find_memory_index = find_memory_index;
     context->render_flag_changed = false;
 
     // NOTE: Custom allocator.
@@ -723,6 +719,7 @@ b8 vulkan_renderer_frame_command_list_begin(renderer_backend_interface* backend,
     {
         krenderbuffer vertex_buffer = renderer_renderbuffer_get(backend->frontend_state, kname_create(KRENDERBUFFER_NAME_GLOBAL_VERTEX));
         vulkan_buffer* internal_vertex_buffer = &context->renderbuffers[vertex_buffer];
+        u8 index = internal_vertex_buffer->handle_count == 1 ? 0 : get_current_image_index(context);
         VkBufferMemoryBarrier vertex_buffer_barrier = {
             .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
             .pNext = NULL,
@@ -730,7 +727,7 @@ b8 vulkan_renderer_frame_command_list_begin(renderer_backend_interface* backend,
             .dstAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT,
             .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
             .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-            .buffer = internal_vertex_buffer->handle,
+            .buffer = internal_vertex_buffer->infos[index].handle,
             .offset = 0,
             .size = VK_WHOLE_SIZE,
         };
@@ -887,12 +884,13 @@ b8 vulkan_renderer_frame_command_list_end(renderer_backend_interface* backend, s
     {
         krenderbuffer vertex_buffer = renderer_renderbuffer_get(backend->frontend_state, kname_create(KRENDERBUFFER_NAME_GLOBAL_VERTEX));
         vulkan_buffer* internal_vertex_buffer = &context->renderbuffers[vertex_buffer];
+        u8 index = internal_vertex_buffer->handle_count == 1 ? 0 : get_current_image_index(context);
         VkBufferMemoryBarrier barrier = {0};
         barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
 
         barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
         barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        barrier.buffer = internal_vertex_buffer->handle;
+        barrier.buffer = internal_vertex_buffer->infos[index].handle;
         barrier.offset = 0;
         barrier.size = VK_WHOLE_SIZE;
         barrier.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
@@ -912,12 +910,13 @@ b8 vulkan_renderer_frame_command_list_end(renderer_backend_interface* backend, s
     {
         krenderbuffer index_buffer = renderer_renderbuffer_get(backend->frontend_state, kname_create(KRENDERBUFFER_NAME_GLOBAL_INDEX));
         vulkan_buffer* internal_index_buffer = &context->renderbuffers[index_buffer];
+        u8 index = internal_index_buffer->handle_count == 1 ? 0 : get_current_image_index(context);
         VkBufferMemoryBarrier barrier = {0};
         barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
 
         barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
         barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        barrier.buffer = internal_index_buffer->handle;
+        barrier.buffer = internal_index_buffer->infos[index].handle;
         barrier.offset = 0;
         barrier.size = VK_WHOLE_SIZE;
         barrier.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
@@ -1336,12 +1335,13 @@ void vulkan_renderer_end_rendering(struct renderer_backend_interface* backend, f
     {
         krenderbuffer vertex_buffer = renderer_renderbuffer_get(backend->frontend_state, kname_create(KRENDERBUFFER_NAME_GLOBAL_VERTEX));
         vulkan_buffer* internal_vertex_buffer = &context->renderbuffers[vertex_buffer];
+        u8 index = internal_vertex_buffer->handle_count == 1 ? 0 : get_current_image_index(context);
         VkBufferMemoryBarrier barrier = {0};
         barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
 
         barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED; // context->device.graphics_queue_index;
         barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED; //  context->device.graphics_queue_index;
-        barrier.buffer = internal_vertex_buffer->handle;
+        barrier.buffer = internal_vertex_buffer->infos[index].handle;
         barrier.offset = 0;
         barrier.size = VK_WHOLE_SIZE;
         barrier.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT; //| VK_ACCESS_TRANSFER_WRITE_BIT | VK_ACCESS_TRANSFER_READ_BIT;
@@ -1361,12 +1361,13 @@ void vulkan_renderer_end_rendering(struct renderer_backend_interface* backend, f
     {
         krenderbuffer index_buffer = renderer_renderbuffer_get(backend->frontend_state, kname_create(KRENDERBUFFER_NAME_GLOBAL_INDEX));
         vulkan_buffer* internal_index_buffer = &context->renderbuffers[index_buffer];
+        u8 index = internal_index_buffer->handle_count == 1 ? 0 : get_current_image_index(context);
         VkBufferMemoryBarrier barrier = {0};
         barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
 
         barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED; // context->device.graphics_queue_index;
         barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED; //  context->device.graphics_queue_index;
-        barrier.buffer = internal_index_buffer->handle;
+        barrier.buffer = internal_index_buffer->infos[index].handle;
         barrier.offset = 0;
         barrier.size = VK_WHOLE_SIZE;
         barrier.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT; //| VK_ACCESS_TRANSFER_WRITE_BIT | VK_ACCESS_TRANSFER_READ_BIT;
@@ -1971,7 +1972,7 @@ b8 vulkan_renderer_texture_write_data(renderer_backend_interface* backend, ktext
         vulkan_image_transition_layout(context, command_buffer, image, image->format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
         // Copy the data from the buffer.
-        vulkan_image_copy_from_buffer(context, image, context->renderbuffers[staging].handle, staging_offset, command_buffer);
+        vulkan_image_copy_from_buffer(context, image, context->renderbuffers[staging].infos[0].handle, staging_offset, command_buffer);
 
         if (image->mip_levels <= 1 || !vulkan_image_mipmaps_generate(context, image, command_buffer)) {
             // If mip generation isn't needed or fails, fall back to ordinary transition.
@@ -2055,7 +2056,7 @@ static b8 texture_read_offset_range(
         vulkan_image_transition_layout(context, &temp_buffer, image, image->format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 
         // Copy the data to the buffer.
-        vulkan_image_copy_region_to_buffer(context, image, context->renderbuffers[staging].handle, x, y, width, height, &temp_buffer);
+        vulkan_image_copy_region_to_buffer(context, image, context->renderbuffers[staging].infos[0].handle, x, y, width, height, &temp_buffer);
 
         // Transition from optimal for data reading to shader-read-only optimal layout.
         // TODO: Should probably cache the previous layout and transfer back to that instead.
@@ -2566,23 +2567,10 @@ b8 vulkan_renderer_shader_create(
         return false;
     }
 
-    kzero_memory(internal_shader->mapped_uniform_buffer_blocks, sizeof(void*) * VULKAN_RESOURCE_IMAGE_COUNT);
-    for (u8 i = 0; i < VULKAN_RESOURCE_IMAGE_COUNT; ++i) {
-        internal_shader->uniform_buffers[i] = KRENDERBUFFER_INVALID;
-    }
-
     // Uniform buffers, one per buffered image (i.e. triple-buffered = 3).
-    for (u32 i = 0; i < VULKAN_RESOURCE_IMAGE_COUNT; ++i) {
-        const char* buffer_name = string_format("renderbuffer_uniform_%s_idx_%d", kname_string_get(internal_shader->name), i);
-        internal_shader->uniform_buffers[i] = renderer_renderbuffer_create(backend->frontend_state, kname_create(buffer_name), RENDERBUFFER_TYPE_UNIFORM, total_uniform_buffer_size, RENDERBUFFER_TRACK_TYPE_FREELIST, RENDERBUFFER_FLAG_NONE);
-        string_free(buffer_name);
-        if (internal_shader->uniform_buffers[i] == KRENDERBUFFER_INVALID) {
-            KERROR("Vulkan buffer creation failed for object shader.");
-            return false;
-        }
-        // Map the entire buffer's memory.
-        internal_shader->mapped_uniform_buffer_blocks[i] = vulkan_buffer_map_memory(backend, internal_shader->uniform_buffers[i], 0, VK_WHOLE_SIZE);
-    }
+    const char* buffer_name = string_format("renderbuffer_uniform_%s", kname_string_get(internal_shader->name));
+    internal_shader->uniform_buffer = renderer_renderbuffer_create(backend->frontend_state, kname_create(buffer_name), RENDERBUFFER_TYPE_UNIFORM, total_uniform_buffer_size, RENDERBUFFER_TRACK_TYPE_FREELIST, RENDERBUFFER_FLAG_TRIPLE_BUFFERED_BIT);
+    string_free(buffer_name);
 
     return true;
 }
@@ -2644,14 +2632,8 @@ void vulkan_renderer_shader_destroy(renderer_backend_interface* backend, kshader
         }
 
         // Uniform buffer.
-        for (u32 i = 0; i < VULKAN_RESOURCE_IMAGE_COUNT; ++i) {
-            if (internal_shader->uniform_buffers[i] != KRENDERBUFFER_INVALID) {
-                vulkan_buffer_unmap_memory(backend, internal_shader->uniform_buffers[i], 0, VK_WHOLE_SIZE);
-                internal_shader->mapped_uniform_buffer_blocks[i] = 0;
-                renderer_renderbuffer_destroy(backend->frontend_state, internal_shader->uniform_buffers[i]);
-            }
-            internal_shader->uniform_buffers[i] = KRENDERBUFFER_INVALID;
-        }
+        renderer_renderbuffer_destroy(backend->frontend_state, internal_shader->uniform_buffer);
+        internal_shader->uniform_buffer = KRENDERBUFFER_INVALID;
 
         // Pipelines
         for (u32 i = 0; i < VULKAN_TOPOLOGY_CLASS_MAX; ++i) {
@@ -2725,7 +2707,7 @@ void vulkan_renderer_shader_flag_set(renderer_backend_interface* backend, kshade
     internal_shader->flags = FLAG_SET(internal_shader->flags, flag, enabled);
 }
 
-b8 vulkan_renderer_shader_set_immediate_data(renderer_backend_interface* backend, kshader shader, void* data, u8 size) {
+b8 vulkan_renderer_shader_set_immediate_data(renderer_backend_interface* backend, kshader shader, const void* data, u8 size) {
     vulkan_context* context = (vulkan_context*)backend->internal_context;
     krhi_vulkan* rhi = &context->rhi;
     vulkan_shader* internal_shader = &context->shaders[shader];
@@ -2761,12 +2743,12 @@ b8 vulkan_renderer_shader_set_binding_data(renderer_backend_interface* backend, 
     vulkan_shader_binding* binding = &binding_set_state->bindings[binding_index];
     if (binding->binding_type == SHADER_BINDING_TYPE_UBO) {
         // Upload data to UBO
-        u8* block = (u8*)internal_shader->mapped_uniform_buffer_blocks[get_current_image_index(context)];
+        u8* block = (u8*)vulkan_renderbuffer_get_mapped_memory(backend, internal_shader->uniform_buffer);
         kcopy_memory(block + use_state->ubo_offset + offset, data, size);
     } else if (binding->binding_type == SHADER_BINDING_TYPE_SSBO) {
         // Upload data to SSBO
         krenderbuffer buf = use_state->ssbo_states[binding->binding_type_index].buffer;
-        u8* block = context->renderbuffers[buf].mapped_memory;
+        u8* block = (u8*)vulkan_renderbuffer_get_mapped_memory(backend, buf);
         kcopy_memory(block + offset, data, size);
     } else {
         KERROR("%s - must be called on a binding type of either UBO or SSBO. Nothing to do.", __FUNCTION__);
@@ -3267,59 +3249,70 @@ b8 vulkan_renderbuffer_create(renderer_backend_interface* backend, kname name, u
         return false;
     }
 
+    internal_buffer->name = name;
+    internal_buffer->size = size;
+    internal_buffer->type = type;
+    internal_buffer->flags = flags;
+
+    // Buffers which are triple-buffered need multiples.
+    internal_buffer->handle_count = FLAG_GET(flags, RENDERBUFFER_FLAG_TRIPLE_BUFFERED_BIT) ? 3 : 1;
+    internal_buffer->infos = KALLOC_TYPE_CARRAY(vkbuffer_info, internal_buffer->handle_count);
+
+    b8 is_device_memory = FLAG_GET(internal_buffer->memory_property_flags, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
     VkBufferCreateInfo buffer_info = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
     buffer_info.size = size;
     buffer_info.usage = internal_buffer->usage;
     buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE; // NOTE: Only used in one queue.
 
-    VK_CHECK(rhi->kvkCreateBuffer(context->device.logical_device, &buffer_info, context->allocator, &internal_buffer->handle));
-    KTRACE("VkBuffer created at %p", internal_buffer->handle);
+    for (u8 i = 0; i < internal_buffer->handle_count; ++i) {
 
-    internal_buffer->name = name;
-    internal_buffer->size = size;
-    internal_buffer->type = type;
-    internal_buffer->flags = flags;
-    VK_SET_DEBUG_OBJECT_NAME(context, VK_OBJECT_TYPE_BUFFER, internal_buffer->handle, kname_string_get(internal_buffer->name));
+        VK_CHECK(rhi->kvkCreateBuffer(context->device.logical_device, &buffer_info, context->allocator, &internal_buffer->infos[i].handle));
+        KTRACE("VkBuffer created at %p", internal_buffer->infos[i].handle);
 
-    // Gather memory requirements.
-    rhi->kvkGetBufferMemoryRequirements(context->device.logical_device, internal_buffer->handle, &internal_buffer->memory_requirements);
-    internal_buffer->memory_index = context->find_memory_index(
-        context, internal_buffer->memory_requirements.memoryTypeBits,
-        internal_buffer->memory_property_flags);
-    if (internal_buffer->memory_index == -1) {
-        KERROR("Unable to create vulkan buffer because the required memory type index was not found.");
-        return false;
-    }
+        VK_SET_DEBUG_OBJECT_NAME_INDEXED(context, VK_OBJECT_TYPE_BUFFER, internal_buffer->infos[i].handle, kname_string_get(internal_buffer->name), i);
 
-    // Allocate memory info
-    VkMemoryAllocateInfo allocate_info = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
-    allocate_info.allocationSize = internal_buffer->memory_requirements.size;
-    allocate_info.memoryTypeIndex = (u32)internal_buffer->memory_index;
+        // Gather memory requirements.
+        rhi->kvkGetBufferMemoryRequirements(context->device.logical_device, internal_buffer->infos[i].handle, &internal_buffer->memory_requirements);
+        internal_buffer->memory_index = find_memory_index(
+            context, internal_buffer->memory_requirements.memoryTypeBits,
+            internal_buffer->memory_property_flags);
+        if (internal_buffer->memory_index == -1) {
+            KERROR("Unable to create vulkan buffer because the required memory type index was not found.");
+            return false;
+        }
 
-    // Allocate the memory.
-    VkResult result = rhi->kvkAllocateMemory(context->device.logical_device, &allocate_info, context->allocator, &internal_buffer->memory);
-    if (!vulkan_result_is_success(result)) {
-        KERROR("Failed to allocate memory for buffer with error: %s", vulkan_result_string(result, true));
-        return false;
-    }
-    VK_SET_DEBUG_OBJECT_NAME(context, VK_OBJECT_TYPE_DEVICE_MEMORY, internal_buffer->memory, kname_string_get(internal_buffer->name));
+        // Allocate memory info
+        VkMemoryAllocateInfo allocate_info = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
+        allocate_info.allocationSize = internal_buffer->memory_requirements.size;
+        allocate_info.memoryTypeIndex = (u32)internal_buffer->memory_index;
 
-    // Determine if memory is on a device heap.
-    b8 is_device_memory = vulkan_buffer_is_device_local(backend, internal_buffer);
-    // Report memory as in-use.
-    kallocate_report(internal_buffer->memory_requirements.size, is_device_memory ? MEMORY_TAG_GPU_LOCAL : MEMORY_TAG_VULKAN);
+        // Allocate the memory.
+        VkResult result = rhi->kvkAllocateMemory(context->device.logical_device, &allocate_info, context->allocator, &internal_buffer->infos[i].memory);
+        if (!vulkan_result_is_success(result)) {
+            KERROR("Failed to allocate memory for buffer with error: %s", vulkan_result_string(result, true));
+            return false;
+        }
+        VK_SET_DEBUG_OBJECT_NAME_INDEXED(context, VK_OBJECT_TYPE_DEVICE_MEMORY, internal_buffer->infos[i].memory, kname_string_get(internal_buffer->name), i);
 
-    if (result != VK_SUCCESS) {
-        KERROR("Unable to create vulkan buffer because the required memory allocation failed. Error: %i", result);
-        return false;
-    }
+        // Determine if memory is on a device heap.
+        // Report memory as in-use.
+        kallocate_report(internal_buffer->memory_requirements.size, is_device_memory ? MEMORY_TAG_GPU_LOCAL : MEMORY_TAG_VULKAN);
 
-    // Bind the allocated memory to the buffer.
-    VK_CHECK(rhi->kvkBindBufferMemory(context->device.logical_device, internal_buffer->handle, internal_buffer->memory, 0));
+        if (result != VK_SUCCESS) {
+            KERROR("Unable to create vulkan buffer because the required memory allocation failed. Error: %i", result);
+            return false;
+        }
 
-    // Automatically map entire buffer range if flag is set.
-    if (FLAG_GET(internal_buffer->flags, RENDERBUFFER_FLAG_AUTO_MAP_MEMORY_BIT)) {
-        internal_buffer->mapped_memory = vulkan_buffer_map_memory(backend, handle, 0, size);
+        // Bind the allocated memory to the buffer.
+        VK_CHECK(rhi->kvkBindBufferMemory(context->device.logical_device, internal_buffer->infos[i].handle, internal_buffer->infos[i].memory, 0));
+
+        // Automatically map entire buffer range if flag is set.
+        if (FLAG_GET(internal_buffer->flags, RENDERBUFFER_FLAG_AUTO_MAP_MEMORY_BIT)) {
+            vkbuffer_info* buf = &internal_buffer->infos[i];
+            size = size == KWHOLE_SIZE ? VK_WHOLE_SIZE : size;
+            VK_CHECK(rhi->kvkMapMemory(context->device.logical_device, buf->memory, 0, size, 0, &buf->mapped_memory));
+        }
     }
 
     return true;
@@ -3331,25 +3324,31 @@ void vulkan_renderbuffer_destroy(renderer_backend_interface* backend, krenderbuf
     rhi->kvkDeviceWaitIdle(context->device.logical_device);
     if (handle != KRENDERBUFFER_INVALID) {
         vulkan_buffer* internal_buffer = &context->renderbuffers[handle];
-        if (internal_buffer->memory) {
-            rhi->kvkFreeMemory(context->device.logical_device, internal_buffer->memory, context->allocator);
-            internal_buffer->memory = 0;
+
+        for (u8 i = 0; i < internal_buffer->handle_count; ++i) {
+            if (internal_buffer->infos[i].memory) {
+                rhi->kvkFreeMemory(context->device.logical_device, internal_buffer->infos[i].memory, context->allocator);
+                internal_buffer->infos[i].memory = 0;
+            }
+            KTRACE("VkBuffer destroyed at %p", internal_buffer->infos[i].handle);
+            if (internal_buffer->infos[i].handle) {
+                rhi->kvkDestroyBuffer(context->device.logical_device, internal_buffer->infos[i].handle, context->allocator);
+                internal_buffer->infos[i].handle = 0;
+
+                // Report the free memory.
+                b8 is_device_memory = vulkan_buffer_is_device_local(backend, internal_buffer);
+                kfree_report(internal_buffer->memory_requirements.size, is_device_memory ? MEMORY_TAG_GPU_LOCAL : MEMORY_TAG_VULKAN);
+                kzero_memory(&internal_buffer->memory_requirements, sizeof(VkMemoryRequirements));
+
+                internal_buffer->usage = 0;
+                internal_buffer->is_locked = false;
+
+                // Free up the internal buffer.
+                context->renderbuffers[handle].infos[i].handle = 0;
+            }
         }
-        KTRACE("VkBuffer destroyed at %p", internal_buffer->handle);
-        if (internal_buffer->handle) {
-            rhi->kvkDestroyBuffer(context->device.logical_device, internal_buffer->handle, context->allocator);
-            internal_buffer->handle = 0;
-
-            // Report the free memory.
-            b8 is_device_memory = vulkan_buffer_is_device_local(backend, internal_buffer);
-            kfree_report(internal_buffer->memory_requirements.size, is_device_memory ? MEMORY_TAG_GPU_LOCAL : MEMORY_TAG_VULKAN);
-            kzero_memory(&internal_buffer->memory_requirements, sizeof(VkMemoryRequirements));
-
-            internal_buffer->usage = 0;
-            internal_buffer->is_locked = false;
-
-            // Free up the internal buffer.
-            context->renderbuffers[handle].handle = 0;
+        if (internal_buffer->infos) {
+            KFREE_TYPE_CARRAY(internal_buffer->infos, vkbuffer_info, internal_buffer->handle_count);
         }
 
         internal_buffer->flags = 0;
@@ -3371,62 +3370,66 @@ b8 vulkan_buffer_resize(renderer_backend_interface* backend, krenderbuffer handl
     buffer_info.usage = internal_buffer->usage;
     buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE; // NOTE: Only used in one queue.
 
-    VkBuffer new_buffer;
-    VK_CHECK(rhi->kvkCreateBuffer(context->device.logical_device, &buffer_info, context->allocator, &new_buffer));
+    for (u8 i = 0; i < internal_buffer->handle_count; ++i) {
 
-    // Gather memory requirements.
-    VkMemoryRequirements requirements;
-    rhi->kvkGetBufferMemoryRequirements(context->device.logical_device, new_buffer, &requirements);
+        VkBuffer new_buffer;
+        VK_CHECK(rhi->kvkCreateBuffer(context->device.logical_device, &buffer_info, context->allocator, &new_buffer));
 
-    // Allocate memory info
-    VkMemoryAllocateInfo allocate_info = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
-    allocate_info.allocationSize = requirements.size;
-    allocate_info.memoryTypeIndex = (u32)internal_buffer->memory_index;
+        // Gather memory requirements.
+        VkMemoryRequirements requirements;
+        rhi->kvkGetBufferMemoryRequirements(context->device.logical_device, new_buffer, &requirements);
 
-    // Allocate the memory.
-    VkDeviceMemory new_memory;
-    VkResult result = rhi->kvkAllocateMemory(context->device.logical_device, &allocate_info, context->allocator, &new_memory);
-    if (result != VK_SUCCESS) {
-        KERROR("Unable to resize vulkan buffer because the required memory allocation failed. Error: %i", result);
-        return false;
-    }
-    VK_SET_DEBUG_OBJECT_NAME(context, VK_OBJECT_TYPE_DEVICE_MEMORY, new_memory, kname_string_get(internal_buffer->name));
+        // Allocate memory info
+        VkMemoryAllocateInfo allocate_info = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
+        allocate_info.allocationSize = requirements.size;
+        allocate_info.memoryTypeIndex = (u32)internal_buffer->memory_index;
 
-    // Bind the new buffer's memory
-    VK_CHECK(rhi->kvkBindBufferMemory(context->device.logical_device, new_buffer, new_memory, 0));
+        // Allocate the memory.
+        VkDeviceMemory new_memory;
+        VkResult result = rhi->kvkAllocateMemory(context->device.logical_device, &allocate_info, context->allocator, &new_memory);
+        if (result != VK_SUCCESS) {
+            KERROR("Unable to resize vulkan buffer because the required memory allocation failed. Error: %i", result);
+            return false;
+        }
+        VK_SET_DEBUG_OBJECT_NAME(context, VK_OBJECT_TYPE_DEVICE_MEMORY, new_memory, kname_string_get(internal_buffer->name));
 
-    // Copy over the data.
-    vulkan_buffer_copy_range_internal(context, internal_buffer->handle, 0, new_buffer, 0, internal_buffer->size, false);
+        // Bind the new buffer's memory
+        VK_CHECK(rhi->kvkBindBufferMemory(context->device.logical_device, new_buffer, new_memory, 0));
 
-    // Make sure anything potentially using these is finished.
-    // NOTE: We could use vkQueueWaitIdle here if we knew what queue this buffer
-    // would be used with...
-    rhi->kvkDeviceWaitIdle(context->device.logical_device);
+        // Copy over the data.
+        vulkan_buffer_copy_range_internal(context, internal_buffer->infos[i].handle, 0, new_buffer, 0, internal_buffer->size, false);
 
-    // Destroy the old
-    if (internal_buffer->memory) {
-        rhi->kvkFreeMemory(context->device.logical_device, internal_buffer->memory, context->allocator);
-        internal_buffer->memory = 0;
-    }
-    if (internal_buffer->handle) {
-        rhi->kvkDestroyBuffer(context->device.logical_device, internal_buffer->handle, context->allocator);
-        internal_buffer->handle = 0;
-    }
+        // Make sure anything potentially using these is finished.
+        // NOTE: We could use vkQueueWaitIdle here if we knew what queue this buffer
+        // would be used with...
+        rhi->kvkDeviceWaitIdle(context->device.logical_device);
 
-    // Report free of the old, allocate of the new.
-    b8 is_device_memory = vulkan_buffer_is_device_local(backend, internal_buffer);
+        // Destroy the old
+        if (internal_buffer->infos[i].memory) {
+            rhi->kvkFreeMemory(context->device.logical_device, internal_buffer->infos[i].memory, context->allocator);
+            internal_buffer->infos[i].memory = 0;
+        }
+        if (internal_buffer->infos[i].handle) {
+            rhi->kvkDestroyBuffer(context->device.logical_device, internal_buffer->infos[i].handle, context->allocator);
+            internal_buffer->infos[i].handle = 0;
+        }
 
-    kfree_report(internal_buffer->memory_requirements.size, is_device_memory ? MEMORY_TAG_GPU_LOCAL : MEMORY_TAG_VULKAN);
-    internal_buffer->memory_requirements = requirements;
-    kallocate_report(internal_buffer->memory_requirements.size, is_device_memory ? MEMORY_TAG_GPU_LOCAL : MEMORY_TAG_VULKAN);
+        // Report free of the old, allocate of the new.
+        b8 is_device_memory = vulkan_buffer_is_device_local(backend, internal_buffer);
 
-    // Set new properties
-    internal_buffer->memory = new_memory;
-    internal_buffer->handle = new_buffer;
+        kfree_report(internal_buffer->memory_requirements.size, is_device_memory ? MEMORY_TAG_GPU_LOCAL : MEMORY_TAG_VULKAN);
+        internal_buffer->memory_requirements = requirements;
+        kallocate_report(internal_buffer->memory_requirements.size, is_device_memory ? MEMORY_TAG_GPU_LOCAL : MEMORY_TAG_VULKAN);
 
-    // Automatically re-map entire buffer range if flag is set.
-    if (FLAG_GET(internal_buffer->flags, RENDERBUFFER_FLAG_AUTO_MAP_MEMORY_BIT)) {
-        internal_buffer->mapped_memory = vulkan_buffer_map_memory(backend, handle, 0, new_size);
+        // Set new properties
+        internal_buffer->infos[i].memory = new_memory;
+        internal_buffer->infos[i].handle = new_buffer;
+
+        // Automatically re-map entire buffer range if flag is set.
+        if (FLAG_GET(internal_buffer->flags, RENDERBUFFER_FLAG_AUTO_MAP_MEMORY_BIT)) {
+            vkbuffer_info* buf = &internal_buffer->infos[i];
+            VK_CHECK(rhi->kvkMapMemory(context->device.logical_device, buf->memory, 0, new_size, 0, &buf->mapped_memory));
+        }
     }
 
     return true;
@@ -3443,14 +3446,16 @@ b8 vulkan_buffer_bind(renderer_backend_interface* backend, krenderbuffer handle,
     vulkan_buffer* internal_buffer = &context->renderbuffers[handle];
     vulkan_command_buffer* command_buffer = get_current_command_buffer(context);
 
+    u8 index = internal_buffer->handle_count == 1 ? 0 : get_current_image_index(context);
+
     if (internal_buffer->type == RENDERBUFFER_TYPE_VERTEX) {
         // Bind vertex buffer at offset.
         VkDeviceSize offsets[1] = {offset};
-        rhi->kvkCmdBindVertexBuffers(command_buffer->handle, 0, 1, &internal_buffer->handle, offsets);
+        rhi->kvkCmdBindVertexBuffers(command_buffer->handle, 0, 1, &internal_buffer->infos[index].handle, offsets);
         return true;
     } else if (internal_buffer->type == RENDERBUFFER_TYPE_INDEX) {
         // Bind index buffer at offset.
-        rhi->kvkCmdBindIndexBuffer(command_buffer->handle, internal_buffer->handle, offset, VK_INDEX_TYPE_UINT32);
+        rhi->kvkCmdBindIndexBuffer(command_buffer->handle, internal_buffer->infos[index].handle, offset, VK_INDEX_TYPE_UINT32);
         return true;
     } else {
         KWARN("Cannot bind buffer of type: %i", internal_buffer->type);
@@ -3470,30 +3475,33 @@ b8 vulkan_buffer_unbind(renderer_backend_interface* backend, krenderbuffer handl
     return true;
 }
 
-void* vulkan_buffer_map_memory(renderer_backend_interface* backend, krenderbuffer handle, u64 offset, u64 size) {
-    vulkan_context* context = (vulkan_context*)backend->internal_context;
-    krhi_vulkan* rhi = &context->rhi;
+void vulkan_buffer_map_memory(renderer_backend_interface* backend, krenderbuffer handle, u64 offset, u64 size) {
     if (handle == KRENDERBUFFER_INVALID) {
         KERROR("vulkan_buffer_map_memory requires a valid pointer to a buffer.");
-        return 0;
     }
+    vulkan_context* context = (vulkan_context*)backend->internal_context;
+    krhi_vulkan* rhi = &context->rhi;
     vulkan_buffer* internal_buffer = &context->renderbuffers[handle];
-    void* data;
 
-    size = size == KWHOLE_SIZE ? VK_WHOLE_SIZE : size;
-    VK_CHECK(rhi->kvkMapMemory(context->device.logical_device, internal_buffer->memory, offset, size, 0, &data));
-    return data;
+    for (u8 i = 0; i < internal_buffer->handle_count; ++i) {
+        vkbuffer_info* buf = &internal_buffer->infos[i];
+        size = size == KWHOLE_SIZE ? VK_WHOLE_SIZE : size;
+        VK_CHECK(rhi->kvkMapMemory(context->device.logical_device, buf->memory, offset, size, 0, &buf->mapped_memory));
+    }
 }
 
 void vulkan_buffer_unmap_memory(renderer_backend_interface* backend, krenderbuffer handle, u64 offset, u64 size) {
-    vulkan_context* context = (vulkan_context*)backend->internal_context;
-    krhi_vulkan* rhi = &context->rhi;
     if (handle == KRENDERBUFFER_INVALID) {
         KERROR("%s - requires a valid pointer to a buffer.", __FUNCTION__);
         return;
     }
+    vulkan_context* context = (vulkan_context*)backend->internal_context;
+    krhi_vulkan* rhi = &context->rhi;
     vulkan_buffer* internal_buffer = &context->renderbuffers[handle];
-    rhi->kvkUnmapMemory(context->device.logical_device, internal_buffer->memory);
+
+    for (u8 i = 0; i < internal_buffer->handle_count; ++i) {
+        rhi->kvkUnmapMemory(context->device.logical_device, internal_buffer->infos[i].memory);
+    }
 }
 
 void* vulkan_renderbuffer_get_mapped_memory(renderer_backend_interface* backend, krenderbuffer handle) {
@@ -3503,7 +3511,12 @@ void* vulkan_renderbuffer_get_mapped_memory(renderer_backend_interface* backend,
     }
 
     vulkan_context* context = (vulkan_context*)backend->internal_context;
-    return context->renderbuffers[handle].mapped_memory;
+    krhi_vulkan* rhi = &context->rhi;
+
+    vulkan_buffer* internal_buffer = &context->renderbuffers[handle];
+    u8 index = internal_buffer->handle_count == 1 ? 0 : get_current_image_index(context);
+
+    return context->renderbuffers[handle].infos[index].mapped_memory;
 }
 
 b8 vulkan_buffer_flush(renderer_backend_interface* backend, krenderbuffer handle, u64 offset, u64 size) {
@@ -3516,8 +3529,9 @@ b8 vulkan_buffer_flush(renderer_backend_interface* backend, krenderbuffer handle
     // NOTE: If not host-coherent, flush the mapped memory range.
     vulkan_buffer* internal_buffer = &context->renderbuffers[handle];
     if (!vulkan_buffer_is_host_coherent(backend, internal_buffer)) {
+        u8 index = internal_buffer->handle_count == 1 ? 0 : get_current_image_index(context);
         VkMappedMemoryRange range = {VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE};
-        range.memory = internal_buffer->memory;
+        range.memory = internal_buffer->infos[index].memory;
         range.offset = offset;
         range.size = size;
         VK_CHECK(rhi->kvkFlushMappedMemoryRanges(context->device.logical_device, 1, &range));
@@ -3535,6 +3549,8 @@ b8 vulkan_buffer_read(renderer_backend_interface* backend, krenderbuffer handle,
     }
 
     vulkan_buffer* internal_buffer = &context->renderbuffers[handle];
+    u8 index = internal_buffer->handle_count == 1 ? 0 : get_current_image_index(context);
+
     if (vulkan_buffer_is_device_local(backend, internal_buffer) &&
         !vulkan_buffer_is_host_visible(backend, internal_buffer)) {
         // NOTE: If a read buffer is needed (i.e.) the target buffer's memory is not
@@ -3555,10 +3571,10 @@ b8 vulkan_buffer_read(renderer_backend_interface* backend, krenderbuffer handle,
 
         // Map/copy/unmap
         void* mapped_data;
-        VK_CHECK(rhi->kvkMapMemory(context->device.logical_device, read_internal->memory,
+        VK_CHECK(rhi->kvkMapMemory(context->device.logical_device, read_internal->infos[index].memory,
                                    0, size, 0, &mapped_data));
         kcopy_memory(*out_memory, mapped_data, size);
-        rhi->kvkUnmapMemory(context->device.logical_device, read_internal->memory);
+        rhi->kvkUnmapMemory(context->device.logical_device, read_internal->infos[index].memory);
 
         // Clean up the read buffer.
         renderer_renderbuffer_unbind(backend->frontend_state, read);
@@ -3567,9 +3583,9 @@ b8 vulkan_buffer_read(renderer_backend_interface* backend, krenderbuffer handle,
         // If no staging buffer is needed, map/copy/unmap.
         void* data_ptr;
         VK_CHECK(rhi->kvkMapMemory(context->device.logical_device,
-                                   internal_buffer->memory, offset, size, 0, &data_ptr));
+                                   internal_buffer->infos[index].memory, offset, size, 0, &data_ptr));
         kcopy_memory(*out_memory, data_ptr, size);
-        rhi->kvkUnmapMemory(context->device.logical_device, internal_buffer->memory);
+        rhi->kvkUnmapMemory(context->device.logical_device, internal_buffer->infos[index].memory);
     }
 
     return true;
@@ -3591,6 +3607,7 @@ b8 vulkan_buffer_load_range(
     }
 
     vulkan_buffer* internal_buffer = &context->renderbuffers[handle];
+    u8 index = internal_buffer->handle_count == 1 ? 0 : get_current_image_index(context);
     if (vulkan_buffer_is_device_local(backend, internal_buffer) &&
         !vulkan_buffer_is_host_visible(backend, internal_buffer)) {
         // NOTE: If a staging buffer is needed (i.e.) the target buffer's memory is
@@ -3608,9 +3625,9 @@ b8 vulkan_buffer_load_range(
     } else {
         // If no staging buffer is needed, map/copy/unmap.
         void* data_ptr;
-        VK_CHECK(rhi->kvkMapMemory(context->device.logical_device, internal_buffer->memory, offset, size, 0, &data_ptr));
+        VK_CHECK(rhi->kvkMapMemory(context->device.logical_device, internal_buffer->infos[index].memory, offset, size, 0, &data_ptr));
         kcopy_memory(data_ptr, data, size);
-        rhi->kvkUnmapMemory(context->device.logical_device, internal_buffer->memory);
+        rhi->kvkUnmapMemory(context->device.logical_device, internal_buffer->infos[index].memory);
     }
 
     return true;
@@ -3683,9 +3700,12 @@ b8 vulkan_buffer_copy_range(
     vulkan_buffer* source_internal = &context->renderbuffers[source];
     vulkan_buffer* dest_internal = &context->renderbuffers[dest];
 
+    u8 source_index = source_internal->handle_count == 1 ? 0 : get_current_image_index(context);
+    u8 dest_index = dest_internal->handle_count == 1 ? 0 : get_current_image_index(context);
+
     return vulkan_buffer_copy_range_internal(
-        context, source_internal->handle, source_offset,
-        dest_internal->handle, dest_offset, size, include_in_frame_workload);
+        context, source_internal->infos[source_index].handle, source_offset,
+        dest_internal->infos[dest_index].handle, dest_offset, size, include_in_frame_workload);
     return true;
 }
 
@@ -4288,9 +4308,11 @@ static b8 vulkan_descriptorset_update_and_bind(
             desc_type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 
             // Only do this if the descriptor has not yet been updated.
-            vulkan_buffer* buf = &context->renderbuffers[internal_shader->uniform_buffers[image_index]];
+            vulkan_buffer* buf = &context->renderbuffers[internal_shader->uniform_buffer];
 
-            ubo_buffer_info.buffer = buf->handle;
+            u8 index = buf->handle_count == 1 ? 0 : get_current_image_index(context);
+
+            ubo_buffer_info.buffer = buf->infos[index].handle;
             KASSERT_MSG((use_state->ubo_offset % context->device.properties.limits.minUniformBufferOffsetAlignment) == 0, "Ubo offset must be a multiple of device.properties.limits.minUniformBufferOffsetAlignment.");
             ubo_buffer_info.offset = use_state->ubo_offset;
             ubo_buffer_info.range = use_state->ubo_stride;
@@ -4303,7 +4325,10 @@ static b8 vulkan_descriptorset_update_and_bind(
             desc_type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
             krenderbuffer buffer = use_state->ssbo_states[binding->binding_type_index].buffer;
             vulkan_buffer* buf = &context->renderbuffers[buffer];
+            u8 index = buf->handle_count == 1 ? 0 : get_current_image_index(context);
+
             VkDescriptorBufferInfo* ssbo_info = &ssbo_buffers[ssbo_index];
+            ssbo_info->buffer = buf->infos[index].handle;
             ssbo_info->offset = 0;
             ssbo_info->range = VK_WHOLE_SIZE;
             desc_set->pBufferInfo = ssbo_info;

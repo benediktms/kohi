@@ -85,17 +85,9 @@ typedef struct renderer_system_state {
     krenderbuffer geometry_vertex_buffer;
     /** @brief The object index buffer, used to hold geometry indices. */
     krenderbuffer geometry_index_buffer;
-    /** @brief The global material storage buffer, used to hold global data needed in many places (i.e lights, transforms, materials, skinning data, etc.). */
-    krenderbuffer global_material_storage_buffer;
-    /** @brief The global transform storage buffer, used to hold global data needed in many places (i.e lights, transforms, materials, skinning data, etc.). */
-    krenderbuffer global_transform_storage_buffer;
-    /** @brief The global lighting storage buffer, used to hold global data needed in many places (i.e lights, transforms, materials, skinning data, etc.). */
-    krenderbuffer global_lighting_storage_buffer;
 
     // Darray of created renderbuffers.
     krenderbuffer_data* renderbuffers;
-
-    // Renderer options.
 
     /** @brief Use PCF filtering */
     b8 use_pcf;
@@ -282,33 +274,6 @@ b8 renderer_system_initialize(u64* memory_requirement, renderer_system_state* st
         return false;
     }
 
-    // Global material storage buffer
-    // TODO: Make this configurable.
-    const u64 material_storage_buffer_size = MEBIBYTES(32);
-    state->global_material_storage_buffer = renderer_renderbuffer_create(state, kname_create(KRENDERBUFFER_NAME_GLOBAL_MATERIALS), RENDERBUFFER_TYPE_STORAGE, material_storage_buffer_size, RENDERBUFFER_TRACK_TYPE_NONE, RENDERBUFFER_FLAG_AUTO_MAP_MEMORY_BIT);
-    KASSERT(state->global_material_storage_buffer != KRENDERBUFFER_INVALID);
-    KDEBUG("Created global material storage buffer.");
-
-    // Global lighting storage buffer
-    // TODO: Make this configurable.
-    const u64 lighting_storage_buffer_size = MEBIBYTES(32);
-    state->global_lighting_storage_buffer = renderer_renderbuffer_create(state, kname_create(KRENDERBUFFER_NAME_GLOBAL_LIGHTING), RENDERBUFFER_TYPE_STORAGE, lighting_storage_buffer_size, RENDERBUFFER_TRACK_TYPE_NONE, RENDERBUFFER_FLAG_AUTO_MAP_MEMORY_BIT);
-    KASSERT(state->global_lighting_storage_buffer != KRENDERBUFFER_INVALID);
-    KDEBUG("Created global lighting storage buffer.");
-
-    // Global transform storage buffer
-    // TODO: Make this configurable.
-    const u64 transform_storage_buffer_size = MEBIBYTES(32);
-    state->global_transform_storage_buffer = renderer_renderbuffer_create(state, kname_create(KRENDERBUFFER_NAME_GLOBAL_TRANSFORM), RENDERBUFFER_TYPE_STORAGE, transform_storage_buffer_size, RENDERBUFFER_TRACK_TYPE_NONE, RENDERBUFFER_FLAG_AUTO_MAP_MEMORY_BIT);
-    KASSERT(state->global_transform_storage_buffer != KRENDERBUFFER_INVALID);
-    KDEBUG("Created global transform storage buffer.");
-
-    // Call into backend a 'post-initialize' to map these buffers internally, etc.
-    if (!state->backend->renderer_post_initialize(state->backend)) {
-        KERROR("Failed to perform post-initialize routine on renderer backend. Initialization failed.");
-        return false;
-    }
-
     return true;
 }
 
@@ -320,9 +285,6 @@ void renderer_system_shutdown(renderer_system_state* state) {
         // Destroy buffers.
         renderer_renderbuffer_destroy(state, state->geometry_vertex_buffer);
         renderer_renderbuffer_destroy(state, state->geometry_index_buffer);
-        renderer_renderbuffer_destroy(state, state->global_material_storage_buffer);
-        renderer_renderbuffer_destroy(state, state->global_lighting_storage_buffer);
-        renderer_renderbuffer_destroy(state, state->global_transform_storage_buffer);
 
         // Destroy generic samplers.
         for (u32 i = 0; i < SHADER_GENERIC_SAMPLER_COUNT; ++i) {
@@ -902,7 +864,7 @@ void renderer_shader_flag_set(struct renderer_system_state* state, kshader shade
     state->backend->shader_flag_set(state->backend, shader, flag, enabled);
 }
 
-void renderer_shader_set_immediate_data(struct renderer_system_state* state, kshader shader, void* data, u8 size) {
+void renderer_shader_set_immediate_data(struct renderer_system_state* state, kshader shader, const void* data, u8 size) {
     KASSERT_DEBUG(state);
     KASSERT_DEBUG(data);
     KASSERT_DEBUG(size);

@@ -9,6 +9,8 @@
 #include "math/kmath.h"
 #include "math/math_types.h"
 #include "memory/kmemory.h"
+#include "renderer/renderer_frontend.h"
+#include "renderer/renderer_types.h"
 #include "strings/kstring.h"
 
 typedef enum ktransform_flags {
@@ -48,6 +50,8 @@ typedef struct ktransform_system_state {
     /** The number of currently-allocated slots available (NOT the allocated space in bytes!) */
     u32 allocated;
 
+    /** globally-accessible renderbuffer that holds transforms. */
+    krenderbuffer transform_global_ssbo;
 } ktransform_system_state;
 
 /**
@@ -90,12 +94,20 @@ b8 ktransform_system_initialize(u64* memory_requirement, void* state, void* conf
 
     dirty_list_reset(state);
 
+    // Global transform storage buffer
+    u64 buffer_size = sizeof(mat4) * 16384; // TODO: configurable?
+    typed_state->transform_global_ssbo = renderer_renderbuffer_create(engine_systems_get()->renderer_system, kname_create(KRENDERBUFFER_NAME_TRANSFORMS_GLOBAL), RENDERBUFFER_TYPE_STORAGE, buffer_size, RENDERBUFFER_TRACK_TYPE_NONE, RENDERBUFFER_FLAG_AUTO_MAP_MEMORY_BIT);
+    KASSERT(typed_state->transform_global_ssbo != KRENDERBUFFER_INVALID);
+    KDEBUG("Created transforms global storage buffer.");
+
     return true;
 }
 
 void ktransform_system_shutdown(void* state) {
     if (state) {
         ktransform_system_state* typed_state = state;
+
+        renderer_renderbuffer_destroy(engine_systems_get()->renderer_system, typed_state->transform_global_ssbo);
 
         if (typed_state->local_matrices) {
             kfree_aligned(typed_state->local_matrices, sizeof(mat4) * typed_state->allocated, 16, MEMORY_TAG_TRANSFORM);
