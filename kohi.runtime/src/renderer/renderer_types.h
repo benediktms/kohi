@@ -584,6 +584,8 @@ typedef struct renderer_backend_interface {
 
     u32 (*shader_acquire_binding_set_instance)(struct renderer_backend_interface* backend, kshader shader, u8 binding_set);
     void (*shader_release_binding_set_instance)(struct renderer_backend_interface* backend, kshader shader, u8 binding_set, u32 instance_id);
+    u32 (*shader_binding_set_get_max_instance_count)(struct renderer_backend_interface* backend, kshader shader, u8 binding_set);
+    b8 (*shader_apply_binding_set)(struct renderer_backend_interface* backend, kshader shader, u8 binding_set, u32 instance_id);
 
     /**
      * @brief Acquires a internal sampler and returns a handle to it.
@@ -705,9 +707,8 @@ typedef struct renderer_backend_interface {
      * @param buffer A handle to the buffer to map.
      * @param offset The number of bytes from the beginning of the buffer to map.
      * @param size The amount of memory in the buffer to map.
-     * @returns A mapped block of memory. Freed and invalid once unmapped.
      */
-    void* (*renderbuffer_map_memory)(struct renderer_backend_interface* backend, krenderbuffer buffer, u64 offset, u64 size);
+    void (*renderbuffer_map_memory)(struct renderer_backend_interface* backend, krenderbuffer buffer, u64 offset, u64 size);
     /**
      * @brief Unmaps memory from the given buffer in the provided range to a block of memory.
      * This memory should be considered invalid once unmapped.

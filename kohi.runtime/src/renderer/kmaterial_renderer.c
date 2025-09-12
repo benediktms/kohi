@@ -21,6 +21,7 @@
 #include "runtime_defines.h"
 #include "serializers/kasset_shader_serializer.h"
 #include "strings/kname.h"
+#include "systems/animation_system.h"
 #include "systems/kmaterial_system.h"
 #include "systems/kshader_system.h"
 #include "systems/ktransform_system.h"
@@ -138,6 +139,7 @@ b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material
 
         shader_binding_set_config* set_0 = &mat_std_shader.binding_sets[0];
         set_0->max_instance_count = 1;
+        set_0->name = kname_create("material standard shader global binding set");
         set_0->binding_count = 9;
         set_0->bindings = KALLOC_TYPE_CARRAY(shader_binding_config, set_0->binding_count);
 
@@ -198,6 +200,7 @@ b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material
         // Set 1
         shader_binding_set_config* set_1 = &mat_std_shader.binding_sets[1];
         set_1->max_instance_count = max_material_count;
+        set_1->name = kname_create("material standard shader base material binding set");
         set_1->binding_count = 2;
         set_1->bindings = KALLOC_TYPE_CARRAY(shader_binding_config, set_1->binding_count);
 
@@ -277,6 +280,7 @@ b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material
 
         shader_binding_set_config* set_0 = &mat_std_skinned_shader.binding_sets[0];
         set_0->max_instance_count = 1;
+        set_0->name = kname_create("material skinned shader global binding set");
         set_0->binding_count = 9;
         set_0->bindings = KALLOC_TYPE_CARRAY(shader_binding_config, set_0->binding_count);
 
@@ -306,28 +310,28 @@ b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material
         bidx++;
 
         set_0->bindings[bidx].binding_type = SHADER_BINDING_TYPE_TEXTURE;
-        set_0->bindings[bidx].name = kname_create("material standard shadow cascade maps");
+        set_0->bindings[bidx].name = kname_create("material skinned shadow cascade maps");
         set_0->bindings[bidx].texture_type = SHADER_TEXTURE_TYPE_2D_ARRAY;
         set_0->bindings[bidx].array_size = 4;
         set_0->texture_count++;
         bidx++;
 
         set_0->bindings[bidx].binding_type = SHADER_BINDING_TYPE_SAMPLER;
-        set_0->bindings[bidx].name = kname_create("material standard shadow cascade map samplers");
+        set_0->bindings[bidx].name = kname_create("material skinned shadow cascade map samplers");
         set_0->bindings[bidx].sampler_type = SHADER_SAMPLER_TYPE_2D_ARRAY;
         set_0->bindings[bidx].array_size = 4;
         set_0->sampler_count++;
         bidx++;
 
         set_0->bindings[bidx].binding_type = SHADER_BINDING_TYPE_TEXTURE;
-        set_0->bindings[bidx].name = kname_create("material standard IBL probe cubemaps");
+        set_0->bindings[bidx].name = kname_create("material skinned IBL probe cubemaps");
         set_0->bindings[bidx].texture_type = SHADER_TEXTURE_TYPE_CUBE;
         set_0->bindings[bidx].array_size = 4;
         set_0->texture_count++;
         bidx++;
 
         set_0->bindings[bidx].binding_type = SHADER_BINDING_TYPE_SAMPLER;
-        set_0->bindings[bidx].name = kname_create("material standard IBL probe samplers");
+        set_0->bindings[bidx].name = kname_create("material skinned IBL probe samplers");
         set_0->bindings[bidx].sampler_type = SHADER_SAMPLER_TYPE_CUBE;
         set_0->bindings[bidx].array_size = 4;
         set_0->sampler_count++;
@@ -336,6 +340,7 @@ b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material
         // Set 1
         shader_binding_set_config* set_1 = &mat_std_skinned_shader.binding_sets[1];
         set_1->max_instance_count = max_material_count;
+        set_1->name = kname_create("material skinned shader base material binding set");
         set_1->binding_count = 2;
         set_1->bindings = KALLOC_TYPE_CARRAY(shader_binding_config, set_1->binding_count);
 
@@ -400,6 +405,7 @@ b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material
 
         shader_binding_set_config* set_0 = &mat_water_shader.binding_sets[0];
         set_0->max_instance_count = 1;
+        set_0->name = kname_create("material water shader global binding set");
         set_0->binding_count = 5;
         set_0->bindings = KALLOC_TYPE_CARRAY(shader_binding_config, set_0->binding_count);
 
@@ -459,6 +465,7 @@ b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material
         // Set 1
         shader_binding_set_config* set_1 = &mat_water_shader.binding_sets[1];
         set_1->max_instance_count = max_material_count;
+        set_0->name = kname_create("material water shader base material binding set");
         set_1->binding_count = 2;
         set_1->bindings = KALLOC_TYPE_CARRAY(shader_binding_config, set_1->binding_count);
 
@@ -838,23 +845,6 @@ void kmaterial_renderer_apply_immediates(kmaterial_renderer* state, kmaterial_in
 
     const kmaterial_data* base_material = kmaterial_get_base_material_data(engine_systems_get()->material_system, instance.base_material);
     KASSERT_DEBUG(base_material);
-
-    /* // Pack point light indices
-    uvec2 packed_point_light_indices = {0};
-    u8 written = 0;
-    for (u8 i = 0; i < 2 && written < point_light_count; ++i) {
-        u32 vi = 0;
-
-        for (u8 p = 0; p < 4 && written < point_light_count; ++p) {
-
-            // Pack the u8 into the given u32
-            vi |= ((u32)point_light_indices[written] << ((3 - p) * 8));
-            ++written;
-        }
-
-        // Store the packed u32
-        packed_point_light_indices.elements[i] = vi;
-    } */
 
     kshader shader = KSHADER_INVALID;
 

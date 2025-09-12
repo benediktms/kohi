@@ -99,9 +99,11 @@ b8 vulkan_renderer_shader_set_immediate_data(renderer_backend_interface* backend
 b8 vulkan_renderer_shader_set_binding_data(renderer_backend_interface* backend, kshader shader, u8 binding_set, u32 use_id, u8 binding_index, u64 offset, void* data, u64 size);
 b8 vulkan_renderer_shader_set_binding_texture(renderer_backend_interface* backend, kshader shader, u8 binding_set, u32 use_id, u8 binding_index, u8 array_index, ktexture texture);
 b8 vulkan_renderer_shader_set_binding_sampler(renderer_backend_interface* backend, kshader shader, u8 binding_set, u32 use_id, u8 binding_index, u8 array_index, ksampler_backend sampler);
+b8 vulkan_renderer_shader_apply_binding_set(renderer_backend_interface* backend, kshader shader, u8 binding_set, u32 instance_id);
 
 u32 vulkan_renderer_shader_acquire_binding_set_instance(renderer_backend_interface* backend, kshader shader, u8 binding_set);
 void vulkan_renderer_shader_release_binding_set_instance(renderer_backend_interface* backend, kshader shader, u8 binding_set, u32 instance_id);
+u32 vulkan_renderer_shader_binding_set_get_max_instance_count(renderer_backend_interface* backend, kshader shader, u8 binding_set);
 
 ksampler_backend vulkan_renderer_sampler_acquire(renderer_backend_interface* backend, kname name, texture_filter filter, texture_repeat repeat, f32 anisotropy);
 void vulkan_renderer_sampler_release(renderer_backend_interface* backend, ksampler_backend* sampler);

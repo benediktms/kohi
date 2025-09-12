@@ -1,16 +1,24 @@
 #version 450
 
+#define KMATERIAL_MAX_WATER_PLANES 4
+// One view for regular camera, plus one reflection view per water plane.
+#define KMATERIAL_MAX_VIEWS (KMATERIAL_MAX_WATER_PLANES + 1)
+
 // =========================================================
 // Inputs
 // =========================================================
 
-layout(set = 0, binding = 0) uniform per_frame_ubo {
-    mat4 view;
+layout(set = 0, binding = 0) uniform global_ubo_data {
+    mat4 views[KMATERIAL_MAX_VIEWS];
     mat4 projection;
-} skybox_frame_ubo;
+} global_ubo;
 
-layout(set = 0, binding = 0) uniform textureCube cube_texture;
-layout(set = 0, binding = 1) uniform sampler cube_sampler;
+layout(set = 0, binding = 1) uniform textureCube cube_texture;
+layout(set = 0, binding = 2) uniform sampler cube_sampler;
+
+layout(push_constant) uniform immediate_data {
+    uint view_index;
+} immediate;
 
 // Data Transfer Object from vertex shader.
 layout(location = 0) in dto {

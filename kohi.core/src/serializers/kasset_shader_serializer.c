@@ -147,7 +147,9 @@ const char* kasset_shader_serialize(const kasset_shader* asset) {
                 kson_object binding_obj = kson_object_create();
 
                 kson_object_value_add_string(&binding_obj, "type", shader_binding_type_to_string(binding->binding_type));
-                kson_object_value_add_kname_as_string(&binding_obj, "name", binding->name);
+                if (binding->name) {
+                    kson_object_value_add_kname_as_string(&binding_obj, "name", binding->name);
+                }
 
                 switch (binding->binding_type) {
                 case SHADER_BINDING_TYPE_UBO:
@@ -156,7 +158,7 @@ const char* kasset_shader_serialize(const kasset_shader* asset) {
                     break;
                 case SHADER_BINDING_TYPE_SSBO:
                     kson_object_value_add_int(&binding_obj, "data_size", binding->data_size);
-                    kson_object_value_add_int(&binding_obj, "offset", binding->offset);
+                    /* kson_object_value_add_int(&binding_obj, "offset", binding->offset); */
                     break;
                 case SHADER_BINDING_TYPE_TEXTURE:
                     kson_object_value_add_int(&binding_obj, "array_size", binding->array_size);
@@ -176,7 +178,7 @@ const char* kasset_shader_serialize(const kasset_shader* asset) {
             }
 
             // Add bindings array to the binding set object.
-            kson_array_value_add_object(&binding_set_obj, bindings_array);
+            kson_object_value_add_array(&binding_set_obj, "bindings", bindings_array);
 
             // Add the binding set to the binding sets array
             kson_array_value_add_object(&binding_sets_array, binding_set_obj);
@@ -433,7 +435,7 @@ b8 kasset_shader_deserialize(const char* file_text, kasset_shader* out_asset) {
 
                     // Offset is optional, defaults to 0. Ignored other than UBO
                     i64 offset = 0;
-                    if (!kson_object_property_value_get_int(&binding_obj, "offset", &offset)) {
+                    if (kson_object_property_value_get_int(&binding_obj, "offset", &offset)) {
                         if (binding->binding_type != SHADER_BINDING_TYPE_UBO) {
                             KWARN("offset is ignored for types other than UBO. set=%u, binding=%u", bs, b);
                         }

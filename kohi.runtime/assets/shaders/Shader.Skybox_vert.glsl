@@ -11,11 +11,14 @@ layout(location = 2) in vec2 in_texcoord;
 layout(location = 3) in vec4 in_colour;
 layout(location = 4) in vec4 in_tangent;
 
-layout(set = 0, binding = 0) uniform per_frame_ubo {
-	mat4 view;
+layout(set = 0, binding = 0) uniform global_ubo_data {
+    mat4 views[KMATERIAL_MAX_VIEWS];
     mat4 projection;
-} skybox_frame_ubo;
+} global_ubo;
 
+layout(push_constant) uniform immediate_data {
+    uint view_index;
+} immediate;
 
 // =========================================================
 // Outputs
@@ -28,5 +31,5 @@ layout(location = 0) out dto {
 
 void main() {
 	out_dto.tex_coord = -in_position;
-	gl_Position = skybox_frame_ubo.projection * skybox_frame_ubo.view * vec4(in_position, 1.0);
+	gl_Position = global_ubo.projection * global_ubo.views[immediate.view_index] * vec4(in_position, 1.0);
 } 

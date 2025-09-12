@@ -32,8 +32,9 @@ typedef struct standard_ui_system_config {
 } standard_ui_system_config;
 
 typedef struct standard_ui_renderable {
-    u32* group_id;
-    u32* per_draw_id;
+    // FIXME: Why is this a pointer?
+    // The per-control instance binding id for binding set 1.
+    u32* binding_instance_id;
     ktexture atlas_override;
     geometry_render_data render_data;
     geometry_render_data* clip_mask_render_data;
@@ -44,6 +45,18 @@ typedef struct standard_ui_render_data {
     // darray
     standard_ui_renderable* renderables;
 } standard_ui_render_data;
+
+// Global UBO data for the SUI shader.
+typedef struct sui_global_ubo {
+    mat4 projection;
+    mat4 view;
+} sui_global_ubo;
+
+// Immediate (i.e. every draw) data for the SUI shader.
+typedef struct sui_immediate_data {
+    mat4 model;
+    vec4 diffuse_colour;
+} sui_immediate_data;
 
 typedef struct sui_mouse_event {
     mouse_buttons mouse_button;

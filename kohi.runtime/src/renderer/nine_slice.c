@@ -1,5 +1,6 @@
 #include "nine_slice.h"
 
+#include "core/engine.h"
 #include "defines.h"
 #include "logger.h"
 #include "math/math_types.h"
@@ -256,9 +257,10 @@ void nine_slice_render_frame_prepare(nine_slice* nslice, const struct frame_data
 
     if (nslice->is_dirty) {
         // Upload the new vertex data.
-        krenderbuffer vertex_buffer = renderer_renderbuffer_get(kname_create(KRENDERBUFFER_NAME_GLOBAL_VERTEX));
+        struct renderer_system_state* renderer_system = engine_systems_get()->renderer_system;
+        krenderbuffer vertex_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_GLOBAL_VERTEX));
         u32 size = nslice->vertex_data.element_size * nslice->vertex_data.element_count;
-        if (!renderer_renderbuffer_load_range(vertex_buffer, nslice->vertex_data.buffer_offset, size, nslice->vertex_data.elements, true)) {
+        if (!renderer_renderbuffer_load_range(renderer_system, vertex_buffer, nslice->vertex_data.buffer_offset, size, nslice->vertex_data.elements, true)) {
             KERROR("vulkan_renderer_geometry_vertex_update failed to upload to the vertex buffer!");
         }
 
@@ -312,32 +314,34 @@ b8 nine_slice_create(const char* name, vec2i size, vec2i atlas_px_size, vec2i at
         KERROR("Failed to update nine slice. See logs for more details.");
     }
 
+    struct renderer_system_state* renderer_system = engine_systems_get()->renderer_system;
+
     // Vertex data.
-    krenderbuffer vertex_buffer = renderer_renderbuffer_get(kname_create(KRENDERBUFFER_NAME_GLOBAL_VERTEX));
+    krenderbuffer vertex_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_GLOBAL_VERTEX));
     // Allocate space in the buffer.
-    if (!renderer_renderbuffer_allocate(vertex_buffer, vert_size * vert_count, &out_nine_slice->vertex_data.buffer_offset)) {
+    if (!renderer_renderbuffer_allocate(renderer_system, vertex_buffer, vert_size * vert_count, &out_nine_slice->vertex_data.buffer_offset)) {
         KERROR("Failed to allocate from the vertex buffer!");
         return false;
     }
 
     // Load the data.
     // NOTE: Offload was set to false.
-    if (!renderer_renderbuffer_load_range(vertex_buffer, out_nine_slice->vertex_data.buffer_offset, vert_size * vert_count, out_nine_slice->vertex_data.elements, false)) {
+    if (!renderer_renderbuffer_load_range(renderer_system, vertex_buffer, out_nine_slice->vertex_data.buffer_offset, vert_size * vert_count, out_nine_slice->vertex_data.elements, false)) {
         KERROR("Failed to upload nine-slice vertex data to the vertex buffer!");
         return false;
     }
 
     // Index data
-    krenderbuffer index_buffer = renderer_renderbuffer_get(kname_create(KRENDERBUFFER_NAME_GLOBAL_INDEX));
+    krenderbuffer index_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_GLOBAL_INDEX));
     // Allocate space in the buffer.
-    if (!renderer_renderbuffer_allocate(index_buffer, idx_size * idx_count, &out_nine_slice->index_data.buffer_offset)) {
+    if (!renderer_renderbuffer_allocate(renderer_system, index_buffer, idx_size * idx_count, &out_nine_slice->index_data.buffer_offset)) {
         KERROR("Failed to allocate from the index buffer!");
         return false;
     }
 
     // Load the data.
     // NOTE: Offload was set to false.
-    if (!renderer_renderbuffer_load_range(index_buffer, out_nine_slice->index_data.buffer_offset, idx_size * idx_count, out_nine_slice->index_data.elements, false)) {
+    if (!renderer_renderbuffer_load_range(renderer_system, index_buffer, out_nine_slice->index_data.buffer_offset, idx_size * idx_count, out_nine_slice->index_data.elements, false)) {
         KERROR("Failed to upload nine-slice index data to the index buffer!");
         return false;
     }

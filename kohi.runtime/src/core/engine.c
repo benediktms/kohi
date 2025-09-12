@@ -31,6 +31,7 @@
 #include "renderer/renderer_frontend.h"
 
 // systems
+#include "systems/animation_system.h"
 #include "systems/asset_system.h"
 #include "systems/font_system.h"
 #include "systems/job_system.h"
@@ -487,6 +488,26 @@ b8 engine_create(application* app) {
         renderer_on_window_resized(engine_state->systems.renderer_system, window);
     }
 
+    // Light system
+    {
+        light_system_initialize(&systems->light_system_memory_requirement, 0, 0);
+        systems->light_system = kallocate(systems->light_system_memory_requirement, MEMORY_TAG_ENGINE);
+        if (!light_system_initialize(&systems->light_system_memory_requirement, systems->light_system, 0)) {
+            KERROR("Failed to initialize light system.");
+            return false;
+        }
+    }
+
+    // Animation system
+    {
+        animation_system_initialize(&systems->animation_system_memory_requirement, 0, 0);
+        systems->animation_system = kallocate(systems->animation_system_memory_requirement, MEMORY_TAG_ENGINE);
+        if (!animation_system_initialize(&systems->animation_system_memory_requirement, systems->animation_system, 0)) {
+            KERROR("Failed to initialize animation system.");
+            return false;
+        }
+    }
+
     // Material system and renderer.
     {
         kmaterial_system_config material_sys_config = {0};
@@ -556,16 +577,6 @@ b8 engine_create(application* app) {
         systems->font_system = kallocate(systems->font_system_memory_requirement, MEMORY_TAG_ENGINE);
         if (!font_system_initialize(&systems->font_system_memory_requirement, systems->font_system, &font_sys_config)) {
             KERROR("Failed to initialize font system.");
-            return false;
-        }
-    }
-
-    // Light system
-    {
-        light_system_initialize(&systems->light_system_memory_requirement, 0, 0);
-        systems->light_system = kallocate(systems->light_system_memory_requirement, MEMORY_TAG_ENGINE);
-        if (!light_system_initialize(&systems->light_system_memory_requirement, systems->light_system, 0)) {
-            KERROR("Failed to initialize light system.");
             return false;
         }
     }
@@ -830,10 +841,12 @@ b8 engine_run(application* app) {
         engine_system_states* systems = &engine_state->systems;
 
         kcamera_system_shutdown(systems->camera_system);
-        light_system_shutdown(systems->light_system);
         static_mesh_system_shutdown(systems->static_mesh_system);
         skinned_mesh_system_shutdown(systems->skinned_mesh_system);
         kmaterial_system_shutdown(systems->material_system);
+        kmaterial_renderer_shutdown(systems->material_renderer);
+        animation_system_shutdown(systems->animation_system);
+        light_system_shutdown(systems->light_system);
         font_system_shutdown(systems->font_system);
         texture_system_shutdown(systems->texture_system);
         ktimeline_system_shutdown(systems->timeline_system);

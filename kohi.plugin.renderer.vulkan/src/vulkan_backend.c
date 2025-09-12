@@ -54,8 +54,6 @@ VKAPI_ATTR VkBool32 VKAPI_CALL vk_debug_callback(
     VkDebugUtilsMessageTypeFlagsEXT message_types,
     const VkDebugUtilsMessengerCallbackDataEXT* callback_data, void* user_data);
 
-static i32 find_memory_index(vulkan_context* context, u32 type_filter, u32 property_flags);
-
 static b8 recreate_swapchain(renderer_backend_interface* backend, kwindow* window);
 static b8 create_shader_module(vulkan_context* context, vulkan_shader* internal_shader, shader_stage stage, const char* source, const char* filename, vulkan_shader_stage* out_stage);
 static b8 vulkan_buffer_copy_range_internal(vulkan_context* context,
@@ -76,7 +74,7 @@ static void vulkan_pipeline_bind(vulkan_context* context, vulkan_command_buffer*
 static b8 shader_create_modules_and_pipelines(renderer_backend_interface* backend, vulkan_shader* internal_shader, u8 stage_count, shader_stage* stages, kname* names, const char** sources);
 static b8 vulkan_descriptorset_update_and_bind(
     vulkan_context* context,
-    u16 generation,
+    u16 renderer_frame_number,
     vulkan_shader* internal_shader,
     u32 descriptor_set_index,
     u32 use_id);
@@ -1709,23 +1707,6 @@ vk_debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT message_severity,
     return VK_FALSE;
 }
 
-static i32 find_memory_index(vulkan_context* context, u32 type_filter, u32 property_flags) {
-    krhi_vulkan* rhi = &context->rhi;
-    VkPhysicalDeviceMemoryProperties memory_properties;
-    rhi->kvkGetPhysicalDeviceMemoryProperties(context->device.physical_device, &memory_properties);
-
-    for (u32 i = 0; i < memory_properties.memoryTypeCount; ++i) {
-        // Check each memory type to see if its bit is set to 1.
-        if (type_filter & (1 << i) &&
-            (memory_properties.memoryTypes[i].propertyFlags & property_flags) == property_flags) {
-            return i;
-        }
-    }
-
-    KWARN("Unable to find suitable memory type!");
-    return -1;
-}
-
 static b8 recreate_swapchain(renderer_backend_interface* backend, kwindow* window) {
     vulkan_context* context = backend->internal_context;
     krhi_vulkan* rhi = &context->rhi;
@@ -2282,7 +2263,7 @@ b8 vulkan_renderer_shader_create(
                     if (ssbo_state->buffer == KRENDERBUFFER_INVALID) {
                         // NOTE: Can only create one if size is nonzero.
                         if (!binding_config->data_size) {
-                            KERROR("%s - Configured SSBO binding at index %u must have a nonzero size to be created. Cannot create shader.", b);
+                            KERROR("%s - Configured SSBO binding at index %u must have a nonzero size to be created. Cannot create shader.", __FUNCTION__, b);
                             return false;
                         }
 
@@ -2733,7 +2714,6 @@ b8 vulkan_renderer_shader_set_immediate_data(renderer_backend_interface* backend
 
 b8 vulkan_renderer_shader_set_binding_data(renderer_backend_interface* backend, kshader shader, u8 binding_set, u32 use_id, u8 binding_index, u64 offset, void* data, u64 size) {
     vulkan_context* context = (vulkan_context*)backend->internal_context;
-    krhi_vulkan* rhi = &context->rhi;
     vulkan_shader* internal_shader = &context->shaders[shader];
 
     vulkan_shader_binding_set_state* binding_set_state = &internal_shader->binding_set_states[binding_set];
@@ -2760,7 +2740,6 @@ b8 vulkan_renderer_shader_set_binding_data(renderer_backend_interface* backend, 
 
 b8 vulkan_renderer_shader_set_binding_texture(renderer_backend_interface* backend, kshader shader, u8 binding_set, u32 use_id, u8 binding_index, u8 array_index, ktexture texture) {
     vulkan_context* context = (vulkan_context*)backend->internal_context;
-    krhi_vulkan* rhi = &context->rhi;
     vulkan_shader* internal_shader = &context->shaders[shader];
 
     vulkan_shader_binding_set_state* binding_set_state = &internal_shader->binding_set_states[binding_set];
@@ -2782,7 +2761,6 @@ b8 vulkan_renderer_shader_set_binding_texture(renderer_backend_interface* backen
 
 b8 vulkan_renderer_shader_set_binding_sampler(renderer_backend_interface* backend, kshader shader, u8 binding_set, u32 use_id, u8 binding_index, u8 array_index, ksampler_backend sampler) {
     vulkan_context* context = (vulkan_context*)backend->internal_context;
-    krhi_vulkan* rhi = &context->rhi;
     vulkan_shader* internal_shader = &context->shaders[shader];
 
     vulkan_shader_binding_set_state* binding_set_state = &internal_shader->binding_set_states[binding_set];
@@ -2800,6 +2778,14 @@ b8 vulkan_renderer_shader_set_binding_sampler(renderer_backend_interface* backen
     }
 
     return true;
+}
+
+b8 vulkan_renderer_shader_apply_binding_set(renderer_backend_interface* backend, kshader shader, u8 binding_set, u32 instance_id) {
+    vulkan_context* context = (vulkan_context*)backend->internal_context;
+    vulkan_shader* internal_shader = &context->shaders[shader];
+
+    u16 frame_number = renderer_system_frame_number_get(backend->frontend_state);
+    return vulkan_descriptorset_update_and_bind(context, frame_number, internal_shader, binding_set, instance_id);
 }
 
 static void invalidate_shader_binding_set_instance_state(vulkan_shader_binding_set_instance_state* use_state, const vulkan_shader_binding_set_state* binding_set_state) {
@@ -2908,6 +2894,14 @@ void vulkan_renderer_shader_release_binding_set_instance(renderer_backend_interf
     invalidate_shader_binding_set_instance_state(use_state, binding_set_state);
 
     KERROR("%s - Failed to find a free instance in shader '%s' for binding set %u.", kname_string_get(internal_shader->name), binding_set);
+}
+
+u32 vulkan_renderer_shader_binding_set_get_max_instance_count(renderer_backend_interface* backend, kshader shader, u8 binding_set) {
+    vulkan_context* context = (vulkan_context*)backend->internal_context;
+    vulkan_shader* internal_shader = &context->shaders[shader];
+
+    vulkan_shader_binding_set_state* binding_set_state = &internal_shader->binding_set_states[binding_set];
+    return binding_set_state->max_instance_count;
 }
 
 static b8 sampler_create_internal(vulkan_context* context, texture_filter filter, texture_repeat repeat, f32 anisotropy, vulkan_sampler_handle_data* out_sampler_handle_data) {
@@ -3274,7 +3268,7 @@ b8 vulkan_renderbuffer_create(renderer_backend_interface* backend, kname name, u
 
         // Gather memory requirements.
         rhi->kvkGetBufferMemoryRequirements(context->device.logical_device, internal_buffer->infos[i].handle, &internal_buffer->memory_requirements);
-        internal_buffer->memory_index = find_memory_index(
+        internal_buffer->memory_index = vulkan_find_memory_index(
             context, internal_buffer->memory_requirements.memoryTypeBits,
             internal_buffer->memory_property_flags);
         if (internal_buffer->memory_index == -1) {
@@ -3511,7 +3505,6 @@ void* vulkan_renderbuffer_get_mapped_memory(renderer_backend_interface* backend,
     }
 
     vulkan_context* context = (vulkan_context*)backend->internal_context;
-    krhi_vulkan* rhi = &context->rhi;
 
     vulkan_buffer* internal_buffer = &context->renderbuffers[handle];
     u8 index = internal_buffer->handle_count == 1 ? 0 : get_current_image_index(context);
@@ -4273,7 +4266,7 @@ static b8 vulkan_descriptorset_update_and_bind(
     u32 image_index = get_current_image_index(context);
 
     const frame_data* p_frame_data = engine_frame_data_get();
-    vulkan_descriptor_set_config set_config = internal_shader->descriptor_set_configs[descriptor_set_index];
+    /* vulkan_descriptor_set_config set_config = internal_shader->descriptor_set_configs[descriptor_set_index]; */
     vulkan_shader_binding_set_state* set_state = &internal_shader->binding_set_states[descriptor_set_index];
 
     // Allocate enough descriptor writes to handle one UBO, all samplers and all textures.

@@ -153,7 +153,7 @@ void vulkan_set_debug_object_name(vulkan_context* context, VkObjectType object_t
 }
 
 void vulkan_set_debug_object_name_indexed(vulkan_context* context, VkObjectType object_type, void* object_handle, const char* object_name, u32 index) {
-    char* temp_str = string_format("%s_%u", object_type, index);
+    char* temp_str = string_format("%s_%u", object_name, index);
     vulkan_set_debug_object_name(context, object_type, object_handle, temp_str);
     string_free(temp_str);
 }
@@ -191,3 +191,20 @@ void vulkan_end_label(vulkan_context* context, VkCommandBuffer buffer) {
     }
 }
 #endif
+
+i32 vulkan_find_memory_index(vulkan_context* context, u32 type_filter, u32 property_flags) {
+    krhi_vulkan* rhi = &context->rhi;
+    VkPhysicalDeviceMemoryProperties memory_properties;
+    rhi->kvkGetPhysicalDeviceMemoryProperties(context->device.physical_device, &memory_properties);
+
+    for (u32 i = 0; i < memory_properties.memoryTypeCount; ++i) {
+        // Check each memory type to see if its bit is set to 1.
+        if (type_filter & (1 << i) &&
+            (memory_properties.memoryTypes[i].propertyFlags & property_flags) == property_flags) {
+            return i;
+        }
+    }
+
+    KWARN("Unable to find suitable memory type!");
+    return -1;
+}

@@ -6,22 +6,19 @@
 // Inputs
 // =========================================================
 
-// per frame
-layout(set = 0, binding = 0) uniform per_frame_ubo {
+layout(set = 0, binding = 0) uniform global_ubo_data {
     mat4 view_projections[MAX_CASCADES];
-} frame_ubo;
+} global_ubo;
 
-// per group NOTE: No per-group UBO for this shader
 layout (set = 1, binding = 0) uniform texture2D base_colour_texture;
 layout (set = 1, binding = 1) uniform sampler base_colour_sampler;
 
-// per draw
-layout(push_constant) uniform per_draw_ubo {
+layout(push_constant) uniform immediate_data {
 	
 	// Only guaranteed a total of 128 bytes.
 	mat4 model; // 64 bytes
     uint cascade_index;
-} draw_ubo;
+} immediate;
 
 // Data Transfer Object from vertex shader
 layout(location = 1) in struct dto {

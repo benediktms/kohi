@@ -9,16 +9,16 @@ layout(location = 5) in vec4 in_mat_weights; // Supports 4 materials.
 
 #define MAX_CASCADES 4
 
-layout(set = 0, binding = 0) uniform global_uniform_object {
+layout(set = 0, binding = 0) uniform global_ubo_data {
     mat4 view_projections[MAX_CASCADES];
 } global_ubo;
 
-layout(push_constant) uniform push_constants {
+layout(push_constant) uniform immediate_data {
 	// Only guaranteed a total of 128 bytes.
 	mat4 model; // 64 bytes
     uint cascade_index;
-} local_ubo;
+} immediate;
 
 void main() {
-    gl_Position = global_ubo.view_projections[local_ubo.cascade_index] * local_ubo.model * vec4(in_position, 1.0);
+    gl_Position = global_ubo.view_projections[immediate.cascade_index] * immediate.model * vec4(in_position, 1.0);
 }

@@ -26,6 +26,7 @@
 #include <strings/kstring.h>
 
 #include "core/engine.h"
+#include "core_render_types.h"
 #include "platform/vfs.h"
 
 typedef struct asset_watch {
@@ -1165,17 +1166,16 @@ void asset_system_release_shader(struct asset_system_state* state, kasset_shader
             asset->attribute_count = 0;
         }
 
-        // Uniforms
-        if (asset->uniforms && asset->uniform_count) {
-            for (u32 i = 0; i < asset->uniform_count; ++i) {
-                kasset_shader_uniform* attrib = &asset->uniforms[i];
-                if (attrib->name) {
-                    string_free(attrib->name);
-                }
+        // binding sets
+        if (asset->binding_sets && asset->binding_set_count) {
+            for (u32 i = 0; i < asset->binding_set_count; ++i) {
+                shader_binding_set_config* binding_set = &asset->binding_sets[i];
+
+                KFREE_TYPE_CARRAY(binding_set->bindings, shader_binding_config, binding_set->binding_count);
             }
-            kfree(asset->uniforms, sizeof(kasset_shader_uniform) * asset->uniform_count, MEMORY_TAG_ARRAY);
-            asset->uniforms = 0;
-            asset->uniform_count = 0;
+            KFREE_TYPE_CARRAY(asset->binding_sets, shader_binding_set_config, asset->binding_set_count);
+            asset->binding_sets = 0;
+            asset->binding_set_count = 0;
         }
 
         KFREE_TYPE(asset, kasset_shader, MEMORY_TAG_ASSET);

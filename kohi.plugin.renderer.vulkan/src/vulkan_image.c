@@ -90,7 +90,7 @@ void vulkan_image_create(
     // Query memory requirements.
     rhi->kvkGetImageMemoryRequirements(context->device.logical_device, out_image->handle, &out_image->memory_requirements);
 
-    i32 memory_type = context->find_memory_index(context, out_image->memory_requirements.memoryTypeBits, memory_flags);
+    i32 memory_type = vulkan_find_memory_index(context, out_image->memory_requirements.memoryTypeBits, memory_flags);
     if (memory_type == -1) {
         KERROR("Required memory type not found. Image not valid.");
     }
@@ -259,7 +259,7 @@ void vulkan_image_recreate(vulkan_context* context, vulkan_image* image) {
     // Query memory requirements.
     rhi->kvkGetImageMemoryRequirements(context->device.logical_device, image->handle, &image->memory_requirements);
 
-    i32 memory_type = context->find_memory_index(context, image->memory_requirements.memoryTypeBits, image->memory_flags);
+    i32 memory_type = vulkan_find_memory_index(context, image->memory_requirements.memoryTypeBits, image->memory_flags);
     if (memory_type == -1) {
         KERROR("Required memory type not found. Image not valid.");
     }

@@ -8,10 +8,7 @@ typedef struct sui_panel_internal_data {
     vec4 rect;
     vec4 colour;
     kgeometry g;
-    u32 group_id;
-    u16 group_generation;
-    u32 draw_id;
-    u16 draw_generation;
+    u32 binding_instance_id;
     b8 is_dirty;
 } sui_panel_internal_data;
 

@@ -6,10 +6,7 @@
 typedef struct sui_label_internal_data {
     vec2i size;
     vec4 colour;
-    u32 group_id;
-    u16 group_generation;
-    u32 draw_id;
-    u16 draw_generation;
+    u32 binding_instance_id;
 
     font_type type;
     // Only used when set to use a bitmap font.

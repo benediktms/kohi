@@ -94,3 +94,5 @@ KAPI void kshader_set_binding_data(kshader shader, u8 binding_set, u32 instance_
 KAPI void kshader_set_binding_texture(kshader shader, u8 binding_set, u32 instance_id, u8 binding_index, u8 array_index, ktexture texture);
 KAPI u32 kshader_acquire_binding_set_instance(kshader shader, u8 binding_set);
 KAPI void kshader_release_binding_set_instance(kshader shader, u8 binding_set, u32 instance_id);
+KAPI u32 kshader_binding_set_instance_count_get(kshader shader, u8 binding_set);
+KAPI b8 kshader_apply_binding_set(kshader shader, u8 binding_set, u32 instance_id);

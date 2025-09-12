@@ -50,3 +50,5 @@ void vulkan_end_label(vulkan_context* context, VkCommandBuffer buffer);
 // Does nothing in non-debug builds.
 #    define VK_END_DEBUG_LABEL(context, command_buffer)
 #endif
+
+i32 vulkan_find_memory_index(vulkan_context* context, u32 type_filter, u32 property_flags);

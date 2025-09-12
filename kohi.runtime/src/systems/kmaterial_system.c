@@ -1015,7 +1015,6 @@ static void material_destroy(kmaterial_system_state* state, kmaterial_data* mate
 
     // Mark the material slot as free for another material to be loaded.
     material->state = KMATERIAL_STATE_UNINITIALIZED;
-    material->group_id = INVALID_ID;
 }
 
 static b8 kmaterial_instance_create(kmaterial_system_state* state, kmaterial base_material, u16* out_instance_id) {
@@ -1061,7 +1060,6 @@ static void kmaterial_instance_destroy(kmaterial_system_state* state, kmaterial_
 
         // Make sure to invalidate the entry.
         inst->material = KMATERIAL_INVALID;
-        inst->per_draw_id = INVALID_ID;
     }
 }
 

@@ -528,8 +528,10 @@ KAPI void renderer_shader_set_immediate_data(struct renderer_system_state* state
 KAPI void renderer_shader_set_binding_data(struct renderer_system_state* state, kshader shader, u8 binding_set, u32 instance_id, u8 binding_index, u64 offset, void* data, u64 size);
 KAPI void renderer_shader_set_binding_texture(struct renderer_system_state* state, kshader shader, u8 binding_set, u32 instance_id, u8 binding_index, u8 array_index, ktexture texture);
 KAPI void renderer_shader_set_binding_sampler(struct renderer_system_state* state, kshader shader, u8 binding_set, u32 instance_id, u8 binding_index, u8 array_index, ksampler_backend sampler);
+KAPI b8 renderer_shader_apply_binding_set(struct renderer_system_state* state, kshader shader, u8 binding_set, u32 instance_id);
 KAPI u32 renderer_shader_acquire_binding_set_instance(struct renderer_system_state* state, kshader shader, u8 binding_set);
 KAPI void renderer_shader_release_binding_set_instance(struct renderer_system_state* state, kshader shader, u8 binding_set, u32 instance_id);
+KAPI u32 renderer_shader_binding_set_get_max_instance_count(struct renderer_system_state* state, kshader shader, u8 binding_set);
 
 /**
  * @brief Gets a handle to a generic sampler of the given type.
@@ -656,9 +658,8 @@ KAPI b8 renderer_renderbuffer_unbind(struct renderer_system_state* state, krende
  * @param buffer A handle to the buffer to map.
  * @param offset The number of bytes from the beginning of the buffer to map.
  * @param size The amount of memory in the buffer to map. Use KWHOLE_SIZE to map the entire buffer.
- * @returns A mapped block of memory. Freed and invalid once unmapped.
  */
-KAPI void* renderer_renderbuffer_map_memory(struct renderer_system_state* state, krenderbuffer buffer, u64 offset, u64 size);
+KAPI void renderer_renderbuffer_map_memory(struct renderer_system_state* state, krenderbuffer buffer, u64 offset, u64 size);
 
 /**
  * @brief Unmaps memory from the given buffer in the provided range to a block of memory.

@@ -894,6 +894,12 @@ void renderer_shader_set_binding_sampler(struct renderer_system_state* state, ks
     KASSERT_DEBUG(state->backend->shader_set_binding_sampler(state->backend, shader, binding_set, instance_id, binding_index, array_index, sampler));
 }
 
+b8 renderer_shader_apply_binding_set(struct renderer_system_state* state, kshader shader, u8 binding_set, u32 instance_id) {
+    KASSERT_DEBUG(state);
+    KASSERT_DEBUG(shader != KSHADER_INVALID);
+    return state->backend->shader_apply_binding_set(state->backend, shader, binding_set, instance_id);
+}
+
 u32 renderer_shader_acquire_binding_set_instance(struct renderer_system_state* state, kshader shader, u8 binding_set) {
     KASSERT_DEBUG(state);
     KASSERT_DEBUG(shader != KSHADER_INVALID);
@@ -904,6 +910,12 @@ void renderer_shader_release_binding_set_instance(struct renderer_system_state* 
     KASSERT_DEBUG(state);
     KASSERT_DEBUG(shader != KSHADER_INVALID);
     state->backend->shader_release_binding_set_instance(state->backend, shader, binding_set, instance_id);
+}
+
+u32 renderer_shader_binding_set_get_max_instance_count(struct renderer_system_state* state, kshader shader, u8 binding_set) {
+    KASSERT_DEBUG(state);
+    KASSERT_DEBUG(shader != KSHADER_INVALID);
+    return state->backend->shader_binding_set_get_max_instance_count(state->backend, shader, binding_set);
 }
 
 ksampler_backend renderer_generic_sampler_get(struct renderer_system_state* state, shader_generic_sampler sampler) {
@@ -985,7 +997,7 @@ krenderbuffer renderer_renderbuffer_create(struct renderer_system_state* state, 
     }
 
     // Create the internal buffer from the backend.
-    if (!state->backend->renderbuffer_create(state->backend, name, total_size, type, out_handle, flags)) {
+    if (!state->backend->renderbuffer_create(state->backend, name, total_size, type, flags, out_handle)) {
         KFATAL("Unable to create backing buffer for renderbuffer. Application cannot continue.");
         return false;
     }
@@ -1038,8 +1050,8 @@ b8 renderer_renderbuffer_unbind(struct renderer_system_state* state, krenderbuff
     return state->backend->renderbuffer_unbind(state->backend, buffer);
 }
 
-void* renderer_renderbuffer_map_memory(struct renderer_system_state* state, krenderbuffer buffer, u64 offset, u64 size) {
-    return state->backend->renderbuffer_map_memory(state->backend, buffer, offset, size);
+void renderer_renderbuffer_map_memory(struct renderer_system_state* state, krenderbuffer buffer, u64 offset, u64 size) {
+    state->backend->renderbuffer_map_memory(state->backend, buffer, offset, size);
 }
 
 void renderer_renderbuffer_unmap_memory(struct renderer_system_state* state, krenderbuffer buffer, u64 offset, u64 size) {

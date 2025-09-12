@@ -173,10 +173,11 @@ static void mesh_asset_loaded(void* listener, kasset_static_mesh* asset) {
     static_mesh_system_state* state = typed_listener->state;
 
     const engine_system_states* systems = engine_systems_get();
+    struct renderer_system_state* renderer_system = systems->renderer_system;
 
     // Upload to GPU, etc.
-    krenderbuffer vertex_buffer = renderer_renderbuffer_get(kname_create(KRENDERBUFFER_NAME_GLOBAL_VERTEX));
-    krenderbuffer index_buffer = renderer_renderbuffer_get(kname_create(KRENDERBUFFER_NAME_GLOBAL_INDEX));
+    krenderbuffer vertex_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_GLOBAL_VERTEX));
+    krenderbuffer index_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_GLOBAL_INDEX));
 
     // Process submeshes from asset.
     // TODO: A reloaded asset will need to free the old data first just before this.
@@ -217,7 +218,7 @@ static void mesh_asset_loaded(void* listener, kasset_static_mesh* asset) {
         // Vertex data.
         if (!is_reupload) {
             // Allocate space in the buffer.
-            if (!renderer_renderbuffer_allocate(vertex_buffer, vertex_size, &submesh_geometry->vertex_buffer_offset)) {
+            if (!renderer_renderbuffer_allocate(renderer_system, vertex_buffer, vertex_size, &submesh_geometry->vertex_buffer_offset)) {
                 KERROR("static mesh system failed to allocate from the renderer's vertex buffer! Submesh geometry won't be uploaded (skipped)");
                 continue;
             }
@@ -225,9 +226,9 @@ static void mesh_asset_loaded(void* listener, kasset_static_mesh* asset) {
 
         // Load the data.
         // TODO: Passing false here produces a queue wait and should be offloaded to another queue.
-        if (!renderer_renderbuffer_load_range(vertex_buffer, submesh_geometry->vertex_buffer_offset + vertex_offset, vertex_size, submesh_geometry->vertices + vertex_offset, false)) {
+        if (!renderer_renderbuffer_load_range(renderer_system, vertex_buffer, submesh_geometry->vertex_buffer_offset + vertex_offset, vertex_size, submesh_geometry->vertices + vertex_offset, false)) {
             KERROR("static mesh system failed to upload to the renderer vertex buffer!");
-            if (!renderer_renderbuffer_free(vertex_buffer, vertex_size, submesh_geometry->vertex_buffer_offset)) {
+            if (!renderer_renderbuffer_free(renderer_system, vertex_buffer, vertex_size, submesh_geometry->vertex_buffer_offset)) {
                 KERROR("Failed to recover from vertex write failure while freeing vertex buffer range.");
             }
             continue;
@@ -237,10 +238,10 @@ static void mesh_asset_loaded(void* listener, kasset_static_mesh* asset) {
         if (index_size) {
             if (!is_reupload) {
                 // Allocate space in the buffer.
-                if (!renderer_renderbuffer_allocate(index_buffer, index_size, &submesh_geometry->index_buffer_offset)) {
+                if (!renderer_renderbuffer_allocate(renderer_system, index_buffer, index_size, &submesh_geometry->index_buffer_offset)) {
                     KERROR("static mesh system failed to allocate from the renderer index buffer!");
                     // Free vertex data
-                    if (!renderer_renderbuffer_free(vertex_buffer, vertex_size, submesh_geometry->vertex_buffer_offset)) {
+                    if (!renderer_renderbuffer_free(renderer_system, vertex_buffer, vertex_size, submesh_geometry->vertex_buffer_offset)) {
                         KERROR("Failed to recover from index allocation failure while freeing vertex buffer range.");
                     }
                     continue;
@@ -249,14 +250,14 @@ static void mesh_asset_loaded(void* listener, kasset_static_mesh* asset) {
 
             // Load the data.
             // TODO: Passing false here produces a queue wait and should be offloaded to another queue.
-            if (!renderer_renderbuffer_load_range(index_buffer, submesh_geometry->index_buffer_offset + index_offset, index_size, submesh_geometry->indices + index_offset, false)) {
+            if (!renderer_renderbuffer_load_range(renderer_system, index_buffer, submesh_geometry->index_buffer_offset + index_offset, index_size, submesh_geometry->indices + index_offset, false)) {
                 KERROR("static mesh system failed to upload to the renderer index buffer!");
                 // Free vertex data
-                if (!renderer_renderbuffer_free(vertex_buffer, vertex_size, submesh_geometry->vertex_buffer_offset)) {
+                if (!renderer_renderbuffer_free(renderer_system, vertex_buffer, vertex_size, submesh_geometry->vertex_buffer_offset)) {
                     KERROR("Failed to recover from index write failure while freeing vertex buffer range.");
                 }
                 // Free index data
-                if (!renderer_renderbuffer_free(index_buffer, index_size, submesh_geometry->index_buffer_offset)) {
+                if (!renderer_renderbuffer_free(renderer_system, index_buffer, index_size, submesh_geometry->index_buffer_offset)) {
                     KERROR("Failed to recover from index write failure while freeing index buffer range.");
                 }
                 continue;

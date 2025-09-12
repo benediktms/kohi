@@ -4,8 +4,6 @@ depth_write=true
 colour_read=false
 colour_write=false
 cull_mode="none"
-max_groups=256
-max_draw_ids=1024
 
 stages = [
     {
@@ -47,24 +45,16 @@ attributes = [
     }
 ]
 
-uniforms = {
-    per_frame = [
-        {
-            name = "view_projections"
-            type = "mat4"
-            array_size = 4
-        }
-    ]
-    per_group = [
-    ]
-    per_draw = [
-        {
-            name = "model"
-            type = "mat4"
-        }
-        {
-            name = "cascade_index"
-            type = "u32"
-        }
-    ]
-}
+binding_sets = [
+    {
+        name = "shadow static mesh global binding set"
+        max_instance_count = 1
+        bindings = [
+            {
+                name = "shadow static_mesh global UBO"
+                type = "UBO"
+                size = 256
+            }
+        ]
+    }
+]

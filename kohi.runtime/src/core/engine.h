@@ -98,6 +98,9 @@ typedef struct engine_system_states {
     u64 light_system_memory_requirement;
     struct light_system_state* light_system;
 
+    u64 animation_system_memory_requirement;
+    struct animation_system_state* animation_system;
+
     u64 camera_system_memory_requirement;
     struct camera_system_state* camera_system;
 

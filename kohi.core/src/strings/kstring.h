@@ -190,7 +190,7 @@ KAPI i32 string_format_v_unsafe(char* dest, const char* format, void* va_list);
  * @param ... The format arguments.
  * @returns The size of the data written. -1 if failed.
  */
-i32 string_nformat(char* dest, u32 max_len, const char* format, ...);
+KAPI i32 string_nformat(char* dest, u32 max_len, const char* format, ...);
 
 /**
  * @brief Performs variadic string formatting to dest given format string up to max_len length in bytes and va_list.
@@ -201,7 +201,7 @@ i32 string_nformat(char* dest, u32 max_len, const char* format, ...);
  * @param va_list The variadic argument list.
  * @returns The size of the data written. -1 if failed.
  */
-i32 string_nformat_v(char* dest, u32 max_len, const char* format, void* va_list);
+KAPI i32 string_nformat_v(char* dest, u32 max_len, const char* format, void* va_list);
 
 /**
  * @brief Empties the provided string by setting the first character to 0.

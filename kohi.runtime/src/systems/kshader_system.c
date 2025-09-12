@@ -327,6 +327,14 @@ void kshader_release_binding_set_instance(kshader shader, u8 binding_set, u32 in
     renderer_shader_release_binding_set_instance(engine_systems_get()->renderer_system, shader, binding_set, instance_id);
 }
 
+u32 kshader_binding_set_instance_count_get(kshader shader, u8 binding_set) {
+    return renderer_shader_binding_set_get_max_instance_count(engine_systems_get()->renderer_system, shader, binding_set);
+}
+
+b8 kshader_apply_binding_set(kshader shader, u8 binding_set, u32 instance_id) {
+    return renderer_shader_apply_binding_set(engine_systems_get()->renderer_system, shader, binding_set, instance_id);
+}
+
 static kshader generate_new_shader_handle(void) {
     for (u32 i = 0; i < state_ptr->config.max_shader_count; ++i) {
         if (state_ptr->shaders[i].state == SHADER_STATE_FREE) {

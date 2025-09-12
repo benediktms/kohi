@@ -74,19 +74,13 @@ b8 sui_label_control_create(standard_ui_state* state, const char* name, font_typ
     }
 
     kshader sui_shader = kshader_system_get(kname_create(STANDARD_UI_SHADER_NAME), kname_create(PACKAGE_NAME_STANDARD_UI));
-    // Acquire group resources for this control.
-    if (!kshader_system_shader_group_acquire(sui_shader, &typed_data->group_id)) {
-        KFATAL("Unable to acquire shader group resources for button.");
+    // Acquire binding set resources for this control.
+    typed_data->binding_instance_id = INVALID_ID;
+    typed_data->binding_instance_id = kshader_acquire_binding_set_instance(sui_shader, 1);
+    if (typed_data->binding_instance_id == INVALID_ID) {
+        KFATAL("Unable to acquire shader binding set resources for label.");
         return false;
     }
-    typed_data->group_generation = INVALID_ID_U16;
-
-    // Also acquire per-draw resources.
-    if (!kshader_system_shader_per_draw_acquire(sui_shader, &typed_data->draw_id)) {
-        KFATAL("Unable to acquire shader per-draw resources for button.");
-        return false;
-    }
-    typed_data->draw_generation = INVALID_ID_U16;
 
     if (typed_data->type == FONT_TYPE_SYSTEM) {
         // Verify atlas has the glyphs needed.
@@ -127,34 +121,28 @@ void sui_label_control_unload(standard_ui_state* state, struct sui_control* self
     }
 
     // Free from the vertex buffer.
-    krenderbuffer vertex_buffer = renderer_renderbuffer_get(kname_create(KRENDERBUFFER_NAME_GLOBAL_VERTEX));
+    krenderbuffer vertex_buffer = renderer_renderbuffer_get(state->renderer, kname_create(KRENDERBUFFER_NAME_GLOBAL_VERTEX));
     if (typed_data->vertex_buffer_offset != INVALID_ID_U64) {
         if (typed_data->max_text_length > 0) {
-            renderer_renderbuffer_free(vertex_buffer, sizeof(vertex_2d) * 4 * typed_data->max_quad_count, typed_data->vertex_buffer_offset);
+            renderer_renderbuffer_free(state->renderer, vertex_buffer, sizeof(vertex_2d) * 4 * typed_data->max_quad_count, typed_data->vertex_buffer_offset);
         }
         typed_data->vertex_buffer_offset = INVALID_ID_U64;
     }
 
     // Free from the index buffer.
     if (typed_data->index_buffer_offset != INVALID_ID_U64) {
-        krenderbuffer index_buffer = renderer_renderbuffer_get(kname_create(KRENDERBUFFER_NAME_GLOBAL_INDEX));
+        krenderbuffer index_buffer = renderer_renderbuffer_get(state->renderer, kname_create(KRENDERBUFFER_NAME_GLOBAL_INDEX));
         static const u64 quad_index_size = (sizeof(u32) * 6);
         if (typed_data->max_text_length > 0 || typed_data->index_buffer_offset != INVALID_ID_U64) {
-            renderer_renderbuffer_free(index_buffer, quad_index_size * typed_data->max_quad_count, typed_data->index_buffer_offset);
+            renderer_renderbuffer_free(state->renderer, index_buffer, quad_index_size * typed_data->max_quad_count, typed_data->index_buffer_offset);
         }
         typed_data->index_buffer_offset = INVALID_ID_U64;
     }
 
     // Release group/draw resources.
     kshader sui_shader = kshader_system_get(kname_create(STANDARD_UI_SHADER_NAME), kname_create(PACKAGE_NAME_STANDARD_UI));
-    if (!kshader_system_shader_group_release(sui_shader, typed_data->group_id)) {
-        KFATAL("Unable to release group shader resources.");
-    }
-    typed_data->group_id = INVALID_ID;
-    if (!kshader_system_shader_per_draw_release(sui_shader, typed_data->draw_id)) {
-        KFATAL("Unable to release group shader resources.");
-    }
-    typed_data->draw_id = INVALID_ID;
+    kshader_release_binding_set_instance(sui_shader, 1, typed_data->binding_instance_id);
+    typed_data->binding_instance_id = INVALID_ID;
 }
 
 b8 sui_label_control_update(standard_ui_state* state, struct sui_control* self, struct frame_data* p_frame_data) {
@@ -204,8 +192,7 @@ b8 sui_label_control_render(standard_ui_state* state, struct sui_control* self, 
         renderable.render_data.model = ktransform_world_get(self->ktransform);
         renderable.render_data.diffuse_colour = typed_data->colour;
 
-        renderable.group_id = &typed_data->group_id;
-        renderable.per_draw_id = &typed_data->draw_id;
+        renderable.binding_instance_id = &typed_data->binding_instance_id;
 
         darray_push(render_data->renderables, renderable);
     }
@@ -293,8 +280,8 @@ static void sui_label_control_render_frame_prepare(standard_ui_state* state, str
                 goto sui_label_frame_prepare_cleanup;
             }
 
-            krenderbuffer vertex_buffer = renderer_renderbuffer_get(kname_create(KRENDERBUFFER_NAME_GLOBAL_VERTEX));
-            krenderbuffer index_buffer = renderer_renderbuffer_get(kname_create(KRENDERBUFFER_NAME_GLOBAL_INDEX));
+            krenderbuffer vertex_buffer = renderer_renderbuffer_get(state->renderer, kname_create(KRENDERBUFFER_NAME_GLOBAL_VERTEX));
+            krenderbuffer index_buffer = renderer_renderbuffer_get(state->renderer, kname_create(KRENDERBUFFER_NAME_GLOBAL_INDEX));
 
             u64 old_vertex_size = typed_data->vertex_buffer_size;
             u64 old_vertex_offset = typed_data->vertex_buffer_offset;
@@ -310,13 +297,13 @@ static void sui_label_control_render_frame_prepare(standard_ui_state* state, str
             // A reallocation is required if the text is longer than it previously was.
             b8 needs_realloc = new_geometry.quad_count > typed_data->max_quad_count;
             if (needs_realloc) {
-                if (!renderer_renderbuffer_allocate(vertex_buffer, new_vertex_size, &new_vertex_offset)) {
+                if (!renderer_renderbuffer_allocate(state->renderer, vertex_buffer, new_vertex_size, &new_vertex_offset)) {
                     KERROR("sui_label_control_render_frame_prepare failed to allocate from the renderer's vertex buffer: size=%u, offset=%u", new_vertex_size, new_vertex_offset);
                     typed_data->quad_count = 0; // Keep it from drawing.
                     goto sui_label_frame_prepare_cleanup;
                 }
 
-                if (!renderer_renderbuffer_allocate(index_buffer, new_index_size, &new_index_offset)) {
+                if (!renderer_renderbuffer_allocate(state->renderer, index_buffer, new_index_size, &new_index_offset)) {
                     KERROR("sui_label_control_render_frame_prepare failed to allocate from the renderer's index buffer: size=%u, offset=%u", new_index_size, new_index_offset);
                     typed_data->quad_count = 0; // Keep it from drawing.
                     goto sui_label_frame_prepare_cleanup;
@@ -325,12 +312,12 @@ static void sui_label_control_render_frame_prepare(standard_ui_state* state, str
 
             // Load up the data, if there is data to load.
             if (new_geometry.vertex_buffer_data) {
-                if (!renderer_renderbuffer_load_range(vertex_buffer, new_vertex_offset, new_vertex_size, new_geometry.vertex_buffer_data, true)) {
+                if (!renderer_renderbuffer_load_range(state->renderer, vertex_buffer, new_vertex_offset, new_vertex_size, new_geometry.vertex_buffer_data, true)) {
                     KERROR("sui_label_control_render_frame_prepare failed to load data into vertex buffer range: size=%u, offset=%u", new_vertex_size, new_vertex_offset);
                 }
             }
             if (new_geometry.index_buffer_data) {
-                if (!renderer_renderbuffer_load_range(index_buffer, new_index_offset, new_index_size, new_geometry.index_buffer_data, true)) {
+                if (!renderer_renderbuffer_load_range(state->renderer, index_buffer, new_index_offset, new_index_size, new_geometry.index_buffer_data, true)) {
                     KERROR("sui_label_control_render_frame_prepare failed to load data into index buffer range: size=%u, offset=%u", new_index_size, new_index_offset);
                 }
             }
@@ -338,12 +325,12 @@ static void sui_label_control_render_frame_prepare(standard_ui_state* state, str
             if (needs_realloc) {
                 // Release the old vertex/index data from the buffers and update the sizes/offsets.
                 if (old_vertex_offset != INVALID_ID_U64 && old_vertex_size != INVALID_ID_U64) {
-                    if (!renderer_renderbuffer_free(vertex_buffer, old_vertex_size, old_vertex_offset)) {
+                    if (!renderer_renderbuffer_free(state->renderer, vertex_buffer, old_vertex_size, old_vertex_offset)) {
                         KERROR("Failed to free from renderer vertex buffer: size=%u, offset=%u", old_vertex_size, old_vertex_offset);
                     }
                 }
                 if (old_index_offset != INVALID_ID_U64 && old_index_size != INVALID_ID_U64) {
-                    if (!renderer_renderbuffer_free(index_buffer, old_index_size, old_index_offset)) {
+                    if (!renderer_renderbuffer_free(state->renderer, index_buffer, old_index_size, old_index_offset)) {
                         KERROR("Failed to free from renderer index buffer: size=%u, offset=%u", old_index_size, old_index_offset);
                     }
                 }

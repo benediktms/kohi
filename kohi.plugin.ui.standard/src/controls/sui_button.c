@@ -90,19 +90,13 @@ b8 sui_button_control_load(standard_ui_state* state, struct sui_control* self) {
     self->bounds.height = typed_data->size.y;
 
     kshader sui_shader = kshader_system_get(kname_create(STANDARD_UI_SHADER_NAME), kname_create(PACKAGE_NAME_STANDARD_UI));
-    // Acquire group resources for this control.
-    if (!kshader_system_shader_group_acquire(sui_shader, &typed_data->group_id)) {
-        KFATAL("Unable to acquire shader group resources for button.");
+    // Acquire binding set resources for this control.
+    typed_data->binding_instance_id = INVALID_ID;
+    typed_data->binding_instance_id = kshader_acquire_binding_set_instance(sui_shader, 1);
+    if (typed_data->binding_instance_id == INVALID_ID) {
+        KFATAL("Unable to acquire shader binding set resources for label.");
         return false;
     }
-    typed_data->group_generation = INVALID_ID_U16;
-
-    // Also acquire per-draw resources.
-    if (!kshader_system_shader_per_draw_acquire(sui_shader, &typed_data->draw_id)) {
-        KFATAL("Unable to acquire shader per-draw resources for button.");
-        return false;
-    }
-    typed_data->draw_generation = INVALID_ID_U16;
 
     return true;
 }
@@ -146,8 +140,7 @@ b8 sui_button_control_render(standard_ui_state* state, struct sui_control* self,
         renderable.render_data.model = ktransform_world_get(self->ktransform);
         renderable.render_data.diffuse_colour = vec4_one(); // white. TODO: pull from object properties.
 
-        renderable.group_id = &typed_data->group_id;
-        renderable.per_draw_id = &typed_data->draw_id;
+        renderable.binding_instance_id = &typed_data->binding_instance_id;
 
         darray_push(render_data->renderables, renderable);
     }

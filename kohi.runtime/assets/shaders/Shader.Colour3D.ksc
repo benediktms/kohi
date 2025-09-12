@@ -2,7 +2,6 @@ version=1
 
 depth_test=true
 depth_write=true
-max_draw_ids = 256
 
 topology_types = [
     "line_list"
@@ -33,24 +32,17 @@ attributes = [
     }
 ]
 
-uniforms = {
-    per_frame = [
-        {
-            name = "projection"
-            type = "mat4"
-        }
-        {
-            name = "view"
-            type = "mat4"
-        }
-    ]
-    per_group = [
-    ]
-    per_draw = [
-        {
-            name = "model"
-            type = "mat4"
-        }
-    ]
-}
+binding_sets = [
+    {
+        name = "Colour3D global binding set"
+        max_instance_count = 1
+        bindings = [
+            {
+                name = "Colour3D global UBO"
+                type = "UBO"
+                size = 128
+            }
+        ]
+    }
+]
 

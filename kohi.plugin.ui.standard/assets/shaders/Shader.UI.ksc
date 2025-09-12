@@ -5,8 +5,6 @@ depth_test=false
 depth_write=false
 stencil_test=true
 stencil_write=true
-max_groups=512
-max_draw_ids=512
 
 stages = [
     {
@@ -32,34 +30,30 @@ attributes = [
     }
 ]
 
-uniforms = {
-    per_frame = [
-        {
-            name = "sui_frame_ubo"
-            type = "struct"
-            size = 128
-        }
-    ]
-    per_group = [
-        {
-            name = "sui_group_ubo"
-            type = "struct"
-            size = 16
-        }
-        {
-            name = "atlas_texture"
-            type = "texture2D"
-        }
-        {
-            name = "atlas_sampler"
-            type = "sampler"
-        }
-    ]
-    per_draw = [
-        {
-            name = "sui_draw_ubo"
-            type = "struct"
-            size = 64
-        }
-    ]
-}
+binding_sets = [
+    {
+        name = "sui global binding set"
+        max_instance_count = 1
+        bindings = [
+            {
+                name = "sui_global_ubo"
+                type = "ubo"
+                size = 128
+            }
+        ]
+    }
+    {
+        name = "sui per-control binding set"
+        max_instance_count = 512
+        bindings = [
+            {
+                name = "atlas_texture"
+                type = "texture2D"
+            }
+            {
+                name = "atlas_sampler"
+                type = "sampler"
+            }
+        ]
+    }
+]
