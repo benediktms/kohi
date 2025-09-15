@@ -13,7 +13,7 @@ struct light_data {
     vec4 colour;
     // Directional Light: .xyz = direction, .w = ignored - Point lights: .xyz = position, .w = quadratic
     vec4 position;
-} light_data;
+};
 
 struct base_material_data {
     uint metallic_texture_channel;
@@ -78,9 +78,9 @@ layout(std140, set = 0, binding = 0) uniform kmaterial_settings_ubo {
     mat4 directional_light_spaces[KMATERIAL_UBO_MAX_SHADOW_CASCADES]; // 256 bytes
     vec4 cascade_splits;                                         // 16 bytes
 
-    vec4 view_positions[KMATERIAL_SSBO_MAX_VIEWS]; // indexed by immediate.view_index
-    mat4 views[KMATERIAL_SSBO_MAX_VIEWS]; // indexed by immediate.view_index
-    mat4 projections[KMATERIAL_SSBO_MAX_PROJECTIONS]; // indexed by immediate.projection_index
+    vec4 view_positions[KMATERIAL_UBO_MAX_VIEWS]; // indexed by immediate.view_index
+    mat4 views[KMATERIAL_UBO_MAX_VIEWS]; // indexed by immediate.view_index
+    mat4 projections[KMATERIAL_UBO_MAX_PROJECTIONS]; // indexed by immediate.projection_index
 } global_settings;
 
 // All transforms
@@ -123,9 +123,9 @@ layout(push_constant) uniform immediate_data {
 
     // bytes 48-63
     uint dir_light_index;
-    f32 tiling;
-    f32 wave_strength;
-    f32 wave_speed;
+    float tiling;
+    float wave_strength;
+    float wave_speed;
 
     // 64-127 available
 } immediate;

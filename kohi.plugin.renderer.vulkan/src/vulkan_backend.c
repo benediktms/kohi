@@ -2195,18 +2195,18 @@ b8 vulkan_renderer_shader_create(
             bset_state->bindings[b].binding_type_index = type_index;
 
             // Track total descriptors needed.
-            total_descriptor_count[binding_config->binding_type] += (descriptor_count * bset_config->max_instance_count);
+            total_descriptor_count[binding_config->binding_type] += (descriptor_count * bset_config->max_instance_count * VULKAN_RESOURCE_IMAGE_COUNT);
         }
 
         // Binding set states.
         bset_state->max_instance_count = bset_config->max_instance_count;
-        bset_state->instances = KALLOC_TYPE_CARRAY(vulkan_shader_binding_set_instance_state, bset_config->binding_count);
+        bset_state->instances = KALLOC_TYPE_CARRAY(vulkan_shader_binding_set_instance_state, bset_config->max_instance_count);
 
         // Make sure to count the number of sets needed. Account for triple-buffering.
         total_descriptor_set_count += (bset_state->max_instance_count * VULKAN_RESOURCE_IMAGE_COUNT);
 
         // Setup all uses
-        for (u8 u = 0; u < bset_state->max_instance_count; ++u) {
+        for (u32 u = 0; u < bset_state->max_instance_count; ++u) {
             vulkan_shader_binding_set_instance_state* use_state = &bset_state->instances[u];
 
 #ifdef KOHI_DEBUG
@@ -2278,12 +2278,14 @@ b8 vulkan_renderer_shader_create(
                     for (u8 d = 0; d < VULKAN_RESOURCE_IMAGE_COUNT; ++d) {
                         ssbo_state->descriptor_state.renderer_frame_number[d] = INVALID_ID_U16;
                     }
+
+                    ssbo_idx++;
                 } break;
 
                 case SHADER_BINDING_TYPE_TEXTURE: {
                     vulkan_texture_state* tex_state = &use_state->texture_states[tex_idx];
 
-                    tex_state->array_size = binding_config->array_size;
+                    tex_state->array_size = KMAX(binding_config->array_size, 1);
                     tex_state->type = binding_config->texture_type;
                     tex_state->texture_handles = KALLOC_TYPE_CARRAY(ktexture_backend, tex_state->array_size);
                     tex_state->descriptor_states = KALLOC_TYPE_CARRAY(vulkan_descriptor_state, tex_state->array_size);
@@ -2294,12 +2296,14 @@ b8 vulkan_renderer_shader_create(
                             tex_state->descriptor_states[a].renderer_frame_number[d] = INVALID_ID_U16;
                         }
                     }
+
+                    tex_idx++;
                 } break;
 
                 case SHADER_BINDING_TYPE_SAMPLER: {
                     vulkan_sampler_state* samp_state = &use_state->sampler_states[samp_idx];
 
-                    samp_state->array_size = binding_config->array_size;
+                    samp_state->array_size = KMAX(binding_config->array_size, 1);
                     samp_state->type = binding_config->sampler_type;
                     samp_state->sampler_handles = KALLOC_TYPE_CARRAY(ksampler_backend, samp_state->array_size);
                     samp_state->descriptor_states = KALLOC_TYPE_CARRAY(vulkan_descriptor_state, samp_state->array_size);
@@ -2310,6 +2314,8 @@ b8 vulkan_renderer_shader_create(
                             samp_state->descriptor_states[a].renderer_frame_number[d] = INVALID_ID_U16;
                         }
                     }
+
+                    samp_idx++;
                 } break;
 
                 case SHADER_BINDING_TYPE_COUNT:
@@ -2324,9 +2330,9 @@ b8 vulkan_renderer_shader_create(
     {
         VkDescriptorType dtypes[SHADER_BINDING_TYPE_COUNT] = {0};
         dtypes[SHADER_BINDING_TYPE_UBO] = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        dtypes[SHADER_BINDING_TYPE_SSBO] = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        dtypes[SHADER_BINDING_TYPE_TEXTURE] = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        dtypes[SHADER_BINDING_TYPE_SAMPLER] = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        dtypes[SHADER_BINDING_TYPE_SSBO] = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        dtypes[SHADER_BINDING_TYPE_TEXTURE] = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+        dtypes[SHADER_BINDING_TYPE_SAMPLER] = VK_DESCRIPTOR_TYPE_SAMPLER;
 
         // Setup pool sizes
         internal_shader->pool_size_count = 0;
@@ -2359,7 +2365,8 @@ b8 vulkan_renderer_shader_create(
         string_free(desc_pool_name);
 
         // Create descriptor set layouts.
-        kzero_memory(internal_shader->descriptor_set_layouts, internal_shader->descriptor_set_count);
+
+        internal_shader->descriptor_set_layouts = KALLOC_TYPE_CARRAY(VkDescriptorSetLayout, internal_shader->descriptor_set_count);
         for (u32 i = 0; i < internal_shader->descriptor_set_count; ++i) {
             VkDescriptorSetLayoutCreateInfo layout_info = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
             layout_info.bindingCount = internal_shader->descriptor_set_configs[i].binding_count;
@@ -2723,8 +2730,9 @@ b8 vulkan_renderer_shader_set_binding_data(renderer_backend_interface* backend, 
     vulkan_shader_binding* binding = &binding_set_state->bindings[binding_index];
     if (binding->binding_type == SHADER_BINDING_TYPE_UBO) {
         // Upload data to UBO
-        u8* block = (u8*)vulkan_renderbuffer_get_mapped_memory(backend, internal_shader->uniform_buffer);
-        kcopy_memory(block + use_state->ubo_offset + offset, data, size);
+        /* u8* block = (u8*)vulkan_renderbuffer_get_mapped_memory(backend, internal_shader->uniform_buffer);
+        kcopy_memory(block + use_state->ubo_offset + offset, data, size); */
+        vulkan_buffer_load_range(backend, internal_shader->uniform_buffer, use_state->ubo_offset, size, data, true);
     } else if (binding->binding_type == SHADER_BINDING_TYPE_SSBO) {
         // Upload data to SSBO
         krenderbuffer buf = use_state->ssbo_states[binding->binding_type_index].buffer;
@@ -3071,6 +3079,8 @@ static b8 create_shader_module(vulkan_context* context, vulkan_shader* internal_
     }
 
     KDEBUG("Compiling stage '%s' for shader '%s'...", shader_stage_to_string(stage), kname_string_get(internal_shader->name));
+
+    // KTRACE("Shader source:\n%s", source);
 
     // Attempt to compile the shader.
     shaderc_compile_options_t options = shaderc_compile_options_initialize();
@@ -4153,6 +4163,7 @@ static b8 shader_create_modules_and_pipelines(renderer_backend_interface* backen
 
         // NOTE: Always one block for the push constant, unless there is no per-draw UBO uniforms.
         krange push_constant_range = {0};
+        internal_shader->immediate_size = 128; // FIXME: Should probably switch this on some kind of "uses_immediate" flag on the shader...
         if (internal_shader->immediate_size) {
             pipeline_config.push_constant_range_count = 1;
             push_constant_range.offset = 0;

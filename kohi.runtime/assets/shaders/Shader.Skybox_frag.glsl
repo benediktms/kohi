@@ -1,5 +1,6 @@
 #version 450
 
+const uint KMATERIAL_UBO_MAX_VIEWS = 16;
 #define KMATERIAL_MAX_WATER_PLANES 4
 // One view for regular camera, plus one reflection view per water plane.
 #define KMATERIAL_MAX_VIEWS (KMATERIAL_MAX_WATER_PLANES + 1)
@@ -9,7 +10,7 @@
 // =========================================================
 
 layout(set = 0, binding = 0) uniform global_ubo_data {
-    mat4 views[KMATERIAL_MAX_VIEWS];
+    mat4 views[KMATERIAL_UBO_MAX_VIEWS];
     mat4 projection;
 } global_ubo;
 

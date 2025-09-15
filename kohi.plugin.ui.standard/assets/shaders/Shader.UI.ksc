@@ -38,7 +38,7 @@ binding_sets = [
             {
                 name = "sui_global_ubo"
                 type = "ubo"
-                size = 128
+                data_size = 128
             }
         ]
     }
@@ -48,11 +48,13 @@ binding_sets = [
         bindings = [
             {
                 name = "atlas_texture"
-                type = "texture2D"
+                type = "texture"
+                texture_type = "2d"
             }
             {
                 name = "atlas_sampler"
                 type = "sampler"
+                sampler_type = "2d"
             }
         ]
     }

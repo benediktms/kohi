@@ -441,7 +441,7 @@ typedef struct vulkan_ssbo_state {
 
 typedef struct vulkan_shader_binding {
     shader_binding_type binding_type;
-    b8 binding_type_index;
+    u8 binding_type_index;
 } vulkan_shader_binding;
 
 /**

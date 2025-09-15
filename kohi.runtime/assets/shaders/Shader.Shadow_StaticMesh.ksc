@@ -51,7 +51,7 @@ binding_sets = [
             {
                 name = "shadow static_mesh global UBO"
                 type = "UBO"
-                size = 256
+                data_size = 256
             }
         ]
     }
@@ -61,11 +61,13 @@ binding_sets = [
         bindings = [
             {
                 name = "base_colour_texture"
-                type = "texture2D"
+                type = "texture"
+                texture_type = "2d"
             }
             {
                 name = "base_colour_sampler"
                 type = "sampler"
+                sampler_type = "2d"
             }
         ]
     }

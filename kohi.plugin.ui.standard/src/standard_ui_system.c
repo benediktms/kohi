@@ -23,8 +23,11 @@
 #include <systems/ktransform_system.h>
 #include <systems/texture_system.h>
 
+#include "debug/kassert.h"
 #include "kohi.plugin.ui.standard_version.h"
+#include "standard_ui_defines.h"
 #include "sui_defines.h"
+#include "systems/kshader_system.h"
 
 static b8 standard_ui_system_mouse_down(u16 code, void* sender, void* listener_inst, event_context context) {
     standard_ui_state* typed_state = (standard_ui_state*)listener_inst;
@@ -175,6 +178,13 @@ b8 standard_ui_system_initialize(u64* memory_requirement, standard_ui_state* sta
 
     state->renderer = engine_systems_get()->renderer_system;
     state->font_system = engine_systems_get()->font_system;
+
+    // Get the shader and the global binding id.
+    state->shader = kshader_system_get(kname_create(STANDARD_UI_SHADER_NAME), kname_create(PACKAGE_NAME_STANDARD_UI));
+    // Acquire binding set resources for this control.
+    state->shader_set0_binding_instance_id = INVALID_ID;
+    state->shader_set0_binding_instance_id = kshader_acquire_binding_set_instance(state->shader, 0);
+    KASSERT(state->shader_set0_binding_instance_id != INVALID_ID);
 
     state->config = *config;
     state->active_controls = (void*)((u8*)state + struct_requirement);

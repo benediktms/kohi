@@ -74,6 +74,11 @@ b8 kplugin_create(kruntime_plugin* out_plugin) {
     backend->shader_acquire_binding_set_instance = vulkan_renderer_shader_acquire_binding_set_instance;
     backend->shader_release_binding_set_instance = vulkan_renderer_shader_release_binding_set_instance;
     backend->shader_binding_set_get_max_instance_count = vulkan_renderer_shader_binding_set_get_max_instance_count;
+    backend->shader_set_binding_data = vulkan_renderer_shader_set_binding_data;
+    backend->shader_set_binding_texture = vulkan_renderer_shader_set_binding_texture;
+    backend->shader_set_binding_sampler = vulkan_renderer_shader_set_binding_sampler;
+    backend->shader_apply_binding_set = vulkan_renderer_shader_apply_binding_set;
+    backend->shader_set_immediate_data = vulkan_renderer_shader_set_immediate_data;
 
     backend->shader_flag_get = vulkan_renderer_shader_flag_get;
     backend->shader_flag_set = vulkan_renderer_shader_flag_set;

@@ -44,13 +44,13 @@ attributes = [
 
 binding_sets = [
     {
-        name = "skybox global set",
-        max_instance_count = 1,
+        name = "skybox global set"
+        max_instance_count = 1
         bindings = [
             {
                 type = "ubo"
                 name = "skybox global ubo"
-                data_size = 128
+                data_size = 384
             }
             {
                 type = "texture"

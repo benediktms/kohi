@@ -37,6 +37,7 @@ binding_sets = [
             {
                 name = "Debug3D global UBO"
                 type = "UBO"
+                data_size = 128
             }
         ]
     }

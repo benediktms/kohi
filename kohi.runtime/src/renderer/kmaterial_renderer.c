@@ -147,7 +147,10 @@ b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material
 
         set_0->bindings[bidx].binding_type = SHADER_BINDING_TYPE_UBO;
         set_0->bindings[bidx].name = kname_create("material global_ubo_data");
+        set_0->bindings[bidx].data_size = sizeof(kmaterial_settings_ubo);
+        set_0->bindings[bidx].offset = 0;
         set_0->ubo_index = 0;
+        bidx++;
 
         set_0->bindings[bidx].binding_type = SHADER_BINDING_TYPE_SSBO;
         set_0->bindings[bidx].name = kname_create(KRENDERBUFFER_NAME_TRANSFORMS_GLOBAL);
@@ -197,12 +200,16 @@ b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material
         set_0->sampler_count++;
         bidx++;
 
+        KASSERT_DEBUG(bidx == set_0->binding_count);
+
         // Set 1
         shader_binding_set_config* set_1 = &mat_std_shader.binding_sets[1];
         set_1->max_instance_count = max_material_count;
         set_1->name = kname_create("material standard shader base material binding set");
         set_1->binding_count = 2;
         set_1->bindings = KALLOC_TYPE_CARRAY(shader_binding_config, set_1->binding_count);
+        set_1->ubo_index = INVALID_ID_U8;
+        bidx = 0;
 
         set_1->bindings[bidx].binding_type = SHADER_BINDING_TYPE_TEXTURE;
         set_1->bindings[bidx].name = kname_create("material texture maps");
@@ -211,7 +218,6 @@ b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material
         set_1->texture_count++;
         bidx++;
 
-        bidx = 0;
         set_1->bindings[bidx].binding_type = SHADER_BINDING_TYPE_SAMPLER;
         set_1->bindings[bidx].name = kname_create("material texture samplers");
         set_1->bindings[bidx].sampler_type = SHADER_SAMPLER_TYPE_2D;
@@ -219,16 +225,25 @@ b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material
         set_1->sampler_count++;
         bidx++;
 
+        KASSERT_DEBUG(bidx == set_1->binding_count);
+
         // Serialize
         const char* config_source = kasset_shader_serialize(&mat_std_shader);
+
+        KTRACE("Shader '%s' config source:\n%s", kname_string_get(mat_std_shader.name), config_source);
 
         // Destroy the temp asset.
         KFREE_TYPE_CARRAY(mat_std_shader.stages, kasset_shader_stage, mat_std_shader.stage_count);
         KFREE_TYPE_CARRAY(mat_std_shader.attributes, kasset_shader_attribute, mat_std_shader.attribute_count);
-        for (u8 bs = 0; bs < mat_std_shader.binding_set_count; ++bs) {
-            KFREE_TYPE_CARRAY(mat_std_shader.binding_sets[bs].bindings, shader_binding_config, mat_std_shader.binding_sets[bs].binding_count);
+        if (mat_std_shader.binding_sets && mat_std_shader.binding_set_count) {
+            for (u8 bs = 0; bs < mat_std_shader.binding_set_count; ++bs) {
+                shader_binding_set_config* set = &mat_std_shader.binding_sets[bs];
+                if (set->bindings && set->binding_count) {
+                    KFREE_TYPE_CARRAY(set->bindings, shader_binding_config, set->binding_count);
+                }
+            }
+            KFREE_TYPE_CARRAY(mat_std_shader.binding_sets, shader_binding_set_config, mat_std_shader.binding_set_count);
         }
-        KFREE_TYPE_CARRAY(mat_std_shader.binding_sets, shader_binding_set_config, mat_std_shader.binding_set_count);
         kzero_memory(&mat_std_shader, sizeof(kasset_shader));
 
         // Create/load the shader from the serialized source.
@@ -287,7 +302,10 @@ b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material
         u8 bidx = 0;
         set_0->bindings[bidx].binding_type = SHADER_BINDING_TYPE_UBO;
         set_0->bindings[bidx].name = kname_create("material global_ubo_data");
+        set_0->bindings[bidx].data_size = sizeof(kmaterial_settings_ubo);
+        set_0->bindings[bidx].offset = 0;
         set_0->ubo_index = 0;
+        bidx++;
 
         set_0->bindings[bidx].binding_type = SHADER_BINDING_TYPE_SSBO;
         set_0->bindings[bidx].name = kname_create(KRENDERBUFFER_NAME_TRANSFORMS_GLOBAL);
@@ -337,12 +355,16 @@ b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material
         set_0->sampler_count++;
         bidx++;
 
+        KASSERT_DEBUG(bidx == set_0->binding_count);
+
         // Set 1
         shader_binding_set_config* set_1 = &mat_std_skinned_shader.binding_sets[1];
         set_1->max_instance_count = max_material_count;
         set_1->name = kname_create("material skinned shader base material binding set");
         set_1->binding_count = 2;
         set_1->bindings = KALLOC_TYPE_CARRAY(shader_binding_config, set_1->binding_count);
+        set_1->ubo_index = INVALID_ID_U8;
+        bidx = 0;
 
         set_1->bindings[bidx].binding_type = SHADER_BINDING_TYPE_TEXTURE;
         set_1->bindings[bidx].name = kname_create("material texture maps");
@@ -351,13 +373,14 @@ b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material
         set_1->texture_count++;
         bidx++;
 
-        bidx = 0;
         set_1->bindings[bidx].binding_type = SHADER_BINDING_TYPE_SAMPLER;
         set_1->bindings[bidx].name = kname_create("material texture samplers");
         set_1->bindings[bidx].sampler_type = SHADER_SAMPLER_TYPE_2D;
         set_1->bindings[bidx].array_size = 7;
         set_1->sampler_count++;
         bidx++;
+
+        KASSERT_DEBUG(bidx == set_1->binding_count);
 
         // Serialize
         const char* config_source = kasset_shader_serialize(&mat_std_skinned_shader);
@@ -406,13 +429,16 @@ b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material
         shader_binding_set_config* set_0 = &mat_water_shader.binding_sets[0];
         set_0->max_instance_count = 1;
         set_0->name = kname_create("material water shader global binding set");
-        set_0->binding_count = 5;
+        set_0->binding_count = 9;
         set_0->bindings = KALLOC_TYPE_CARRAY(shader_binding_config, set_0->binding_count);
 
         u8 bidx = 0;
         set_0->bindings[bidx].binding_type = SHADER_BINDING_TYPE_UBO;
         set_0->bindings[bidx].name = kname_create("material global_ubo_data");
+        set_0->bindings[bidx].data_size = sizeof(kmaterial_settings_ubo);
+        set_0->bindings[bidx].offset = 0;
         set_0->ubo_index = 0;
+        bidx++;
 
         set_0->bindings[bidx].binding_type = SHADER_BINDING_TYPE_SSBO;
         set_0->bindings[bidx].name = kname_create(KRENDERBUFFER_NAME_TRANSFORMS_GLOBAL);
@@ -462,12 +488,16 @@ b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material
         set_0->sampler_count++;
         bidx++;
 
+        KASSERT_DEBUG(bidx == set_0->binding_count);
+
         // Set 1
         shader_binding_set_config* set_1 = &mat_water_shader.binding_sets[1];
         set_1->max_instance_count = max_material_count;
-        set_0->name = kname_create("material water shader base material binding set");
+        set_1->name = kname_create("material water shader base material binding set");
         set_1->binding_count = 2;
         set_1->bindings = KALLOC_TYPE_CARRAY(shader_binding_config, set_1->binding_count);
+        set_1->ubo_index = INVALID_ID_U8;
+        bidx = 0;
 
         set_1->bindings[bidx].binding_type = SHADER_BINDING_TYPE_TEXTURE;
         set_1->bindings[bidx].name = kname_create("material texture maps");
@@ -476,13 +506,14 @@ b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material
         set_1->texture_count++;
         bidx++;
 
-        bidx = 0;
         set_1->bindings[bidx].binding_type = SHADER_BINDING_TYPE_SAMPLER;
         set_1->bindings[bidx].name = kname_create("material texture samplers");
         set_1->bindings[bidx].sampler_type = SHADER_SAMPLER_TYPE_2D;
         set_1->bindings[bidx].array_size = 7;
         set_1->sampler_count++;
         bidx++;
+
+        KASSERT_DEBUG(bidx == set_1->binding_count);
 
         // Serialize
         const char* config_source = kasset_shader_serialize(&mat_water_shader);

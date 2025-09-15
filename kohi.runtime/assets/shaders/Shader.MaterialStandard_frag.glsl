@@ -48,7 +48,7 @@ struct light_data {
     vec4 colour;
     // Directional Light: .xyz = direction, .w = ignored - Point lights: .xyz = position, .w = quadratic
     vec4 position;
-} light_data;
+};
 
 struct base_material_data {
     uint metallic_texture_channel;
@@ -172,7 +172,7 @@ layout(push_constant) uniform immediate_data {
 // Data Transfer Object
 layout(location = 0) in dto {
 	vec4 frag_position;
-	vec4 light_space_frag_pos[KMATERIAL_MAX_SHADOW_CASCADES];
+	vec4 light_space_frag_pos[KMATERIAL_UBO_MAX_SHADOW_CASCADES];
     vec4 vertex_colour;
 	vec3 normal;
     float padding;
@@ -200,7 +200,7 @@ uint flag_set(uint flags, uint flag, bool enabled);
 
 void main() {
     mat4 view = global_settings.views[immediate.view_index];
-    vec3 view_position = global_settings.view_positions[immediate.view_index];
+    vec3 view_position = global_settings.view_positions[immediate.view_index].xyz;
     base_material_data base_material = global_materials.base_materials[immediate.base_material_index];
 
     vec3 normal = in_dto.normal;
@@ -212,6 +212,8 @@ void main() {
     vec3 cascade_colour = vec3(1.0);
 
     light_data directional_light = global_lighting.lights[immediate.dir_light_index];
+
+    base_material_data material = global_materials.base_materials[immediate.base_material_index];
 
     // Base colour
     vec4 base_colour_samp;
@@ -263,7 +265,7 @@ void main() {
         if(flag_get(base_material.tex_flags, MATERIAL_STANDARD_FLAG_USE_METALLIC_TEX)) {
             vec4 sampled = texture(sampler2D(material_textures[MAT_STANDARD_IDX_METALLIC], material_samplers[MAT_STANDARD_IDX_METALLIC]), in_dto.tex_coord);
             // Load metallic into the red channel from the configured source texture channel.
-            mra.r = sampled[in_dto.metallic_texture_channel];
+            mra.r = sampled[material.metallic_texture_channel];
         } else {
             mra.r = base_material.metallic;
         }
@@ -272,7 +274,7 @@ void main() {
         if(flag_get(base_material.tex_flags, MATERIAL_STANDARD_FLAG_USE_ROUGHNESS_TEX)) {
             vec4 sampled = texture(sampler2D(material_textures[MAT_STANDARD_IDX_ROUGHNESS], material_samplers[MAT_STANDARD_IDX_ROUGHNESS]), in_dto.tex_coord);
             // Load roughness into the green channel from the configured source texture channel.
-            mra.g = sampled[in_dto.roughness_texture_channel];
+            mra.g = sampled[material.roughness_texture_channel];
         } else {
             mra.g = base_material.roughness;
         }
@@ -283,7 +285,7 @@ void main() {
             if(flag_get(base_material.tex_flags, MATERIAL_STANDARD_FLAG_USE_AO_TEX)) {
                 vec4 sampled = texture(sampler2D(material_textures[MAT_STANDARD_IDX_AO], material_samplers[MAT_STANDARD_IDX_AO]), in_dto.tex_coord);
                 // Load AO into the blue channel from the configured source texture channel.
-                mra.b = sampled[in_dto.ao_texture_channel];
+                mra.b = sampled[material.ao_texture_channel];
             } else {
                 mra.b = base_material.ao;
             }
@@ -315,14 +317,14 @@ void main() {
         float depth = abs(frag_position_view_space).z;
         // Get the cascade index from the current fragment's position.
         int cascade_index = -1;
-        for(int i = 0; i < KMATERIAL_MAX_SHADOW_CASCADES; ++i) {
+        for(int i = 0; i < KMATERIAL_UBO_MAX_SHADOW_CASCADES; ++i) {
             if(depth < global_settings.cascade_splits[i]) {
                 cascade_index = i;
                 break;
             }
         }
         if(cascade_index == -1) {
-            cascade_index = int(KMATERIAL_MAX_SHADOW_CASCADES);
+            cascade_index = int(KMATERIAL_UBO_MAX_SHADOW_CASCADES);
         }
 
         if(global_settings.render_mode == 3) {
@@ -361,7 +363,7 @@ void main() {
     vec3 base_reflectivity = vec3(0.04); 
     base_reflectivity = mix(base_reflectivity, albedo, metallic);
 
-    if(immediate.render_mode == 0 || immediate.render_mode == 1 || immediate.render_mode == 3) {
+    if(global_settings.render_mode == 0 || global_settings.render_mode == 1 || global_settings.render_mode == 3) {
         vec3 view_direction = normalize(view_position.xyz - in_dto.frag_position.xyz);
 
         // Don't include albedo in mode 1 (lighting-only). Do this by using white 
@@ -369,7 +371,7 @@ void main() {
         // then add this colour to albedo and clamp it. This will result in pure 
         // white for the albedo in mode 1, and normal albedo in mode 0, all without
         // branching.
-        albedo += (vec3(1.0) * immediate.render_mode);         
+        albedo += (vec3(1.0) * global_settings.render_mode);         
         albedo = clamp(albedo, vec3(0.0), vec3(1.0));
 
         // This is based off the Cook-Torrance BRDF (Bidirectional Reflective Distribution Function).
@@ -431,9 +433,9 @@ void main() {
             alpha = base_colour_samp.a;
         }
         out_colour = vec4(colour, alpha);
-    } else if(immediate.render_mode == 2) {
+    } else if(global_settings.render_mode == 2) {
         out_colour = vec4(abs(normal), 1.0);
-    } else if(immediate.render_mode == 4) {
+    } else if(global_settings.render_mode == 4) {
         // wireframe, just render a solid colour.
         out_colour = vec4(0.0, 1.0, 1.0, 1.0); // cyan
     }
@@ -540,11 +542,11 @@ float calculate_shadow(vec4 light_space_frag_pos, vec3 normal, int cascade_index
     // NOTE: Transform to NDC not needed for Vulkan, but would be for OpenGL.
     // projected.xy = projected.xy * 0.5 + 0.5;
 
-    if(global.use_pcf == 1) {
-        return calculate_pcf(projected, cascade_index, global.shadow_bias);
+    if(global_settings.use_pcf == 1) {
+        return calculate_pcf(projected, cascade_index, global_settings.shadow_bias);
     } 
 
-    return calculate_unfiltered(projected, cascade_index, global.shadow_bias);
+    return calculate_unfiltered(projected, cascade_index, global_settings.shadow_bias);
 }
 
 // Based on a combination of GGX and Schlick-Beckmann approximation to calculate probability

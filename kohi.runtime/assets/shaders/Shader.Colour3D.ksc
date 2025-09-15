@@ -40,7 +40,7 @@ binding_sets = [
             {
                 name = "Colour3D global UBO"
                 type = "UBO"
-                size = 128
+                data_size = 128
             }
         ]
     }

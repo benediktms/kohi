@@ -4,6 +4,8 @@
 // Inputs
 // =========================================================
 
+const uint KMATERIAL_UBO_MAX_VIEWS = 16;
+
 // Vertex input
 layout(location = 0) in vec3 in_position;
 layout(location = 1) in vec3 in_normal;
@@ -12,7 +14,7 @@ layout(location = 3) in vec4 in_colour;
 layout(location = 4) in vec4 in_tangent;
 
 layout(set = 0, binding = 0) uniform global_ubo_data {
-    mat4 views[KMATERIAL_MAX_VIEWS];
+    mat4 views[KMATERIAL_UBO_MAX_VIEWS];
     mat4 projection;
 } global_ubo;
 

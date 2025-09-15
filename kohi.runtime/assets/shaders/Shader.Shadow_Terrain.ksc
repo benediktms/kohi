@@ -53,7 +53,7 @@ binding_sets = [
             {
                 name = "shadow static_mesh global UBO"
                 type = "UBO"
-                size = 256
+                data_size = 256
             }
         ]
     }

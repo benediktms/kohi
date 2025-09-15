@@ -8,7 +8,7 @@
 layout(set = 0, binding = 0) uniform sui_global_ubo {
     mat4 projection;
 	mat4 view;
-} sui_global_ubo;
+} global_ubo;
 
 layout(set = 1, binding = 0) uniform texture2D atlas_texture;
 layout(set = 1, binding = 1) uniform sampler atlas_sampler;

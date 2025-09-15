@@ -18,6 +18,6 @@ layout(location = 1) out struct dto {
 } out_dto;
 
 void main() {
-	out_dto.colour = local_ubo.colour;
+	out_dto.colour = immediate.colour;
 	gl_Position = global_ubo.projection * global_ubo.view * immediate.model * vec4(in_position.xyz, 1.0);
 }

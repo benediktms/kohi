@@ -6,11 +6,12 @@ layout(location = 0) out vec4 out_colour;
 
 const float PI = 3.14159265359;
 
-const uint KMATERIAL_MAX_GLOBAL_POINT_LIGHTS = 64;
-const uint KMATERIAL_MAX_SHADOW_CASCADES = 4;
-const uint KMATERIAL_MAX_WATER_PLANES = 4;
-// One view for regular camera, plus one reflection view per water plane.
-const uint KMATERIAL_MAX_VIEWS = KMATERIAL_MAX_WATER_PLANES + 1;
+const uint KMATERIAL_UBO_MAX_SHADOW_CASCADES = 4;
+const uint KMATERIAL_UBO_MAX_VIEWS = 16;
+const uint KMATERIAL_UBO_MAX_PROJECTIONS = 4;
+
+const uint KANIMATION_SSBO_MAX_BONES_PER_MESH = 64;
+
 const uint MATERIAL_WATER_TEXTURE_COUNT = 5;
 const uint MATERIAL_WATER_SAMPLER_COUNT = 5;
 const uint MATERIAL_MAX_IRRADIANCE_CUBEMAP_COUNT = 4;
@@ -21,111 +22,160 @@ const uint MAT_WATER_IDX_REFRACTION_DEPTH = 2;
 const uint MAT_WATER_IDX_DUDV = 3;
 const uint MAT_WATER_IDX_NORMAL = 4;
 
-// Option indices
-const uint MAT_OPTION_IDX_RENDER_MODE = 0;
-const uint MAT_OPTION_IDX_USE_PCF = 1;
-const uint MAT_OPTION_IDX_UNUSED_0 = 2;
-const uint MAT_OPTION_IDX_UNUSED_1 = 3;
-
-// Param indices
-const uint MAT_PARAM_IDX_SHADOW_BIAS = 0;
-const uint MAT_PARAM_IDX_DELTA_TIME = 1;
-const uint MAT_PARAM_IDX_GAME_TIME = 2;
-const uint MAT_PARAM_IDX_UNUSED_0 = 3;
-
-struct directional_light {
+struct light_data {
+    // Directional light: .rgb = colour, .w = ignored - Point lights: .rgb = colour, .a = linear 
     vec4 colour;
-    vec4 direction;
-    float shadow_distance;
-    float shadow_fade_distance;
-    float shadow_split_mult;
-    float padding;
+    // Directional Light: .xyz = direction, .w = ignored - Point lights: .xyz = position, .w = quadratic
+    vec4 position;
 };
 
-struct point_light {
-    // .rgb = colour, .a = linear 
-    vec4 colour;
-    // .xyz = position, .w = quadratic
-    vec4 position;
+struct base_material_data {
+    uint metallic_texture_channel;
+    uint roughness_texture_channel;
+    uint ao_texture_channel;
+    /** @brief The material lighting model. */
+    uint lighting_model;
+
+    // Base set of flags for the material. Copied to the material instance when created.
+    uint flags;
+    // Texture use flags
+    uint tex_flags;
+    float refraction_scale;
+    float padding;
+
+    vec4 base_colour;
+    vec4 emissive;
+    vec3 normal;
+    float metallic;
+    vec3 mra;
+    float roughness;
+
+    // Added to UV coords of vertex data. Overridden by instance data.
+    vec3 uv_offset;
+    float ao;
+    // Multiplied against uv coords of vertex data. Overridden by instance data.
+    vec3 uv_scale;
+    float emissive_texture_intensity;
+};
+
+struct animation_skin_data {
+    mat4 bones[KANIMATION_SSBO_MAX_BONES_PER_MESH];
 };
 
 // =========================================================
 // Inputs
 // =========================================================
 
-// per-frame, "global" data
-layout(std140, set = 0, binding = 0) uniform kmaterial_global_uniform_data {
-    point_light p_lights[KMATERIAL_MAX_GLOBAL_POINT_LIGHTS]; // 2048 bytes @ 32 bytes each
+// Binding Set 0
+
+// Global settings for the scene.
+layout(std140, set = 0, binding = 0) uniform kmaterial_settings_ubo {
+    float delta_time;
+    float game_time;
+    uint render_mode;
+    uint use_pcf;
+
+    // Shadow settings
+    float shadow_bias;
+    float shadow_distance;
+    float shadow_fade_distance;
+    float shadow_split_mult;
+
     // Light space for shadow mapping. Per cascade
-    mat4 directional_light_spaces[KMATERIAL_MAX_SHADOW_CASCADES]; // 256 bytes
-    mat4 views[KMATERIAL_MAX_VIEWS];                             // 320 bytes
-    vec4 view_positions[KMATERIAL_MAX_VIEWS];                     // 80 bytes
-    mat4 projection;                                             // 64 bytes
-    directional_light dir_light;                                 // 48 bytes
+    mat4 directional_light_spaces[KMATERIAL_UBO_MAX_SHADOW_CASCADES]; // 256 bytes
     vec4 cascade_splits;                                         // 16 bytes
-    // [shadow_bias, delta_time, game_time, padding]
-    vec4 params;
-    // [render_mode, use_pcf, padding, padding]
-    uvec4 options;
-    vec4 padding;  // 16 bytes
-} material_frame_ubo;
-layout(set = 0, binding = 1) uniform texture2DArray shadow_texture;
-layout(set = 0, binding = 2) uniform textureCube irradiance_textures[MATERIAL_MAX_IRRADIANCE_CUBEMAP_COUNT];
-layout(set = 0, binding = 3) uniform sampler shadow_sampler;
-layout(set = 0, binding = 4) uniform sampler irradiance_sampler;
 
-// per-group
-layout(set = 1, binding = 0) uniform per_group_ubo {
-    /** @brief The material lighting model. */
-    uint lighting_model;
-    // Base set of flags for the material. Copied to the material instance when created.
-    uint flags;
-    vec2 padding;
-} material_group_ubo;
+    vec4 view_positions[KMATERIAL_UBO_MAX_VIEWS]; // indexed by immediate.view_index
+    mat4 views[KMATERIAL_UBO_MAX_VIEWS]; // indexed by immediate.view_index
+    mat4 projections[KMATERIAL_UBO_MAX_PROJECTIONS]; // indexed by immediate.projection_index
+} global_settings;
 
-layout(set = 1, binding = 1) uniform texture2D material_textures[MATERIAL_WATER_TEXTURE_COUNT];
-layout(set = 1, binding = 2) uniform sampler material_samplers[MATERIAL_WATER_SAMPLER_COUNT];
+// All transforms
+layout(std430, set = 0, binding = 1) readonly buffer global_transforms_ssbo {
+    mat4 transforms[]; // indexed by immediate.transform_index
+} global_transforms;
 
-// per-draw, "material instance" data
-layout(push_constant) uniform per_draw_ubo {
-    mat4 model;
-    // Index into the global point lights array. Up to 16 indices as u8s packed into 2 u32s.
+// All lighting
+layout(std430, set = 0, binding = 2) readonly buffer global_lighting_ssbo {
+    light_data lights[]; // indexed by immediate.packed_point_light_indices (needs unpacking to 16x u8s)
+} global_lighting;
+
+// All materials
+layout(std430, set = 0, binding = 3) readonly buffer global_materials_ssbo {
+    base_material_data base_materials[]; // indexed by immediate.transform_index
+} global_materials;
+
+// All animation data
+layout(std430, set = 0, binding = 4) readonly buffer global_animations_ssbo {
+    animation_skin_data animations[]; // indexed by immediate.animation_index;
+} global_animations;
+
+layout(set = 0, binding = 5) uniform texture2DArray shadow_texture;
+layout(set = 0, binding = 6) uniform sampler shadow_sampler;
+layout(set = 0, binding = 7) uniform textureCube irradiance_textures[MATERIAL_MAX_IRRADIANCE_CUBEMAP_COUNT];
+layout(set = 0, binding = 8) uniform sampler irradiance_sampler;
+
+layout(set = 1, binding = 0) uniform texture2D material_textures[MATERIAL_WATER_TEXTURE_COUNT];
+layout(set = 1, binding = 1) uniform sampler material_samplers[MATERIAL_WATER_SAMPLER_COUNT];
+
+// Immediate data
+layout(push_constant) uniform immediate_data {
+    // bytes 0-15
+    uint view_index;
+    uint projection_index;
+    uint transform_index;
+    uint base_material_index;
+
+    // bytes 16-31
+    // Index into the global point lights array. Up to 16 indices as u8s packed into 2 uints.
     uvec2 packed_point_light_indices; // 8 bytes
     uint num_p_lights;
     uint irradiance_cubemap_index;
-    uint view_index;
+
+    // bytes 32-47
+    vec4 clipping_plane;
+
+    // bytes 48-63
+    uint dir_light_index;
     float tiling;
     float wave_strength;
     float wave_speed;
-} material_draw_ubo;
+
+    // 64-127 available
+} immediate;
 
 // Data Transfer Object from vertex shader.
 layout(location = 0) in dto {
-    vec4 frag_position;
-    vec4 light_space_frag_pos[KMATERIAL_MAX_SHADOW_CASCADES];
+	vec4 frag_position;
 	vec4 clip_space;
-    vec3 world_to_camera;
+	vec4 light_space_frag_pos[KMATERIAL_UBO_MAX_SHADOW_CASCADES];
+    vec4 vertex_colour;
+	vec3 normal;
     float padding;
+	vec3 tangent;
+    float padding2;
+	vec2 tex_coord;
 	vec2 texcoord;
-    vec2 padding2;
+    vec3 world_to_camera;
+    float padding3;
 } in_dto;
 
 
-vec4 do_lighting(mat4 view, vec3 frag_position, vec3 albedo, vec3 normal, uint render_mode);
+vec4 do_lighting(mat4 view, light_data directional_light, vec3 frag_position, vec3 albedo, vec3 normal, uint render_mode);
 vec3 calculate_reflectance(vec3 albedo, vec3 normal, vec3 view_direction, vec3 light_direction, float metallic, float roughness, vec3 base_reflectivity, vec3 radiance);
-vec3 calculate_point_light_radiance(point_light light, vec3 view_direction, vec3 frag_position_xyz);
-vec3 calculate_directional_light_radiance(directional_light light, vec3 view_direction);
+vec3 calculate_point_light_radiance(light_data point_light, vec3 view_direction, vec3 frag_position_xyz);
+vec3 calculate_directional_light_radiance(vec3 colour, vec3 view_direction);
 float calculate_pcf(vec3 projected, int cascade_index, float shadow_bias);
 float calculate_unfiltered(vec3 projected, int cascade_index, float shadow_bias);
-float calculate_shadow(vec4 light_space_frag_pos, vec3 normal, directional_light light, int cascade_index);
+float calculate_shadow(vec4 light_space_frag_pos, vec3 normal, int cascade_index);
 float geometry_schlick_ggx(float normal_dot_direction, float roughness);
 void unpack_u32(uint n, out uint x, out uint y, out uint z, out uint w);
 
 // Entry point
 void main() {
-    uint render_mode = material_frame_ubo.options[MAT_OPTION_IDX_RENDER_MODE];
-    float game_time = material_frame_ubo.params[MAT_PARAM_IDX_GAME_TIME];
-    float move_factor = material_draw_ubo.wave_speed * game_time;
+    uint render_mode = global_settings.render_mode;
+    float game_time = global_settings.game_time;
+    float move_factor = immediate.wave_speed * game_time;
     // Calculate surface distortion and bring it into [-1.0 - 1.0] range
     vec2 distorted_texcoords = texture(sampler2D(material_textures[MAT_WATER_IDX_DUDV], material_samplers[MAT_WATER_IDX_DUDV]), vec2(in_dto.texcoord.x + move_factor, in_dto.texcoord.y)).rg * 0.1;
     distorted_texcoords = in_dto.texcoord + vec2(distorted_texcoords.x, distorted_texcoords.y + move_factor);
@@ -142,6 +192,8 @@ void main() {
     mat3 TBN = mat3(tangent, bitangent, normal);
 
     normal = normalize(TBN*normal);
+
+    light_data directional_light = global_lighting.lights[immediate.dir_light_index];
 
     float water_depth = 0;
 
@@ -162,7 +214,7 @@ void main() {
         water_depth = floor_distance - water_distance;
 
         // Distort further
-        vec2 distortion_total = (texture(sampler2D(material_textures[MAT_WATER_IDX_DUDV], material_samplers[MAT_WATER_IDX_DUDV]), distorted_texcoords).rg * 2.0 - 1.0) * material_draw_ubo.wave_strength;
+        vec2 distortion_total = (texture(sampler2D(material_textures[MAT_WATER_IDX_DUDV], material_samplers[MAT_WATER_IDX_DUDV]), distorted_texcoords).rg * 2.0 - 1.0) * immediate.wave_strength;
 
         reflect_texcoord += distortion_total;
         // Avoid edge artifacts by clamping slightly inward to prevent texture wrapping.
@@ -192,7 +244,7 @@ void main() {
     }
 
     // Apply lighting
-    vec4 lighting = do_lighting(material_frame_ubo.views[material_draw_ubo.view_index], in_dto.frag_position.xyz, out_colour.rgb, normal, render_mode);
+    vec4 lighting = do_lighting(global_settings.views[immediate.view_index], directional_light, in_dto.frag_position.xyz, out_colour.rgb, normal, render_mode);
     out_colour = lighting;
 
     if(render_mode == 0) {
@@ -202,7 +254,7 @@ void main() {
     }
 }
 
-vec4 do_lighting(mat4 view, vec3 frag_position, vec3 albedo, vec3 normal, uint render_mode) {
+vec4 do_lighting(mat4 view, light_data directional_light, vec3 frag_position, vec3 albedo, vec3 normal, uint render_mode) {
     vec4 light_colour;
 
     // These can be hardcoded for water surfaces.
@@ -216,25 +268,25 @@ vec4 do_lighting(mat4 view, vec3 frag_position, vec3 albedo, vec3 normal, uint r
     float depth = abs(frag_position_view_space).z;
     // Get the cascade index from the current fragment's position.
     int cascade_index = -1;
-    for(int i = 0; i < KMATERIAL_MAX_SHADOW_CASCADES; ++i) {
-        if(depth < material_frame_ubo.cascade_splits[i]) {
+    for(int i = 0; i < KMATERIAL_UBO_MAX_SHADOW_CASCADES; ++i) {
+        if(depth < global_settings.cascade_splits[i]) {
             cascade_index = i;
             break;
         }
     }
     if(cascade_index == -1) {
-        cascade_index = int(KMATERIAL_MAX_SHADOW_CASCADES);
+        cascade_index = int(KMATERIAL_UBO_MAX_SHADOW_CASCADES);
     }
-    float shadow = calculate_shadow(in_dto.light_space_frag_pos[cascade_index], normal, material_frame_ubo.dir_light, cascade_index);
+    float shadow = calculate_shadow(in_dto.light_space_frag_pos[cascade_index], normal, cascade_index);
 
     // Fade out the shadow map past a certain distance.
-    float fade_start = material_frame_ubo.dir_light.shadow_distance;
-    float fade_distance = material_frame_ubo.dir_light.shadow_fade_distance;
+    float fade_start = global_settings.shadow_distance;
+    float fade_distance = global_settings.shadow_fade_distance;
 
     // The end of the fade-out range.
     float fade_end = fade_start + fade_distance;
 
-    float zclamp = clamp(length(material_frame_ubo.view_positions[material_draw_ubo.view_index].xyz - frag_position), fade_start, fade_end);
+    float zclamp = clamp(length(global_settings.view_positions[immediate.view_index].xyz - frag_position), fade_start, fade_end);
     float fade_factor = (fade_end - zclamp) / (fade_end - fade_start + 0.00001); // Avoid divide by 0
 
     shadow = clamp(shadow + (1.0 - fade_factor), 0.0, 1.0);
@@ -245,7 +297,7 @@ vec4 do_lighting(mat4 view, vec3 frag_position, vec3 albedo, vec3 normal, uint r
     base_reflectivity = mix(base_reflectivity, albedo, metallic);
 
     if(render_mode == 0 || render_mode == 1 || render_mode == 3) {
-        vec3 view_direction = normalize(material_frame_ubo.view_positions[material_draw_ubo.view_index].xyz - frag_position);
+        vec3 view_direction = normalize(global_settings.view_positions[immediate.view_index].xyz - frag_position);
 
         // Don't include albedo in mode 1 (lighting-only). Do this by using white 
         // multiplied by mode (mode 1 will result in white, mode 0 will be black),
@@ -264,23 +316,22 @@ vec4 do_lighting(mat4 view, vec3 frag_position, vec3 albedo, vec3 normal, uint r
 
         // Directional light radiance.
         {
-            directional_light light = material_frame_ubo.dir_light;
-            vec3 light_direction = normalize(-light.direction.xyz);
-            vec3 radiance = calculate_directional_light_radiance(light, view_direction);
+            vec3 light_direction = normalize(-directional_light.position.xyz); // position = direction for directional light
+            vec3 radiance = calculate_directional_light_radiance(directional_light.colour.rgb, view_direction);
 
             // Only directional light should be affected by shadow map.
             total_reflectance += (shadow * calculate_reflectance(albedo, normal, view_direction, light_direction, metallic, roughness, base_reflectivity, radiance));
         }
 
         // Point light radiance
-        // Get point light indices by unpacking each element of material_draw_ubo.packed_point_light_indices
+        // Get point light indices by unpacking each element of immediate.packed_point_light_indices
         uint plights_rendered = 0;
-        for(uint ppli = 0; ppli < 2 && plights_rendered < material_draw_ubo.num_p_lights; ++ppli) {
-            uint packed = material_draw_ubo.packed_point_light_indices[ppli];
+        for(uint ppli = 0; ppli < 2 && plights_rendered < immediate.num_p_lights; ++ppli) {
+            uint packed = immediate.packed_point_light_indices[ppli];
             uint unpacked[4];
             unpack_u32(packed, unpacked[0], unpacked[1], unpacked[2], unpacked[3]);
-            for(uint upi = 0; upi < 4 && plights_rendered < material_draw_ubo.num_p_lights; ++upi) {
-                point_light light = material_frame_ubo.p_lights[unpacked[upi]];
+            for(uint upi = 0; upi < 4 && plights_rendered < immediate.num_p_lights; ++upi) {
+                light_data light = global_lighting.lights[unpacked[upi]];
                 vec3 light_direction = normalize(light.position.xyz - in_dto.frag_position.xyz);
                 vec3 radiance = calculate_point_light_radiance(light, view_direction, in_dto.frag_position.xyz);
 
@@ -289,7 +340,7 @@ vec4 do_lighting(mat4 view, vec3 frag_position, vec3 albedo, vec3 normal, uint r
         }
 
         // Irradiance holds all the scene's indirect diffuse light. Use the surface normal to sample from it.
-        vec3 irradiance = texture(samplerCube(irradiance_textures[material_draw_ubo.irradiance_cubemap_index], irradiance_sampler), normal).rgb;
+        vec3 irradiance = texture(samplerCube(irradiance_textures[immediate.irradiance_cubemap_index], irradiance_sampler), normal).rgb;
 
         // Combine irradiance with albedo and ambient occlusion. 
         // Also add in total accumulated reflectance.
@@ -378,21 +429,22 @@ vec3 calculate_reflectance(vec3 albedo, vec3 normal, vec3 view_direction, vec3 l
     return (refraction_diffuse * albedo / PI + specular) * radiance * normal_dot_light_direction;  
 }
 
-vec3 calculate_point_light_radiance(point_light light, vec3 view_direction, vec3 frag_position_xyz) {
+vec3 calculate_point_light_radiance(light_data light, vec3 view_direction, vec3 frag_position_xyz) {
+    float constant_f = 1.0f;
     // Per-light radiance based on the point light's attenuation.
     float distance = length(light.position.xyz - frag_position_xyz);
-    // constant is 1.0f, first one in the () below, linear is stored in colour.a, quadratic is stored in position.w
-    float attenuation = 1.0 / (1.0 + light.colour.a * distance + light.position.w * (distance * distance));
+    // NOTE: linear = colour.a, quadratic = position.w
+    float attenuation = 1.0 / (constant_f + light.colour.a * distance + light.position.w * (distance * distance));
     // PBR lights are energy-based, so convert to a scale of 0-100.
     float energy_multiplier = 100.0;
     return (light.colour.rgb * energy_multiplier) * attenuation;
 }
 
-vec3 calculate_directional_light_radiance(directional_light light, vec3 view_direction) {
+vec3 calculate_directional_light_radiance(vec3 colour, vec3 view_direction) {
     // For directional lights, radiance is just the same as the light colour itself.
     // PBR lights are energy-based, so convert to a scale of 0-100.
     float energy_multiplier = 100.0;
-    return light.colour.rgb * energy_multiplier;
+    return colour * energy_multiplier;
 }
 
 // Percentage-Closer Filtering
@@ -420,7 +472,7 @@ float calculate_unfiltered(vec3 projected, int cascade_index, float shadow_bias)
 
 // Compare the fragment position against the depth buffer, and if it is further 
 // back than the shadow map, it's in shadow. 0.0 = in shadow, 1.0 = not
-float calculate_shadow(vec4 light_space_frag_pos, vec3 normal, directional_light light, int cascade_index) {
+float calculate_shadow(vec4 light_space_frag_pos, vec3 normal, int cascade_index) {
     // Perspective divide - note that while this is pointless for ortho projection,
     // perspective will require this.
     vec3 projected = light_space_frag_pos.xyz / light_space_frag_pos.w;
@@ -430,8 +482,8 @@ float calculate_shadow(vec4 light_space_frag_pos, vec3 normal, directional_light
     // NOTE: Transform to NDC not needed for Vulkan, but would be for OpenGL.
     // projected.xy = projected.xy * 0.5 + 0.5;
 
-    uint use_pcf = material_frame_ubo.options[MAT_OPTION_IDX_USE_PCF];
-    float shadow_bias = material_frame_ubo.params[MAT_PARAM_IDX_SHADOW_BIAS];
+    uint use_pcf = global_settings.use_pcf;
+    float shadow_bias = global_settings.shadow_bias;
     if(use_pcf == 1) {
         return calculate_pcf(projected, cascade_index, shadow_bias);
     } 

@@ -51,11 +51,11 @@ b8 skybox_load(skybox* sb) {
 
     sb->cubemap = texture_cubemap_acquire_sync(sb->cubemap_name);
 
-    struct renderer_system_state* renderer_system = engine_systems_get()->renderer_system;
+    /* struct renderer_system_state* renderer_system = engine_systems_get()->renderer_system; */
 
-    kshader skybox_shader = kshader_system_get(kname_create(SHADER_NAME_RUNTIME_SKYBOX), kname_create(PACKAGE_NAME_RUNTIME)); // TODO: allow configurable shader.
-    sb->shader_set0_instance_id = renderer_shader_acquire_binding_set_instance(renderer_system, skybox_shader, 0);
-    KASSERT_DEBUG(sb->shader_set0_instance_id != INVALID_ID_U32);
+    /* kshader skybox_shader = kshader_system_get(kname_create(SHADER_NAME_RUNTIME_SKYBOX), kname_create(PACKAGE_NAME_RUNTIME)); // TODO: allow configurable shader.
+    sb->shader_set0_instance_id = renderer_shader_acquire_binding_set_instance(renderer_system, skybox_shader, 0); */
+    /* KASSERT_DEBUG(sb->shader_set0_instance_id != INVALID_ID_U32); */
     sb->state = SKYBOX_STATE_LOADED;
 
     return true;

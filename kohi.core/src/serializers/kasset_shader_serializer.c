@@ -157,8 +157,12 @@ const char* kasset_shader_serialize(const kasset_shader* asset) {
                     kson_object_value_add_int(&binding_obj, "offset", binding->offset);
                     break;
                 case SHADER_BINDING_TYPE_SSBO:
-                    kson_object_value_add_int(&binding_obj, "data_size", binding->data_size);
-                    /* kson_object_value_add_int(&binding_obj, "offset", binding->offset); */
+                    if (binding->data_size) {
+                        kson_object_value_add_int(&binding_obj, "data_size", binding->data_size);
+                    }
+                    if (binding->offset) {
+                        kson_object_value_add_int(&binding_obj, "offset", binding->offset);
+                    }
                     break;
                 case SHADER_BINDING_TYPE_TEXTURE:
                     kson_object_value_add_int(&binding_obj, "array_size", binding->array_size);
@@ -431,6 +435,10 @@ b8 kasset_shader_deserialize(const char* file_text, kasset_shader* out_asset) {
                             goto cleanup_kson;
                         }
                     }
+                    if (!data_size && binding->binding_type == SHADER_BINDING_TYPE_UBO) {
+                        KERROR("A non-zero data_size is required for UBO. set=%u, binding=%u", bs, b);
+                        goto cleanup_kson;
+                    }
                     binding->data_size = data_size;
 
                     // Offset is optional, defaults to 0. Ignored other than UBO
@@ -446,7 +454,7 @@ b8 kasset_shader_deserialize(const char* file_text, kasset_shader* out_asset) {
 
                         // Array size is only looked at for textures and samplers. Default = 1.
                         i64 array_size = 1;
-                        kson_object_property_value_get_int(&binding_obj, "array_size", &offset);
+                        kson_object_property_value_get_int(&binding_obj, "array_size", &array_size);
                         binding->array_size = array_size;
                     }
 
