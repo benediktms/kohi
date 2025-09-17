@@ -198,10 +198,13 @@ typedef struct renderer_backend_config {
     renderer_config_flags flags;
     /** @brief The max number of shaders that be be held. Should match shader system config. */
     u16 max_shader_count;
+    /** @brief The max number of textures that be be held. Should match shader texture config. */
+    u16 max_texture_count;
     /** @brief Indicates if triple buffering should be used. Otherwise, double-buffering is used. */
     b8 use_triple_buffering;
     /** @brief Indicates if a discrete GPU is required. Can be ignored on some platforms. */
     b8 require_discrete_gpu;
+
 } renderer_backend_config;
 
 /** @brief The winding order of vertices, used to determine what is the front-face of a triangle. */
@@ -241,10 +244,6 @@ typedef struct kwindow_renderer_state {
     /** @brief The internal state of the window containing renderer backend data. */
     struct kwindow_renderer_backend_state* backend_state;
 } kwindow_renderer_state;
-
-// Handle to a renderer backend texture.
-typedef u16 ktexture_backend;
-#define KTEXTURE_BACKEND_INVALID INVALID_ID_U16
 
 // Handle to a renderer backend sampler.
 typedef u16 ksampler_backend;
@@ -414,7 +413,7 @@ typedef struct renderer_backend_interface {
      */
     void (*set_stencil_op)(struct renderer_backend_interface* backend, renderer_stencil_op fail_op, renderer_stencil_op pass_op, renderer_stencil_op depth_fail_op, renderer_compare_op compare_op);
 
-    void (*begin_rendering)(struct renderer_backend_interface* backend, struct frame_data* p_frame_data, rect_2di render_area, u32 colour_target_count, ktexture_backend* colour_targets, ktexture_backend depth_stencil_target, u32 depth_stencil_layer);
+    void (*begin_rendering)(struct renderer_backend_interface* backend, struct frame_data* p_frame_data, rect_2di render_area, u32 colour_target_count, ktexture* colour_targets, ktexture depth_stencil_target, u32 depth_stencil_layer);
     void (*end_rendering)(struct renderer_backend_interface* backend, struct frame_data* p_frame_data);
 
     /**
@@ -436,13 +435,13 @@ typedef struct renderer_backend_interface {
     void (*clear_colour_set)(struct renderer_backend_interface* backend, vec4 clear_colour);
     void (*clear_depth_set)(struct renderer_backend_interface* backend, f32 depth);
     void (*clear_stencil_set)(struct renderer_backend_interface* backend, u32 stencil);
-    void (*clear_colour)(struct renderer_backend_interface* backend, ktexture_backend renderer_texture_handle);
-    void (*clear_depth_stencil)(struct renderer_backend_interface* backend, ktexture_backend renderer_texture_handle);
-    void (*colour_texture_prepare_for_present)(struct renderer_backend_interface* backend, ktexture_backend renderer_texture_handle);
-    void (*texture_prepare_for_sampling)(struct renderer_backend_interface* backend, ktexture_backend renderer_texture_handle, ktexture_flag_bits flags);
+    void (*clear_colour)(struct renderer_backend_interface* backend, ktexture t);
+    void (*clear_depth_stencil)(struct renderer_backend_interface* backend, ktexture t);
+    void (*colour_texture_prepare_for_present)(struct renderer_backend_interface* backend, ktexture t);
+    void (*texture_prepare_for_sampling)(struct renderer_backend_interface* backend, ktexture t, ktexture_flag_bits flags);
 
-    b8 (*texture_resources_acquire)(struct renderer_backend_interface* backend, const char* name, ktexture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, ktexture_flag_bits flags, ktexture_backend* out_renderer_texture_handle);
-    void (*texture_resources_release)(struct renderer_backend_interface* backend, ktexture_backend* renderer_texture_handle);
+    b8 (*texture_resources_acquire)(struct renderer_backend_interface* backend, ktexture t, const char* name, ktexture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, ktexture_flag_bits flags);
+    void (*texture_resources_release)(struct renderer_backend_interface* backend, ktexture t);
 
     /**
      * @brief Resizes a texture. There is no check at this level to see if the
@@ -455,7 +454,7 @@ typedef struct renderer_backend_interface {
      * @param new_height The new height in pixels.
      * @returns True on success; otherwise false.
      */
-    b8 (*texture_resize)(struct renderer_backend_interface* backend, ktexture_backend renderer_texture_handle, u32 new_width, u32 new_height);
+    b8 (*texture_resize)(struct renderer_backend_interface* backend, ktexture t, u32 new_width, u32 new_height);
 
     /**
      * @brief Writes the given data to the provided texture.
@@ -470,7 +469,7 @@ typedef struct renderer_backend_interface {
      * @param pixels The raw image data to be written.
      * @returns True on success; otherwise false.
      */
-    b8 (*texture_write_data)(struct renderer_backend_interface* backend, ktexture_backend renderer_texture_handle, u32 offset, u32 size, const u8* pixels, b8 include_in_frame_workload);
+    b8 (*texture_write_data)(struct renderer_backend_interface* backend, ktexture t, u32 offset, u32 size, const u8* pixels, b8 include_in_frame_workload);
 
     /**
      * @brief Reads the given data from the provided texture.
@@ -482,7 +481,7 @@ typedef struct renderer_backend_interface {
      * @param out_pixels A pointer to a block of memory to write the read data to.
      * @returns True on success; otherwise false.
      */
-    b8 (*texture_read_data)(struct renderer_backend_interface* backend, ktexture_backend renderer_texture_handle, u32 offset, u32 size, u8** out_pixels);
+    b8 (*texture_read_data)(struct renderer_backend_interface* backend, ktexture t, u32 offset, u32 size, u8** out_pixels);
 
     /**
      * @brief Reads a pixel from the provided texture at the given x/y coordinate.
@@ -494,7 +493,7 @@ typedef struct renderer_backend_interface {
      * @param out_rgba A pointer to an array of u8s to hold the pixel data (should be sizeof(u8) * 4)
      * @returns True on success; otherwise false.
      */
-    b8 (*texture_read_pixel)(struct renderer_backend_interface* backend, ktexture_backend renderer_texture_handle, u32 x, u32 y, u8** out_rgba);
+    b8 (*texture_read_pixel)(struct renderer_backend_interface* backend, ktexture t, u32 x, u32 y, u8** out_rgba);
 
     /**
      * @brief Creates internal shader resources using the provided parameters.

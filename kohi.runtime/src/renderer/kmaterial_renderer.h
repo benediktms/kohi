@@ -36,7 +36,7 @@ typedef struct base_material_shader_data {
     // Texture use flags
     u32 tex_flags;
     f32 refraction_scale;
-    f32 padding;
+    u32 material_type;
 
     vec4 base_colour;
     vec4 emissive;
@@ -136,8 +136,8 @@ typedef struct kmaterial_renderer {
     u32 material_standard_shader_bs_0_instance_id;
     kshader material_standard_skinned_shader;
     u32 material_standard_skinned_shader_bs_0_instance_id;
-    kshader material_water_shader;
-    u32 material_water_shader_bs_0_instance_id;
+    /* kshader material_water_shader; */
+    /* u32 material_water_shader_bs_0_instance_id; */
     // FIXME: implement this
     kshader material_blended_shader;
 

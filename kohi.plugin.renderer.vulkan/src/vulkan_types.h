@@ -17,7 +17,6 @@
 #include "core_render_types.h"
 #include "debug/kassert.h"
 #include "defines.h"
-#include "kresources/kresource_types.h"
 #include "math/math_types.h"
 #include "platform/vulkan_platform.h"
 #include "renderer/renderer_types.h"
@@ -225,7 +224,7 @@ typedef struct vulkan_swapchain {
     /** @brief Supports being used as a blit source. */
     b8 supports_blit_src;
 
-    ktexture_backend swapchain_colour_texture;
+    ktexture swapchain_colour_texture;
 
     /** @brief The swapchain image index (i.e. the swapchain image index that will be blitted to). */
     u32 image_index;
@@ -408,13 +407,13 @@ typedef struct vulkan_sampler_state {
 } vulkan_sampler_state;
 
 typedef struct vulkan_texture_state {
-    shader_texture_type type;
+    ktexture_type type;
 
     /**
      * @brief An array of handles to texture resources.
      * Element count matches array_size.
      */
-    ktexture_backend* texture_handles;
+    ktexture* texture_handles;
 
     /**
      * @brief A descriptor state per descriptor, which in turn handles frames.
@@ -447,7 +446,7 @@ typedef struct vulkan_shader_binding {
 /**
  * @brief The state for a shader binding set individual usage
  */
-typedef struct vulkan_shader_binding_set_use_state {
+typedef struct vulkan_shader_binding_set_instance_state {
     /** @brief The actual size of the uniform buffer object for this set. */
     u64 ubo_size;
     /** @brief The stride of the uniform buffer object for this set. */
@@ -469,6 +468,9 @@ typedef struct vulkan_shader_binding_set_use_state {
 
     // A mapping of textures to descriptors.
     vulkan_texture_state* texture_states;
+
+    // Used to determine if this instance state has already been updated for a given frame.
+    u16 renderer_frame_number;
 
 #ifdef KOHI_DEBUG
     // Also the binding set index. Just here for debugging purposes (debug builds only)
@@ -616,7 +618,7 @@ typedef struct kwindow_renderer_backend_state {
      * @brief Array of darrays of handles to textures that were updated as part of a frame's workload.
      * One list per frame in flight.
      */
-    ktexture_backend** frame_texture_updated_list;
+    ktexture** frame_texture_updated_list;
 
     u64 framebuffer_size_generation;
     u64 framebuffer_previous_size_generation;

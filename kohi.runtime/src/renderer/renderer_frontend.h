@@ -50,6 +50,7 @@ typedef struct renderer_system_config {
 
     // The max number of shaders that can be held. Must match the shader system's count.
     u16 max_shader_count;
+    u16 max_texture_count;
 
     b8 require_discrete_gpu;
 } renderer_system_config;
@@ -237,7 +238,7 @@ KAPI void renderer_set_stencil_op(renderer_stencil_op fail_op, renderer_stencil_
  * @param depth_stencil_target A handle to a depth stencil target to render to.
  * @param depth_stencil_layer For layered depth targets, the layer index to render to. Ignored otherwise.
  */
-KAPI void renderer_begin_rendering(struct renderer_system_state* state, struct frame_data* p_frame_data, rect_2di render_area, u32 colour_target_count, ktexture_backend* colour_targets, ktexture_backend depth_stencil_target, u32 depth_stencil_layer);
+KAPI void renderer_begin_rendering(struct renderer_system_state* state, struct frame_data* p_frame_data, rect_2di render_area, u32 colour_target_count, ktexture* colour_targets, ktexture depth_stencil_target, u32 depth_stencil_layer);
 
 /**
  *
@@ -264,6 +265,7 @@ KAPI void renderer_set_stencil_write_mask(u32 write_mask);
  * Attempts to acquire renderer-specific resources to back a texture.
  *
  * @param state A pointer to the renderer system state.
+ * @param t The texture handle which also points to the backing resource(s) of the texture.
  * @param name The name of the texture.
  * @param type The type of texture.
  * @param width The texture width in pixels.
@@ -272,18 +274,17 @@ KAPI void renderer_set_stencil_write_mask(u32 write_mask);
  * @param mip_levels The number of mip maps the internal texture has. Must always be at least 1.
  * @param array_size For arrayed textures, how many "layers" there are. Otherwise this is 1.
  * @param flags Various property flags to be used in creating this texture.
- * @param out_renderer_texture_handle A pointer to hold the renderer texture handle, which points to the backing resource(s) of the texture.
  * @returns True on success, otherwise false;
  */
-KAPI b8 renderer_texture_resources_acquire(struct renderer_system_state* state, kname name, ktexture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, ktexture_flag_bits flags, ktexture_backend* out_renderer_texture_handle);
+KAPI b8 renderer_texture_resources_acquire(struct renderer_system_state* state, ktexture t, kname name, ktexture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, ktexture_flag_bits flags);
 
 /**
- * Releases backing renderer-specific resources for the given renderer_texture_id.
+ * Releases backing renderer-specific resources for the given texture.
  *
  * @param state A pointer to the renderer system state.
- * @param handle A pointer to the handle of the renderer texture whose resources are to be released. Handle is automatically invalidated.
+ * @param t A handle to the renderer texture whose resources are to be released.
  */
-KAPI void renderer_texture_resources_release(struct renderer_system_state* state, ktexture_backend* handle);
+KAPI void renderer_texture_resources_release(struct renderer_system_state* state, ktexture t);
 
 /**
  * @brief Resizes a texture. There is no check at this level to see if the
@@ -291,57 +292,57 @@ KAPI void renderer_texture_resources_release(struct renderer_system_state* state
  * the new resolution. Data is lost and would need to be reloaded.
  *
  * @param state A pointer to the renderer system state.
- * @param renderer_texture_handle A handle to the texture to be resized.
+ * @param t A handle to the texture to be resized.
  * @param new_width The new width in pixels.
  * @param new_height The new height in pixels.
  * @returns True on success; otherwise false.
  */
-KAPI b8 renderer_texture_resize(struct renderer_system_state* state, ktexture_backend renderer_texture_handle, u32 new_width, u32 new_height);
+KAPI b8 renderer_texture_resize(struct renderer_system_state* state, ktexture t, u32 new_width, u32 new_height);
 
 /**
  * @brief Writes the given data to the provided texture.
  *
  * @param state A pointer to the renderer system state.
- * @param renderer_texture_handle A handle to the texture to be written to. NOTE: Must be a writeable texture.
+ * @param t A handle to the texture to be written to. NOTE: Must be a writeable texture.
  * @param offset The offset in bytes from the beginning of the data to be written.
  * @param size The number of bytes to be written.
  * @param pixels The raw image data to be written.
  * @returns True on success; otherwise false.
  */
-KAPI b8 renderer_texture_write_data(struct renderer_system_state* state, ktexture_backend renderer_texture_handle, u32 offset, u32 size, const u8* pixels);
+KAPI b8 renderer_texture_write_data(struct renderer_system_state* state, ktexture t, u32 offset, u32 size, const u8* pixels);
 
 /**
  * @brief Reads the given data from the provided texture.
  *
  * @param state A pointer to the renderer system state.
- * @param renderer_texture_handle A handle to the texture to be read from.
+ * @param t A handle to the texture to be read from.
  * @param offset The offset in bytes from the beginning of the data to be read.
  * @param size The number of bytes to be read.
  * @param out_pixelshader A handle to a block of memory to write the read data to.
  * @returns True on success; otherwise false.
  */
-KAPI b8 renderer_texture_read_data(struct renderer_system_state* state, ktexture_backend renderer_texture_handle, u32 offset, u32 size, u8** out_memory);
+KAPI b8 renderer_texture_read_data(struct renderer_system_state* state, ktexture t, u32 offset, u32 size, u8** out_memory);
 
 /**
  * @brief Reads a pixel from the provided texture at the given x/y coordinate.
  *
  * @param state A pointer to the renderer system state.
- * @param renderer_texture_handle A handle to the texture to be read from.
+ * @param t A handle to the texture to be read from.
  * @param x The pixel x-coordinate.
  * @param y The pixel y-coordinate.
  * @param out_rgba A pointer to an array of u8s to hold the pixel data (should be sizeof(u8) * 4)
  * @returns True on success; otherwise false.
  */
-KAPI b8 renderer_texture_read_pixel(struct renderer_system_state* state, ktexture_backend renderer_texture_handle, u32 x, u32 y, u8** out_rgba);
+KAPI b8 renderer_texture_read_pixel(struct renderer_system_state* state, ktexture t, u32 x, u32 y, u8** out_rgba);
 
 /**
  * @brief Registers a texture with the given handle to the default texture slot specified.
  *
  * @param state A pointer to the renderer system state.
  * @param default_texture The texture slot to register to.
- * @param renderer_texture_handle A handle to the texture to be registered.
+ * @param t A handle to the texture to be registered.
  */
-KAPI void renderer_default_texture_register(struct renderer_system_state* state, renderer_default_texture default_texture, ktexture_backend renderer_texture_handle);
+KAPI void renderer_default_texture_register(struct renderer_system_state* state, renderer_default_texture default_texture, ktexture t);
 
 /**
  * @brief Gets a texture handle with the default texture slot specified.
@@ -350,7 +351,7 @@ KAPI void renderer_default_texture_register(struct renderer_system_state* state,
  * @param default_texture The texture slot to register to.
  * @returns A handle to the default texture.
  */
-KAPI ktexture_backend renderer_default_texture_get(struct renderer_system_state* state, renderer_default_texture default_texture);
+KAPI ktexture renderer_default_texture_get(struct renderer_system_state* state, renderer_default_texture default_texture);
 
 /**
  * @brief Acquires GPU resources and uploads geometry data.
@@ -412,36 +413,36 @@ KAPI void renderer_clear_stencil_set(struct renderer_system_state* state, u32 st
  * @brief Clears the colour buffer using the previously set clear colour.
  *
  * @param state A pointer to the renderer system state.
- * @param texture_handle A handle to the texture to clear.
+ * @param t A handle to the texture to clear.
  * @returns True if successful; otherwise false.
  */
-KAPI b8 renderer_clear_colour(struct renderer_system_state* state, ktexture_backend texture_handle);
+KAPI b8 renderer_clear_colour(struct renderer_system_state* state, ktexture t);
 
 /**
  * @brief Clears the depth/stencil buffer using the previously set clear values.
  *
  * @param state A pointer to the renderer system state.
- * @param texture_handle A handle to the texture to clear.
+ * @param t A handle to the texture to clear.
  * @returns True if successful; otherwise false.
  */
-KAPI b8 renderer_clear_depth_stencil(struct renderer_system_state* state, ktexture_backend texture_handle);
+KAPI b8 renderer_clear_depth_stencil(struct renderer_system_state* state, ktexture t);
 
 /**
  * @brief Performs operations required on the supplied colour texture before presentation.
  *
  * @param state A pointer to the renderer system state.
- * @param texture_handle A handle to the texture to prepare for presentation.
+ * @param t A handle to the texture to prepare for presentation.
  */
-KAPI void renderer_colour_texture_prepare_for_present(struct renderer_system_state* state, ktexture_backend texture_handle);
+KAPI void renderer_colour_texture_prepare_for_present(struct renderer_system_state* state, ktexture t);
 
 /**
  * @brief Performs operations required on the supplied texture before being used for sampling.
  *
  * @param state A pointer to the renderer system state.
- * @param texture_handle A handle to the texture to prepare for sampling.
+ * @param t A handle to the texture to prepare for sampling.
  * @param flags Texture flags from the texture itself, used to determine format/layout, etc.
  */
-KAPI void renderer_texture_prepare_for_sampling(struct renderer_system_state* state, ktexture_backend texture_handle, ktexture_flag_bits flags);
+KAPI void renderer_texture_prepare_for_sampling(struct renderer_system_state* state, ktexture t, ktexture_flag_bits flags);
 
 /**
  * @brief Creates internal shader resources using the provided parameters.

@@ -2,14 +2,15 @@
 
 #include "assets/kasset_types.h"
 #include "containers/u64_bst.h"
+#include "core/console.h"
 #include "core/engine.h"
 #include "core_render_types.h"
+#include "debug/kassert.h"
 #include "defines.h"
 #include "kresources/kresource_types.h"
 #include "logger.h"
 #include "memory/kmemory.h"
 #include "renderer/renderer_frontend.h"
-#include "renderer/renderer_types.h"
 #include "strings/kname.h"
 #include "strings/kstring.h"
 #include "systems/asset_system.h"
@@ -25,10 +26,8 @@ typedef enum texture_state {
 typedef struct texture_system_state {
     texture_system_config config;
 
-    // All registered textures. format=KPIXEL_FORMAT_UNKNOWN means slot is "free"
+    // All registered textures. name=INVALID_KNAME means slot is "free"
 
-    /** @brief The the handle to renderer-specific texture data. */
-    ktexture_backend* renderer_texture_handles;
     /** @brief The texture type. */
     ktexture_type* types;
     /** @brief The texture width. */
@@ -45,19 +44,20 @@ typedef struct texture_system_state {
     u8* mip_level_counts;
     u16* texture_reference_counts;
     b8* auto_releases;
+    kname* names;
     texture_state* states;
 
     // For quick lookups by name.
     bt_node* texture_name_lookup;
 
-    ktexture default_kresource_texture;
-    ktexture default_kresource_base_colour_texture;
-    ktexture default_kresource_specular_texture;
-    ktexture default_kresource_normal_texture;
-    ktexture default_kresource_mra_texture;
-    ktexture default_kresource_cube_texture;
-    ktexture default_kresource_water_normal_texture;
-    ktexture default_kresource_water_dudv_texture;
+    ktexture default_texture;
+    ktexture default_base_colour_texture;
+    ktexture default_specular_texture;
+    ktexture default_normal_texture;
+    ktexture default_mra_texture;
+    ktexture default_cube_texture;
+    ktexture default_water_normal_texture;
+    ktexture default_water_dudv_texture;
 
     // A convenience pointer to the renderer system state.
     struct renderer_system_state* renderer;
@@ -92,6 +92,18 @@ static b8 get_image_asset_names_from_options(const ktexture_load_options* option
 static void combine_asset_pixel_data(kasset_image** assets, u32 count, u32 expected_width, u32 expected_height, b8 release_assets, u32* out_size, void** out_pixels);
 static b8 texture_apply_asset_data(ktexture t, kname name, const ktexture_load_options* options, kasset_image** assets);
 
+static void on_texture_system_dump(console_command_context context) {
+    texture_system_state* state = engine_systems_get()->texture_system;
+    for (u32 i = 0; i < state->config.max_texture_count; ++i) {
+        // Skip "free" slots.
+        if (state->names[i] == INVALID_KNAME) {
+            continue;
+        }
+
+        KINFO("Texture: name='%s', active instance count = %u", kname_string_get(state->names[i]), ktexture_type_to_string(state->types[i]));
+    }
+}
+
 b8 texture_system_initialize(u64* memory_requirement, void* state, void* config) {
     texture_system_config* typed_config = (texture_system_config*)config;
     if (typed_config->max_texture_count == 0) {
@@ -111,7 +123,6 @@ b8 texture_system_initialize(u64* memory_requirement, void* state, void* config)
     state_ptr->config = *typed_config;
 
     // Setup texture cache.
-    state_ptr->renderer_texture_handles = KALLOC_TYPE_CARRAY(ktexture_backend, typed_config->max_texture_count);
     state_ptr->types = KALLOC_TYPE_CARRAY(ktexture_type, typed_config->max_texture_count);
     state_ptr->widths = KALLOC_TYPE_CARRAY(u32, typed_config->max_texture_count);
     state_ptr->heights = KALLOC_TYPE_CARRAY(u32, typed_config->max_texture_count);
@@ -123,6 +134,7 @@ b8 texture_system_initialize(u64* memory_requirement, void* state, void* config)
     state_ptr->texture_reference_counts = KALLOC_TYPE_CARRAY(u16, typed_config->max_texture_count);
     state_ptr->auto_releases = KALLOC_TYPE_CARRAY(b8, typed_config->max_texture_count);
     state_ptr->states = KALLOC_TYPE_CARRAY(texture_state, typed_config->max_texture_count);
+    state_ptr->names = KALLOC_TYPE_CARRAY(kname, typed_config->max_texture_count);
 
     // Keep a pointer to the renderer system state.
     state_ptr->renderer = engine_systems_get()->renderer_system;
@@ -130,6 +142,9 @@ b8 texture_system_initialize(u64* memory_requirement, void* state, void* config)
 
     // Create default textures for use in the system.
     create_default_textures(state_ptr);
+
+    // Register a console command to dump list of materials/references.
+    console_command_register("texture_system_dump", 0, state, on_texture_system_dump);
 
     KDEBUG("Texture system initialization complete.");
 
@@ -145,11 +160,10 @@ void texture_system_shutdown(void* state) {
         // Ensure all textures are released.
         for (u16 i = 0; i < typed_config->max_texture_count; ++i) {
             if (state_ptr->states[i] != TEXTURE_STATE_UNINITIALIZED) {
-                renderer_texture_resources_release(state_ptr->renderer, &state_ptr->renderer_texture_handles[i]);
+                renderer_texture_resources_release(state_ptr->renderer, i);
             }
         }
 
-        KFREE_TYPE_CARRAY(state_ptr->renderer_texture_handles, ktexture_backend, typed_config->max_texture_count);
         KFREE_TYPE_CARRAY(state_ptr->types, ktexture_type, typed_config->max_texture_count);
         KFREE_TYPE_CARRAY(state_ptr->widths, u32, typed_config->max_texture_count);
         KFREE_TYPE_CARRAY(state_ptr->heights, u32, typed_config->max_texture_count);
@@ -160,6 +174,7 @@ void texture_system_shutdown(void* state) {
         KFREE_TYPE_CARRAY(state_ptr->texture_reference_counts, u16, typed_config->max_texture_count);
         KFREE_TYPE_CARRAY(state_ptr->auto_releases, b8, typed_config->max_texture_count);
         KFREE_TYPE_CARRAY(state_ptr->states, texture_state, typed_config->max_texture_count);
+        KFREE_TYPE_CARRAY(state_ptr->names, kname, typed_config->max_texture_count);
 
         state_ptr->renderer = 0;
         state_ptr = 0;
@@ -193,7 +208,7 @@ void texture_release(ktexture texture) {
     if (!state_ptr) {
         return;
     }
-    if (texture != INVALID_KTEXTURE && state_ptr->formats[texture] != KPIXEL_FORMAT_UNKNOWN) {
+    if (texture != INVALID_KTEXTURE && state_ptr->names[texture] != INVALID_KNAME) {
         if (state_ptr->texture_reference_counts[texture] > 0) {
             state_ptr->texture_reference_counts[texture]--;
 
@@ -361,11 +376,16 @@ ktexture texture_acquire_with_options(ktexture_load_options options, void* liste
 
     // Set some default properties.
     state_ptr->formats[t] = options.format;
+    if (options.type == KTEXTURE_TYPE_UNDEFINED) {
+        KWARN("Texture '%s' requested with undefined texture type. Defaulting to 2d.", kname_string_get(name));
+        options.type = KTEXTURE_TYPE_2D;
+    }
     state_ptr->types[t] = options.type;
     state_ptr->widths[t] = options.width;
     state_ptr->heights[t] = options.height;
     state_ptr->mip_level_counts[t] = options.mip_levels;
     state_ptr->array_sizes[t] = options.layer_count;
+    state_ptr->names[t] = name;
     // Ensure there is always at least one layer.
     if (!state_ptr->array_sizes[t]) {
         state_ptr->array_sizes[t] = 1;
@@ -434,7 +454,7 @@ ktexture texture_acquire_with_options(ktexture_load_options options, void* liste
         u32 texture_data_offset = 0; // NOTE: The only time this potentially could be nonzero is when explicitly loading a layer of texture data.
         b8 write_result = renderer_texture_write_data(
             state_ptr->renderer,
-            state_ptr->renderer_texture_handles[t],
+            t,
             texture_data_offset, options.pixel_array_size, options.pixel_data);
 
         if (!write_result) {
@@ -470,19 +490,19 @@ ktexture texture_acquire_with_options_sync(ktexture_load_options options) {
     kname name = options.name ? options.name : options.image_asset_name;
     ktexture t = texture_get_if_exists(name);
 
-    // Load pixel/asset pixel data.
-    u32 all_pixel_size = 0;
-    // TODO: This will be an issue with any other bit depth than 8
-    u8* all_pixels = 0;
-    u32 all_pixel_count = 0;
-    b8 free_pixels = false;
-
     // If an entry with the name exists, return it.
     if (t != INVALID_KTEXTURE) {
         // Increment reference count.
         state_ptr->texture_reference_counts[t]++;
         return t;
     }
+
+    // Load pixel/asset pixel data.
+    u32 all_pixel_size = 0;
+    // TODO: This will be an issue with any other bit depth than 8
+    u8* all_pixels = 0;
+    u32 all_pixel_count = 0;
+    b8 free_pixels = false;
 
     // Pick a free slot in the texture cache.
     t = texture_get_new(name);
@@ -492,11 +512,16 @@ ktexture texture_acquire_with_options_sync(ktexture_load_options options) {
 
     // Set some default properties.
     state_ptr->formats[t] = options.format;
+    if (options.type == KTEXTURE_TYPE_UNDEFINED) {
+        KWARN("Texture '%s' requested with undefined texture type. Defaulting to 2d.", kname_string_get(name));
+        options.type = KTEXTURE_TYPE_2D;
+    }
     state_ptr->types[t] = options.type;
     state_ptr->widths[t] = options.width;
     state_ptr->heights[t] = options.height;
     state_ptr->mip_level_counts[t] = options.mip_levels;
     state_ptr->array_sizes[t] = options.layer_count;
+    state_ptr->names[t] = name;
     // Ensure there is always at least one layer.
     if (!state_ptr->array_sizes[t]) {
         state_ptr->array_sizes[t] = 1;
@@ -507,6 +532,7 @@ ktexture texture_acquire_with_options_sync(ktexture_load_options options) {
     state_ptr->flags[t] = FLAG_SET(state_ptr->flags[t], KTEXTURE_FLAG_STENCIL, options.is_stencil);
     state_ptr->flags[t] = FLAG_SET(state_ptr->flags[t], KTEXTURE_FLAG_IS_WRITEABLE, options.is_writeable);
     state_ptr->flags[t] = FLAG_SET(state_ptr->flags[t], KTEXTURE_FLAG_RENDERER_BUFFERING, options.multiframe_buffering);
+    state_ptr->flags[t] = FLAG_SET(state_ptr->flags[t], KTEXTURE_FLAG_IS_WRAPPED, options.is_wrapped);
 
     kasset_image** assets = 0;
 
@@ -584,7 +610,7 @@ ktexture texture_acquire_with_options_sync(ktexture_load_options options) {
         u32 texture_data_offset = 0; // NOTE: The only time this potentially could be nonzero is when explicitly loading a layer of texture data.
         b8 write_result = renderer_texture_write_data(
             state_ptr->renderer,
-            state_ptr->renderer_texture_handles[t],
+            t,
             texture_data_offset, all_pixel_size, all_pixels);
 
         if (!write_result) {
@@ -639,7 +665,7 @@ b8 texture_resize(ktexture t, u32 width, u32 height, b8 regenerate_internal_data
         // update.
         if (!(state_ptr->flags[t] & KTEXTURE_FLAG_IS_WRAPPED) && regenerate_internal_data) {
             // Regenerate internals for the new size.
-            return renderer_texture_resize(state_ptr->renderer, state_ptr->renderer_texture_handles[t], width, height);
+            return renderer_texture_resize(state_ptr->renderer, t, width, height);
         }
         return true;
     }
@@ -648,7 +674,7 @@ b8 texture_resize(ktexture t, u32 width, u32 height, b8 regenerate_internal_data
 
 b8 texture_write_data(ktexture t, u32 offset, u32 size, void* data) {
     if (t) {
-        return renderer_texture_write_data(state_ptr->renderer, state_ptr->renderer_texture_handles[t], offset, size, data);
+        return renderer_texture_write_data(state_ptr->renderer, t, offset, size, data);
     }
     return false;
 }
@@ -657,14 +683,22 @@ static b8 texture_is_default(texture_system_state* state, ktexture t) {
     if (!state_ptr) {
         return false;
     }
-    return (t == state->default_kresource_texture) ||
-           (t == state->default_kresource_base_colour_texture) ||
-           (t == state->default_kresource_specular_texture) ||
-           (t == state->default_kresource_normal_texture) ||
-           (t == state->default_kresource_mra_texture) ||
-           (t == state->default_kresource_cube_texture) ||
-           (t == state->default_kresource_water_normal_texture) ||
-           (t == state->default_kresource_water_dudv_texture);
+    return (t == state->default_texture) ||
+           (t == state->default_base_colour_texture) ||
+           (t == state->default_specular_texture) ||
+           (t == state->default_normal_texture) ||
+           (t == state->default_mra_texture) ||
+           (t == state->default_cube_texture) ||
+           (t == state->default_water_normal_texture) ||
+           (t == state->default_water_dudv_texture);
+}
+
+kname texture_name_get(ktexture t) {
+    if (t == INVALID_KTEXTURE) {
+        return 0;
+    }
+
+    return state_ptr->names[t];
 }
 
 u32 texture_width_get(ktexture t) {
@@ -692,14 +726,6 @@ b8 texture_dimensions_get(ktexture t, u32* out_width, u32* out_height) {
     *out_height = state_ptr->heights[t];
 
     return true;
-}
-
-ktexture_backend texture_renderer_handle_get(ktexture t) {
-    if (t == INVALID_KTEXTURE) {
-        return KTEXTURE_BACKEND_INVALID;
-    }
-
-    return state_ptr->renderer_texture_handles[t];
 }
 
 ktexture_flag_bits texture_flags_get(ktexture t) {
@@ -752,19 +778,10 @@ static b8 create_default_textures(texture_system_state* state) {
 
         // Request new resource texture.
         u32 pixel_array_size = sizeof(u8) * pixel_count * channels;
-        state->default_kresource_texture = INVALID_KTEXTURE;
-        ktexture t = texture_acquire_from_pixel_data(
-            KPIXEL_FORMAT_RGBA8,
-            pixel_array_size,
-            default_pixels,
-            16,
-            16,
-            kname_create(DEFAULT_TEXTURE_NAME));
-        state->default_kresource_texture = t;
-        if (state->default_kresource_texture == INVALID_KTEXTURE) {
-            KERROR("Failed to request resources for default texture");
-            return false;
-        }
+        state->default_texture = INVALID_KTEXTURE;
+        state->default_texture = texture_acquire_from_pixel_data(KPIXEL_FORMAT_RGBA8, pixel_array_size, default_pixels, tex_dimension, tex_dimension, kname_create(DEFAULT_TEXTURE_NAME));
+        KASSERT_DEBUG(state->default_texture != INVALID_KTEXTURE);
+        state->auto_releases[state->default_texture] = false;
     }
 
     // Base colour texture.
@@ -777,11 +794,9 @@ static b8 create_default_textures(texture_system_state* state) {
         // Request new resource texture.
 
         u32 pixel_array_size = sizeof(u8) * pixel_count * channels;
-        state->default_kresource_base_colour_texture = texture_acquire_from_pixel_data(KPIXEL_FORMAT_RGBA8, pixel_array_size, diff_pixels, 16, 16, kname_create(DEFAULT_BASE_COLOUR_TEXTURE_NAME));
-        if (state->default_kresource_base_colour_texture == INVALID_KTEXTURE) {
-            KERROR("Failed to request resources for default base colour texture");
-            return false;
-        }
+        state->default_base_colour_texture = texture_acquire_from_pixel_data(KPIXEL_FORMAT_RGBA8, pixel_array_size, diff_pixels, tex_dimension, tex_dimension, kname_create(DEFAULT_BASE_COLOUR_TEXTURE_NAME));
+        KASSERT_DEBUG(state->default_base_colour_texture != INVALID_KTEXTURE);
+        state->auto_releases[state->default_base_colour_texture] = false;
     }
 
     // Specular texture.
@@ -793,11 +808,9 @@ static b8 create_default_textures(texture_system_state* state) {
 
         // Request new resource texture.
         u32 pixel_array_size = sizeof(u8) * pixel_count * channels;
-        state->default_kresource_specular_texture = texture_acquire_from_pixel_data(KPIXEL_FORMAT_RGBA8, pixel_array_size, spec_pixels, 16, 16, kname_create(DEFAULT_SPECULAR_TEXTURE_NAME));
-        if (state->default_kresource_specular_texture == INVALID_KTEXTURE) {
-            KERROR("Failed to request resources for default specular texture");
-            return false;
-        }
+        state->default_specular_texture = texture_acquire_from_pixel_data(KPIXEL_FORMAT_RGBA8, pixel_array_size, spec_pixels, tex_dimension, tex_dimension, kname_create(DEFAULT_SPECULAR_TEXTURE_NAME));
+        KASSERT_DEBUG(state->default_specular_texture != INVALID_KTEXTURE);
+        state->auto_releases[state->default_specular_texture] = false;
     }
 
     // Normal texture.
@@ -819,11 +832,9 @@ static b8 create_default_textures(texture_system_state* state) {
 
         // Request new resource texture.
         u32 pixel_array_size = sizeof(u8) * pixel_count * channels;
-        state->default_kresource_normal_texture = texture_acquire_from_pixel_data(KPIXEL_FORMAT_RGBA8, pixel_array_size, normal_pixels, 16, 16, kname_create(DEFAULT_NORMAL_TEXTURE_NAME));
-        if (state->default_kresource_normal_texture == INVALID_KTEXTURE) {
-            KERROR("Failed to request resources for default normal texture");
-            return false;
-        }
+        state->default_normal_texture = texture_acquire_from_pixel_data(KPIXEL_FORMAT_RGBA8, pixel_array_size, normal_pixels, tex_dimension, tex_dimension, kname_create(DEFAULT_NORMAL_TEXTURE_NAME));
+        KASSERT_DEBUG(state->default_normal_texture != INVALID_KTEXTURE);
+        state->auto_releases[state->default_normal_texture] = false;
     }
 
     // MRA texture
@@ -845,11 +856,9 @@ static b8 create_default_textures(texture_system_state* state) {
 
         // Request new resource texture.
         u32 pixel_array_size = sizeof(u8) * pixel_count * channels;
-        state->default_kresource_mra_texture = texture_acquire_from_pixel_data(KPIXEL_FORMAT_RGBA8, pixel_array_size, mra_pixels, 16, 16, kname_create(DEFAULT_MRA_TEXTURE_NAME));
-        if (state->default_kresource_mra_texture == INVALID_KTEXTURE) {
-            KERROR("Failed to request resources for default MRA texture");
-            return false;
-        }
+        state->default_mra_texture = texture_acquire_from_pixel_data(KPIXEL_FORMAT_RGBA8, pixel_array_size, mra_pixels, tex_dimension, tex_dimension, kname_create(DEFAULT_MRA_TEXTURE_NAME));
+        KASSERT_DEBUG(state->default_mra_texture != INVALID_KTEXTURE);
+        state->auto_releases[state->default_mra_texture] = false;
     }
 
     // Cube texture.
@@ -891,14 +900,12 @@ static b8 create_default_textures(texture_system_state* state) {
             kcopy_memory(pixels + layer_size * i, cube_side_pixels, layer_size);
         }
 
-        // Request new resource texture.?
+        // Request new resource texture.
         u32 pixel_array_size = image_size;
-        state->default_kresource_cube_texture = texture_cubemap_acquire_from_pixel_data(KPIXEL_FORMAT_RGBA8, pixel_array_size, pixels, 16, 16, kname_create(DEFAULT_CUBE_TEXTURE_NAME));
-        if (state->default_kresource_cube_texture == INVALID_KTEXTURE) {
-            KERROR("Failed to request resources for default cube texture");
-            return false;
-        }
+        state->default_cube_texture = texture_cubemap_acquire_from_pixel_data(KPIXEL_FORMAT_RGBA8, pixel_array_size, pixels, tex_dimension, tex_dimension, kname_create(DEFAULT_CUBE_TEXTURE_NAME));
+        KASSERT_DEBUG(state->default_cube_texture != INVALID_KTEXTURE);
         kfree(pixels, image_size, MEMORY_TAG_ARRAY);
+        state->auto_releases[state->default_cube_texture] = false;
     }
 
     // FIXME: Should there even _be_ a default layered texture, or should they just
@@ -933,24 +940,26 @@ static b8 create_default_textures(texture_system_state* state) {
     } */
 
     // Default water normal texture is part of the runtime package - request it.
-    state->default_kresource_water_normal_texture = texture_acquire_from_package(kname_create(DEFAULT_WATER_NORMAL_TEXTURE_NAME), kname_create(PACKAGE_NAME_RUNTIME), 0, 0);
+    state->default_water_normal_texture = texture_acquire_from_package_sync(kname_create(DEFAULT_WATER_NORMAL_TEXTURE_NAME), kname_create(PACKAGE_NAME_RUNTIME));
+    state->auto_releases[state->default_water_normal_texture] = false;
 
     // Default water dudv texture is part of the runtime package - request it.
-    state->default_kresource_water_dudv_texture = texture_acquire_from_package(kname_create(DEFAULT_WATER_DUDV_TEXTURE_NAME), kname_create(PACKAGE_NAME_RUNTIME), 0, 0);
+    state->default_water_dudv_texture = texture_acquire_from_package_sync(kname_create(DEFAULT_WATER_DUDV_TEXTURE_NAME), kname_create(PACKAGE_NAME_RUNTIME));
+    state->auto_releases[state->default_water_dudv_texture] = false;
 
     return true;
 }
 
 static void release_default_textures(texture_system_state* state) {
     if (state) {
-        texture_release(state->default_kresource_texture);
-        texture_release(state->default_kresource_base_colour_texture);
-        texture_release(state->default_kresource_specular_texture);
-        texture_release(state->default_kresource_normal_texture);
-        texture_release(state->default_kresource_mra_texture);
-        texture_release(state->default_kresource_cube_texture);
-        texture_release(state->default_kresource_water_normal_texture);
-        texture_release(state->default_kresource_water_dudv_texture);
+        texture_release(state->default_texture);
+        texture_release(state->default_base_colour_texture);
+        texture_release(state->default_specular_texture);
+        texture_release(state->default_normal_texture);
+        texture_release(state->default_mra_texture);
+        texture_release(state->default_cube_texture);
+        texture_release(state->default_water_normal_texture);
+        texture_release(state->default_water_dudv_texture);
     }
 }
 
@@ -1024,7 +1033,7 @@ static ktexture texture_get_if_exists(kname name) {
     if (node) {
         // Already exists, just return it.
         t = node->value.u16;
-        if (state_ptr->formats[t] == KPIXEL_FORMAT_UNKNOWN) {
+        if (state_ptr->names[t] == INVALID_KNAME) {
             KERROR("%s - lookup for name '%s' exists, but texture is invalid. This likely means a release wasn't done properly.", __FUNCTION__, kname_string_get(name));
             return INVALID_KTEXTURE;
         }
@@ -1038,7 +1047,7 @@ static ktexture texture_get_if_exists(kname name) {
 
 static ktexture texture_get_new(kname name) {
     for (u16 i = 0; i < state_ptr->config.max_texture_count; ++i) {
-        if (state_ptr->formats[i] == KPIXEL_FORMAT_UNKNOWN) {
+        if (state_ptr->names[i] == INVALID_KNAME) {
             // Found one, use it.
             state_ptr->states[i] = TEXTURE_STATE_LOADING;
 
@@ -1052,9 +1061,6 @@ static ktexture texture_get_new(kname name) {
             // Start reference count at 1.
             state_ptr->texture_reference_counts[i] = 1;
 
-            // Invalidate the renderer handle.
-            state_ptr->renderer_texture_handles[i] = KTEXTURE_BACKEND_INVALID;
-
             return i;
         }
     }
@@ -1066,6 +1072,7 @@ static ktexture texture_get_new(kname name) {
 static b8 texture_resources_acquire(ktexture t, kname name) {
     return renderer_texture_resources_acquire(
         state_ptr->renderer,
+        t,
         name,
         state_ptr->types[t],
         state_ptr->widths[t],
@@ -1073,20 +1080,18 @@ static b8 texture_resources_acquire(ktexture t, kname name) {
         channel_count_from_pixel_format(state_ptr->formats[t]),
         state_ptr->mip_level_counts[t],
         state_ptr->array_sizes[t],
-        state_ptr->flags[t],
-        &state_ptr->renderer_texture_handles[t]);
+        state_ptr->flags[t]);
 }
 
 static void texture_cleanup(ktexture t, b8 clear_references) {
     if (t != INVALID_KTEXTURE) {
-        renderer_texture_resources_release(state_ptr->renderer, &state_ptr->renderer_texture_handles[t]);
+        renderer_texture_resources_release(state_ptr->renderer, t);
 
         if (clear_references) {
             state_ptr->texture_reference_counts[t] = 0;
             state_ptr->auto_releases[t] = false;
         }
 
-        state_ptr->renderer_texture_handles[t] = KTEXTURE_BACKEND_INVALID;
         state_ptr->types[t] = 0;
         state_ptr->widths[t] = 0;
         state_ptr->heights[t] = 0;
@@ -1096,6 +1101,7 @@ static void texture_cleanup(ktexture t, b8 clear_references) {
         state_ptr->array_sizes[t] = 0;
         state_ptr->flags[t] = 0;
         state_ptr->states[t] = TEXTURE_STATE_UNINITIALIZED;
+        state_ptr->names[t] = INVALID_KNAME;
     }
 }
 
@@ -1269,7 +1275,7 @@ static b8 texture_apply_asset_data(ktexture t, kname name, const ktexture_load_o
     u32 texture_data_offset = 0; // NOTE: The only time this potentially could be nonzero is when explicitly loading a layer of texture data.
     b8 write_result = renderer_texture_write_data(
         state_ptr->renderer,
-        state_ptr->renderer_texture_handles[t],
+        t,
         texture_data_offset, all_pixel_size, all_pixels);
 
     if (!write_result) {

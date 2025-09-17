@@ -23,6 +23,15 @@ const uint MAT_STANDARD_IDX_AO = 4;
 const uint MAT_STANDARD_IDX_MRA = 5;
 const uint MAT_STANDARD_IDX_EMISSIVE = 6;
 
+const uint MAT_WATER_IDX_REFLECTION = MAT_STANDARD_IDX_METALLIC;
+const uint MAT_WATER_IDX_REFRACTION = MAT_STANDARD_IDX_ROUGHNESS;
+const uint MAT_WATER_IDX_REFRACTION_DEPTH = MAT_STANDARD_IDX_AO;
+const uint MAT_WATER_IDX_DUDV = MAT_STANDARD_IDX_MRA;
+const uint MAT_WATER_IDX_NORMAL = MAT_STANDARD_IDX_NORMAL;
+
+const uint MAT_TYPE_STANDARD = 0;
+const uint MAT_TYPE_WATER = 1;
+
 const uint KMATERIAL_FLAG_HAS_TRANSPARENCY_BIT = 0x0001;
 const uint KMATERIAL_FLAG_DOUBLE_SIDED_BIT = 0x0002;
 const uint KMATERIAL_FLAG_RECIEVES_SHADOW_BIT = 0x0004;
@@ -62,7 +71,7 @@ struct base_material_data {
     // Texture use flags
     uint tex_flags;
     float refraction_scale;
-    float padding;
+    uint material_type; // 0 = standard, 1 = water
 
     vec4 base_colour;
     vec4 emissive;
@@ -172,6 +181,7 @@ layout(push_constant) uniform immediate_data {
 // Data Transfer Object
 layout(location = 0) in dto {
 	vec4 frag_position;
+    vec4 clip_space;
 	vec4 light_space_frag_pos[KMATERIAL_UBO_MAX_SHADOW_CASCADES];
     vec4 vertex_colour;
 	vec3 normal;
@@ -180,6 +190,8 @@ layout(location = 0) in dto {
     float padding2;
 	vec2 tex_coord;
     vec2 padding3;
+    vec3 world_to_camera;
+    float padding4;
 } in_dto;
 
 // =========================================================
@@ -203,8 +215,28 @@ void main() {
     vec3 view_position = global_settings.view_positions[immediate.view_index].xyz;
     base_material_data base_material = global_materials.base_materials[immediate.base_material_index];
 
-    vec3 normal = in_dto.normal;
-    vec3 tangent = in_dto.tangent;
+    vec2 distorted_texcoords;
+    vec3 normal;
+    vec3 tangent;
+
+    if(base_material.material_type == MAT_TYPE_STANDARD) {
+        normal = in_dto.normal;
+        tangent = in_dto.tangent;
+    } else if (base_material.material_type == MAT_TYPE_WATER) {
+        float move_factor = immediate.wave_speed * global_settings.game_time;
+        // Calculate surface distortion and bring it into [-1.0 - 1.0] range
+        distorted_texcoords = texture(sampler2D(material_textures[MAT_WATER_IDX_DUDV], material_samplers[MAT_WATER_IDX_DUDV]), vec2(in_dto.tex_coord.x + move_factor, in_dto.tex_coord.y)).rg * 0.1;
+        distorted_texcoords = in_dto.tex_coord + vec2(distorted_texcoords.x, distorted_texcoords.y + move_factor);
+
+        // Compute the surface normal using the normal map.
+        vec4 normal_colour = texture(sampler2D(material_textures[MAT_WATER_IDX_NORMAL], material_samplers[MAT_WATER_IDX_NORMAL]), distorted_texcoords);
+        // Extract the normal, shifting to a range of [-1 - 1]
+        normal = vec3(normal_colour.r * 2.0 - 1.0, normal_colour.g * 2.5, normal_colour.b * 2.0 - 1.0);
+
+        vec3 original_tangent = normalize(vec3(1, 0, -0));
+        tangent = original_tangent; // TODO: take from actual plane
+    }
+
     tangent = (tangent - dot(tangent, normal) *  normal);
     vec3 bitangent = cross(in_dto.normal, in_dto.tangent);
     mat3 TBN = mat3(tangent, bitangent, normal);
@@ -215,96 +247,162 @@ void main() {
 
     base_material_data material = global_materials.base_materials[immediate.base_material_index];
 
-    // Base colour
-    vec4 base_colour_samp;
-    if(flag_get(base_material.flags, KMATERIAL_FLAG_USE_VERTEX_COLOUR_AS_BASE_COLOUR_BIT)) {
-        // Pass through the vertex colour
-        base_colour_samp = in_dto.vertex_colour;
-    } else {
-        // Use base colour texture if provided; otherwise use the colour.
-        if(flag_get(base_material.tex_flags, MATERIAL_STANDARD_FLAG_USE_BASE_COLOUR_TEX)) {
-            base_colour_samp = texture(sampler2D(material_textures[MAT_STANDARD_IDX_BASE_COLOUR], material_samplers[MAT_STANDARD_IDX_BASE_COLOUR]), in_dto.tex_coord);
-        } else {
-            base_colour_samp = base_material.base_colour;
-        }
-    }
-
-    // discard the fragment if using transparency and masking, and the alpha falls below a given threshold.
-    if(base_colour_samp.a < 0.1 && flag_get(base_material.flags, KMATERIAL_FLAG_HAS_TRANSPARENCY_BIT) && flag_get(base_material.flags, KMATERIAL_FLAG_MASKED_BIT)) {
-        discard;
-    }
-    vec3 albedo = pow(base_colour_samp.rgb, vec3(2.2));
-
-    // Calculate "local normal".
-    // If enabled, get the normal from the normal map if used, or the supplied vector if not.
-    // Otherwise, just use a default z-up
-    vec3 local_normal = vec3(0, 0, 1.0);
-    if(flag_get(base_material.flags, KMATERIAL_FLAG_NORMAL_ENABLED_BIT)){
-        if(flag_get(base_material.tex_flags, MATERIAL_STANDARD_FLAG_USE_NORMAL_TEX)) {
-            local_normal = texture(sampler2D(material_textures[MAT_STANDARD_IDX_NORMAL], material_samplers[MAT_STANDARD_IDX_NORMAL]), in_dto.tex_coord).rgb;
-            local_normal = (2.0 * local_normal - 1.0);
-        } else {
-            local_normal = base_material.normal;
-        }
-    } 
-    // Update the normal to use a sample from the normal map.
-    normal = normalize(TBN * local_normal);
-
-    // Either use combined MRA (metallic/roughness/ao) or individual maps, depending on settings.
-    vec3 mra;
-    if(flag_get(base_material.flags, KMATERIAL_FLAG_MRA_ENABLED_BIT)) { 
-        if(flag_get(base_material.tex_flags, MATERIAL_STANDARD_FLAG_USE_MRA_TEX)) {
-            mra = texture(sampler2D(material_textures[MAT_STANDARD_IDX_MRA], material_samplers[MAT_STANDARD_IDX_MRA]), in_dto.tex_coord).rgb;
-        } else {
-            mra = base_material.mra;
-        }
-    } else {
-        // Sample individual maps.
-
-        // Metallic 
-        if(flag_get(base_material.tex_flags, MATERIAL_STANDARD_FLAG_USE_METALLIC_TEX)) {
-            vec4 sampled = texture(sampler2D(material_textures[MAT_STANDARD_IDX_METALLIC], material_samplers[MAT_STANDARD_IDX_METALLIC]), in_dto.tex_coord);
-            // Load metallic into the red channel from the configured source texture channel.
-            mra.r = sampled[material.metallic_texture_channel];
-        } else {
-            mra.r = base_material.metallic;
-        }
-
-        // Roughness 
-        if(flag_get(base_material.tex_flags, MATERIAL_STANDARD_FLAG_USE_ROUGHNESS_TEX)) {
-            vec4 sampled = texture(sampler2D(material_textures[MAT_STANDARD_IDX_ROUGHNESS], material_samplers[MAT_STANDARD_IDX_ROUGHNESS]), in_dto.tex_coord);
-            // Load roughness into the green channel from the configured source texture channel.
-            mra.g = sampled[material.roughness_texture_channel];
-        } else {
-            mra.g = base_material.roughness;
-        }
-
-        // AO - default to 1.0 (i.e. no effect), and only read in a value if this is enabled.
-        mra.b = 1.0;
-        if(flag_get(base_material.flags, KMATERIAL_FLAG_AO_ENABLED_BIT)) { 
-            if(flag_get(base_material.tex_flags, MATERIAL_STANDARD_FLAG_USE_AO_TEX)) {
-                vec4 sampled = texture(sampler2D(material_textures[MAT_STANDARD_IDX_AO], material_samplers[MAT_STANDARD_IDX_AO]), in_dto.tex_coord);
-                // Load AO into the blue channel from the configured source texture channel.
-                mra.b = sampled[material.ao_texture_channel];
-            } else {
-                mra.b = base_material.ao;
-            }
-        }
-    }
-
+    vec3 albedo;
+    float metallic;
+    float roughness;
+    float ao;
     // Emissive - defaults to 0 if not used.
     vec3 emissive = vec3(0.0);
-    if(flag_get(base_material.flags, KMATERIAL_FLAG_EMISSIVE_ENABLED_BIT)) { 
-        if(flag_get(base_material.tex_flags, MATERIAL_STANDARD_FLAG_USE_EMISSIVE_TEX)) {
-            emissive = texture(sampler2D(material_textures[MAT_STANDARD_IDX_EMISSIVE], material_samplers[MAT_STANDARD_IDX_EMISSIVE]), in_dto.tex_coord).rgb;
-        } else {
-            emissive = base_material.emissive.rgb;
-        }
-    }
+    // Alpha defaults to 1.0 if not used.
+    float alpha = 1.0;
 
-    float metallic = mra.r;
-    float roughness = mra.g;
-    float ao = mra.b;
+    if(base_material.material_type == MAT_TYPE_STANDARD) {
+
+        // Base colour
+        vec4 base_colour_samp;
+        if(flag_get(base_material.flags, KMATERIAL_FLAG_USE_VERTEX_COLOUR_AS_BASE_COLOUR_BIT)) {
+            // Pass through the vertex colour
+            base_colour_samp = in_dto.vertex_colour;
+        } else {
+            // Use base colour texture if provided; otherwise use the colour.
+            if(flag_get(base_material.tex_flags, MATERIAL_STANDARD_FLAG_USE_BASE_COLOUR_TEX)) {
+                base_colour_samp = texture(sampler2D(material_textures[MAT_STANDARD_IDX_BASE_COLOUR], material_samplers[MAT_STANDARD_IDX_BASE_COLOUR]), in_dto.tex_coord);
+            } else {
+                base_colour_samp = base_material.base_colour;
+            }
+        }
+
+        // discard the fragment if using transparency and masking, and the alpha falls below a given threshold.
+        if(base_colour_samp.a < 0.1 && flag_get(base_material.flags, KMATERIAL_FLAG_HAS_TRANSPARENCY_BIT) && flag_get(base_material.flags, KMATERIAL_FLAG_MASKED_BIT)) {
+            discard;
+        }
+        albedo = pow(base_colour_samp.rgb, vec3(2.2));
+
+        // Calculate "local normal".
+        // If enabled, get the normal from the normal map if used, or the supplied vector if not.
+        // Otherwise, just use a default z-up
+        vec3 local_normal = vec3(0, 0, 1.0);
+        if(flag_get(base_material.flags, KMATERIAL_FLAG_NORMAL_ENABLED_BIT)){
+            if(flag_get(base_material.tex_flags, MATERIAL_STANDARD_FLAG_USE_NORMAL_TEX)) {
+                local_normal = texture(sampler2D(material_textures[MAT_STANDARD_IDX_NORMAL], material_samplers[MAT_STANDARD_IDX_NORMAL]), in_dto.tex_coord).rgb;
+                local_normal = (2.0 * local_normal - 1.0);
+            } else {
+                local_normal = base_material.normal;
+            }
+        } 
+        // Update the normal to use a sample from the normal map.
+        normal = normalize(TBN * local_normal);
+
+        // Either use combined MRA (metallic/roughness/ao) or individual maps, depending on settings.
+        vec3 mra;
+        if(flag_get(base_material.flags, KMATERIAL_FLAG_MRA_ENABLED_BIT)) { 
+            if(flag_get(base_material.tex_flags, MATERIAL_STANDARD_FLAG_USE_MRA_TEX)) {
+                mra = texture(sampler2D(material_textures[MAT_STANDARD_IDX_MRA], material_samplers[MAT_STANDARD_IDX_MRA]), in_dto.tex_coord).rgb;
+            } else {
+                mra = base_material.mra;
+            }
+        } else {
+            // Sample individual maps.
+
+            // Metallic 
+            if(flag_get(base_material.tex_flags, MATERIAL_STANDARD_FLAG_USE_METALLIC_TEX)) {
+                vec4 sampled = texture(sampler2D(material_textures[MAT_STANDARD_IDX_METALLIC], material_samplers[MAT_STANDARD_IDX_METALLIC]), in_dto.tex_coord);
+                // Load metallic into the red channel from the configured source texture channel.
+                mra.r = sampled[material.metallic_texture_channel];
+            } else {
+                mra.r = base_material.metallic;
+            }
+
+            // Roughness 
+            if(flag_get(base_material.tex_flags, MATERIAL_STANDARD_FLAG_USE_ROUGHNESS_TEX)) {
+                vec4 sampled = texture(sampler2D(material_textures[MAT_STANDARD_IDX_ROUGHNESS], material_samplers[MAT_STANDARD_IDX_ROUGHNESS]), in_dto.tex_coord);
+                // Load roughness into the green channel from the configured source texture channel.
+                mra.g = sampled[material.roughness_texture_channel];
+            } else {
+                mra.g = base_material.roughness;
+            }
+
+            // AO - default to 1.0 (i.e. no effect), and only read in a value if this is enabled.
+            mra.b = 1.0;
+            if(flag_get(base_material.flags, KMATERIAL_FLAG_AO_ENABLED_BIT)) { 
+                if(flag_get(base_material.tex_flags, MATERIAL_STANDARD_FLAG_USE_AO_TEX)) {
+                    vec4 sampled = texture(sampler2D(material_textures[MAT_STANDARD_IDX_AO], material_samplers[MAT_STANDARD_IDX_AO]), in_dto.tex_coord);
+                    // Load AO into the blue channel from the configured source texture channel.
+                    mra.b = sampled[material.ao_texture_channel];
+                } else {
+                    mra.b = base_material.ao;
+                }
+            }
+        }
+
+        if(flag_get(base_material.flags, KMATERIAL_FLAG_EMISSIVE_ENABLED_BIT)) { 
+            if(flag_get(base_material.tex_flags, MATERIAL_STANDARD_FLAG_USE_EMISSIVE_TEX)) {
+                emissive = texture(sampler2D(material_textures[MAT_STANDARD_IDX_EMISSIVE], material_samplers[MAT_STANDARD_IDX_EMISSIVE]), in_dto.tex_coord).rgb;
+            } else {
+                emissive = base_material.emissive.rgb;
+            }
+        }
+
+        // Ensure the alpha is based on the albedo's original alpha value if transparency is enabled.
+        // If it's not enabled, just use 1.0.
+        if(flag_get(base_material.flags, KMATERIAL_FLAG_HAS_TRANSPARENCY_BIT)) {
+            alpha = base_colour_samp.a;
+        }
+
+        metallic = mra.r;
+        roughness = mra.g;
+        ao = mra.b;
+    } else if (base_material.material_type == MAT_TYPE_WATER) {
+        // These can be hardcoded for water surfaces.
+        metallic = 0.9;
+        roughness = 1.0 - metallic;
+        ao = 1.0;
+
+        float water_depth = 0;
+
+        // Perspective division to NDC for texture projection, then to screen space.
+        vec2 ndc = (in_dto.clip_space.xy / in_dto.clip_space.w) / 2.0 + 0.5;
+        vec2 reflect_texcoord = vec2(ndc.x, ndc.y);
+        vec2 refract_texcoord = vec2(ndc.x, -ndc.y);
+
+        // TODO: Should come as uniforms from the viewport's near/far.
+        float near = 0.1;
+        float far = 1000.0;
+        float depth = texture(sampler2D(material_textures[MAT_WATER_IDX_REFRACTION_DEPTH], material_samplers[MAT_WATER_IDX_REFRACTION_DEPTH]), refract_texcoord).r;
+        // Convert depth to linear distance.
+        float floor_distance = 2.0 * near * far / (far + near - (2.0 * depth - 1.0) * (far - near));
+        depth = gl_FragCoord.z;
+        float water_distance = 2.0 * near * far / (far + near - (2.0 * depth - 1.0) * (far - near));
+        water_depth = floor_distance - water_distance;
+
+        // Distort further
+        vec2 distortion_total = (texture(sampler2D(material_textures[MAT_WATER_IDX_DUDV], material_samplers[MAT_WATER_IDX_DUDV]), distorted_texcoords).rg * 2.0 - 1.0) * immediate.wave_strength;
+
+        reflect_texcoord += distortion_total;
+        // Avoid edge artifacts by clamping slightly inward to prevent texture wrapping.
+        reflect_texcoord = clamp(reflect_texcoord, 0.001, 0.999);
+
+        refract_texcoord += distortion_total;
+        // Avoid edge artifacts by clamping slightly inward to prevent texture wrapping.
+        refract_texcoord.x = clamp(refract_texcoord.x, 0.001, 0.999);
+        refract_texcoord.y = clamp(refract_texcoord.y, -0.999, -0.001); // Account for flipped y-axis
+
+        vec4 reflect_colour = texture(sampler2D(material_textures[MAT_WATER_IDX_REFLECTION], material_samplers[MAT_WATER_IDX_REFLECTION]), reflect_texcoord);
+        vec4 refract_colour = texture(sampler2D(material_textures[MAT_WATER_IDX_REFRACTION], material_samplers[MAT_WATER_IDX_REFRACTION]), refract_texcoord);
+        // Refract should be slightly darker since it's wet.
+        refract_colour.rgb = clamp(refract_colour.rgb - vec3(0.2), vec3(0.0), vec3(1.0));
+
+        // Calculate the fresnel effect.
+        float fresnel_factor = dot(normalize(in_dto.world_to_camera), normal);
+        fresnel_factor = clamp(fresnel_factor, 0.0, 1.0);
+
+        out_colour = mix(reflect_colour, refract_colour, fresnel_factor);
+        vec4 tint = vec4(0.0, 0.3, 0.5, 1.0); // TODO: configurable.
+        float tint_strength = 0.5; // TODO: configurable.
+        out_colour = mix(out_colour, tint, tint_strength);
+
+        albedo = out_colour.rgb;
+    }
 
     // Shadows: 1.0 means NOT in shadow, which is the default.
     float shadow = 1.0;
@@ -426,12 +524,6 @@ void main() {
         // Apply emissive at the end.
         colour.rgb += (emissive * 1.0); // adjust for intensity
 
-        // Ensure the alpha is based on the albedo's original alpha value if transparency is enabled.
-        // If it's not enabled, just use 1.0.
-        float alpha = 1.0;
-        if(flag_get(base_material.flags, KMATERIAL_FLAG_HAS_TRANSPARENCY_BIT)) {
-            alpha = base_colour_samp.a;
-        }
         out_colour = vec4(colour, alpha);
     } else if(global_settings.render_mode == 2) {
         out_colour = vec4(abs(normal), 1.0);

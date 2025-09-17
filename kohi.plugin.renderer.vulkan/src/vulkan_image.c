@@ -1,5 +1,6 @@
 #include "vulkan_image.h"
 
+#include "core_render_types.h"
 #include "defines.h"
 #include "logger.h"
 #include "memory/kmemory.h"
@@ -10,10 +11,14 @@
 #include "vulkan_utils.h"
 
 // A lookup table of vulkan image view types indexed Kohi's texture types.
-static VkImageViewType vulkan_view_types[4] = {
+static VkImageViewType vulkan_view_types[8] = {
+    VK_IMAGE_VIEW_TYPE_MAX_ENUM,
+    VK_IMAGE_VIEW_TYPE_1D,
     VK_IMAGE_VIEW_TYPE_2D,
-    VK_IMAGE_VIEW_TYPE_2D_ARRAY,
+    VK_IMAGE_VIEW_TYPE_3D,
     VK_IMAGE_VIEW_TYPE_CUBE,
+    VK_IMAGE_VIEW_TYPE_1D_ARRAY,
+    VK_IMAGE_VIEW_TYPE_2D_ARRAY,
     VK_IMAGE_VIEW_TYPE_CUBE_ARRAY};
 
 // Ensure changes to texture types break this if it isn't also updated.

@@ -1,4 +1,5 @@
 #include "sui_label.h"
+#include "kresources/kresource_types.h"
 #include "standard_ui_defines.h"
 #include "standard_ui_system.h"
 
@@ -185,14 +186,12 @@ b8 sui_label_control_render(standard_ui_state* state, struct sui_control* self, 
             renderable.atlas_override = font_system_system_font_atlas_get(state->font_system, typed_data->system_font);
         }
 
-        if (!renderable.atlas_override) {
-            // TODO: bleat
-        }
+        KASSERT_DEBUG(renderable.atlas_override != INVALID_KTEXTURE);
 
         renderable.render_data.model = ktransform_world_get(self->ktransform);
         renderable.render_data.diffuse_colour = typed_data->colour;
 
-        renderable.binding_instance_id = &typed_data->binding_instance_id;
+        renderable.binding_instance_id = typed_data->binding_instance_id;
 
         darray_push(render_data->renderables, renderable);
     }

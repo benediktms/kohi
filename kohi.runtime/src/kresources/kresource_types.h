@@ -5,40 +5,6 @@
 #include <strings/kname.h>
 
 /**
- * @brief Represents various types of textures.
- */
-typedef enum ktexture_type {
-    /** @brief A standard two-dimensional texture. */
-    KTEXTURE_TYPE_2D,
-    /** @brief A 2d array texture. */
-    KTEXTURE_TYPE_2D_ARRAY,
-    /** @brief A cube texture, used for cubemaps. */
-    KTEXTURE_TYPE_CUBE,
-    /** @brief A cube array texture, used for arrays of cubemaps. */
-    KTEXTURE_TYPE_CUBE_ARRAY,
-    KTEXTURE_TYPE_COUNT
-} ktexture_type;
-
-typedef enum ktexture_flag {
-    /** @brief Indicates if the texture has transparency. */
-    KTEXTURE_FLAG_HAS_TRANSPARENCY = 0x01,
-    /** @brief Indicates if the texture can be written (rendered) to. */
-    KTEXTURE_FLAG_IS_WRITEABLE = 0x02,
-    /** @brief Indicates if the texture was created via wrapping vs traditional
-       creation. */
-    KTEXTURE_FLAG_IS_WRAPPED = 0x04,
-    /** @brief Indicates the texture is a depth texture. */
-    KTEXTURE_FLAG_DEPTH = 0x08,
-    /** @brief Indicates the texture is a stencil texture. */
-    KTEXTURE_FLAG_STENCIL = 0x10,
-    /** @brief Indicates that this texture should account for renderer buffering (i.e. double/triple buffering) */
-    KTEXTURE_FLAG_RENDERER_BUFFERING = 0x20,
-} ktexture_flag;
-
-/** @brief Holds bit flags for textures.. */
-typedef u8 ktexture_flag_bits;
-
-/**
  * @brief Represents a texture to be used for rendering purposes,
  * stored on the GPU (VRAM)
  */

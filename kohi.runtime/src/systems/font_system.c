@@ -15,7 +15,6 @@
 #include "core_render_types.h"
 #include "kresources/kresource_types.h"
 #include "renderer/renderer_frontend.h"
-#include "renderer/renderer_types.h"
 #include "systems/asset_system.h"
 #include "systems/texture_system.h"
 
@@ -933,6 +932,7 @@ static b8 create_system_font_variant(system_font_lookup* lookup, u16 size, kname
     ktexture_load_options options = {
         .is_writeable = true,
         .format = KPIXEL_FORMAT_RGBA8,
+        .type = KTEXTURE_TYPE_2D,
         .width = out_variant->data.atlas_size_x,
         .height = out_variant->data.atlas_size_y,
         .name = kname_create(font_tex_name),
@@ -1001,8 +1001,7 @@ static b8 rebuild_system_font_variant_atlas(system_font_lookup* lookup, system_f
     }
 
     // Write texture data to atlas.
-    ktexture_backend variant_atlas_handle = texture_renderer_handle_get(variant->atlas);
-    if (!renderer_texture_write_data(engine_systems_get()->renderer_system, variant_atlas_handle, 0, pack_image_size * 4, rgba_pixels)) {
+    if (!renderer_texture_write_data(engine_systems_get()->renderer_system, variant->atlas, 0, pack_image_size * 4, rgba_pixels)) {
         KERROR("Failed to write data to system font variant texture");
         return false;
     }

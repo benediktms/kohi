@@ -144,8 +144,14 @@ void ktransform_system_shutdown(void* state) {
     }
 }
 
-b8 ktransform_system_update(void* state, struct frame_data* p_frame_data) {
+b8 ktransform_system_update(ktransform_system_state* state, struct frame_data* p_frame_data) {
     // TODO: update locals for dirty ktransforms, reset list.
+
+    void* mapped_memory = renderer_renderbuffer_get_mapped_memory(engine_systems_get()->renderer_system, state->transform_global_ssbo);
+    mat4* mapped_transforms = (mat4*)mapped_memory;
+
+    kcopy_memory(mapped_transforms, state->world_matrices, sizeof(mat4) * state->allocated);
+
     return true;
 }
 

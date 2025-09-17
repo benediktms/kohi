@@ -277,6 +277,7 @@ b8 standard_ui_system_render(standard_ui_state* state, sui_control* root, struct
     }
 
     render_data->ui_atlas = state->atlas_texture;
+    render_data->shader_set0_binding_instance_id = state->shader_set0_binding_instance_id;
 
     if (!root) {
         root = &state->root;

@@ -113,17 +113,28 @@ typedef enum shader_attribute_type {
     SHADER_ATTRIB_TYPE_UINT32_4 = 16U,
 } shader_attribute_type;
 
-/** @brief Available uniform types. */
-
-typedef enum shader_texture_type {
-    SHADER_TEXTURE_TYPE_1D,
-    SHADER_TEXTURE_TYPE_2D,
-    SHADER_TEXTURE_TYPE_3D,
-    SHADER_TEXTURE_TYPE_CUBE,
-    SHADER_TEXTURE_TYPE_1D_ARRAY,
-    SHADER_TEXTURE_TYPE_2D_ARRAY,
-    SHADER_TEXTURE_TYPE_CUBE_ARRAY,
-} shader_texture_type;
+/**
+ * @brief Represents various types of textures.
+ */
+typedef enum ktexture_type {
+    /** @brief Undefined texture type as the default, useful for catching default-zero scenarios */
+    KTEXTURE_TYPE_UNDEFINED,
+    /** @brief A one-dimensional texture. */
+    KTEXTURE_TYPE_1D,
+    /** @brief A standard two-dimensional texture. */
+    KTEXTURE_TYPE_2D,
+    /** @brief A three-dimensional texture. */
+    KTEXTURE_TYPE_3D,
+    /** @brief A cube texture, used for cubemaps. */
+    KTEXTURE_TYPE_CUBE,
+    /** @brief A 1d array texture. */
+    KTEXTURE_TYPE_1D_ARRAY,
+    /** @brief A 2d array texture. */
+    KTEXTURE_TYPE_2D_ARRAY,
+    /** @brief A cube array texture, used for arrays of cubemaps. */
+    KTEXTURE_TYPE_CUBE_ARRAY,
+    KTEXTURE_TYPE_COUNT
+} ktexture_type;
 
 typedef enum shader_sampler_type {
     SHADER_SAMPLER_TYPE_1D,
@@ -264,7 +275,7 @@ typedef struct shader_binding_config {
     u64 data_size;
     u64 offset;
     union {
-        shader_texture_type texture_type;
+        ktexture_type texture_type;
         shader_sampler_type sampler_type;
     };
     // Array size for arrayed textures or samplers. Assumes a array_size of 1 unless set to > 1.
@@ -282,6 +293,25 @@ typedef struct shader_binding_set_config {
     u8 ssbo_count;
     shader_binding_config* bindings;
 } shader_binding_set_config;
+
+typedef enum ktexture_flag {
+    /** @brief Indicates if the texture has transparency. */
+    KTEXTURE_FLAG_HAS_TRANSPARENCY = 0x01,
+    /** @brief Indicates if the texture can be written (rendered) to. */
+    KTEXTURE_FLAG_IS_WRITEABLE = 0x02,
+    /** @brief Indicates if the texture was created via wrapping vs traditional
+       creation. */
+    KTEXTURE_FLAG_IS_WRAPPED = 0x04,
+    /** @brief Indicates the texture is a depth texture. */
+    KTEXTURE_FLAG_DEPTH = 0x08,
+    /** @brief Indicates the texture is a stencil texture. */
+    KTEXTURE_FLAG_STENCIL = 0x10,
+    /** @brief Indicates that this texture should account for renderer buffering (i.e. double/triple buffering) */
+    KTEXTURE_FLAG_RENDERER_BUFFERING = 0x20,
+} ktexture_flag;
+
+/** @brief Holds bit flags for textures.. */
+typedef u8 ktexture_flag_bits;
 
 typedef enum kmaterial_type {
     KMATERIAL_TYPE_UNKNOWN = 0,

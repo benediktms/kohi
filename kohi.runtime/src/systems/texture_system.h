@@ -18,7 +18,6 @@
 #include <core_render_types.h>
 
 #include "kresources/kresource_types.h"
-#include "renderer/renderer_types.h"
 
 struct texture_system_state;
 
@@ -266,6 +265,7 @@ typedef struct ktexture_load_options {
     b8 is_depth;
     b8 is_stencil;
     b8 multiframe_buffering;
+    b8 is_wrapped;
     // Unload from GPU when reference count reaches 0.
     b8 auto_release;
     kpixel_format format;
@@ -321,11 +321,11 @@ KAPI b8 texture_resize(ktexture t, u32 width, u32 height, b8 regenerate_internal
  */
 KAPI b8 texture_write_data(ktexture t, u32 offset, u32 size, void* data);
 
+KAPI kname texture_name_get(ktexture t);
+
 KAPI u32 texture_width_get(ktexture t);
 KAPI u32 texture_height_get(ktexture t);
 KAPI b8 texture_dimensions_get(ktexture t, u32* out_width, u32* out_height);
-
-KAPI ktexture_backend texture_renderer_handle_get(ktexture t);
 
 KAPI ktexture_flag_bits texture_flags_get(ktexture t);
 

@@ -27,7 +27,7 @@ struct base_material_data {
     // Texture use flags
     uint tex_flags;
     float refraction_scale;
-    float padding;
+    uint material_type; // 0 = standard, 1 = water
 
     vec4 base_colour;
     vec4 emissive;
@@ -137,6 +137,7 @@ layout(push_constant) uniform immediate_data {
 // Data Transfer Object to fragment shader.
 layout(location = 0) out dto {
 	vec4 frag_position;
+    vec4 clip_space;
 	vec4 light_space_frag_pos[KMATERIAL_UBO_MAX_SHADOW_CASCADES];
     vec4 vertex_colour;
 	vec3 normal;
@@ -145,6 +146,8 @@ layout(location = 0) out dto {
     float padding2;
 	vec2 tex_coord;
     vec2 padding3;
+    vec3 world_to_camera;
+    float padding4;
 } out_dto;
 
 /** 
@@ -165,8 +168,13 @@ void main() {
     mat4 model = global_transforms.transforms[immediate.transform_index];
     mat4 view = global_settings.views[immediate.view_index];
     mat4 projection = global_settings.projections[immediate.projection_index];
+    base_material_data base_material = global_materials.base_materials[immediate.base_material_index];
 
-	out_dto.tex_coord = in_texcoord;
+    if(base_material.material_type == 0) {
+	    out_dto.tex_coord = in_texcoord;
+    } else if (base_material.material_type == 1) {
+	    out_dto.tex_coord = vec2((in_position.x * 0.5) + 0.5, (in_position.z * 0.5) + 0.5) * immediate.tiling;
+    }
     out_dto.vertex_colour = in_colour;
 	// Fragment position in world space.
 	out_dto.frag_position = model * vec4(in_position, 1.0);
@@ -174,7 +182,8 @@ void main() {
 	mat3 m3_model = mat3(model);
 	out_dto.normal = normalize(m3_model * in_normal);
 	out_dto.tangent = normalize(m3_model * vec3(in_tangent));
-    gl_Position = projection * view * model * vec4(in_position, 1.0);
+    out_dto.clip_space = projection * view * model * vec4(in_position, 1.0);
+    gl_Position = out_dto.clip_space;
 
 	// Apply clipping plane
 	gl_ClipDistance[0] = dot(out_dto.frag_position, immediate.clipping_plane);
@@ -183,5 +192,7 @@ void main() {
     for(int i = 0; i < KMATERIAL_UBO_MAX_SHADOW_CASCADES; ++i) {
 	    out_dto.light_space_frag_pos[i] = (ndc_to_uvw * global_settings.directional_light_spaces[i]) * out_dto.frag_position;
     }
+
+	out_dto.world_to_camera = global_settings.view_positions[immediate.view_index].xyz - out_dto.frag_position.xyz;
 }
 

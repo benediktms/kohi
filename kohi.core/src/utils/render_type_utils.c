@@ -564,42 +564,43 @@ const char* shader_binding_type_to_string(shader_binding_type type) {
     }
 }
 
-shader_texture_type shader_texture_type_from_string(const char* str) {
+ktexture_type ktexture_type_from_string(const char* str) {
     if (strings_equali(str, "texture1D") || strings_equali(str, "1D")) {
-        return SHADER_TEXTURE_TYPE_1D;
+        return KTEXTURE_TYPE_1D;
     } else if (strings_equali(str, "texture2D") || strings_equali(str, "2D")) {
-        return SHADER_TEXTURE_TYPE_2D;
+        return KTEXTURE_TYPE_2D;
     } else if (strings_equali(str, "texture3D") || strings_equali(str, "3D")) {
-        return SHADER_TEXTURE_TYPE_3D;
+        return KTEXTURE_TYPE_3D;
     } else if (strings_equali(str, "textureCube") || strings_equali(str, "cube")) {
-        return SHADER_TEXTURE_TYPE_CUBE;
+        return KTEXTURE_TYPE_CUBE;
     } else if (strings_equali(str, "texture1DArray") || strings_equali(str, "1DArray")) {
-        return SHADER_TEXTURE_TYPE_1D_ARRAY;
+        return KTEXTURE_TYPE_1D_ARRAY;
     } else if (strings_equali(str, "texture2DArray") || strings_equali(str, "2DArray")) {
-        return SHADER_TEXTURE_TYPE_2D_ARRAY;
+        return KTEXTURE_TYPE_2D_ARRAY;
     } else if (strings_equali(str, "textureCubeArray") || strings_equali(str, "cubeArray")) {
-        return SHADER_TEXTURE_TYPE_CUBE_ARRAY;
+        return KTEXTURE_TYPE_CUBE_ARRAY;
     } else {
         KWARN("%s - Unknown texture type '%s', defaulting to 2d");
-        return SHADER_TEXTURE_TYPE_2D;
+        return KTEXTURE_TYPE_2D;
     }
 }
 
-const char* shader_texture_type_to_string(shader_texture_type type) {
+const char* ktexture_type_to_string(ktexture_type type) {
     switch (type) {
-    case SHADER_TEXTURE_TYPE_1D:
+    case KTEXTURE_TYPE_1D:
         return "texture1D";
-    case SHADER_TEXTURE_TYPE_2D:
+    case KTEXTURE_TYPE_2D:
+    default:
         return "texture2D";
-    case SHADER_TEXTURE_TYPE_3D:
+    case KTEXTURE_TYPE_3D:
         return "texture3D";
-    case SHADER_TEXTURE_TYPE_CUBE:
+    case KTEXTURE_TYPE_CUBE:
         return "textureCube";
-    case SHADER_TEXTURE_TYPE_1D_ARRAY:
+    case KTEXTURE_TYPE_1D_ARRAY:
         return "texture1DArray";
-    case SHADER_TEXTURE_TYPE_2D_ARRAY:
+    case KTEXTURE_TYPE_2D_ARRAY:
         return "texture2DArray";
-    case SHADER_TEXTURE_TYPE_CUBE_ARRAY:
+    case KTEXTURE_TYPE_CUBE_ARRAY:
         return "textureCubeArray";
     }
 }

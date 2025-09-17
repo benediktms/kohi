@@ -1,4 +1,5 @@
 #include "sui_panel.h"
+#include "kresources/kresource_types.h"
 #include "standard_ui_defines.h"
 
 #include <containers/darray.h>
@@ -104,7 +105,8 @@ b8 sui_panel_control_render(standard_ui_state* state, struct sui_control* self, 
         renderable.render_data.model = ktransform_world_get(self->ktransform);
         renderable.render_data.diffuse_colour = typed_data->colour;
 
-        renderable.binding_instance_id = &typed_data->binding_instance_id;
+        renderable.binding_instance_id = typed_data->binding_instance_id;
+        renderable.atlas_override = INVALID_KTEXTURE;
 
         darray_push(render_data->renderables, renderable);
     }

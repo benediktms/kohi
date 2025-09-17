@@ -326,6 +326,7 @@ b8 engine_create(application* app) {
             KERROR("Failed to deserialize renderer system config, which is required.");
             return false;
         }
+        renderer_sys_config.max_texture_count = 4096;
 
         renderer_system_initialize(&systems->renderer_system_memory_requirement, 0, &renderer_sys_config);
         systems->renderer_system = kallocate(systems->renderer_system_memory_requirement, MEMORY_TAG_ENGINE);
@@ -446,7 +447,7 @@ b8 engine_create(application* app) {
     // Texture system
     {
         texture_system_config texture_sys_config;
-        texture_sys_config.max_texture_count = 65535;
+        texture_sys_config.max_texture_count = 4096;
         texture_system_initialize(&systems->texture_system_memory_requirement, 0, &texture_sys_config);
         systems->texture_system = kallocate(systems->texture_system_memory_requirement, MEMORY_TAG_ENGINE);
         if (!texture_system_initialize(&systems->texture_system_memory_requirement, systems->texture_system, &texture_sys_config)) {
@@ -732,6 +733,10 @@ b8 engine_run(application* app) {
                 engine_state->is_running = false;
                 break;
             }
+
+            // Update the transform system _after_ the application so we are sure all transform updates that
+            // need to occur have happened.
+            ktransform_system_update(engine_state->systems.ktransform_system, &engine_state->p_frame_data);
 
             // Start recording to the command list.
             if (!renderer_frame_command_list_begin(engine_state->systems.renderer_system, &engine_state->p_frame_data)) {

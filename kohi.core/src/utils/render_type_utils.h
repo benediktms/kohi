@@ -102,9 +102,9 @@ KAPI shader_binding_type shader_binding_type_from_string(const char* str);
 
 KAPI const char* shader_binding_type_to_string(shader_binding_type type);
 
-KAPI shader_texture_type shader_texture_type_from_string(const char* str);
+KAPI ktexture_type ktexture_type_from_string(const char* str);
 
-KAPI const char* shader_texture_type_to_string(shader_texture_type type);
+KAPI const char* ktexture_type_to_string(ktexture_type type);
 
 KAPI shader_sampler_type shader_sampler_type_from_string(const char* str);
 

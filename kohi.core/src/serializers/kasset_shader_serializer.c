@@ -166,7 +166,7 @@ const char* kasset_shader_serialize(const kasset_shader* asset) {
                     break;
                 case SHADER_BINDING_TYPE_TEXTURE:
                     kson_object_value_add_int(&binding_obj, "array_size", binding->array_size);
-                    kson_object_value_add_string(&binding_obj, "texture_type", shader_texture_type_to_string(binding->texture_type));
+                    kson_object_value_add_string(&binding_obj, "texture_type", ktexture_type_to_string(binding->texture_type));
                     break;
                 case SHADER_BINDING_TYPE_SAMPLER:
                     kson_object_value_add_int(&binding_obj, "array_size", binding->array_size);
@@ -464,10 +464,10 @@ b8 kasset_shader_deserialize(const char* file_text, kasset_shader* out_asset) {
                         const char* texture_type_str = 0;
                         kson_object_property_value_get_string(&binding_obj, "texture_type", &texture_type_str);
                         if (texture_type_str) {
-                            binding->texture_type = shader_texture_type_from_string(texture_type_str);
+                            binding->texture_type = ktexture_type_from_string(texture_type_str);
                             string_free(texture_type_str);
                         } else {
-                            binding->texture_type = SHADER_TEXTURE_TYPE_2D;
+                            binding->texture_type = KTEXTURE_TYPE_2D;
                         }
                     }
 

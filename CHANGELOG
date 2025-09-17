@@ -26,6 +26,8 @@ Changelog
   - Converted renderbuffers to use handles (krenderbuffers).
   - Added support for storage buffers.
   - Added string_nformat and string_nformat_v to allow string formatting to be done on the stack, if desired. They are the ultimate replacement for the unsafe variants.
+  - Changed renderer frontend (and backend) to use the same texture handle for both, eliminating the need for handle lookups between the two.
+    This also means there is no longer a backend ktexture handle type. Only the texture system manages these handles now, so any handle must be obtained via the texture system.
 
 - 0.10.0
   - Combined asset_image_format and texture_format into a single kpixel_format which is used for both.

@@ -32,9 +32,8 @@ typedef struct standard_ui_system_config {
 } standard_ui_system_config;
 
 typedef struct standard_ui_renderable {
-    // FIXME: Why is this a pointer?
     // The per-control instance binding id for binding set 1.
-    u32* binding_instance_id;
+    u32 binding_instance_id;
     ktexture atlas_override;
     geometry_render_data render_data;
     geometry_render_data* clip_mask_render_data;
@@ -42,6 +41,7 @@ typedef struct standard_ui_renderable {
 
 typedef struct standard_ui_render_data {
     ktexture ui_atlas;
+    u32 shader_set0_binding_instance_id;
     // darray
     standard_ui_renderable* renderables;
 } standard_ui_render_data;

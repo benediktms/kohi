@@ -47,21 +47,24 @@
 #define MATERIAL_WATER_TEXTURE_COUNT 5
 #define MATERIAL_WATER_SAMPLER_COUNT 5
 
-// Standard material texture indices
-const u32 MAT_STANDARD_IDX_BASE_COLOUR = 0;
-const u32 MAT_STANDARD_IDX_NORMAL = 1;
-const u32 MAT_STANDARD_IDX_METALLIC = 2;
-const u32 MAT_STANDARD_IDX_ROUGHNESS = 3;
-const u32 MAT_STANDARD_IDX_AO = 4;
-const u32 MAT_STANDARD_IDX_MRA = 5;
-const u32 MAT_STANDARD_IDX_EMISSIVE = 6;
+typedef enum kmaterial_texture_array_index {
+    MAT_TEX_ARRAY_IDX_BASE_COLOUR,
+    MAT_TEX_ARRAY_IDX_NORMAL,
+    MAT_TEX_ARRAY_IDX_METALLIC,
+    MAT_TEX_ARRAY_IDX_ROUGHNESS,
+    MAT_TEX_ARRAY_IDX_AO,
+    MAT_TEX_ARRAY_IDX_MRA,
+    MAT_TEX_ARRAY_IDX_EMISSIVE,
 
-// Water material texture indices
-const u32 MAT_WATER_IDX_REFLECTION = 0;
-const u32 MAT_WATER_IDX_REFRACTION = 1;
-const u32 MAT_WATER_IDX_REFRACTION_DEPTH = 2;
-const u32 MAT_WATER_IDX_DUDV = 3;
-const u32 MAT_WATER_IDX_NORMAL = 4;
+    // Water reflection colour map.
+    MAT_WATER_TEX_ARRAY_IDX_REFLECTION = MAT_TEX_ARRAY_IDX_METALLIC,
+    // Water refraction colour map.
+    MAT_WATER_TEX_ARRAY_IDX_REFRACTION = MAT_TEX_ARRAY_IDX_ROUGHNESS,
+    // Water recraction depth map.
+    MAT_WATER_TEX_ARRAY_IDX_REFRACTION_DEPTH = MAT_TEX_ARRAY_IDX_AO,
+    // Water DUDV map.
+    MAT_WATER_TEX_ARRAY_IDX_DUDV = MAT_TEX_ARRAY_IDX_MRA,
+} kmaterial_texture_array_index;
 
 typedef enum kmaterial_standard_flag_bits {
     MATERIAL_STANDARD_FLAG_USE_BASE_COLOUR_TEX = 0x0001,
@@ -174,21 +177,21 @@ b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material
 
         set_0->bindings[bidx].binding_type = SHADER_BINDING_TYPE_TEXTURE;
         set_0->bindings[bidx].name = kname_create("material standard shadow cascade maps");
-        set_0->bindings[bidx].texture_type = SHADER_TEXTURE_TYPE_2D_ARRAY;
-        set_0->bindings[bidx].array_size = 4;
+        set_0->bindings[bidx].texture_type = KTEXTURE_TYPE_2D_ARRAY;
+        /* set_0->bindings[bidx].array_size = 4; */
         set_0->texture_count++;
         bidx++;
 
         set_0->bindings[bidx].binding_type = SHADER_BINDING_TYPE_SAMPLER;
         set_0->bindings[bidx].name = kname_create("material standard shadow cascade map samplers");
         set_0->bindings[bidx].sampler_type = SHADER_SAMPLER_TYPE_2D_ARRAY;
-        set_0->bindings[bidx].array_size = 4;
+        /* set_0->bindings[bidx].array_size = 4; */
         set_0->sampler_count++;
         bidx++;
 
         set_0->bindings[bidx].binding_type = SHADER_BINDING_TYPE_TEXTURE;
         set_0->bindings[bidx].name = kname_create("material standard IBL probe cubemaps");
-        set_0->bindings[bidx].texture_type = SHADER_TEXTURE_TYPE_CUBE;
+        set_0->bindings[bidx].texture_type = KTEXTURE_TYPE_CUBE;
         set_0->bindings[bidx].array_size = 4;
         set_0->texture_count++;
         bidx++;
@@ -196,7 +199,7 @@ b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material
         set_0->bindings[bidx].binding_type = SHADER_BINDING_TYPE_SAMPLER;
         set_0->bindings[bidx].name = kname_create("material standard IBL probe samplers");
         set_0->bindings[bidx].sampler_type = SHADER_SAMPLER_TYPE_CUBE;
-        set_0->bindings[bidx].array_size = 4;
+        /* set_0->bindings[bidx].array_size = 4; */
         set_0->sampler_count++;
         bidx++;
 
@@ -213,7 +216,7 @@ b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material
 
         set_1->bindings[bidx].binding_type = SHADER_BINDING_TYPE_TEXTURE;
         set_1->bindings[bidx].name = kname_create("material texture maps");
-        set_1->bindings[bidx].texture_type = SHADER_TEXTURE_TYPE_2D;
+        set_1->bindings[bidx].texture_type = KTEXTURE_TYPE_2D;
         set_1->bindings[bidx].array_size = 7;
         set_1->texture_count++;
         bidx++;
@@ -329,7 +332,7 @@ b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material
 
         set_0->bindings[bidx].binding_type = SHADER_BINDING_TYPE_TEXTURE;
         set_0->bindings[bidx].name = kname_create("material skinned shadow cascade maps");
-        set_0->bindings[bidx].texture_type = SHADER_TEXTURE_TYPE_2D_ARRAY;
+        set_0->bindings[bidx].texture_type = KTEXTURE_TYPE_2D_ARRAY;
         set_0->bindings[bidx].array_size = 4;
         set_0->texture_count++;
         bidx++;
@@ -343,7 +346,7 @@ b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material
 
         set_0->bindings[bidx].binding_type = SHADER_BINDING_TYPE_TEXTURE;
         set_0->bindings[bidx].name = kname_create("material skinned IBL probe cubemaps");
-        set_0->bindings[bidx].texture_type = SHADER_TEXTURE_TYPE_CUBE;
+        set_0->bindings[bidx].texture_type = KTEXTURE_TYPE_CUBE;
         set_0->bindings[bidx].array_size = 4;
         set_0->texture_count++;
         bidx++;
@@ -368,7 +371,7 @@ b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material
 
         set_1->bindings[bidx].binding_type = SHADER_BINDING_TYPE_TEXTURE;
         set_1->bindings[bidx].name = kname_create("material texture maps");
-        set_1->bindings[bidx].texture_type = SHADER_TEXTURE_TYPE_2D;
+        set_1->bindings[bidx].texture_type = KTEXTURE_TYPE_2D;
         set_1->bindings[bidx].array_size = 7;
         set_1->texture_count++;
         bidx++;
@@ -396,7 +399,7 @@ b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material
     }
 
     // Water material shader.
-    {
+    /* {
         kname mat_water_shader_name = kname_create(SHADER_NAME_RUNTIME_MATERIAL_WATER);
         kasset_shader mat_water_shader = {0};
         mat_water_shader.name = mat_water_shader_name;
@@ -462,7 +465,7 @@ b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material
 
         set_0->bindings[bidx].binding_type = SHADER_BINDING_TYPE_TEXTURE;
         set_0->bindings[bidx].name = kname_create("material standard shadow cascade maps");
-        set_0->bindings[bidx].texture_type = SHADER_TEXTURE_TYPE_2D_ARRAY;
+        set_0->bindings[bidx].texture_type = KTEXTURE_TYPE_2D_ARRAY;
         set_0->bindings[bidx].array_size = 4;
         set_0->texture_count++;
         bidx++;
@@ -476,7 +479,7 @@ b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material
 
         set_0->bindings[bidx].binding_type = SHADER_BINDING_TYPE_TEXTURE;
         set_0->bindings[bidx].name = kname_create("material standard IBL probe cubemaps");
-        set_0->bindings[bidx].texture_type = SHADER_TEXTURE_TYPE_CUBE;
+        set_0->bindings[bidx].texture_type = KTEXTURE_TYPE_CUBE;
         set_0->bindings[bidx].array_size = 4;
         set_0->texture_count++;
         bidx++;
@@ -501,7 +504,7 @@ b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material
 
         set_1->bindings[bidx].binding_type = SHADER_BINDING_TYPE_TEXTURE;
         set_1->bindings[bidx].name = kname_create("material texture maps");
-        set_1->bindings[bidx].texture_type = SHADER_TEXTURE_TYPE_2D;
+        set_1->bindings[bidx].texture_type = KTEXTURE_TYPE_2D;
         set_1->bindings[bidx].array_size = 7;
         set_1->texture_count++;
         bidx++;
@@ -526,7 +529,7 @@ b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material
 
         // Create/load the shader from the serialized source.
         out_state->material_water_shader = kshader_system_get_from_source(mat_water_shader_name, config_source);
-    }
+    } */
 
     // Blended material shader.
     {
@@ -537,7 +540,7 @@ b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material
     // Get the binding 0 set instances for the shaders.
     out_state->material_standard_shader_bs_0_instance_id = kshader_acquire_binding_set_instance(out_state->material_standard_shader, 0);
     out_state->material_standard_skinned_shader_bs_0_instance_id = kshader_acquire_binding_set_instance(out_state->material_standard_skinned_shader, 0);
-    out_state->material_water_shader_bs_0_instance_id = kshader_acquire_binding_set_instance(out_state->material_water_shader, 0);
+    /* out_state->material_water_shader_bs_0_instance_id = kshader_acquire_binding_set_instance(out_state->material_water_shader, 0); */
 
     return true;
 }
@@ -568,7 +571,8 @@ static kshader get_shader_for_material_type(kmaterial_renderer* state, kmaterial
     case KMATERIAL_TYPE_STANDARD:
         return state->material_standard_shader;
     case KMATERIAL_TYPE_WATER:
-        return state->material_water_shader;
+        return state->material_standard_shader;
+        /* return state->material_water_shader; */
     }
 }
 
@@ -635,7 +639,9 @@ void kmaterial_renderer_set_irradiance_cubemap_textures(kmaterial_renderer* stat
     // Ignore anything over KMATERIAL_MAX_IRRADIANCE_CUBEMAP_COUNT
     count = KMIN(count, KMATERIAL_MAX_IRRADIANCE_CUBEMAP_COUNT);
 
-    KZERO_TYPE_CARRAY(state->ibl_cubemap_textures, ktexture, KMATERIAL_MAX_IRRADIANCE_CUBEMAP_COUNT);
+    for (u8 i = 0; i < KMATERIAL_MAX_IRRADIANCE_CUBEMAP_COUNT; ++i) {
+        state->ibl_cubemap_textures[i] = state->default_ibl_cubemap;
+    };
 
     state->ibl_cubemap_texture_count = count;
     KCOPY_TYPE_CARRAY(state->ibl_cubemap_textures, irradiance_cubemap_textures, ktexture, count);
@@ -653,6 +659,8 @@ void kmaterial_renderer_apply_globals(kmaterial_renderer* state) {
         const kmaterial_data* src = &materials[i];
         base_material_shader_data* dest = &mapped_materials[i];
 
+        // FIXME: Need a better mapping for all material types.
+        dest->material_type = src->type == KMATERIAL_TYPE_WATER ? 1 : 0;
         dest->base_colour = src->base_colour;
         dest->normal = src->normal;
         dest->flags = src->flags;
@@ -702,8 +710,10 @@ void kmaterial_renderer_apply_globals(kmaterial_renderer* state) {
             }
             kshader_set_binding_texture(shader, 0, state->material_standard_shader_bs_0_instance_id, 7, i, t);
         }
+
+        kshader_apply_binding_set(state->material_standard_shader, 0, state->material_standard_shader_bs_0_instance_id);
     }
-    // Set water shader globals
+    /* // Set water shader globals
     {
         kshader shader = state->material_water_shader;
         KASSERT_DEBUG(kshader_system_use(shader));
@@ -729,7 +739,7 @@ void kmaterial_renderer_apply_globals(kmaterial_renderer* state) {
             }
             kshader_set_binding_texture(shader, 0, state->material_water_shader_bs_0_instance_id, 7, i, t);
         }
-    }
+    } */
 
     // TODO: Set skinned material shader globals
     // TODO: Set blended shader globals
@@ -769,7 +779,6 @@ void kmaterial_renderer_bind_base(kmaterial_renderer* state, kmaterial base_mate
             FLAG_SET(mapped_mat->tex_flags, MATERIAL_STANDARD_FLAG_USE_BASE_COLOUR_TEX, true);
             base_colour_tex = material->base_colour_texture;
         }
-        kshader_set_binding_texture(shader, 1, base_material, 0, MAT_STANDARD_IDX_BASE_COLOUR, base_colour_tex);
 
         // Normal, if used
         ktexture normal_tex = state->default_normal_texture;
@@ -781,7 +790,6 @@ void kmaterial_renderer_bind_base(kmaterial_renderer* state, kmaterial base_mate
         } else {
             mapped_mat->normal = KMATERIAL_DEFAULT_NORMAL_VALUE;
         }
-        kshader_set_binding_texture(shader, 1, base_material, 0, MAT_STANDARD_IDX_NORMAL, normal_tex);
 
         // MRA (Metallic/Roughness/AO)
         b8 mra_enabled = FLAG_GET(material->flags, KMATERIAL_FLAG_MRA_ENABLED_BIT);
@@ -821,12 +829,6 @@ void kmaterial_renderer_bind_base(kmaterial_renderer* state, kmaterial base_mate
             }
         }
 
-        // Apply textures
-        kshader_set_binding_texture(shader, 1, base_material, 0, MAT_STANDARD_IDX_MRA, mra_texture);
-        kshader_set_binding_texture(shader, 1, base_material, 0, MAT_STANDARD_IDX_METALLIC, metallic_texture);
-        kshader_set_binding_texture(shader, 1, base_material, 0, MAT_STANDARD_IDX_ROUGHNESS, roughness_texture);
-        kshader_set_binding_texture(shader, 1, base_material, 0, MAT_STANDARD_IDX_AO, ao_texture);
-
         // Emissive
         ktexture emissive_texture = state->default_base_colour_texture;
         if (FLAG_GET(material->flags, KMATERIAL_FLAG_EMISSIVE_ENABLED_BIT)) {
@@ -837,25 +839,44 @@ void kmaterial_renderer_bind_base(kmaterial_renderer* state, kmaterial base_mate
         } else {
             mapped_mat->emissive = vec4_zero();
         }
-        kshader_set_binding_texture(shader, 1, base_material, 0, MAT_STANDARD_IDX_EMISSIVE, emissive_texture);
+
+        KTRACE("Standard material");
+
+        // Apply textures
+        kshader_set_binding_texture(shader, 1, base_material, 0, MAT_TEX_ARRAY_IDX_BASE_COLOUR, base_colour_tex);
+        kshader_set_binding_texture(shader, 1, base_material, 0, MAT_TEX_ARRAY_IDX_NORMAL, normal_tex);
+        kshader_set_binding_texture(shader, 1, base_material, 0, MAT_TEX_ARRAY_IDX_METALLIC, metallic_texture);
+        kshader_set_binding_texture(shader, 1, base_material, 0, MAT_TEX_ARRAY_IDX_ROUGHNESS, roughness_texture);
+        kshader_set_binding_texture(shader, 1, base_material, 0, MAT_TEX_ARRAY_IDX_AO, ao_texture);
+        kshader_set_binding_texture(shader, 1, base_material, 0, MAT_TEX_ARRAY_IDX_MRA, mra_texture);
+        kshader_set_binding_texture(shader, 1, base_material, 0, MAT_TEX_ARRAY_IDX_EMISSIVE, emissive_texture);
+
+        kshader_apply_binding_set(shader, 1, base_material);
     } break;
     case KMATERIAL_TYPE_WATER: {
 
-        shader = state->material_water_shader;
+        shader = state->material_standard_shader;
+        /* shader = state->material_water_shader; */
         KASSERT_DEBUG(kshader_system_use(shader));
 
-        ktexture reflection_colour_tex = material->reflection_texture;
-        ktexture refraction_colour_tex = material->refraction_texture;
-        ktexture refraction_depth_tex = material->refraction_depth_texture;
+        KTRACE("Water material");
+
+        ktexture reflection_colour_tex = texture_is_loaded(material->reflection_texture) ? material->reflection_texture : state->default_texture;
+        ktexture refraction_colour_tex = texture_is_loaded(material->refraction_texture) ? material->reflection_texture : state->default_texture;
+        ktexture refraction_depth_tex = texture_is_loaded(material->refraction_depth_texture) ? material->reflection_texture : state->default_texture;
         ktexture dudv_texture = texture_is_loaded(material->dudv_texture) ? material->dudv_texture : state->default_texture;
         ktexture normal_texture = texture_is_loaded(material->normal_texture) ? material->normal_texture : state->default_normal_texture;
 
-        kshader_set_binding_texture(shader, 1, base_material, 0, MAT_WATER_IDX_REFLECTION, reflection_colour_tex);
-        kshader_set_binding_texture(shader, 1, base_material, 0, MAT_WATER_IDX_REFRACTION, refraction_colour_tex);
-        kshader_set_binding_texture(shader, 1, base_material, 0, MAT_WATER_IDX_REFRACTION_DEPTH, refraction_depth_tex);
-        kshader_set_binding_texture(shader, 1, base_material, 0, MAT_WATER_IDX_DUDV, dudv_texture);
-        kshader_set_binding_texture(shader, 1, base_material, 0, MAT_WATER_IDX_NORMAL, normal_texture);
+        // NOTE: Base colour and emissive textures are not used here, but must be bound.
+        kshader_set_binding_texture(shader, 1, base_material, 0, MAT_TEX_ARRAY_IDX_BASE_COLOUR, state->default_texture);
+        kshader_set_binding_texture(shader, 1, base_material, 0, MAT_TEX_ARRAY_IDX_NORMAL, normal_texture);
+        kshader_set_binding_texture(shader, 1, base_material, 0, MAT_WATER_TEX_ARRAY_IDX_REFLECTION, reflection_colour_tex);
+        kshader_set_binding_texture(shader, 1, base_material, 0, MAT_WATER_TEX_ARRAY_IDX_REFRACTION, refraction_colour_tex);
+        kshader_set_binding_texture(shader, 1, base_material, 0, MAT_WATER_TEX_ARRAY_IDX_REFRACTION_DEPTH, refraction_depth_tex);
+        kshader_set_binding_texture(shader, 1, base_material, 0, MAT_WATER_TEX_ARRAY_IDX_DUDV, dudv_texture);
+        kshader_set_binding_texture(shader, 1, base_material, 0, MAT_TEX_ARRAY_IDX_EMISSIVE, state->default_texture);
 
+        kshader_apply_binding_set(shader, 1, base_material);
     } break;
     case KMATERIAL_TYPE_BLENDED: {
         shader = state->material_blended_shader;
@@ -884,18 +905,19 @@ void kmaterial_renderer_apply_immediates(kmaterial_renderer* state, kmaterial_in
     case KMATERIAL_TYPE_UNKNOWN:
         KASSERT_MSG(false, "Unknown material type cannot be applied.");
         break;
-    case KMATERIAL_TYPE_STANDARD: {
+    case KMATERIAL_TYPE_STANDARD:
+    case KMATERIAL_TYPE_WATER: {
         shader = state->material_standard_shader;
         KASSERT_DEBUG(kshader_system_use(shader));
 
         kshader_set_immediate_data(shader, immediates, sizeof(kmaterial_render_immediate_data));
     } break;
-    case KMATERIAL_TYPE_WATER: {
+    /* case KMATERIAL_TYPE_WATER: {
         shader = state->material_water_shader;
         KASSERT_DEBUG(kshader_system_use(shader));
 
         kshader_set_immediate_data(shader, immediates, sizeof(kmaterial_render_immediate_data));
-    } break;
+    } break; */
     case KMATERIAL_TYPE_BLENDED: {
         shader = state->material_blended_shader;
         KASSERT_MSG(false, "Blended materials not yet supported.");
