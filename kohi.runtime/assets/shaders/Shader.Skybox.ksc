@@ -50,7 +50,7 @@ binding_sets = [
             {
                 type = "ubo"
                 name = "skybox global ubo"
-                data_size = 384
+                data_size = 1088
             }
             {
                 type = "texture"

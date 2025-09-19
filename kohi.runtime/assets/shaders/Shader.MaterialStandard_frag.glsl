@@ -23,11 +23,11 @@ const uint MAT_STANDARD_IDX_AO = 4;
 const uint MAT_STANDARD_IDX_MRA = 5;
 const uint MAT_STANDARD_IDX_EMISSIVE = 6;
 
-const uint MAT_WATER_IDX_REFLECTION = MAT_STANDARD_IDX_METALLIC;
-const uint MAT_WATER_IDX_REFRACTION = MAT_STANDARD_IDX_ROUGHNESS;
-const uint MAT_WATER_IDX_REFRACTION_DEPTH = MAT_STANDARD_IDX_AO;
-const uint MAT_WATER_IDX_DUDV = MAT_STANDARD_IDX_MRA;
-const uint MAT_WATER_IDX_NORMAL = MAT_STANDARD_IDX_NORMAL;
+const uint MAT_WATER_IDX_REFLECTION = 2; // MAT_STANDARD_IDX_METALLIC;
+const uint MAT_WATER_IDX_REFRACTION = 3; // MAT_STANDARD_IDX_ROUGHNESS;
+const uint MAT_WATER_IDX_REFRACTION_DEPTH = 4; // MAT_STANDARD_IDX_AO;
+const uint MAT_WATER_IDX_DUDV = 5; // MAT_STANDARD_IDX_MRA;
+const uint MAT_WATER_IDX_NORMAL = 1; // MAT_STANDARD_IDX_NORMAL;
 
 const uint MAT_TYPE_STANDARD = 0;
 const uint MAT_TYPE_WATER = 1;
@@ -103,6 +103,12 @@ struct animation_skin_data {
 
 // Global settings for the scene.
 layout(std140, set = 0, binding = 0) uniform kmaterial_settings_ubo {
+    mat4 views[KMATERIAL_UBO_MAX_VIEWS]; // indexed by immediate.view_index
+    mat4 projections[KMATERIAL_UBO_MAX_PROJECTIONS]; // indexed by immediate.projection_index
+    mat4 directional_light_spaces[KMATERIAL_UBO_MAX_SHADOW_CASCADES]; // 256 bytes
+    vec4 view_positions[KMATERIAL_UBO_MAX_VIEWS]; // indexed by immediate.view_index
+    vec4 cascade_splits;                                         // 16 bytes
+
     float delta_time;
     float game_time;
     uint render_mode;
@@ -114,13 +120,7 @@ layout(std140, set = 0, binding = 0) uniform kmaterial_settings_ubo {
     float shadow_fade_distance;
     float shadow_split_mult;
 
-    // Light space for shadow mapping. Per cascade
-    mat4 directional_light_spaces[KMATERIAL_UBO_MAX_SHADOW_CASCADES]; // 256 bytes
-    vec4 cascade_splits;                                         // 16 bytes
 
-    vec4 view_positions[KMATERIAL_UBO_MAX_VIEWS]; // indexed by immediate.view_index
-    mat4 views[KMATERIAL_UBO_MAX_VIEWS]; // indexed by immediate.view_index
-    mat4 projections[KMATERIAL_UBO_MAX_PROJECTIONS]; // indexed by immediate.projection_index
 } global_settings;
 
 // All transforms
@@ -218,11 +218,15 @@ void main() {
     vec2 distorted_texcoords;
     vec3 normal;
     vec3 tangent;
+    vec2 tex_coord;
 
     if(base_material.material_type == MAT_TYPE_STANDARD) {
         normal = in_dto.normal;
         tangent = in_dto.tangent;
+        tex_coord = in_dto.tex_coord;
     } else if (base_material.material_type == MAT_TYPE_WATER) {
+        normal = in_dto.normal;
+        tangent = in_dto.tangent;
         float move_factor = immediate.wave_speed * global_settings.game_time;
         // Calculate surface distortion and bring it into [-1.0 - 1.0] range
         distorted_texcoords = texture(sampler2D(material_textures[MAT_WATER_IDX_DUDV], material_samplers[MAT_WATER_IDX_DUDV]), vec2(in_dto.tex_coord.x + move_factor, in_dto.tex_coord.y)).rg * 0.1;
@@ -231,15 +235,33 @@ void main() {
         // Compute the surface normal using the normal map.
         vec4 normal_colour = texture(sampler2D(material_textures[MAT_WATER_IDX_NORMAL], material_samplers[MAT_WATER_IDX_NORMAL]), distorted_texcoords);
         // Extract the normal, shifting to a range of [-1 - 1]
-        normal = vec3(normal_colour.r * 2.0 - 1.0, normal_colour.g * 2.5, normal_colour.b * 2.0 - 1.0);
+                /* normal = (2.0 * normal_colour.rgb - 1.0); */
+        /* normal = vec3(normal_colour.r * 2.0 - 1.0, normal_colour.g * 2.5, normal_colour.b * 2.0 - 1.0); */
 
-        vec3 original_tangent = normalize(vec3(1, 0, -0));
-        tangent = original_tangent; // TODO: take from actual plane
+        /* vec3 original_tangent = normalize(vec3(1, 0, -0)); */
+        /* tangent = in_dto.tangent; */
+        /* tangent = original_tangent; // TODO: take from actual plane */
+        tex_coord = distorted_texcoords;
     }
 
     tangent = (tangent - dot(tangent, normal) *  normal);
     vec3 bitangent = cross(in_dto.normal, in_dto.tangent);
     mat3 TBN = mat3(tangent, bitangent, normal);
+
+    // Calculate "local normal".
+    // If enabled, get the normal from the normal map if used, or the supplied vector if not.
+    // Otherwise, just use a default z-up
+    vec3 local_normal = vec3(0, 0, 1.0);
+    if(flag_get(base_material.flags, KMATERIAL_FLAG_NORMAL_ENABLED_BIT)){
+        if(flag_get(base_material.tex_flags, MATERIAL_STANDARD_FLAG_USE_NORMAL_TEX)) {
+            local_normal = texture(sampler2D(material_textures[MAT_STANDARD_IDX_NORMAL], material_samplers[MAT_STANDARD_IDX_NORMAL]), tex_coord).rgb;
+            local_normal = (2.0 * local_normal - 1.0);
+        } else {
+            local_normal = base_material.normal;
+        }
+    } 
+    // Update the normal to use a sample from the normal map.
+    normal = base_material.material_type == MAT_TYPE_STANDARD ? normalize(TBN * local_normal) : local_normal;
 
     vec3 cascade_colour = vec3(1.0);
 
@@ -277,21 +299,6 @@ void main() {
             discard;
         }
         albedo = pow(base_colour_samp.rgb, vec3(2.2));
-
-        // Calculate "local normal".
-        // If enabled, get the normal from the normal map if used, or the supplied vector if not.
-        // Otherwise, just use a default z-up
-        vec3 local_normal = vec3(0, 0, 1.0);
-        if(flag_get(base_material.flags, KMATERIAL_FLAG_NORMAL_ENABLED_BIT)){
-            if(flag_get(base_material.tex_flags, MATERIAL_STANDARD_FLAG_USE_NORMAL_TEX)) {
-                local_normal = texture(sampler2D(material_textures[MAT_STANDARD_IDX_NORMAL], material_samplers[MAT_STANDARD_IDX_NORMAL]), in_dto.tex_coord).rgb;
-                local_normal = (2.0 * local_normal - 1.0);
-            } else {
-                local_normal = base_material.normal;
-            }
-        } 
-        // Update the normal to use a sample from the normal map.
-        normal = normalize(TBN * local_normal);
 
         // Either use combined MRA (metallic/roughness/ao) or individual maps, depending on settings.
         vec3 mra;

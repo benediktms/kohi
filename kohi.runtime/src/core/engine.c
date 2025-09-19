@@ -737,6 +737,7 @@ b8 engine_run(application* app) {
             // Update the transform system _after_ the application so we are sure all transform updates that
             // need to occur have happened.
             ktransform_system_update(engine_state->systems.ktransform_system, &engine_state->p_frame_data);
+            light_system_frame_prepare(engine_state->systems.light_system, &engine_state->p_frame_data);
 
             // Start recording to the command list.
             if (!renderer_frame_command_list_begin(engine_state->systems.renderer_system, &engine_state->p_frame_data)) {

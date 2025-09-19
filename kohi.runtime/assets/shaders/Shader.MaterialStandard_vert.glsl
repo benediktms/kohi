@@ -63,6 +63,12 @@ layout(location = 4) in vec4 in_tangent;
 
 // Global settings for the scene.
 layout(std140, set = 0, binding = 0) uniform kmaterial_settings_ubo {
+    mat4 views[KMATERIAL_UBO_MAX_VIEWS]; // indexed by immediate.view_index
+    mat4 projections[KMATERIAL_UBO_MAX_PROJECTIONS]; // indexed by immediate.projection_index
+    mat4 directional_light_spaces[KMATERIAL_UBO_MAX_SHADOW_CASCADES]; // 256 bytes
+    vec4 view_positions[KMATERIAL_UBO_MAX_VIEWS]; // indexed by immediate.view_index
+    vec4 cascade_splits;                                         // 16 bytes
+
     float delta_time;
     float game_time;
     uint render_mode;
@@ -74,13 +80,7 @@ layout(std140, set = 0, binding = 0) uniform kmaterial_settings_ubo {
     float shadow_fade_distance;
     float shadow_split_mult;
 
-    // Light space for shadow mapping. Per cascade
-    mat4 directional_light_spaces[KMATERIAL_UBO_MAX_SHADOW_CASCADES]; // 256 bytes
-    vec4 cascade_splits;                                         // 16 bytes
 
-    vec4 view_positions[KMATERIAL_UBO_MAX_VIEWS]; // indexed by immediate.view_index
-    mat4 views[KMATERIAL_UBO_MAX_VIEWS]; // indexed by immediate.view_index
-    mat4 projections[KMATERIAL_UBO_MAX_PROJECTIONS]; // indexed by immediate.projection_index
 } global_settings;
 
 // All transforms
@@ -182,7 +182,7 @@ void main() {
 	mat3 m3_model = mat3(model);
 	out_dto.normal = normalize(m3_model * in_normal);
 	out_dto.tangent = normalize(m3_model * vec3(in_tangent));
-    out_dto.clip_space = projection * view * model * vec4(in_position, 1.0);
+    out_dto.clip_space = projection * view * out_dto.frag_position;
     gl_Position = out_dto.clip_space;
 
 	// Apply clipping plane

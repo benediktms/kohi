@@ -2,7 +2,9 @@
 
 #include "core/engine.h"
 #include "logger.h"
+#include "math/geometry.h"
 #include "math/kmath.h"
+#include "math/math_types.h"
 #include "memory/kmemory.h"
 #include "renderer/renderer_frontend.h"
 #include "strings/kname.h"
@@ -32,10 +34,10 @@ b8 water_plane_initialize(water_plane* plane) {
         // Create the geometry, but don't load it yet.
         // TODO: should probably be based on some size.
         f32 size = 256.0f;
-        plane->vertices[0] = (water_plane_vertex){-size, 0, -size, 1};
-        plane->vertices[1] = (water_plane_vertex){-size, 0, +size, 1};
-        plane->vertices[2] = (water_plane_vertex){+size, 0, +size, 1};
-        plane->vertices[3] = (water_plane_vertex){+size, 0, -size, 1};
+        plane->vertices[0] = (vertex_3d){-size, 0, -size, 0, 0, 1, 0, 0};
+        plane->vertices[1] = (vertex_3d){-size, 0, +size, 0, 0, 1, 0, 1};
+        plane->vertices[2] = (vertex_3d){+size, 0, +size, 0, 0, 1, 1, 1};
+        plane->vertices[3] = (vertex_3d){+size, 0, -size, 0, 0, 1, 1, 0};
 
         plane->indices[0] = 0;
         plane->indices[1] = 1;
@@ -43,6 +45,9 @@ b8 water_plane_initialize(water_plane* plane) {
         plane->indices[3] = 2;
         plane->indices[4] = 3;
         plane->indices[5] = 0;
+
+        geometry_generate_normals(4, plane->vertices, 6, plane->indices);
+        geometry_generate_tangents(4, plane->vertices, 6, plane->indices);
 
         return true;
     }
@@ -61,7 +66,7 @@ b8 water_plane_load(water_plane* plane) {
         krenderbuffer vertex_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_GLOBAL_VERTEX));
         krenderbuffer index_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_GLOBAL_INDEX));
         // Allocate space
-        if (!renderer_renderbuffer_allocate(renderer_system, vertex_buffer, sizeof(water_plane_vertex) * 4, &plane->vertex_buffer_offset)) {
+        if (!renderer_renderbuffer_allocate(renderer_system, vertex_buffer, sizeof(vertex_3d) * 4, &plane->vertex_buffer_offset)) {
             KERROR("Failed to allocate space in vertex buffer.");
             return false;
         }
@@ -71,7 +76,7 @@ b8 water_plane_load(water_plane* plane) {
         }
 
         // Load data
-        if (!renderer_renderbuffer_load_range(renderer_system, vertex_buffer, plane->vertex_buffer_offset, sizeof(water_plane_vertex) * 4, plane->vertices, false)) {
+        if (!renderer_renderbuffer_load_range(renderer_system, vertex_buffer, plane->vertex_buffer_offset, sizeof(vertex_3d) * 4, plane->vertices, false)) {
             KERROR("Failed to load data into vertex buffer.");
             return false;
         }
@@ -93,7 +98,7 @@ b8 water_plane_unload(water_plane* plane) {
         krenderbuffer vertex_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_GLOBAL_VERTEX));
         krenderbuffer index_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_GLOBAL_INDEX));
         // Free space
-        if (!renderer_renderbuffer_free(renderer_system, vertex_buffer, sizeof(water_plane_vertex) * 4, plane->vertex_buffer_offset)) {
+        if (!renderer_renderbuffer_free(renderer_system, vertex_buffer, sizeof(vertex_3d) * 4, plane->vertex_buffer_offset)) {
             KERROR("Failed to free space in vertex buffer.");
             return false;
         }

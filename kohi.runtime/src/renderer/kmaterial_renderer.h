@@ -62,6 +62,13 @@ typedef struct base_material_shader_data {
 //
 
 typedef struct kmaterial_settings_ubo {
+    mat4 views[KMATERIAL_UBO_MAX_VIEWS];                              // indexed by immediate.view_index
+    mat4 projections[KMATERIAL_UBO_MAX_PROJECTIONS];                  // indexed by immediate.projection_index
+    mat4 directional_light_spaces[KMATERIAL_UBO_MAX_SHADOW_CASCADES]; // 256 bytes
+    vec4 view_positions[KMATERIAL_UBO_MAX_VIEWS];                     // indexed by immediate.view_index
+    // Light space for shadow mapping. Per cascade
+    vec4 cascade_splits; // 16 bytes
+
     f32 delta_time;
     f32 game_time;
     u32 render_mode;
@@ -72,14 +79,6 @@ typedef struct kmaterial_settings_ubo {
     f32 shadow_distance;
     f32 shadow_fade_distance;
     f32 shadow_split_mult;
-
-    // Light space for shadow mapping. Per cascade
-    mat4 directional_light_spaces[KMATERIAL_UBO_MAX_SHADOW_CASCADES]; // 256 bytes
-    vec4 cascade_splits;                                              // 16 bytes
-
-    vec4 view_positions[KMATERIAL_UBO_MAX_VIEWS];    // indexed by immediate.view_index
-    mat4 views[KMATERIAL_UBO_MAX_VIEWS];             // indexed by immediate.view_index
-    mat4 projections[KMATERIAL_UBO_MAX_PROJECTIONS]; // indexed by immediate.projection_index
 } kmaterial_settings_ubo;
 
 typedef struct kmaterial_render_immediate_data {
@@ -163,19 +162,6 @@ KAPI void kmaterial_renderer_update(kmaterial_renderer* state);
 // Sets material_data->group_id;
 KAPI void kmaterial_renderer_register_base(kmaterial_renderer* state, kmaterial_data* material_data);
 KAPI void kmaterial_renderer_unregister_base(kmaterial_renderer* state, kmaterial_data* material_data);
-
-KAPI void kmaterial_renderer_register_instance(kmaterial_renderer* state, kmaterial_data* base_material, kmaterial_instance_data* instance);
-KAPI void kmaterial_renderer_unregister_instance(kmaterial_renderer* state, kmaterial_data* base_material, kmaterial_instance_data* instance);
-
-/* KINLINE void kmaterial_renderer_set_point_lights(kmaterial_renderer* state, u8 count, kpoint_light_render_data* lights) {
-    u8 num_p_lights = KMIN(count, KMATERIAL_MAX_GLOBAL_POINT_LIGHTS);
-    for (u8 i = 0; i < num_p_lights; ++i) {
-        kpoint_light_render_data* pls = &lights[i];
-        kpoint_light_shader_data* plt = &state->global_ubo_data.global_point_lights[i];
-        plt->colour = vec4_from_vec3(pls->colour, pls->linear);
-        plt->position = vec4_from_vec3(pls->position, pls->quadratic);
-    }
-} */
 
 KAPI void kmaterial_renderer_set_irradiance_cubemap_textures(kmaterial_renderer* state, u8 count, ktexture* irradiance_cubemap_textures);
 

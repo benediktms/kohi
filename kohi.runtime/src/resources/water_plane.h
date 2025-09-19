@@ -6,13 +6,9 @@
 
 struct texture_map;
 
-typedef struct water_plane_vertex {
-    vec4 position;
-} water_plane_vertex;
-
 typedef struct water_plane {
     mat4 model;
-    water_plane_vertex vertices[4];
+    vertex_3d vertices[4];
     u32 indices[6];
     u64 index_buffer_offset;
     u64 vertex_buffer_offset;

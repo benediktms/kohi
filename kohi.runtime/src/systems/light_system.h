@@ -16,6 +16,7 @@
 
 #include "core/engine.h"
 #include "core/frame_data.h"
+#include "core_resource_types.h"
 #include "renderer/renderer_types.h"
 #include "utils/kcolour.h"
 
@@ -45,6 +46,16 @@ typedef struct klight_data {
 
 typedef u8 klight;
 #define KLIGHT_INVALID INVALID_ID_U8
+
+typedef struct klight_render_data {
+    klight light;
+    ktransform transform;
+} klight_render_data;
+
+typedef struct kdirectional_light_data {
+    klight light;
+    vec3 direction;
+} kdirectional_light_data;
 
 // NOTE: If the size of this changes, then klight will need to be a u16 AND the material renderer packed indices
 // will have to be upgraded to u16s, effectively doubling the memory requirement for indices in immediates.
@@ -108,6 +119,14 @@ void light_system_frame_prepare(light_system_state* state, frame_data* p_frame_d
 
 KAPI klight point_light_create(light_system_state* state, vec3 position, colour3 colour, f32 constant_f, f32 linear, f32 quadratic);
 KAPI klight directional_light_create(light_system_state* state, vec3 direction, colour3 colour);
+
+KAPI vec3 directional_light_get_direction(light_system_state* state, klight light);
+KAPI vec3 point_light_get_position(light_system_state* state, klight light);
+KAPI colour3 point_light_get_colour(light_system_state* state, klight light);
+
+KAPI void directional_light_set_direction(light_system_state* state, klight light, vec3 direction);
+KAPI void point_light_set_position(light_system_state* state, klight light, vec3 position);
+KAPI void point_light_set_colour(light_system_state* state, klight light, colour3 colour);
 
 KAPI void light_destroy(light_system_state* state, klight light);
 

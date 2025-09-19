@@ -1835,10 +1835,12 @@ void vulkan_renderer_texture_resources_release(renderer_backend_interface* backe
     vulkan_texture_handle_data* texture_data = &context->textures[t];
 
     // Release/destroy the internal data.
-    for (u32 i = 0; i < texture_data->image_count; ++i) {
-        vulkan_image_destroy(context, &texture_data->images[i]);
+    if (texture_data->images && !FLAG_GET(texture_data->images[0].flags, KTEXTURE_FLAG_IS_WRAPPED)) {
+        for (u32 i = 0; i < texture_data->image_count; ++i) {
+            vulkan_image_destroy(context, &texture_data->images[i]);
+        }
+        KFREE_TYPE_CARRAY(texture_data->images, vulkan_image, texture_data->image_count);
     }
-    KFREE_TYPE_CARRAY(texture_data->images, vulkan_image, texture_data->image_count);
     texture_data->images = 0;
     texture_data->image_count = 0;
 }
@@ -2637,8 +2639,6 @@ b8 vulkan_renderer_shader_use(renderer_backend_interface* backend, kshader shade
     vulkan_pipeline** pipeline_array = wireframe_enabled ? internal_shader->wireframe_pipelines : internal_shader->pipelines;
     vulkan_pipeline_bind(context, command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_array[internal_shader->bound_pipeline_index]);
 
-    KTRACE("Used Shader: '%s'", kname_string_get(internal_shader->name));
-
     context->bound_shader = internal_shader;
     // Make sure to use the current bound type as well.
     if (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_NATIVE_DYNAMIC_STATE_BIT) {
@@ -3177,10 +3177,9 @@ static b8 vulkan_buffer_is_host_coherent(renderer_backend_interface* backend, vu
 b8 vulkan_renderbuffer_create(renderer_backend_interface* backend, kname name, u64 size, renderbuffer_type type, renderbuffer_flags flags, krenderbuffer handle) {
     vulkan_context* context = (vulkan_context*)backend->internal_context;
     krhi_vulkan* rhi = &context->rhi;
-    if (handle == KRENDERBUFFER_INVALID) {
-        KERROR("vulkan_buffer_create_internal requires a valid pointer to a buffer.");
-        return false;
-    }
+    KASSERT_DEBUG(handle != KRENDERBUFFER_INVALID);
+
+    KTRACE("Creating vulkan renderbuffer: '%s'...", kname_string_get(name));
 
     u16 len = darray_length(context->renderbuffers);
     if (handle > (len - 1)) {
@@ -4249,7 +4248,7 @@ static b8 vulkan_descriptorset_update_and_bind(
     u16 renderer_frame_number,
     vulkan_shader* internal_shader,
     u32 descriptor_set_index,
-    u32 use_id) {
+    u32 instance_id) {
 
     krhi_vulkan* rhi = &context->rhi;
 
@@ -4265,9 +4264,7 @@ static b8 vulkan_descriptorset_update_and_bind(
     VkWriteDescriptorSet* descriptor_writes = p_frame_data->allocator.allocate(sizeof(VkWriteDescriptorSet) * max_desc_write_count);
     kzero_memory(descriptor_writes, sizeof(VkWriteDescriptorSet) * max_desc_write_count);
 
-    KTRACE("max_desc_write_count=%u", max_desc_write_count);
-
-    vulkan_shader_binding_set_instance_state* instance_state = &set_state->instances[use_id];
+    vulkan_shader_binding_set_instance_state* instance_state = &set_state->instances[instance_id];
 
     u32 binding_index = 0;
     VkDescriptorBufferInfo ubo_buffer_info = {0};
@@ -4284,11 +4281,6 @@ static b8 vulkan_descriptorset_update_and_bind(
 
             VkWriteDescriptorSet* write = &descriptor_writes[binding_index];
             write->sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-
-            u8 tex_info_index = 0;
-            VkDescriptorImageInfo* binding_texture_infos = set_state->texture_binding_count ? p_frame_data->allocator.allocate(sizeof(VkDescriptorImageInfo) * set_state->texture_binding_count) : 0;
-            u8 samp_info_index = 0;
-            VkDescriptorImageInfo* binding_sampler_infos = set_state->sampler_binding_count ? p_frame_data->allocator.allocate(sizeof(VkDescriptorImageInfo) * set_state->sampler_binding_count) : 0;
 
             u32 desc_count = 0;
             switch (binding->binding_type) {
@@ -4321,6 +4313,8 @@ static b8 vulkan_descriptorset_update_and_bind(
                 ssbo_info->range = VK_WHOLE_SIZE;
                 write->pBufferInfo = ssbo_info;
 
+                ssbo_index++;
+
                 desc_count = 1;
 
             } break;
@@ -4329,8 +4323,13 @@ static b8 vulkan_descriptorset_update_and_bind(
 
                 vulkan_texture_state* tx_state = &instance_state->texture_states[binding->binding_type_index];
                 u8 array_size = KMAX(tx_state->array_size, 1);
+
+                u64 sz = sizeof(VkDescriptorImageInfo) * array_size;
+                VkDescriptorImageInfo* binding_texture_infos = p_frame_data->allocator.allocate(sz);
+                kzero_memory(binding_texture_infos, sz);
+
                 for (u8 t = 0; t < array_size; ++t) {
-                    VkDescriptorImageInfo* binding_image_info = &binding_texture_infos[tex_info_index];
+                    VkDescriptorImageInfo* binding_image_info = &binding_texture_infos[t];
 
                     ktexture tex = instance_state->texture_states[binding->binding_type_index].texture_handles[t];
                     vulkan_texture_handle_data* texture = &context->textures[tex];
@@ -4348,8 +4347,6 @@ static b8 vulkan_descriptorset_update_and_bind(
                     }
                     // NOTE: Not using sampler in this descriptor.
                     binding_image_info->sampler = 0;
-
-                    tex_info_index++;
                 }
 
                 desc_count = array_size;
@@ -4361,10 +4358,16 @@ static b8 vulkan_descriptorset_update_and_bind(
                 write->descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
 
                 vulkan_sampler_state* smp_state = &instance_state->sampler_states[binding->binding_type_index];
-                for (u8 t = 0; t < smp_state->array_size; ++t) {
-                    VkDescriptorImageInfo* binding_image_info = &binding_sampler_infos[samp_info_index];
+                u8 array_size = KMAX(smp_state->array_size, 1);
 
-                    ksampler_backend smp = instance_state->sampler_states[binding->binding_type_index].sampler_handles[t];
+                u64 sz = sizeof(VkDescriptorImageInfo) * set_state->sampler_binding_count;
+                VkDescriptorImageInfo* binding_sampler_infos = p_frame_data->allocator.allocate(sz);
+                kzero_memory(binding_sampler_infos, sz);
+
+                for (u8 s = 0; s < array_size; ++s) {
+                    VkDescriptorImageInfo* binding_image_info = &binding_sampler_infos[s];
+
+                    ksampler_backend smp = instance_state->sampler_states[binding->binding_type_index].sampler_handles[s];
                     vulkan_sampler_handle_data* sampler = &context->samplers[smp];
 
                     // NOTE: Not using image in this descriptor.
@@ -4372,8 +4375,6 @@ static b8 vulkan_descriptorset_update_and_bind(
                     binding_image_info->imageView = 0;
 
                     binding_image_info->sampler = sampler->sampler ? sampler->sampler : context->samplers[0].sampler;
-
-                    samp_info_index++;
                 }
 
                 desc_count = smp_state->array_size;
@@ -4389,81 +4390,11 @@ static b8 vulkan_descriptorset_update_and_bind(
             write->dstBinding = b;
             write->descriptorCount = desc_count;
 
-#if KOHI_DEBUG
-            char* type_str = 0;
-            switch (write->descriptorType) {
-            case VK_DESCRIPTOR_TYPE_SAMPLER:
-                type_str = "sampler";
-                break;
-            case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
-                type_str = "combinedImageSampler";
-                break;
-            case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
-                type_str = "sampledImage";
-                break;
-            case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
-                type_str = "uniform";
-                break;
-            case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
-                type_str = "storage";
-                break;
-            case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC:
-                type_str = "uniformDynamic";
-                break;
-            case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC:
-                type_str = "storageDynamic";
-                break;
-            default:
-                type_str = "unknown";
-                break;
-            }
-            KTRACE("Binding dstSet=%p, type='%s', binding=%u, descCount=%u", write->dstSet, type_str, write->dstBinding, write->descriptorCount);
-#endif
-
             binding_index++;
         }
 
         // Immediately update the descriptor set's data.
         if (binding_index > 0) {
-#if KOHI_DEBUG
-
-            // nocheckin
-            KTRACE("Shader: '%s', Binding set %u, count=%u", kname_string_get(internal_shader->name), descriptor_set_index, binding_index);
-            for (u32 x = 0; x < binding_index; ++x) {
-                VkWriteDescriptorSet* write = &descriptor_writes[x];
-
-#    if KOHI_DEBUG
-                char* type_str = 0;
-                switch (write->descriptorType) {
-                case VK_DESCRIPTOR_TYPE_SAMPLER:
-                    type_str = "sampler";
-                    break;
-                case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
-                    type_str = "combinedImageSampler";
-                    break;
-                case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
-                    type_str = "sampledImage";
-                    break;
-                case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
-                    type_str = "uniform";
-                    break;
-                case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
-                    type_str = "storage";
-                    break;
-                case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC:
-                    type_str = "uniformDynamic";
-                    break;
-                case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC:
-                    type_str = "storageDynamic";
-                    break;
-                default:
-                    type_str = "unknown";
-                    break;
-                }
-                KTRACE("Binding dstSet=%p, type='%s', binding=%u, descCount=%u", write->dstSet, type_str, write->dstBinding, write->descriptorCount);
-#    endif
-            }
-#endif
             rhi->kvkUpdateDescriptorSets(context->device.logical_device, binding_index, descriptor_writes, 0, 0);
         }
     }

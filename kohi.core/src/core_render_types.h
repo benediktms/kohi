@@ -520,34 +520,6 @@ typedef struct kskinned_mesh_render_data {
     vec4 tint;
 } kskinned_mesh_render_data;
 
-/**
- * Directional light data formatted for direct shader use.
- */
-typedef struct kdirectional_light_render_data {
-    /** @brief The light colour. */
-    colour3 colour;
-    /** @brief The direction of the light.*/
-    vec3 direction;
-
-    f32 shadow_distance;
-    f32 shadow_fade_distance;
-    f32 shadow_split_mult;
-} kdirectional_light_render_data;
-
-/**
- * Point light data formatted for direct shader use.
- */
-typedef struct kpoint_light_render_data {
-    /** @brief The light colour. */
-    colour3 colour;
-    /** @brief The position of the light in the world. The w component is ignored.*/
-    vec3 position;
-    /** @brief Reduces light intensity linearly */
-    f32 linear;
-    /** @brief Makes the light fall off slower at longer distances. */
-    f32 quadratic;
-} kpoint_light_render_data;
-
 typedef struct kwater_plane_render_data {
     mat4 model;
     /** @brief The vertex data. */

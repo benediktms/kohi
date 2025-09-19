@@ -19,6 +19,7 @@ b8 light_system_initialize(u64* memory_requirement, light_system_state* memory, 
     // NOTE: perform config/init here.
 
     light_system_state* state = (light_system_state*)memory;
+    state->lights = KALLOC_TYPE_CARRAY(klight_data, MAX_GLOBAL_SSBO_LIGHTS);
     // Global lighting storage buffer
     u64 buffer_size = sizeof(light_global_ssbo_data);
     state->lighting_global_ssbo = renderer_renderbuffer_create(engine_systems_get()->renderer_system, kname_create(KRENDERBUFFER_NAME_LIGHTING_GLOBAL), RENDERBUFFER_TYPE_STORAGE, buffer_size, RENDERBUFFER_TRACK_TYPE_NONE, RENDERBUFFER_FLAG_AUTO_MAP_MEMORY_BIT);
@@ -72,11 +73,53 @@ klight directional_light_create(light_system_state* state, vec3 direction, colou
     klight light = create_new_handle(state);
     KASSERT_DEBUG(light != KLIGHT_INVALID);
     klight_data* l = &state->lights[light];
-    l->type = KLIGHT_TYPE_POINT;
+    l->type = KLIGHT_TYPE_DIRECTIONAL;
     l->colour = colour;
     l->direction = direction;
 
     return light;
+}
+
+vec3 directional_light_get_direction(light_system_state* state, klight light) {
+    KASSERT_DEBUG(light != KLIGHT_INVALID);
+    klight_data* l = &state->lights[light];
+    KASSERT_DEBUG(l->type == KLIGHT_TYPE_DIRECTIONAL);
+    return l->direction;
+}
+
+vec3 point_light_get_position(light_system_state* state, klight light) {
+    KASSERT_DEBUG(light != KLIGHT_INVALID);
+    klight_data* l = &state->lights[light];
+    KASSERT_DEBUG(l->type == KLIGHT_TYPE_POINT);
+    return l->position;
+}
+
+colour3 point_light_get_colour(light_system_state* state, klight light) {
+    KASSERT_DEBUG(light != KLIGHT_INVALID);
+    klight_data* l = &state->lights[light];
+    KASSERT_DEBUG(l->type == KLIGHT_TYPE_POINT || l->type == KLIGHT_TYPE_DIRECTIONAL);
+    return l->colour;
+}
+
+void directional_light_set_direction(light_system_state* state, klight light, vec3 direction) {
+    KASSERT_DEBUG(light != KLIGHT_INVALID);
+    klight_data* l = &state->lights[light];
+    KASSERT_DEBUG(l->type == KLIGHT_TYPE_DIRECTIONAL);
+    l->direction = direction;
+}
+
+void point_light_set_position(light_system_state* state, klight light, vec3 position) {
+    KASSERT_DEBUG(light != KLIGHT_INVALID);
+    klight_data* l = &state->lights[light];
+    KASSERT_DEBUG(l->type == KLIGHT_TYPE_POINT);
+    l->position = position;
+}
+
+void point_light_set_colour(light_system_state* state, klight light, colour3 colour) {
+    KASSERT_DEBUG(light != KLIGHT_INVALID);
+    klight_data* l = &state->lights[light];
+    KASSERT_DEBUG(l->type == KLIGHT_TYPE_POINT || l->type == KLIGHT_TYPE_DIRECTIONAL);
+    l->colour = colour;
 }
 
 void light_destroy(light_system_state* state, klight light) {

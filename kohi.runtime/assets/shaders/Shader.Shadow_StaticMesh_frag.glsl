@@ -10,13 +10,16 @@ layout(set = 0, binding = 0) uniform global_ubo_data {
     mat4 view_projections[MAX_CASCADES];
 } global_ubo;
 
+// All transforms
+layout(std430, set = 0, binding = 1) readonly buffer global_transforms_ssbo {
+    mat4 transforms[]; // indexed by immediate.transform_index
+} global_transforms;
+
 layout (set = 1, binding = 0) uniform texture2D base_colour_texture;
 layout (set = 1, binding = 1) uniform sampler base_colour_sampler;
 
 layout(push_constant) uniform immediate_data {
-	
-	// Only guaranteed a total of 128 bytes.
-	mat4 model; // 64 bytes
+	uint transform_index;
     uint cascade_index;
 } immediate;
 

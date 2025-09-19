@@ -1032,9 +1032,6 @@ static b8 kmaterial_instance_create(kmaterial_system_state* state, kmaterial bas
     if (material->state == KMATERIAL_STATE_LOADED) {
         inst->state = KMATERIAL_INSTANCE_STATE_LOADING;
 
-        // Register the material instance with the material renderer.
-        kmaterial_renderer_register_instance(engine_systems_get()->material_renderer, material, inst);
-
         // Take a copy of the base material properties.
         inst->flags = material->flags;
         inst->uv_scale = material->uv_scale;
@@ -1052,9 +1049,6 @@ static b8 kmaterial_instance_create(kmaterial_system_state* state, kmaterial bas
 
 static void kmaterial_instance_destroy(kmaterial_system_state* state, kmaterial_data* base_material, kmaterial_instance_data* inst) {
     if (base_material && inst && inst->material != KMATERIAL_INVALID) {
-
-        // Unregister the material instance with the material renderer.
-        kmaterial_renderer_unregister_instance(engine_systems_get()->material_renderer, base_material, inst);
 
         kzero_memory(inst, sizeof(kmaterial_instance_data));
 
@@ -1089,9 +1083,6 @@ static void kasset_material_loaded(void* listener, kasset_material* asset) {
     for (u32 i = 0; i < instance_count; ++i) {
         kmaterial_instance_data* inst = &state->instances[listener_inst->material_handle][i];
         if (inst->state == KMATERIAL_INSTANCE_STATE_LOADING) {
-
-            // Register the material instance with the material renderer.
-            kmaterial_renderer_register_instance(engine_systems_get()->material_renderer, material, inst);
 
             // Take a copy of the base material properties.
             inst->flags = material->flags;

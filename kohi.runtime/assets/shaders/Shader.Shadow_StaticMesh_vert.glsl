@@ -17,10 +17,13 @@ layout(set = 0, binding = 0) uniform global_ubo_data {
     mat4 view_projections[MAX_CASCADES];
 } global_ubo;
 
+// All transforms
+layout(std430, set = 0, binding = 1) readonly buffer global_transforms_ssbo {
+    mat4 transforms[]; // indexed by immediate.transform_index
+} global_transforms;
+
 layout(push_constant) uniform immediate_data {
-	
-	// Only guaranteed a total of 128 bytes.
-	mat4 model; // 64 bytes
+	uint transform_index;
     uint cascade_index;
 } immediate;
 
@@ -35,5 +38,5 @@ layout(location = 1) out struct dto {
 
 void main() {
     out_dto.tex_coord = in_texcoord;
-    gl_Position = global_ubo.view_projections[immediate.cascade_index] * immediate.model * vec4(in_position, 1.0);
+    gl_Position = global_ubo.view_projections[immediate.cascade_index] * global_transforms.transforms[immediate.transform_index] * vec4(in_position, 1.0);
 }

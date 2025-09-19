@@ -102,6 +102,7 @@ The items in this list are not in any particular order. This list will be update
   - [ ] Option to set cursor image (and change on the fly)
 - [ ] BUG: Hierarchy graph destroy does not release xforms. Should optionally do so.
 - [ ] BUG: water plane - Fix frustum culling for reflections.
+- [ ] BUG: Kson assignment does not require '=', and just assigns anyway. Will be an issue when other operators are added.
 - [ ] Flag for toggling debug items on/off in scene.
 - [ ] Flag for toggling grid on/off in scene.
 - [ ] Profiling and performance pass - a few quick things to consider:
