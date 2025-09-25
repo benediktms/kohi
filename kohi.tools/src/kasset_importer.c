@@ -1,5 +1,16 @@
 #include "kasset_importer.h"
 
+#include <assimp/cimport.h>
+#include <assimp/color4.h>
+#include <assimp/defs.h>
+#include <assimp/material.h>
+#include <assimp/mesh.h>
+#include <assimp/postprocess.h>
+#include <assimp/scene.h>
+#include <assimp/types.h>
+#include <assimp/vector3.h>
+
+#include "assets/kasset_types.h"
 #include "containers/darray.h"
 #include "core_render_types.h"
 #include "importers/kasset_importer_audio.h"
@@ -8,9 +19,15 @@
 #include "importers/kasset_importer_material_obj_mtl.h"
 #include "importers/kasset_importer_static_mesh_obj.h"
 #include "logger.h"
+#include "math/geometry.h"
+#include "math/kmath.h"
+#include "math/math_types.h"
+#include "memory/kmemory.h"
 #include "platform/filesystem.h"
 #include "platform/kpackage.h"
+#include "strings/kname.h"
 #include "strings/kstring.h"
+#include "systems/animation_system.h"
 #include "utils/render_type_utils.h"
 
 /*
@@ -96,6 +113,263 @@ b8 source_image_2_kbi(const char* source_path, const char* target_path, b8 flip_
 b8 fnt_2_kbf(const char* source_path, const char* target_path) {
     KDEBUG("Executing %s...", __FUNCTION__);
     return kasset_bitmap_font_fnt_import(source_path, target_path);
+}
+
+typedef struct skinned_mesh {
+    kgeometry geo;
+
+} skinned_mesh;
+
+static void skinned_vertex_3d_defaults(skinned_vertex_3d* vert) {
+    for (u8 i = 0; i < 4; ++i) {
+        vert->bone_ids.elements[i] = -1;
+        vert->weights.elements[i] = 0.0f;
+    }
+}
+
+static void get_material_texture_data_by_type(kname package_name, const struct aiMaterial* material, enum aiTextureType texture_type, kasset_material* new_material, kmaterial_texture_input_config* input) {
+    if (aiGetMaterialTextureCount(material, texture_type)) {
+        const u32 index = 0; // NOTE: Only get the first one.
+        struct aiString path;
+        enum aiTextureMapping mapping;
+        u32 uvindex;
+        ai_real blend;
+        enum aiTextureOp op;
+        enum aiTextureMapMode mapmode;
+        u32 flags;
+        enum aiReturn result = aiGetMaterialTexture(material, texture_type, index, &path, &mapping, &uvindex, &blend, &op, &mapmode, &flags);
+        if (result != aiReturn_SUCCESS) {
+            KWARN("Failed reading base colour texture.");
+        } else {
+            const char* asset_name = string_filename_no_extension_from_path(path.data);
+            input->resource_name = kname_create(asset_name);
+            string_free(asset_name);
+            input->package_name = package_name;
+
+            texture_repeat repeat = TEXTURE_REPEAT_REPEAT;
+            switch (mapmode) {
+            case aiTextureMapMode_Wrap:
+                repeat = TEXTURE_REPEAT_REPEAT;
+                break;
+            case aiTextureMapMode_Clamp:
+                repeat = TEXTURE_REPEAT_CLAMP_TO_EDGE;
+                break;
+            case aiTextureMapMode_Mirror:
+                repeat = TEXTURE_REPEAT_MIRRORED_REPEAT;
+                break;
+            default:
+            case aiTextureMapMode_Decal:
+                KWARN("Unsupported texture map mode found, defaulting to repeat.");
+                break;
+            }
+
+            input->sampler.repeat_u = input->sampler.repeat_v = input->sampler.repeat_w = repeat;
+            // NOTE: Since there is no way to obtain this, all maps will use linear min/mag.
+            input->sampler.filter_min = input->sampler.filter_mag = TEXTURE_FILTER_MODE_LINEAR;
+            // NOTE: Don't name the sampler here. Properties can be analyzed by the engine and a default sampler can be chosen based on it.
+            input->sampler.name = INVALID_KNAME;
+        }
+    }
+}
+
+static skinned_mesh process_mesh(kname package_name, struct aiMesh* mesh, const struct aiScene* scene) {
+    skinned_vertex_3d* vertices = KALLOC_TYPE_CARRAY(skinned_vertex_3d, mesh->mNumVertices);
+    u8* vertex_bone_counts = KALLOC_TYPE_CARRAY(u8, mesh->mNumVertices);
+
+    u32* indices = darray_create(u32);
+    // TODO: textures
+
+    for (u32 i = 0; i < mesh->mNumVertices; ++i) {
+        skinned_vertex_3d* vert = &vertices[i];
+        skinned_vertex_3d_defaults(vert);
+        struct aiVector3D* sv = &mesh->mVertices[i];
+        struct aiVector3D* sn = &mesh->mNormals[i];
+        struct aiVector3D* st = &mesh->mTangents[i];
+        struct aiVector3D* sb = &mesh->mBitangents[i];
+        vert->position = (vec3){sv->x, sv->y, sv->z};
+        vert->normal = (vec3){sn->x, sn->y, sn->z};
+        vec3 t = (vec3){st->x, st->y, st->z};
+        vec3 b = (vec3){sb->x, sb->y, sb->z};
+        f32 w = vec3_dot(vec3_cross(t, vert->normal), b) < 0.0f ? -1.0f : 1.0f;
+        vert->tangent = vec4_from_vec3(t, w);
+
+        if (mesh->mTextureCoords[0]) {
+            vert->texcoord = (vec2){
+                .x = mesh->mTextureCoords[0][i].x,
+                .y = mesh->mTextureCoords[0][i].y};
+        } else {
+            vert->texcoord = (vec2){0, 0};
+        }
+
+        // NOTE: Use vertex colour if it exists, otherwise just use white.
+        // TODO: Find a cleaner way to do this?
+        if (mesh->mColors[0]) {
+            struct aiColor4D* colour = &mesh->mColors[0][i];
+            vert->colour = (vec4){colour->r, colour->g, colour->b, colour->a};
+        } else {
+            vert->colour = vec4_one();
+        }
+    }
+
+    for (u32 i = 0; i < mesh->mNumBones; ++i) {
+        struct aiBone* bone = mesh->mBones[i];
+
+        // Apply bone indices and weights to vertices
+        for (u32 j = 0; j < bone->mNumWeights; ++j) {
+            struct aiVertexWeight* weight = &bone->mWeights[j];
+            skinned_vertex_3d* v = &vertices[weight->mVertexId];
+            u8 count = vertex_bone_counts[weight->mVertexId];
+
+            // Each vertex can only be affected by 4 bones.
+            // FIXME: Need some sort of fix for if this overflows.
+            if (count < KANIMATION_MAX_VERTEX_BONE_WEIGHTS) {
+                v->bone_ids.elements[count] = i;
+                v->weights.elements[count] = weight->mWeight;
+                vertex_bone_counts[weight->mVertexId]++;
+            } else {
+                KWARN("Vertex id %u already has the max number of bone_ids and weights that can influence it.");
+            }
+        }
+
+        // LEFTOFF: Figure out how to query bone hierarchy
+
+        // TODO: transpose offset matrix
+    }
+
+    for (u32 i = 0; i < mesh->mNumFaces; ++i) {
+        struct aiFace face = mesh->mFaces[i];
+        for (u32 j = 0; j < face.mNumIndices; ++j) {
+            darray_push(indices, face.mIndices[j]);
+        }
+    }
+
+    struct aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
+    kasset_material new_material = {0};
+
+    // Extract the shading model. Use this to determine what maps and properties to extract.
+    i32 shading_model_int = 0;
+    new_material.model = KMATERIAL_MODEL_PBR;
+    enum aiReturn result = aiGetMaterialInteger(material, AI_MATKEY_SHADING_MODEL, &shading_model_int);
+    if (result == aiReturn_SUCCESS) {
+        switch (((enum aiShadingMode)shading_model_int)) {
+        case aiShadingMode_PBR_BRDF:
+        case aiShadingMode_CookTorrance:
+            new_material.model = KMATERIAL_MODEL_PBR;
+            break;
+        case aiShadingMode_Phong:
+        case aiShadingMode_Blinn:
+            new_material.model = KMATERIAL_MODEL_PHONG;
+            break;
+        case aiShadingMode_NoShading:
+            new_material.model = KMATERIAL_MODEL_UNLIT;
+            break;
+        case aiShadingMode_Gouraud:
+        case aiShadingMode_Flat:
+        case aiShadingMode_Toon:
+        case aiShadingMode_OrenNayar:
+        case aiShadingMode_Minnaert:
+        case aiShadingMode_Fresnel:
+        default:
+            KWARN("Shading model not supported, defaulting to PBR.");
+            new_material.model = KMATERIAL_MODEL_PBR;
+            break;
+        }
+    }
+
+    switch (new_material.model) {
+    default:
+    case KMATERIAL_MODEL_PBR:
+        get_material_texture_data_by_type(package_name, material, aiTextureType_BASE_COLOR, &new_material, &new_material.base_colour_map);
+        get_material_texture_data_by_type(package_name, material, aiTextureType_NORMALS, &new_material, &new_material.normal_map);
+        get_material_texture_data_by_type(package_name, material, aiTextureType_METALNESS, &new_material, &new_material.metallic_map);
+        get_material_texture_data_by_type(package_name, material, aiTextureType_DIFFUSE_ROUGHNESS, &new_material, &new_material.roughness_map);
+        get_material_texture_data_by_type(package_name, material, aiTextureType_AMBIENT_OCCLUSION, &new_material, &new_material.ambient_occlusion_map);
+        get_material_texture_data_by_type(package_name, material, aiTextureType_GLTF_METALLIC_ROUGHNESS, &new_material, &new_material.mra_map);
+        get_material_texture_data_by_type(package_name, material, aiTextureType_EMISSIVE, &new_material, &new_material.emissive_map);
+        break;
+    case KMATERIAL_MODEL_UNLIT: {
+        get_material_texture_data_by_type(package_name, material, aiTextureType_BASE_COLOR, &new_material, &new_material.base_colour_map);
+        if (!new_material.base_colour_map.resource_name) {
+            get_material_texture_data_by_type(package_name, material, aiTextureType_DIFFUSE, &new_material, &new_material.base_colour_map);
+        }
+
+        // Also get diffuse colour, which might be defined.
+        struct aiColor4D diffuse_c4d;
+        colour4 diffuse = vec4_one();
+        result = aiGetMaterialColor(material, AI_MATKEY_COLOR_DIFFUSE, &diffuse_c4d);
+        if (result == aiReturn_SUCCESS) {
+            new_material.base_colour = (colour4){diffuse_c4d.r, diffuse_c4d.g, diffuse_c4d.b, diffuse_c4d.a};
+        }
+    } break;
+    case KMATERIAL_MODEL_PHONG: {
+        get_material_texture_data_by_type(package_name, material, aiTextureType_BASE_COLOR, &new_material, &new_material.base_colour_map);
+        if (!new_material.base_colour_map.resource_name) {
+            get_material_texture_data_by_type(package_name, material, aiTextureType_DIFFUSE, &new_material, &new_material.base_colour_map);
+        }
+        get_material_texture_data_by_type(package_name, material, aiTextureType_NORMALS, &new_material, &new_material.normal_map);
+        get_material_texture_data_by_type(package_name, material, aiTextureType_SPECULAR, &new_material, &new_material.specular_colour_map);
+
+        // Phong-specific properties.
+
+        /* // TODO: Phong Shininess
+        ai_real shininess = 0.0f;
+        result = aiGetMaterialFloat(material, AI_MATKEY_SHININESS, &shininess);
+        if (result == aiReturn_SUCCESS) {
+            new_material.shininess = (f32)shininess;
+        } */
+
+        struct aiColor4D ambient_c4d;
+        result = aiGetMaterialColor(material, AI_MATKEY_COLOR_AMBIENT, &ambient_c4d);
+        if (result == aiReturn_SUCCESS) {
+            new_material.base_colour = (colour4){ambient_c4d.r, ambient_c4d.g, ambient_c4d.b, ambient_c4d.a};
+        } else {
+            new_material.base_colour = vec4_zero();
+        }
+
+        struct aiColor4D diffuse_c4d;
+        colour4 diffuse = vec4_one();
+        result = aiGetMaterialColor(material, AI_MATKEY_COLOR_DIFFUSE, &diffuse_c4d);
+        if (result == aiReturn_SUCCESS) {
+            diffuse = (colour4){diffuse_c4d.r, diffuse_c4d.g, diffuse_c4d.b, diffuse_c4d.a};
+        }
+
+        // For Phong, base colour is ambient + diffuse.
+        new_material.base_colour = vec4_normalized(vec4_add(new_material.base_colour, diffuse));
+
+        struct aiColor4D specular_c4d;
+        result = aiGetMaterialColor(material, AI_MATKEY_COLOR_SPECULAR, &specular_c4d);
+        if (result == aiReturn_SUCCESS) {
+            new_material.specular_colour = (colour4){specular_c4d.r, specular_c4d.g, specular_c4d.b, specular_c4d.a};
+        } else {
+            new_material.specular_colour = vec4_zero();
+        }
+    } break;
+    }
+}
+
+static void process_node(kname package_name, struct aiNode* node, const struct aiScene* scene) {
+    // Process each mesh in the current node.
+    for (u32 i = 0; i < node->mNumMeshes; ++i) {
+        struct aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
+        skinned_mesh m = process_mesh(package_name, mesh, scene);
+        // TODO: push to mesh list
+    }
+
+    for (u32 i = 0; i < node->mNumChildren; ++i) {
+        process_node(package_name, node->mChildren[i], scene);
+    }
+}
+
+b8 load_assimp_model(const char* source_path, kname package_name) {
+    const struct aiScene* scene = aiImportFile(source_path, aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_CalcTangentSpace);
+    if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
+        KERROR("Error importing via assimp: %s", aiGetErrorString());
+        return false;
+    }
+
+    process_node(package_name, scene->mRootNode, scene);
+
+    // TODO:
 }
 
 b8 import_from_path(const char* source_path, const char* target_path, u8 option_count, const import_option* options) {

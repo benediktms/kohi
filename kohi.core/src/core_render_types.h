@@ -367,18 +367,6 @@ typedef enum kmaterial_flag_bits {
 
 typedef u32 kmaterial_flags;
 
-// Configuration for a material texture input.
-typedef struct kmaterial_texture_input_config {
-    // Name of the resource.
-    kname resource_name;
-    // Name of the package containing the resource.
-    kname package_name;
-    // Name of the custom sampler, if one.
-    kname sampler_name;
-    // The texture channel to sample, if relevant.
-    texture_channel channel;
-} kmaterial_texture_input_config;
-
 // The configuration for a custom material sampler.
 typedef struct kmaterial_sampler_config {
     kname name;
@@ -388,6 +376,18 @@ typedef struct kmaterial_sampler_config {
     texture_repeat repeat_v;
     texture_repeat repeat_w;
 } kmaterial_sampler_config;
+
+// Configuration for a material texture input.
+typedef struct kmaterial_texture_input_config {
+    // Name of the resource.
+    kname resource_name;
+    // Name of the package containing the resource.
+    kname package_name;
+    // Sampler config for this input map.
+    kmaterial_sampler_config sampler;
+    // The texture channel to sample, if relevant.
+    texture_channel channel;
+} kmaterial_texture_input_config;
 
 typedef u16 kmaterial;
 #define KMATERIAL_INVALID INVALID_ID_U16

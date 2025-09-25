@@ -8,6 +8,9 @@ const uint KMATERIAL_UBO_MAX_PROJECTIONS = 4;
 
 const uint KANIMATION_SSBO_MAX_BONES_PER_MESH = 64;
 
+const uint KANIMATION_MAX_BONES = 64;
+const uint KANIMATION_MAX_VERTEX_BONE_WEIGHTS = 4;
+
 struct light_data {
     // Directional light: .rgb = colour, .w = ignored - Point lights: .rgb = colour, .a = linear 
     vec4 colour;
@@ -129,7 +132,11 @@ layout(push_constant) uniform immediate_data {
     float wave_strength;
     float wave_speed;
 
-    // 64-127 available
+    // 64-80 
+    vec3 padding
+    uint animation_index;
+
+    // 80-127 available.
 } immediate;
 
 // =========================================================
@@ -171,6 +178,8 @@ void main() {
     mat4 view = global_settings.views[immediate.view_index];
     mat4 projection = global_settings.projections[immediate.projection_index];
     base_material_data base_material = global_materials.base_materials[immediate.base_material_index];
+    animation_skin_data skin = global_animations.animations[immediate.animation_index];
+    mat4 bones[] = skin.bones;
 
     if(base_material.material_type == 0) {
 	    out_dto.tex_coord = in_texcoord;
@@ -178,8 +187,25 @@ void main() {
 	    out_dto.tex_coord = vec2((in_position.x * 0.5) + 0.5, (in_position.z * 0.5) + 0.5) * immediate.tiling;
     }
     out_dto.vertex_colour = in_colour;
+
+    // Accumulate transformed position.
+    vec4 accumulated_pos = vec4(0);
+    for(uint i = 0; i < KANIMATION_MAX_VERTEX_BONE_WEIGHTS; ++i) {
+        if(in_bone_ids[i] == -1) {
+            continue;
+        }
+        if(in_bone_ids[i] >= KANIMATION_MAX_VERTEX_BONE_WEIGHTS) {
+            accumulated_pos = vec4(1.0);
+            break;
+        }
+        vec4 local_position = bones[in_bone_ids[i]] * vec4(in_position, 1.0);
+        accumulated_pos += local_position * in_weights[i];
+
+        // FIXME: This needs to match the rest of the shader.
+        vec3 local_normal = mat3(bones[in_bone_ids[i]]) * norm;
+    }
 	// Fragment position in world space.
-	out_dto.frag_position = model * vec4(in_position, 1.0);
+	out_dto.frag_position = model * accumulated_pos;// vec4(in_position, 1.0);
 	// Copy the normal over.
 	mat3 m3_model = mat3(model);
 	out_dto.normal = normalize(m3_model * in_normal);

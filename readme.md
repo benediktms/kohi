@@ -120,7 +120,9 @@ The audio plugin requires an installatiion of OpenAL.
 
 # Start
 
-To get started, get all of the prerequisites for your current platform (see above). After this, clone the repository: `git clone https://github.com/travisvroman/kohi`.
+To get started, get all of the prerequisites for your current platform (see above).
+NOTE: Kohi's tools (i.e. importers) now requires Assimp. The runtime does not require this, however. In the future the tools will likely be split into a separate repo to avoid this dependency in the main repo.
+After this, clone the repository recursively: `git clone --recurse-submodules https://github.com/travisvroman/kohi`.
 
 Note that you are free to use other compilers (such as gcc), but they are not officially supported at this time (although it shouldn't be much work to get them setup).
 
