@@ -1,4 +1,4 @@
-#include "kasset_skinned_mesh_serializer.h"
+#include "kasset_animated_mesh_serializer.h"
 
 #include "assets/kasset_types.h"
 #include "logger.h"
@@ -6,39 +6,39 @@
 #include "strings/kname.h"
 #include "strings/kstring.h"
 
-typedef struct binary_skinned_mesh_header {
+typedef struct binary_animated_mesh_header {
     // The base binary asset header. Must always be the first member.
     binary_asset_header base;
-    // The skinned_mesh extents.
+    // The animated_mesh extents.
     extents_3d extents;
-    // The skinned_mesh center point.
+    // The animated_mesh center point.
     vec3 center;
-    // The number of geometries in the skinned_mesh.
+    // The number of geometries in the animated_mesh.
     u16 geometry_count;
-} binary_skinned_mesh_header;
+} binary_animated_mesh_header;
 
-typedef struct binary_skinned_mesh_geometry {
+typedef struct binary_animated_mesh_geometry {
     u32 vertex_count;
     u32 index_count;
     extents_3d extents;
     vec3 center;
-} binary_skinned_mesh_geometry;
+} binary_animated_mesh_geometry;
 
-KAPI void* kasset_skinned_mesh_serialize(const kasset_skinned_mesh* asset, u64* out_size) {
+KAPI void* kasset_animated_mesh_serialize(const kasset_animated_mesh* asset, u64* out_size) {
     if (!asset) {
         KERROR("Cannot serialize without an asset, ya dingus!");
         return 0;
     }
 
-    binary_skinned_mesh_header header = {0};
+    binary_animated_mesh_header header = {0};
     // Base attributes.
     header.base.magic = ASSET_MAGIC;
-    header.base.type = (u32)KASSET_TYPE_SKINNED_MESH;
+    header.base.type = (u32)KASSET_TYPE_ANIMATED_MESH;
     header.base.data_block_size = 0;
     // Always write the most current version.
     header.base.version = 1;
 
-    kasset_skinned_mesh* typed_asset = (kasset_skinned_mesh*)asset;
+    kasset_animated_mesh* typed_asset = (kasset_animated_mesh*)asset;
 
     header.geometry_count = typed_asset->geometry_count;
     header.extents = typed_asset->extents;
@@ -48,7 +48,7 @@ KAPI void* kasset_skinned_mesh_serialize(const kasset_skinned_mesh* asset, u64* 
     {
 
         for (u32 i = 0; i < typed_asset->geometry_count; ++i) {
-            kasset_skinned_mesh_geometry* g = &typed_asset->geometries[i];
+            kasset_animated_mesh_geometry* g = &typed_asset->geometries[i];
 
             // Center and extents.
             header.base.data_block_size += sizeof(g->center);
@@ -97,21 +97,21 @@ KAPI void* kasset_skinned_mesh_serialize(const kasset_skinned_mesh* asset, u64* 
     }
 
     // The total space required for the data block.
-    *out_size = sizeof(binary_skinned_mesh_header) + header.base.data_block_size;
+    *out_size = sizeof(binary_animated_mesh_header) + header.base.data_block_size;
 
     // Allocate said block.
     u8* block = kallocate(*out_size, MEMORY_TAG_SERIALIZER);
     // Write the header block.
-    kcopy_memory(block, &header, sizeof(binary_skinned_mesh_header));
+    kcopy_memory(block, &header, sizeof(binary_animated_mesh_header));
 
     // For this asset, it's not quite a simple manner of just using the byte block.
     // Start by moving past the header.
-    u64 offset = sizeof(binary_skinned_mesh_header);
+    u64 offset = sizeof(binary_animated_mesh_header);
 
     // Iterate the geometries, writing first the size of the block it takes, followed
     // by the actual block of data itself.
     for (u32 i = 0; i < header.geometry_count; ++i) {
-        kasset_skinned_mesh_geometry* g = &typed_asset->geometries[i];
+        kasset_animated_mesh_geometry* g = &typed_asset->geometries[i];
 
         // Copy center and extents.
         kcopy_memory(block + offset, &g->center, sizeof(g->center));
@@ -186,39 +186,39 @@ KAPI void* kasset_skinned_mesh_serialize(const kasset_skinned_mesh* asset, u64* 
     return block;
 }
 
-KAPI b8 kasset_skinned_mesh_deserialize(u64 size, const void* in_block, kasset_skinned_mesh* out_asset) {
+KAPI b8 kasset_animated_mesh_deserialize(u64 size, const void* in_block, kasset_animated_mesh* out_asset) {
     if (!size || !in_block || !out_asset) {
-        KERROR("Cannot deserialize without a nonzero size, block of memory and an skinned_mesh to write to.");
+        KERROR("Cannot deserialize without a nonzero size, block of memory and an animated_mesh to write to.");
         return false;
     }
 
     const u8* block = in_block;
 
     // Extract header info by casting the first bits of the block to the header.
-    const binary_skinned_mesh_header* header = (const binary_skinned_mesh_header*)block;
+    const binary_animated_mesh_header* header = (const binary_animated_mesh_header*)block;
     if (header->base.magic != ASSET_MAGIC) {
         KERROR("Memory is not a Kohi binary asset.");
         return false;
     }
 
     kasset_type type = (kasset_type)header->base.type;
-    if (type != KASSET_TYPE_SKINNED_MESH) {
-        KERROR("Memory is not a Kohi skinned_mesh asset.");
+    if (type != KASSET_TYPE_ANIMATED_MESH) {
+        KERROR("Memory is not a Kohi animated_mesh asset.");
         return false;
     }
 
-    kasset_skinned_mesh* typed_asset = (kasset_skinned_mesh*)out_asset;
+    kasset_animated_mesh* typed_asset = (kasset_animated_mesh*)out_asset;
     typed_asset->geometry_count = header->geometry_count;
     typed_asset->extents = header->extents;
     typed_asset->center = header->center;
 
-    u64 offset = sizeof(binary_skinned_mesh_header);
+    u64 offset = sizeof(binary_animated_mesh_header);
     if (typed_asset->geometry_count) {
-        typed_asset->geometries = kallocate(sizeof(kasset_skinned_mesh_geometry) * typed_asset->geometry_count, MEMORY_TAG_ARRAY);
+        typed_asset->geometries = kallocate(sizeof(kasset_animated_mesh_geometry) * typed_asset->geometry_count, MEMORY_TAG_ARRAY);
 
         // Get geometry data.
         for (u32 i = 0; i < typed_asset->geometry_count; ++i) {
-            kasset_skinned_mesh_geometry* g = &typed_asset->geometries[i];
+            kasset_animated_mesh_geometry* g = &typed_asset->geometries[i];
 
             // Copy center and extents.
             kcopy_memory(&g->center, block + offset, sizeof(g->center));

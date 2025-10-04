@@ -9,10 +9,15 @@
 #include <assimp/scene.h>
 #include <assimp/types.h>
 #include <assimp/vector3.h>
+#include <bits/types/stack_t.h>
 
 #include "assets/kasset_types.h"
+#include "assimp/anim.h"
+#include "assimp/matrix4x4.h"
 #include "containers/darray.h"
 #include "core_render_types.h"
+#include "debug/kassert.h"
+#include "defines.h"
 #include "importers/kasset_importer_audio.h"
 #include "importers/kasset_importer_bitmap_font_fnt.h"
 #include "importers/kasset_importer_image.h"
@@ -27,7 +32,7 @@
 #include "platform/kpackage.h"
 #include "strings/kname.h"
 #include "strings/kstring.h"
-#include "systems/animation_system.h"
+#include "systems/kanimation_system.h"
 #include "utils/render_type_utils.h"
 
 /*
@@ -176,8 +181,11 @@ static skinned_mesh process_mesh(kname package_name, struct aiMesh* mesh, const 
     skinned_vertex_3d* vertices = KALLOC_TYPE_CARRAY(skinned_vertex_3d, mesh->mNumVertices);
     u8* vertex_bone_counts = KALLOC_TYPE_CARRAY(u8, mesh->mNumVertices);
 
-    u32* indices = darray_create(u32);
-    // TODO: textures
+    u32 index_count = 0;
+    for (u32 i = 0; i < mesh->mNumFaces; ++i) {
+        index_count += mesh->mFaces[i].mNumIndices;
+    }
+    u32* indices = KALLOC_TYPE_CARRAY(u32, index_count);
 
     for (u32 i = 0; i < mesh->mNumVertices; ++i) {
         skinned_vertex_3d* vert = &vertices[i];
@@ -208,6 +216,14 @@ static skinned_mesh process_mesh(kname package_name, struct aiMesh* mesh, const 
             vert->colour = (vec4){colour->r, colour->g, colour->b, colour->a};
         } else {
             vert->colour = vec4_one();
+        }
+    }
+
+    u32 ii = 0;
+    for (u32 i = 0; i < mesh->mNumFaces; ++i) {
+        struct aiFace face = mesh->mFaces[i];
+        for (u32 j = 0; j < face.mNumIndices; ++j) {
+            indices[ii] = face.mIndices[j];
         }
     }
 
@@ -370,6 +386,238 @@ b8 load_assimp_model(const char* source_path, kname package_name) {
     process_node(package_name, scene->mRootNode, scene);
 
     // TODO:
+}
+
+static mat4 mat4_from_ai(const struct aiMatrix4x4* source) {
+    // NOTE: Kohi expects column-major, and assimp uses row-major.
+    // Therefore, transpose the matrix here before returning.
+    mat4 m = {0};
+    m.data[0] = source->a1;
+    m.data[1] = source->b1;
+    m.data[2] = source->c1;
+    m.data[3] = source->d1;
+    m.data[4] = source->a2;
+    m.data[5] = source->b2;
+    m.data[6] = source->c2;
+    m.data[7] = source->d2;
+    m.data[8] = source->a3;
+    m.data[9] = source->b3;
+    m.data[10] = source->c3;
+    m.data[11] = source->d3;
+    m.data[12] = source->a4;
+    m.data[13] = source->b4;
+    m.data[14] = source->c4;
+    m.data[15] = source->d4;
+
+    return m;
+}
+
+// NOTE: This is the new version.
+b8 anim_asset_from_assimp(const char* source_path, kname package_name, kanimation_asset* out_asset) {
+    const struct aiScene* scene = aiImportFile(source_path, aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_CalcTangentSpace);
+    if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
+        KERROR("Error importing via assimp: %s", aiGetErrorString());
+        return false;
+    }
+
+    kzero_memory(out_asset, sizeof(kanimation_asset));
+    out_asset->global_inverse_transform = mat4_from_ai(&scene->mRootNode->mTransformation);
+    // TODO: Does this need to be the inverse?
+
+    // Get all unique bones across all meshes.
+    kanimated_mesh_bone bones[KANIMATION_MAX_BONES] = {0};
+    u32 bone_count = 0;
+    for (u32 m = 0; m < scene->mNumMeshes; ++m) {
+        struct aiMesh* mesh = scene->mMeshes[m];
+        for (u32 b = 0; b < mesh->mNumBones; ++b) {
+            struct aiBone* ai_bone = mesh->mBones[b];
+            kanimated_mesh_bone* bone = &bones[bone_count];
+            kname ai_bone_name = kname_create(ai_bone->mName.data);
+
+            b8 found = false;
+            for (u32 i = 0; i < bone_count; ++i) {
+                if (bones[i].name == ai_bone_name) {
+                    found = true;
+                    break;
+                }
+            }
+            if (found) {
+                // Bone already exists, skip it.
+                continue;
+            }
+            KASSERT(bone_count < KANIMATION_MAX_BONES);
+            bone->name = ai_bone_name;
+            bone->offset = mat4_from_ai(&ai_bone->mOffsetMatrix);
+            bone->id = bone_count;
+
+            bone_count++;
+        }
+    }
+
+    out_asset->bones = KALLOC_TYPE_CARRAY(kanimated_mesh_bone, bone_count);
+    out_asset->bone_count = bone_count;
+    KCOPY_TYPE_CARRAY(out_asset->bones, bones, kanimated_mesh_bone, bone_count);
+
+    // Flatten the node structure into a single array and reference by index instead.
+    u32 node_capacity = 256;
+    u32 node_count = 0;
+    kanimated_mesh_node* nodes = KALLOC_TYPE_CARRAY(kanimated_mesh_node, node_capacity);
+
+    typedef struct node_map_entry {
+        const struct aiNode* node;
+        u32 index;
+    } node_map_entry;
+
+    u32 node_map_count = 0;
+    u32 node_map_capacity = 0;
+    node_map_entry* node_map = KNULL;
+
+    // Push the root first
+    const struct aiNode* root = scene->mRootNode;
+    const struct aiNode* stack_nodes[1024];
+    u32 stack_top = 0;
+    stack_nodes[stack_top++] = root;
+    while (stack_top) {
+        const struct aiNode* current = stack_nodes[--stack_top];
+        if (node_count == node_capacity) {
+            nodes = KREALLOC_TYPE_CARRAY(nodes, kanimated_mesh_node, node_capacity, node_capacity * 2);
+            node_capacity *= 2;
+        }
+        kanimated_mesh_node* node = &nodes[node_count];
+        kzero_memory(node, sizeof(kanimated_mesh_node));
+        node->name = kname_create(current->mName.data);
+        node->parent_index = INVALID_ID;
+        node->children = KNULL;
+        node->child_count = 0;
+        // Add it to the map
+        if (node_map_count == node_map_capacity) {
+            node_map = KREALLOC_TYPE_CARRAY(node_map, node_map_entry, node_map_capacity, node_map_capacity ? node_map_capacity * 2 : 64);
+            node_map_capacity = node_map_capacity ? node_map_capacity * 2 : 64;
+        }
+        node_map_entry* entry = &node_map[node_map_count];
+        entry->node = current;
+        entry->index = node_count;
+        node_map_count++;
+        node_count++;
+        // Push children.
+        for (u32 i = 0; i < current->mNumChildren; ++i) {
+            stack_nodes[stack_top++] = current->mChildren[i];
+        }
+    }
+
+    // Set parent/child by re-iterating the map.
+    for (u32 i = 0; i < node_map_count; ++i) {
+        const struct aiNode* current = node_map[i].node;
+        u32 index = node_map[i].index;
+        for (u32 c = 0; c < current->mNumChildren; c++) {
+            const struct aiNode* child = current->mChildren[c];
+            u32 child_index = INVALID_ID;
+            for (u32 s = 0; s < node_map_count; ++s) {
+                if (node_map[s].node == child) {
+                    child_index = node_map[s].index;
+                    break;
+                }
+            }
+            if (child_index != INVALID_ID) {
+                kanimated_mesh_node* cn = &nodes[index];
+                cn->children = KREALLOC_TYPE_CARRAY(cn->children, u32, cn->child_count, cn->child_count + 1);
+                cn->children[cn->child_count++] = child_index;
+                nodes[child_index].parent_index = index;
+            }
+        }
+    }
+
+    out_asset->nodes = KALLOC_TYPE_CARRAY(kanimated_mesh_node, node_count);
+    KCOPY_TYPE_CARRAY(out_asset->nodes, nodes, kanimated_mesh_node, node_count);
+    out_asset->node_count = node_count;
+    KFREE_TYPE_CARRAY(nodes, kanimated_mesh_node, node_capacity);
+
+    // Copy channels and keys
+    u32 animation_count = out_asset->animation_count;
+    out_asset->animation_count = animation_count;
+    out_asset->animations = KALLOC_TYPE_CARRAY(kanimated_mesh_animation, out_asset->animation_count);
+    for (u32 a = 0; a < animation_count; ++a) {
+        struct aiAnimation* anim = scene->mAnimations[a];
+        kanimated_mesh_animation* out = &out_asset->animations[a];
+        out->name = kname_create(anim->mName.data);
+        out->duration = anim->mDuration;
+        out->ticks_per_second = anim->mTicksPerSecond;
+        out->channel_count = anim->mNumChannels;
+        out->channels = KALLOC_TYPE_CARRAY(kanimated_mesh_channel, out->channel_count);
+        for (u32 c = 0; c < out->channel_count; c++) {
+            struct aiNodeAnim* chn = anim->mChannels[c];
+            kanimated_mesh_channel* oc = &out->channels[c];
+            kzero_memory(oc, sizeof(kanimated_mesh_channel));
+            oc->name = kname_create(chn->mNodeName.data);
+
+            // Positions
+            oc->pos_count = chn->mNumPositionKeys;
+            if (oc->pos_count) {
+                oc->positions = KALLOC_TYPE_CARRAY(anim_key_vec3, oc->pos_count);
+                for (u32 k = 0; k < oc->pos_count; ++k) {
+                    struct aiVectorKey* vk = &chn->mPositionKeys[k];
+                    oc->positions[k].time = vk->mTime;
+                    oc->positions[k].value = (vec3){vk->mValue.x, vk->mValue.y, vk->mValue.z};
+                }
+            } else {
+                oc->positions = KNULL;
+            }
+
+            // Rotations
+            oc->rot_count = chn->mNumRotationKeys;
+            if (oc->rot_count) {
+                oc->rotations = KALLOC_TYPE_CARRAY(anim_key_quat, oc->rot_count);
+                for (u32 k = 0; k < oc->rot_count; ++k) {
+                    struct aiQuatKey* vk = &chn->mRotationKeys[k];
+                    oc->rotations[k].time = vk->mTime;
+                    oc->rotations[k].value = (quat){vk->mValue.x, vk->mValue.y, vk->mValue.z, vk->mValue.w};
+                }
+            } else {
+                oc->rotations = KNULL;
+            }
+
+            // Scales
+            oc->scale_count = chn->mNumScalingKeys;
+            if (oc->scale_count) {
+                oc->scales = KALLOC_TYPE_CARRAY(anim_key_vec3, oc->scale_count);
+                for (u32 k = 0; k < oc->scale_count; ++k) {
+                    struct aiVectorKey* vk = &chn->mScalingKeys[k];
+                    oc->scales[k].time = vk->mTime;
+                    oc->scales[k].value = (vec3){vk->mValue.x, vk->mValue.y, vk->mValue.z};
+                }
+            } else {
+                oc->scales = KNULL;
+            }
+        }
+    }
+
+    // Release all assimp resources.
+    aiReleaseImport(scene);
+
+    return true;
+}
+
+void anim_asset_destroy(kanimation_asset* asset) {
+    if (!asset) {
+        return;
+    }
+
+    for (u32 i = 0; i < asset->animation_count; ++i) {
+        kanimated_mesh_animation* a = &asset->animations[i];
+        for (u32 c = 0; c < a->channel_count; c++) {
+            kanimated_mesh_channel* ch = &a->channels[c];
+            KFREE_TYPE_CARRAY(ch->positions, anim_key_vec3, ch->pos_count);
+            KFREE_TYPE_CARRAY(ch->rotations, anim_key_quat, ch->rot_count);
+            KFREE_TYPE_CARRAY(ch->scales, anim_key_vec3, ch->scale_count);
+        }
+        KFREE_TYPE_CARRAY(a->channels, kanimated_mesh_channel, a->channel_count);
+    }
+    KFREE_TYPE_CARRAY(asset->animations, kanimated_mesh_animation, asset->animation_count);
+    KFREE_TYPE_CARRAY(asset->bones, kanimated_mesh_bone, asset->bone_count);
+    for (u32 i = 0; i < asset->node_count; ++i) {
+        KFREE_TYPE_CARRAY(asset->nodes[i].children, u32, asset->nodes[i].child_count);
+    }
+    KFREE_TYPE_CARRAY(asset->nodes, kanimated_mesh_node, asset->node_count);
 }
 
 b8 import_from_path(const char* source_path, const char* target_path, u8 option_count, const import_option* options) {

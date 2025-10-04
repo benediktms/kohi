@@ -37,7 +37,7 @@ typedef enum kasset_type {
     KASSET_TYPE_BINARY = 9,
     KASSET_TYPE_KSON = 10,
     KASSET_TYPE_VOXEL_TERRAIN = 11,
-    KASSET_TYPE_SKINNED_MESH = 12,
+    KASSET_TYPE_ANIMATED_MESH = 12,
     KASSET_TYPE_AUDIO = 13,
     KASSET_TYPE_SHADER = 14,
     KASSET_TYPE_MAX
@@ -229,27 +229,6 @@ typedef struct kasset_static_mesh {
     extents_3d extents;
     vec3 center;
 } kasset_static_mesh;
-
-#define KASSET_TYPE_NAME_SKINNED_MESH "SkinnedMesh"
-
-typedef struct kasset_skinned_mesh_geometry {
-    kname name;
-    kname material_asset_name;
-    u32 vertex_count;
-    skinned_vertex_3d* vertices;
-    u32 index_count;
-    u32* indices;
-    extents_3d extents;
-    vec3 center;
-} kasset_skinned_mesh_geometry;
-
-/** @brief Represents a skinned mesh asset. */
-typedef struct kasset_skinned_mesh {
-    u16 geometry_count;
-    kasset_skinned_mesh_geometry* geometries;
-    extents_3d extents;
-    vec3 center;
-} kasset_skinned_mesh;
 
 #define KASSET_TYPE_NAME_MATERIAL "Material"
 
@@ -460,3 +439,77 @@ typedef struct kasset_audio {
     /** Pulse-code modulation buffer, or raw data to be fed into a buffer. */
     i16* pcm_data;
 } kasset_audio;
+
+#define KASSET_TYPE_NAME_ANIMATED_MESH "AnimatedMesh"
+
+typedef struct kasset_animated_mesh_key_vec3 {
+    vec3 value;
+    f32 time;
+} kasset_animated_mesh_key_vec3;
+
+typedef struct kasset_animated_mesh_key_quat {
+    quat value;
+    f32 time;
+} kasset_animated_mesh_key_quat;
+
+typedef struct kasset_animated_mesh_channel {
+    kname name;
+    u32 pos_count;
+    kasset_animated_mesh_key_vec3* positions;
+    u32 scale_count;
+    kasset_animated_mesh_key_vec3* scales;
+    u32 rot_count;
+    kasset_animated_mesh_key_quat* rotations;
+} kasset_animated_mesh_channel;
+
+typedef struct kasset_animated_mesh_animation {
+    kname name;
+    f32 duration;
+    f32 ticks_per_second;
+    u32 channel_count;
+    kasset_animated_mesh_channel* channels;
+} kasset_animated_mesh_animation;
+
+// Bone data
+typedef struct kasset_animated_mesh_bone {
+    kname name;
+    // Transformation from mesh space to bone space.
+    mat4 offset;
+    // Index into bone array.
+    u32 id;
+} kasset_animated_mesh_bone;
+
+typedef struct kasset_animated_mesh_node {
+    kname name;
+    mat4 local_transform;
+    u32 parent_index; // INVALID_ID = root
+    u32 child_count;
+    u32* children;
+} kasset_animated_mesh_node;
+
+typedef struct kasset_animated_mesh_submesh_data {
+    kname name;
+    kname material_name;
+    u32 vertex_count;
+    skinned_vertex_3d* vertices;
+    u32 index_count;
+    u32* indices;
+} kasset_animated_mesh_submesh_data;
+
+/**
+ * Represents a Kohi Animated Mesh asset.
+ * The wrapper for the entire animated mesh asset.
+ */
+typedef struct kasset_animated_mesh {
+    u32 animation_count;
+    kasset_animated_mesh_animation* animations;
+    u32 bone_count;
+    kasset_animated_mesh_bone* bones;
+    u32 node_count;
+    kasset_animated_mesh_node* nodes;
+
+    mat4 global_inverse_transform;
+
+    u32 submesh_count;
+    kasset_animated_mesh_submesh_data* submeshes;
+} kasset_animated_mesh;

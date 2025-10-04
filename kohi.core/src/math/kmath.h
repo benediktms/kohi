@@ -235,6 +235,8 @@ KAPI f32 klog2(f32 x);
 
 KAPI f32 kpow(f32 x, f32 y);
 
+KAPI f32 kmod(f32 x, f32 y);
+
 KINLINE f32 klerp(f32 a, f32 b, f32 t) {
     return a + t * (b - a);
 }

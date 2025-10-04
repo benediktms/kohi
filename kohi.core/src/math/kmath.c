@@ -43,6 +43,8 @@ f32 klog2(f32 x) { return log2f(x); }
 
 f32 kpow(f32 x, f32 y) { return powf(x, y); }
 
+f32 kmod(f32 x, f32 y) { return fmodf(x, y); }
+
 i32 krandom(void) {
     if (!rand_seeded) {
         seed_randoms();

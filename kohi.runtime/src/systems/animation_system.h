@@ -55,7 +55,7 @@ typedef struct animation_bone {
 
 // Default transforms of the skeleton and its bones.
 typedef struct animation_skeleton_data {
-    // Coutns are based on the animation_data bone_count
+    // Counts are based on the animation_data bone_count
     mat4* transforms;
     animation_bone* bones;
 } animation_skeleton_data;
