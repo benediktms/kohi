@@ -36,6 +36,7 @@ static const char* memory_tag_strings[MEMORY_TAG_MAX_TAGS] = {
     "UNKNOWN    ",
     "ARRAY      ",
     "LINEAR_ALLC",
+    "POOL_ALLOC ",
     "DARRAY     ",
     "DICT       ",
     "RING_QUEUE ",

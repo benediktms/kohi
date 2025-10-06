@@ -60,7 +60,7 @@ b8 kasset_type_is_binary(kasset_type type) {
     case KASSET_TYPE_BITMAP_FONT:
     case KASSET_TYPE_BINARY:
     case KASSET_TYPE_VOXEL_TERRAIN:
-    case KASSET_TYPE_SKINNED_MESH:
+    case KASSET_TYPE_ANIMATED_MESH:
     case KASSET_TYPE_AUDIO:
         return true;
     }

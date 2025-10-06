@@ -9,198 +9,15 @@
 #include "math/geometry.h"
 #include "math/kmath.h"
 #include "math/math_types.h"
+#include "memory/allocators/pool_allocator.h"
 #include "memory/kmemory.h"
 #include "renderer/renderer_frontend.h"
 #include "strings/kname.h"
 #include "systems/asset_system.h"
 #include "systems/kmaterial_system.h"
 
-static kanimated_mesh_channel* kanimation_find_channel(kanimated_mesh_animation* animation, kname node_name) {
-    for (u32 i = 0; i < animation->channel_count; ++i) {
-        if (animation->channels[i].name == node_name) {
-            return &animation->channels[i];
-        }
-    }
-    return 0;
-}
-
-static u32 base_find_node_index(kanimated_mesh_base* base, kname name) {
-    for (u32 i = 0; i < base->node_count; ++i) {
-        if (base->nodes[i].name == name) {
-            return i;
-        }
-    }
-
-    return INVALID_ID;
-}
-
-static u32 base_find_bone_index(kanimated_mesh_base* base, kname name) {
-    for (u32 i = 0; i < base->bone_count; ++i) {
-        if (base->bones[i].name == name) {
-            return i;
-        }
-    }
-
-    return INVALID_ID;
-}
-
-static vec3 interpolate_position(const kanimated_mesh_channel* channel, f32 time) {
-    if (!channel->pos_count) {
-        return vec3_zero();
-    }
-    if (channel->pos_count == 1) {
-        return channel->positions[0].value;
-    }
-
-    u32 idx = 0;
-    while (idx + 1 < channel->pos_count && time >= channel->positions[idx + 1].time) {
-        idx++;
-    }
-    if (idx + 1 == channel->pos_count) {
-        return channel->positions[channel->pos_count - 1].value;
-    }
-
-    f32 t0 = channel->positions[idx + 0].time;
-    f32 t1 = channel->positions[idx + 1].time;
-    f32 factor = (f32)((time - t0) / (t1 - t0));
-    return vec3_lerp(channel->positions[idx].value, channel->positions[idx + 1].value, factor);
-}
-
-static quat interpolate_rotation(const kanimated_mesh_channel* channel, f32 time) {
-    if (!channel->rot_count) {
-        return quat_identity();
-    }
-    if (channel->rot_count == 1) {
-        return channel->rotations[0].value;
-    }
-
-    u32 idx = 0;
-    while (idx + 1 < channel->rot_count && time >= channel->rotations[idx + 1].time) {
-        idx++;
-    }
-    if (idx + 1 == channel->rot_count) {
-        return channel->rotations[channel->rot_count - 1].value;
-    }
-
-    f32 t0 = channel->rotations[idx + 0].time;
-    f32 t1 = channel->rotations[idx + 1].time;
-    f32 factor = (f32)((time - t0) / (t1 - t0));
-    return quat_slerp(channel->rotations[idx].value, channel->rotations[idx + 1].value, factor);
-}
-
-static vec3 interpolate_scale(const kanimated_mesh_channel* channel, f32 time) {
-    if (!channel->scale_count) {
-        return vec3_zero();
-    }
-    if (channel->scale_count == 1) {
-        return channel->scales[0].value;
-    }
-
-    u32 idx = 0;
-    while (idx + 1 < channel->scale_count && time >= channel->scales[idx + 1].time) {
-        idx++;
-    }
-    if (idx + 1 == channel->scale_count) {
-        return channel->scales[channel->scale_count - 1].value;
-    }
-
-    f32 t0 = channel->scales[idx + 0].time;
-    f32 t1 = channel->scales[idx + 1].time;
-    f32 factor = (f32)((time - t0) / (t1 - t0));
-    return vec3_lerp(channel->scales[idx].value, channel->scales[idx + 1].value, factor);
-}
-
-static void process_animator(kanimated_mesh_system_state* state, kanimated_mesh_animator* animator, kanimated_mesh_animation* animation, u32 node_index, const mat4 parent_transform) {
-    kanimated_mesh_base* asset = &state->base_meshes[animator->base];
-    kanimated_mesh_node* node = &asset->nodes[node_index];
-    mat4 node_transform = node->local_transform;
-
-    kanimated_mesh_channel* channel = kanimation_find_channel(animation, node->name);
-    if (channel) {
-        vec3 translation = interpolate_position(channel, animator->time_in_ticks);
-        quat rotation = interpolate_rotation(channel, animator->time_in_ticks);
-        vec3 scale = interpolate_scale(channel, animator->time_in_ticks);
-        node_transform = mat4_from_translation_rotation_scale(translation, rotation, scale);
-    }
-
-    mat4 world_transform = mat4_mul(parent_transform, node_transform);
-
-    u32 bone_index = base_find_bone_index(asset, node->name);
-    if (bone_index != INVALID_ID) {
-        mat4 final_matrix = mat4_mul(asset->global_inverse_transform, world_transform);
-        final_matrix = mat4_mul(final_matrix, asset->bones[bone_index].offset);
-        if (bone_index < animator->max_bones) {
-            animator->final_bone_matrices[bone_index] = final_matrix;
-        }
-    }
-
-    // Recurse children.
-    for (u32 i = 0; i < node->child_count; ++i) {
-        u32 ci = node->children[i];
-        process_animator(state, animator, animation, ci, world_transform);
-    }
-}
-
-static void animator_create(kanimated_mesh_base* asset, kanimated_mesh_animator* out_animator) {
-    out_animator->base = asset->id;
-    out_animator->current_animation = (asset->animation_count > 0) ? 0 : INVALID_ID_U16;
-    out_animator->time_in_ticks = 0.0f;
-    out_animator->max_bones = asset->bone_count;
-    for (u32 i = 0; i < KANIMATION_MAX_BONES; ++i) {
-        out_animator->final_bone_matrices[i] = mat4_identity();
-    }
-}
-
-static void animator_set_animation(kanimated_mesh_system_state* state, kanimated_mesh_animator* animator, u16 index) {
-    kanimated_mesh_base* base = &state->base_meshes[animator->base];
-    if (index >= base->animation_count) {
-        return;
-    }
-
-    animator->current_animation = index;
-    animator->time_in_ticks = 0.0f;
-}
-
-static void animator_update(kanimated_mesh_system_state* state, kanimated_mesh_animator* animator, f32 delta_time) {
-    if (animator->current_animation == INVALID_ID_U16) {
-        return;
-    }
-    kanimated_mesh_base* base = &state->base_meshes[animator->base];
-    kanimated_mesh_animation* current = &base->animations[animator->current_animation];
-    f32 ticks_per_second = current->ticks_per_second;
-    f32 delta_ticks = delta_time * ticks_per_second;
-    animator->time_in_ticks += delta_ticks;
-
-    // Wrap around.
-    f32 duration = current->duration;
-    if (duration > 0.0f) {
-        animator->time_in_ticks += kmod(animator->time_in_ticks, duration);
-        if (animator->time_in_ticks < 0.0f) {
-            animator->time_in_ticks += duration;
-        }
-    }
-
-    // Process the hierarchy starting at the root.
-    for (u32 i = 0; i < base->node_count; ++i) {
-        if (base->nodes[i].parent_index == INVALID_ID) {
-            process_animator(state, animator, current, i, mat4_identity());
-        }
-    }
-}
-
-static void animator_get_bone_transforms(kanimated_mesh_system_state* state, kanimated_mesh_animator* animator, u32 count, mat4* out_transforms) {
-    kanimated_mesh_base* base = &state->base_meshes[animator->base];
-    u32 n = base->bone_count;
-    if (count < n) {
-        n = count;
-    }
-
-    for (u32 i = 0; i < n; ++i) {
-        out_transforms[i] = animator->final_bone_matrices[i];
-    }
-}
-
 b8 kanimated_mesh_system_initialize(u64* memory_requirement, kanimated_mesh_system_state* memory, const kanimated_mesh_system_config* config) {
+    u32 max_instance_count = config->max_instance_count ? config->max_instance_count : 100;
     *memory_requirement = sizeof(kanimated_mesh_system_state);
 
     if (!memory) {
@@ -210,11 +27,22 @@ b8 kanimated_mesh_system_initialize(u64* memory_requirement, kanimated_mesh_syst
     kanimated_mesh_system_state* state = memory;
 
     state->default_application_package_name = config->default_application_package_name;
+    state->max_instance_count = max_instance_count;
 
     state->base_meshes = darray_create(kanimated_mesh_base);
     state->instances = darray_create(kanimated_mesh_animator*);
 
     state->global_time_scale = 1.0f;
+
+    // Global lighting storage buffer
+    u64 buffer_size = sizeof(mat4) * state->max_instance_count;
+    state->global_animation_ssbo = renderer_renderbuffer_create(engine_systems_get()->renderer_system, kname_create(KRENDERBUFFER_NAME_ANIMATIONS_GLOBAL), RENDERBUFFER_TYPE_STORAGE, buffer_size, RENDERBUFFER_TRACK_TYPE_NONE, RENDERBUFFER_FLAG_AUTO_MAP_MEMORY_BIT);
+    KASSERT(state->global_animation_ssbo != KRENDERBUFFER_INVALID);
+    KDEBUG("Created kanimation global storage buffer.");
+
+    // The free states of instances here are managed by a pool allocator.
+    state->shader_data_pool = pool_allocator_create(sizeof(kanimated_mesh_animation_shader_data), state->max_instance_count);
+    state->shader_data = state->shader_data_pool.memory;
 
     return true;
 }
@@ -222,6 +50,10 @@ b8 kanimated_mesh_system_initialize(u64* memory_requirement, kanimated_mesh_syst
 void kanimated_mesh_system_shutdown(kanimated_mesh_system_state* state) {
     // TODO: release all instances.
     // TODO: release all base meshes. (including unload from GPU)
+
+    if (state) {
+        renderer_renderbuffer_destroy(engine_systems_get()->renderer_system, state->global_animation_ssbo);
+    }
 }
 
 void kanimated_mesh_system_update(kanimated_mesh_system_state* state, frame_data* p_frame_data) {
@@ -266,7 +98,7 @@ static b8 get_base_id(struct kanimated_mesh_system_state* state, kname asset_nam
         }
     }
 
-    // If no empty slot, push new entry and use it.
+    // If no empty slot, it's an error as there is no more room.
     if (id == INVALID_ID_U16) {
         kanimated_mesh_base dummy = {0};
         darray_push(state->base_meshes, dummy);
@@ -295,6 +127,7 @@ static u16 get_new_instance_id(struct kanimated_mesh_system_state* state, u16 ba
             // Free slot found, use it.
             state->instances[base_id][i].base = base_id;
             state->instances[base_id][i].current_animation = INVALID_ID_U16;
+            state->instances[base_id][i].shader_data = pool_allocator_allocate(&state->shader_data_pool);
             return i;
         }
     }
@@ -302,6 +135,7 @@ static u16 get_new_instance_id(struct kanimated_mesh_system_state* state, u16 ba
     kanimated_mesh_animator new_inst = {0};
     new_inst.base = base_id;
     new_inst.current_animation = INVALID_ID_U16;
+    new_inst.shader_data = pool_allocator_allocate(&state->shader_data_pool);
     darray_push(state->instances[base_id], new_inst);
 
     return len;
@@ -552,6 +386,10 @@ void kanimated_mesh_instance_release(struct kanimated_mesh_system_state* state, 
     kzero_memory(inst, sizeof(kanimated_mesh_animator));
     inst->base = INVALID_ID_U16;
     inst->current_animation = INVALID_ID_U16;
+    if (inst->shader_data) {
+        pool_allocator_free(&state->shader_data_pool, inst->shader_data);
+        inst->shader_data = 0;
+    }
 
     u16 active_count = get_active_instance_count(state, instance->base_mesh);
     if (!active_count) {
@@ -583,34 +421,303 @@ void kanimated_mesh_instance_release(struct kanimated_mesh_system_state* state, 
 
         KFREE_TYPE_CARRAY(base->meshes, kanimated_mesh, base->mesh_count);
 
-        // LEFTOFF: Cleanup animations, bones, etc.
+        // Cleanup animations.
+        if (base->animation_count && base->animations) {
+            for (u32 i = 0; i < base->animation_count; ++i) {
+                kanimated_mesh_animation* anim = &base->animations[i];
+
+                if (anim->channels && anim->channel_count) {
+                    for (u32 c = 0; c < anim->channel_count; c++) {
+                        kanimated_mesh_channel* ch = &anim->channels[c];
+
+                        if (ch->pos_count && ch->positions) {
+                            KFREE_TYPE_CARRAY(ch->positions, anim_key_vec3, ch->pos_count);
+                        }
+
+                        if (ch->scale_count && ch->scales) {
+                            KFREE_TYPE_CARRAY(ch->scales, anim_key_vec3, ch->scale_count);
+                        }
+
+                        if (ch->rot_count && ch->rotations) {
+                            KFREE_TYPE_CARRAY(ch->rotations, anim_key_quat, ch->rot_count);
+                        }
+                    }
+
+                    KFREE_TYPE_CARRAY(anim->channels, kanimated_mesh_channel, anim->channel_count);
+                }
+            }
+
+            KFREE_TYPE_CARRAY(base->animations, kanimated_mesh_animation, base->animation_count);
+        }
+
+        if (base->node_count && base->nodes) {
+            for (u32 i = 0; i < base->node_count; ++i) {
+                kanimated_mesh_node* node = &base->nodes[i];
+
+                if (node->child_count && node->children) {
+                    KFREE_TYPE_CARRAY(node->children, u32, node->child_count);
+                }
+            }
+
+            KFREE_TYPE_CARRAY(base->nodes, kanimated_mesh_node, base->node_count);
+        }
+
+        if (base->bone_count && base->bones) {
+            KFREE_TYPE_CARRAY(base->bones, kanimated_mesh_bone, base->bone_count);
+        }
+
+        kzero_memory(base, sizeof(kanimated_mesh_base));
+
+        base->id = INVALID_ID_U16;
     }
 }
 
 // NOTE: Returns dynamic array, needs to be freed by caller.
 kname* kanimated_mesh_query_animations(struct kanimated_mesh_system_state* state, u16 base_mesh, u32* out_count) {
+    u32 count = state->base_meshes[base_mesh].animation_count;
+
+    kname* anim_names = KALLOC_TYPE_CARRAY(kname, count);
+    for (u32 i = 0; i < count; ++i) {
+        anim_names[i] = state->base_meshes[base_mesh].animations[i].name;
+    }
+
+    *out_count = count;
+    return anim_names;
 }
 
 void kanimated_mesh_instance_animation_set(struct kanimated_mesh_system_state* state, kanimated_mesh_instance instance, kname animation_name) {
+    kanimated_mesh_base* base = &state->base_meshes[instance.base_mesh];
+    kanimated_mesh_animator* inst = &state->instances[instance.base_mesh][instance.instance];
+
+    u32 count = base->animation_count;
+    for (u32 i = 0; i < count; ++i) {
+        if (base->animations[i].name == animation_name) {
+            KTRACE("Animation '%s' now active on base mesh '%s'.", kname_string_get(base->animations[i].name), kname_string_get(base->asset_name));
+            inst->current_animation = i;
+            break;
+        }
+    }
+
+    KWARN("Animation '%s' not found on base mesh '%s'.", kname_string_get(animation_name), kname_string_get(base->asset_name));
+    if (inst->current_animation == INVALID_ID_U16) {
+        if (base->animation_count > 0) {
+            inst->current_animation = 0;
+            KWARN("Set animation to default of the first entry, '%s'.", kname_string_get(base->animations[0].name));
+        } else {
+            KWARN("No animations exist, thus there is nothing to set.");
+        }
+    }
 }
 
 void kanimated_mesh_instance_time_scale_set(kanimated_mesh_system_state* state, kanimated_mesh_instance instance, f32 time_scale) {
+    /* kanimated_mesh_base* base = &state->base_meshes[instance.base_mesh]; */
+    /* kanimated_mesh_animator* inst = &state->instances[instance.base_mesh][instance.instance]; */
+    // TODO: set instance timescale
 }
 
 void kanimated_mesh_instance_loop_set(struct kanimated_mesh_system_state* state, kanimated_mesh_instance instance, b8 loop) {
+    // TODO: enable/disable looping.
 }
 void kanimated_mesh_instance_play(struct kanimated_mesh_system_state* state, kanimated_mesh_instance instance) {
+    // TODO: set instance state to play
 }
 void kanimated_mesh_instance_pause(struct kanimated_mesh_system_state* state, kanimated_mesh_instance instance) {
+    // TODO: set instance state to pause
 }
 void kanimated_mesh_instance_stop(struct kanimated_mesh_system_state* state, kanimated_mesh_instance instance) {
+    // TODO: set instance state to stopped, reset time to 0.
 }
 void kanimated_mesh_instance_seek(struct kanimated_mesh_system_state* state, kanimated_mesh_instance instance, f32 time) {
-
-} // 0-total animation track time
+    // TODO: Set instance time, but clamp within range (maybe mod?). Loop if enabled?
+}
 void kanimated_mesh_instance_seek_percent(struct kanimated_mesh_system_state* state, kanimated_mesh_instance instance, f32 percent) {
-
-} // 0-1
+    // TODO: clamp 0-1, set to percent of duration.
+}
 void kanimated_mesh_instance_playback_speed(struct kanimated_mesh_system_state* state, kanimated_mesh_instance instance, f32 speed) {
+    // TODO: Same as time scale.
+}
 
-} // 1.0 is normal, 2.0 is double, etc.
+static kanimated_mesh_channel* kanimation_find_channel(kanimated_mesh_animation* animation, kname node_name) {
+    for (u32 i = 0; i < animation->channel_count; ++i) {
+        if (animation->channels[i].name == node_name) {
+            return &animation->channels[i];
+        }
+    }
+    return 0;
+}
+
+static u32 base_find_node_index(kanimated_mesh_base* base, kname name) {
+    for (u32 i = 0; i < base->node_count; ++i) {
+        if (base->nodes[i].name == name) {
+            return i;
+        }
+    }
+
+    return INVALID_ID;
+}
+
+static u32 base_find_bone_index(kanimated_mesh_base* base, kname name) {
+    for (u32 i = 0; i < base->bone_count; ++i) {
+        if (base->bones[i].name == name) {
+            return i;
+        }
+    }
+
+    return INVALID_ID;
+}
+
+static vec3 interpolate_position(const kanimated_mesh_channel* channel, f32 time) {
+    if (!channel->pos_count) {
+        return vec3_zero();
+    }
+    if (channel->pos_count == 1) {
+        return channel->positions[0].value;
+    }
+
+    u32 idx = 0;
+    while (idx + 1 < channel->pos_count && time >= channel->positions[idx + 1].time) {
+        idx++;
+    }
+    if (idx + 1 == channel->pos_count) {
+        return channel->positions[channel->pos_count - 1].value;
+    }
+
+    f32 t0 = channel->positions[idx + 0].time;
+    f32 t1 = channel->positions[idx + 1].time;
+    f32 factor = (f32)((time - t0) / (t1 - t0));
+    return vec3_lerp(channel->positions[idx].value, channel->positions[idx + 1].value, factor);
+}
+
+static quat interpolate_rotation(const kanimated_mesh_channel* channel, f32 time) {
+    if (!channel->rot_count) {
+        return quat_identity();
+    }
+    if (channel->rot_count == 1) {
+        return channel->rotations[0].value;
+    }
+
+    u32 idx = 0;
+    while (idx + 1 < channel->rot_count && time >= channel->rotations[idx + 1].time) {
+        idx++;
+    }
+    if (idx + 1 == channel->rot_count) {
+        return channel->rotations[channel->rot_count - 1].value;
+    }
+
+    f32 t0 = channel->rotations[idx + 0].time;
+    f32 t1 = channel->rotations[idx + 1].time;
+    f32 factor = (f32)((time - t0) / (t1 - t0));
+    return quat_slerp(channel->rotations[idx].value, channel->rotations[idx + 1].value, factor);
+}
+
+static vec3 interpolate_scale(const kanimated_mesh_channel* channel, f32 time) {
+    if (!channel->scale_count) {
+        return vec3_zero();
+    }
+    if (channel->scale_count == 1) {
+        return channel->scales[0].value;
+    }
+
+    u32 idx = 0;
+    while (idx + 1 < channel->scale_count && time >= channel->scales[idx + 1].time) {
+        idx++;
+    }
+    if (idx + 1 == channel->scale_count) {
+        return channel->scales[channel->scale_count - 1].value;
+    }
+
+    f32 t0 = channel->scales[idx + 0].time;
+    f32 t1 = channel->scales[idx + 1].time;
+    f32 factor = (f32)((time - t0) / (t1 - t0));
+    return vec3_lerp(channel->scales[idx].value, channel->scales[idx + 1].value, factor);
+}
+
+static void process_animator(kanimated_mesh_system_state* state, kanimated_mesh_animator* animator, kanimated_mesh_animation* animation, u32 node_index, const mat4 parent_transform) {
+    kanimated_mesh_base* asset = &state->base_meshes[animator->base];
+    kanimated_mesh_node* node = &asset->nodes[node_index];
+    mat4 node_transform = node->local_transform;
+
+    kanimated_mesh_channel* channel = kanimation_find_channel(animation, node->name);
+    if (channel) {
+        vec3 translation = interpolate_position(channel, animator->time_in_ticks);
+        quat rotation = interpolate_rotation(channel, animator->time_in_ticks);
+        vec3 scale = interpolate_scale(channel, animator->time_in_ticks);
+        node_transform = mat4_from_translation_rotation_scale(translation, rotation, scale);
+    }
+
+    mat4 world_transform = mat4_mul(parent_transform, node_transform);
+
+    u32 bone_index = base_find_bone_index(asset, node->name);
+    if (bone_index != INVALID_ID) {
+        mat4 final_matrix = mat4_mul(asset->global_inverse_transform, world_transform);
+        final_matrix = mat4_mul(final_matrix, asset->bones[bone_index].offset);
+        if (bone_index < animator->max_bones) {
+            animator->shader_data->final_bone_matrices[bone_index] = final_matrix;
+        }
+    }
+
+    // Recurse children.
+    for (u32 i = 0; i < node->child_count; ++i) {
+        u32 ci = node->children[i];
+        process_animator(state, animator, animation, ci, world_transform);
+    }
+}
+
+static void animator_create(kanimated_mesh_base* asset, kanimated_mesh_animator* out_animator) {
+    out_animator->base = asset->id;
+    out_animator->current_animation = (asset->animation_count > 0) ? 0 : INVALID_ID_U16;
+    out_animator->time_in_ticks = 0.0f;
+    out_animator->max_bones = asset->bone_count;
+    for (u32 i = 0; i < KANIMATION_MAX_BONES; ++i) {
+        out_animator->shader_data->final_bone_matrices[i] = mat4_identity();
+    }
+}
+
+static void animator_set_animation(kanimated_mesh_system_state* state, kanimated_mesh_animator* animator, u16 index) {
+    kanimated_mesh_base* base = &state->base_meshes[animator->base];
+    if (index >= base->animation_count) {
+        return;
+    }
+
+    animator->current_animation = index;
+    animator->time_in_ticks = 0.0f;
+}
+
+static void animator_update(kanimated_mesh_system_state* state, kanimated_mesh_animator* animator, f32 delta_time) {
+    if (animator->current_animation == INVALID_ID_U16) {
+        return;
+    }
+    kanimated_mesh_base* base = &state->base_meshes[animator->base];
+    kanimated_mesh_animation* current = &base->animations[animator->current_animation];
+    f32 ticks_per_second = current->ticks_per_second;
+    f32 delta_ticks = delta_time * ticks_per_second;
+    animator->time_in_ticks += delta_ticks;
+
+    // Wrap around.
+    f32 duration = current->duration;
+    if (duration > 0.0f) {
+        animator->time_in_ticks += kmod(animator->time_in_ticks, duration);
+        if (animator->time_in_ticks < 0.0f) {
+            animator->time_in_ticks += duration;
+        }
+    }
+
+    // Process the hierarchy starting at the root.
+    for (u32 i = 0; i < base->node_count; ++i) {
+        if (base->nodes[i].parent_index == INVALID_ID) {
+            process_animator(state, animator, current, i, mat4_identity());
+        }
+    }
+}
+
+static void animator_get_bone_transforms(kanimated_mesh_system_state* state, kanimated_mesh_animator* animator, u32 count, mat4* out_transforms) {
+    kanimated_mesh_base* base = &state->base_meshes[animator->base];
+    u32 n = base->bone_count;
+    if (count < n) {
+        n = count;
+    }
+
+    for (u32 i = 0; i < n; ++i) {
+        out_transforms[i] = animator->shader_data->final_bone_matrices[i];
+    }
+}

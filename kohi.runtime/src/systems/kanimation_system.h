@@ -5,9 +5,12 @@
 #include "defines.h"
 #include "math/geometry.h"
 #include "math/math_types.h"
+#include "memory/allocators/pool_allocator.h"
+#include "renderer/renderer_types.h"
 #include "strings/kname.h"
 
 #define KANIMATION_MAX_BONES 64
+#define KRENDERBUFFER_NAME_ANIMATIONS_GLOBAL "Kohi.StorageBuffer.AnimationsGlobal"
 
 typedef struct anim_key_vec3 {
     vec3 value;
@@ -80,6 +83,10 @@ typedef struct kanimated_mesh_base {
     kanimated_mesh* meshes;
 } kanimated_mesh_base;
 
+typedef struct kanimated_mesh_animation_shader_data {
+    mat4 final_bone_matrices[KANIMATION_MAX_BONES];
+} kanimated_mesh_animation_shader_data;
+
 // One animator = one animated mesh instance state
 typedef struct kanimated_mesh_animator {
     kname name;
@@ -88,7 +95,8 @@ typedef struct kanimated_mesh_animator {
     // Index into the animation array. INVALID_ID_U16 = no current animation.
     u16 current_animation;
     f32 time_in_ticks;
-    mat4 final_bone_matrices[KANIMATION_MAX_BONES];
+    // Pointer to shader_data array where data is stored.
+    kanimated_mesh_animation_shader_data* shader_data;
     u32 max_bones;
 } kanimated_mesh_animator;
 
@@ -99,18 +107,29 @@ typedef struct kanimated_mesh_instance {
 
 typedef struct kanimated_mesh_system_config {
     kname default_application_package_name;
+    // Max number of instances shared across all meshes.
+    u16 max_instance_count;
 } kanimated_mesh_system_config;
 
 typedef struct kanimated_mesh_system_state {
     kname default_application_package_name;
+    // Max number of instances shared across all meshes.
+    u16 max_instance_count;
 
     f32 global_time_scale;
 
-    // darray
+    // darray Base meshes.
     kanimated_mesh_base* base_meshes;
 
-    // darray, first dimension matches base_meshes (indexed by base mesh id), then indexed by instance id.
+    // darray First dimension matches base_meshes (indexed by base mesh id).
+    // Second dimension is a darray indexed by instance id.
     kanimated_mesh_animator** instances;
+
+    krenderbuffer global_animation_ssbo;
+
+    // Element count = max_instance_count
+    pool_allocator shader_data_pool;
+    kanimated_mesh_animation_shader_data* shader_data;
 } kanimated_mesh_system_state;
 
 typedef void (*PFN_animated_mesh_loaded)(kanimated_mesh_instance instance, void* context);
