@@ -17,6 +17,8 @@ b8 source_image_2_kbi(const char* source_path, const char* target_path, b8 flip_
 
 b8 fnt_2_kbf(const char* source_path, const char* target_path);
 
+b8 dae_fbx_2_kam(const char* source_path, const char* target_path, const char* material_target_dir, const char* package_name);
+
 typedef struct import_option {
     const char* name;
     const char* value;

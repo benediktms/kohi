@@ -31,10 +31,10 @@
 #include "renderer/renderer_frontend.h"
 
 // systems
-#include "systems/animation_system.h"
 #include "systems/asset_system.h"
 #include "systems/font_system.h"
 #include "systems/job_system.h"
+#include "systems/kanimation_system.h"
 #include "systems/kcamera_system.h"
 #include "systems/kmaterial_system.h"
 #include "systems/kshader_system.h"
@@ -42,7 +42,6 @@
 #include "systems/ktransform_system.h"
 #include "systems/light_system.h"
 #include "systems/plugin_system.h"
-#include "systems/skinned_mesh_system.h"
 #include "systems/static_mesh_system.h"
 #include "systems/texture_system.h"
 
@@ -499,12 +498,17 @@ b8 engine_create(application* app) {
         }
     }
 
-    // Animation system
+    // Animated mesh system
     {
-        animation_system_initialize(&systems->animation_system_memory_requirement, 0, 0);
-        systems->animation_system = kallocate(systems->animation_system_memory_requirement, MEMORY_TAG_ENGINE);
-        if (!animation_system_initialize(&systems->animation_system_memory_requirement, systems->animation_system, 0)) {
-            KERROR("Failed to initialize animation system.");
+        kanimated_mesh_system_config animated_mesh_sys_config = {
+            .default_application_package_name = app->app_config.default_package_name,
+            // FIXME: Read from app config.
+            .max_instance_count = 128};
+
+        kanimated_mesh_system_initialize(&systems->kanimation_system_memory_requirement, 0, &animated_mesh_sys_config);
+        systems->animation_system = kallocate(systems->kanimation_system_memory_requirement, MEMORY_TAG_ENGINE);
+        if (!kanimated_mesh_system_initialize(&systems->kanimation_system_memory_requirement, systems->animation_system, &animated_mesh_sys_config)) {
+            KERROR("Failed to initialize animated mesh system.");
             return false;
         }
     }
@@ -542,17 +546,6 @@ b8 engine_create(application* app) {
         systems->static_mesh_system = kallocate(systems->static_mesh_system_memory_requirement, MEMORY_TAG_ENGINE);
         if (!static_mesh_system_initialize(&systems->static_mesh_system_memory_requirement, systems->static_mesh_system, config)) {
             KERROR("Failed to initialize static mesh system.");
-            return false;
-        }
-    }
-
-    // Skinned mesh system
-    {
-        skinned_mesh_system_config config = {.application_package_name = app->app_config.default_package_name};
-        skinned_mesh_system_initialize(&systems->skinned_mesh_system_memory_requirement, 0, config);
-        systems->skinned_mesh_system = kallocate(systems->skinned_mesh_system_memory_requirement, MEMORY_TAG_ENGINE);
-        if (!skinned_mesh_system_initialize(&systems->skinned_mesh_system_memory_requirement, systems->skinned_mesh_system, config)) {
-            KERROR("Failed to initialize skinned system.");
             return false;
         }
     }
@@ -683,6 +676,8 @@ b8 engine_run(application* app) {
             // because we don't want or have timeline data in the frame_data struct any longer.
             ktimeline_system_update(engine_state->systems.timeline_system, delta);
 
+            kanimated_mesh_system_update(engine_state->systems.animation_system, delta, &engine_state->p_frame_data);
+
             // update metrics
             metrics_update(frame_elapsed_time);
 
@@ -738,6 +733,7 @@ b8 engine_run(application* app) {
             // need to occur have happened.
             ktransform_system_update(engine_state->systems.ktransform_system, &engine_state->p_frame_data);
             light_system_frame_prepare(engine_state->systems.light_system, &engine_state->p_frame_data);
+            kanimated_mesh_system_frame_prepare(engine_state->systems.animation_system, &engine_state->p_frame_data);
 
             // Start recording to the command list.
             if (!renderer_frame_command_list_begin(engine_state->systems.renderer_system, &engine_state->p_frame_data)) {
@@ -848,10 +844,9 @@ b8 engine_run(application* app) {
 
         kcamera_system_shutdown(systems->camera_system);
         static_mesh_system_shutdown(systems->static_mesh_system);
-        skinned_mesh_system_shutdown(systems->skinned_mesh_system);
+        kanimated_mesh_system_shutdown(systems->animation_system);
         kmaterial_system_shutdown(systems->material_system);
         kmaterial_renderer_shutdown(systems->material_renderer);
-        animation_system_shutdown(systems->animation_system);
         light_system_shutdown(systems->light_system);
         font_system_shutdown(systems->font_system);
         texture_system_shutdown(systems->texture_system);

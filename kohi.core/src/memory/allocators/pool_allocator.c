@@ -41,8 +41,6 @@ void pool_allocator_free(pool_allocator* allocator, void* block) {
     KASSERT_DEBUG(block <= ((void*)((u8*)allocator->memory) + (allocator->element_size * allocator->capacity)));
 
     u64 offset = block - allocator->memory;
-    u64 index = offset / allocator->element_size;
-    pool_allocator_free_node* free_node = &allocator->free_list_nodes[index];
     pool_allocator_free_node* node = allocator->free_list_head;
     pool_allocator_free_node* prev = 0;
     while (node) {

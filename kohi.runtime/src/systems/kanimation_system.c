@@ -3,6 +3,7 @@
 #include "assets/kasset_types.h"
 #include "containers/darray.h"
 #include "core/engine.h"
+#include "core_render_types.h"
 #include "debug/kassert.h"
 #include "defines.h"
 #include "logger.h"
@@ -16,13 +17,16 @@
 #include "systems/asset_system.h"
 #include "systems/kmaterial_system.h"
 
+static void animator_update(kanimated_mesh_system_state* state, kanimated_mesh_animator* animator, f32 delta_time);
+
 b8 kanimated_mesh_system_initialize(u64* memory_requirement, kanimated_mesh_system_state* memory, const kanimated_mesh_system_config* config) {
-    u32 max_instance_count = config->max_instance_count ? config->max_instance_count : 100;
     *memory_requirement = sizeof(kanimated_mesh_system_state);
 
     if (!memory) {
         return true;
     }
+
+    u32 max_instance_count = config->max_instance_count ? config->max_instance_count : 100;
 
     kanimated_mesh_system_state* state = memory;
 
@@ -30,39 +34,58 @@ b8 kanimated_mesh_system_initialize(u64* memory_requirement, kanimated_mesh_syst
     state->max_instance_count = max_instance_count;
 
     state->base_meshes = darray_create(kanimated_mesh_base);
-    state->instances = darray_create(kanimated_mesh_animator*);
+    state->instances = darray_create(kanimated_mesh_instance_data*);
 
     state->global_time_scale = 1.0f;
 
     // Global lighting storage buffer
-    u64 buffer_size = sizeof(mat4) * state->max_instance_count;
+    u64 buffer_size = sizeof(kanimated_mesh_animation_shader_data) * state->max_instance_count;
     state->global_animation_ssbo = renderer_renderbuffer_create(engine_systems_get()->renderer_system, kname_create(KRENDERBUFFER_NAME_ANIMATIONS_GLOBAL), RENDERBUFFER_TYPE_STORAGE, buffer_size, RENDERBUFFER_TRACK_TYPE_NONE, RENDERBUFFER_FLAG_AUTO_MAP_MEMORY_BIT);
     KASSERT(state->global_animation_ssbo != KRENDERBUFFER_INVALID);
     KDEBUG("Created kanimation global storage buffer.");
 
     // The free states of instances here are managed by a pool allocator.
     state->shader_data_pool = pool_allocator_create(sizeof(kanimated_mesh_animation_shader_data), state->max_instance_count);
-    state->shader_data = state->shader_data_pool.memory;
+    state->shader_data = (kanimated_mesh_animation_shader_data*)state->shader_data_pool.memory;
 
     return true;
 }
 
 void kanimated_mesh_system_shutdown(kanimated_mesh_system_state* state) {
-    // TODO: release all instances.
-    // TODO: release all base meshes. (including unload from GPU)
+    u32 base_count = darray_length(state->base_meshes);
+    for (u32 b = 0; b < base_count; ++b) {
+        u32 instance_count = darray_length(state->instances[b]);
+
+        for (u32 i = 0; i < instance_count; ++i) {
+            kanimated_mesh_instance inst = {
+                .base_mesh = b,
+                .instance = i};
+            kanimated_mesh_instance_release(state, &inst);
+        }
+    }
 
     if (state) {
         renderer_renderbuffer_destroy(engine_systems_get()->renderer_system, state->global_animation_ssbo);
     }
 }
 
-void kanimated_mesh_system_update(kanimated_mesh_system_state* state, frame_data* p_frame_data) {
-    // TODO: Iterate all mesh instances and update thier final_bone_matrices.
-    // TODO: Active flag??
+void kanimated_mesh_system_update(kanimated_mesh_system_state* state, f32 delta_time, frame_data* p_frame_data) {
+    // Iterate all mesh instances and update thier final_bone_matrices.
+    u32 base_count = darray_length(state->base_meshes);
+    for (u32 b = 0; b < base_count; ++b) {
+        u32 instance_count = darray_length(state->instances[b]);
+
+        for (u32 i = 0; i < instance_count; ++i) {
+            animator_update(state, &state->instances[b][i].animator, delta_time);
+        }
+    }
 }
 
 void kanimated_mesh_system_frame_prepare(kanimated_mesh_system_state* state, frame_data* p_frame_data) {
-    // TODO: Upload all of the mesh instance final_bone_matrices to the SSBO.
+    // Upload all of the mesh instance final_bone_matrices to the SSBO.
+    void* memory = renderer_renderbuffer_get_mapped_memory(engine_systems_get()->renderer_system, state->global_animation_ssbo);
+
+    kcopy_memory(memory, state->shader_data, sizeof(kanimated_mesh_animation_shader_data) * state->max_instance_count);
 }
 
 void kanimated_mesh_system_time_scale(kanimated_mesh_system_state* state, f32 time_scale) {
@@ -119,15 +142,18 @@ static b8 get_base_id(struct kanimated_mesh_system_state* state, kname asset_nam
 }
 
 static u16 get_new_instance_id(struct kanimated_mesh_system_state* state, u16 base_id) {
-    kanimated_mesh_base* base = &state->base_meshes[base_id];
+    /* kanimated_mesh_base* base = &state->base_meshes[base_id]; */
 
     u16 len = darray_length(state->instances[base_id]);
     for (u16 i = 0; i < len; ++i) {
-        if (state->instances[base_id][i].base == INVALID_ID_U16) {
+        kanimated_mesh_instance_data* inst = &state->instances[base_id][i];
+        kanimated_mesh_animator* animator = &inst->animator;
+        if (animator->base == INVALID_ID_U16) {
             // Free slot found, use it.
-            state->instances[base_id][i].base = base_id;
-            state->instances[base_id][i].current_animation = INVALID_ID_U16;
-            state->instances[base_id][i].shader_data = pool_allocator_allocate(&state->shader_data_pool);
+            animator->base = base_id;
+            animator->current_animation = INVALID_ID_U16;
+            animator->shader_data = pool_allocator_allocate(&state->shader_data_pool);
+            animator->time_scale = 1.0f; // Always default time scale to 1.0f
             return i;
         }
     }
@@ -136,6 +162,7 @@ static u16 get_new_instance_id(struct kanimated_mesh_system_state* state, u16 ba
     new_inst.base = base_id;
     new_inst.current_animation = INVALID_ID_U16;
     new_inst.shader_data = pool_allocator_allocate(&state->shader_data_pool);
+    new_inst.time_scale = 1.0f; // Always default time scale to 1.0f
     darray_push(state->instances[base_id], new_inst);
 
     return len;
@@ -244,6 +271,7 @@ static void kasset_animated_mesh_loaded(void* listener, kasset_animated_mesh* as
         kasset_animated_mesh_submesh_data* source = &asset->submeshes[i];
 
         target->name = source->name;
+        target->material_name = source->material_name;
         target->geo.name = source->name;
         target->geo.generation = INVALID_ID_U16;
         target->geo.type = KGEOMETRY_TYPE_3D_SKINNED;
@@ -268,12 +296,6 @@ static void kasset_animated_mesh_loaded(void* listener, kasset_animated_mesh* as
         target->geo.extents.min = min_pos;
         target->geo.extents.max = max_pos;
         target->geo.center = extents_3d_center(target->geo.extents);
-
-        // Acquire material instance.
-        if (!kmaterial_system_acquire(engine_systems_get()->material_system, source->material_name, &target->material)) {
-            KERROR("Failed to get material '%s' for animated mesh submesh '%s'.", kname_string_get(source->material_name), kname_string_get(source->name));
-            // TODO: Should this just use the default material instead?
-        }
 
         // Upload the geometry.
         u64 vertex_size = (u64)(sizeof(skinned_vertex_3d) * source->vertex_count);
@@ -329,9 +351,19 @@ static void kasset_animated_mesh_loaded(void* listener, kasset_animated_mesh* as
     }
 
     // Instance setup.
-    kanimated_mesh_animator* instance = &state->instances[base_id][instance_id];
-    instance->max_bones = asset->bone_count;
-    instance->time_in_ticks = 0.0f;
+    kanimated_mesh_instance_data* instance = &state->instances[base_id][instance_id];
+    instance->materials = KALLOC_TYPE_CARRAY(kmaterial_instance, base->mesh_count);
+    // Acquire material instances.
+    for (u32 i = 0; i < base->mesh_count; ++i) {
+        kanimated_mesh* mesh = &base->meshes[i];
+        if (!kmaterial_system_acquire(engine_systems_get()->material_system, mesh->material_name, &instance->materials[i])) {
+            KERROR("Failed to get material '%s' for animated mesh submesh '%s'.", kname_string_get(mesh->material_name), kname_string_get(mesh->name));
+            // TODO: Should this just use the default material instead?
+        }
+    }
+    kanimated_mesh_animator* animator = &instance->animator;
+    animator->max_bones = asset->bone_count;
+    animator->time_in_ticks = 0.0f;
 
     // After copying over all properties, release the asset.
     asset_system_release_animated_mesh(engine_systems_get()->asset_state, asset);
@@ -358,6 +390,19 @@ kanimated_mesh_instance kanimated_mesh_instance_acquire_from_package(struct kani
         // Kick off async asset load via the asset system.
         kasset_animated_mesh* asset = asset_system_request_animated_mesh_from_package(engine_systems_get()->asset_state, kname_string_get(package_name), kname_string_get(asset_name), listener, kasset_animated_mesh_loaded);
         KASSERT_DEBUG(asset);
+    } else {
+        // Base mesh already loaded, just need to get material instances.
+        kanimated_mesh_base* base = &state->base_meshes[base_id];
+        kanimated_mesh_instance_data* instance = &state->instances[base_id][instance_id];
+        instance->materials = KALLOC_TYPE_CARRAY(kmaterial_instance, base->mesh_count);
+        // Acquire material instances.
+        for (u32 i = 0; i < base->mesh_count; ++i) {
+            kanimated_mesh* mesh = &base->meshes[i];
+            if (!kmaterial_system_acquire(engine_systems_get()->material_system, mesh->material_name, &instance->materials[i])) {
+                KERROR("Failed to get material '%s' for animated mesh submesh '%s'.", kname_string_get(mesh->material_name), kname_string_get(mesh->name));
+                // TODO: Should this just use the default material instead?
+            }
+        }
     }
 
     return (kanimated_mesh_instance){
@@ -366,13 +411,13 @@ kanimated_mesh_instance kanimated_mesh_instance_acquire_from_package(struct kani
 }
 
 static u16 get_active_instance_count(struct kanimated_mesh_system_state* state, u16 base_id) {
-    kanimated_mesh_base* base = &state->base_meshes[base_id];
+    /* kanimated_mesh_base* base = &state->base_meshes[base_id]; */
 
     u32 len = darray_length(state->instances);
     u16 count = 0;
     for (u32 i = 0; i < len; ++i) {
-        kanimated_mesh_animator* instance = &state->instances[base_id][i];
-        if (instance->base == base_id) {
+        kanimated_mesh_animator* animator = &state->instances[base_id][i].animator;
+        if (animator->base == base_id) {
             count++;
         }
     }
@@ -381,25 +426,34 @@ static u16 get_active_instance_count(struct kanimated_mesh_system_state* state, 
 
 // NOTE: Also releases held material instances.
 void kanimated_mesh_instance_release(struct kanimated_mesh_system_state* state, kanimated_mesh_instance* instance) {
-    kanimated_mesh_animator* inst = &state->instances[instance->base_mesh][instance->instance];
+    kanimated_mesh_instance_data* inst = &state->instances[instance->base_mesh][instance->instance];
 
-    kzero_memory(inst, sizeof(kanimated_mesh_animator));
-    inst->base = INVALID_ID_U16;
-    inst->current_animation = INVALID_ID_U16;
-    if (inst->shader_data) {
-        pool_allocator_free(&state->shader_data_pool, inst->shader_data);
-        inst->shader_data = 0;
+    kmaterial_system_release(engine_systems_get()->material_system, &inst->materials[instance->instance]);
+
+    kanimated_mesh_animator* animator = &inst->animator;
+
+    kzero_memory(animator, sizeof(kanimated_mesh_animator));
+    animator->base = INVALID_ID_U16;
+    animator->current_animation = INVALID_ID_U16;
+    if (animator->shader_data) {
+        pool_allocator_free(&state->shader_data_pool, animator->shader_data);
+        animator->shader_data = 0;
     }
 
     u16 active_count = get_active_instance_count(state, instance->base_mesh);
     if (!active_count) {
+
+        // Clear the instance array for the particular base mesh
+        darray_clear(state->instances[instance->base_mesh]);
+        kanimated_mesh_base* base = &state->base_meshes[instance->base_mesh];
+        KFREE_TYPE_CARRAY(inst->materials, kmaterial_instance, base->mesh_count);
+        inst->materials = 0;
 
         struct renderer_system_state* renderer_system = engine_systems_get()->renderer_system;
         krenderbuffer vertex_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_GLOBAL_VERTEX));
         krenderbuffer index_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_GLOBAL_INDEX));
 
         // Unload submeshes from GPU.
-        kanimated_mesh_base* base = &state->base_meshes[instance->base_mesh];
         for (u32 i = 0; i < base->mesh_count; ++i) {
             kanimated_mesh* m = &base->meshes[i];
 
@@ -487,21 +541,22 @@ kname* kanimated_mesh_query_animations(struct kanimated_mesh_system_state* state
 
 void kanimated_mesh_instance_animation_set(struct kanimated_mesh_system_state* state, kanimated_mesh_instance instance, kname animation_name) {
     kanimated_mesh_base* base = &state->base_meshes[instance.base_mesh];
-    kanimated_mesh_animator* inst = &state->instances[instance.base_mesh][instance.instance];
+    kanimated_mesh_instance_data* inst = &state->instances[instance.base_mesh][instance.instance];
+    kanimated_mesh_animator* animator = &inst->animator;
 
     u32 count = base->animation_count;
     for (u32 i = 0; i < count; ++i) {
         if (base->animations[i].name == animation_name) {
             KTRACE("Animation '%s' now active on base mesh '%s'.", kname_string_get(base->animations[i].name), kname_string_get(base->asset_name));
-            inst->current_animation = i;
+            animator->current_animation = i;
             break;
         }
     }
 
     KWARN("Animation '%s' not found on base mesh '%s'.", kname_string_get(animation_name), kname_string_get(base->asset_name));
-    if (inst->current_animation == INVALID_ID_U16) {
+    if (animator->current_animation == INVALID_ID_U16) {
         if (base->animation_count > 0) {
-            inst->current_animation = 0;
+            animator->current_animation = 0;
             KWARN("Set animation to default of the first entry, '%s'.", kname_string_get(base->animations[0].name));
         } else {
             KWARN("No animations exist, thus there is nothing to set.");
@@ -510,31 +565,68 @@ void kanimated_mesh_instance_animation_set(struct kanimated_mesh_system_state* s
 }
 
 void kanimated_mesh_instance_time_scale_set(kanimated_mesh_system_state* state, kanimated_mesh_instance instance, f32 time_scale) {
-    /* kanimated_mesh_base* base = &state->base_meshes[instance.base_mesh]; */
-    /* kanimated_mesh_animator* inst = &state->instances[instance.base_mesh][instance.instance]; */
-    // TODO: set instance timescale
+    kanimated_mesh_instance_data* inst = &state->instances[instance.base_mesh][instance.instance];
+    kanimated_mesh_animator* animator = &inst->animator;
+    animator->time_scale = time_scale;
 }
 
 void kanimated_mesh_instance_loop_set(struct kanimated_mesh_system_state* state, kanimated_mesh_instance instance, b8 loop) {
-    // TODO: enable/disable looping.
+    kanimated_mesh_instance_data* inst = &state->instances[instance.base_mesh][instance.instance];
+    kanimated_mesh_animator* animator = &inst->animator;
+    animator->loop = loop;
 }
 void kanimated_mesh_instance_play(struct kanimated_mesh_system_state* state, kanimated_mesh_instance instance) {
-    // TODO: set instance state to play
+    kanimated_mesh_instance_data* inst = &state->instances[instance.base_mesh][instance.instance];
+    kanimated_mesh_animator* animator = &inst->animator;
+    if (animator->current_animation != INVALID_ID_U16) {
+        animator->state = KANIMATED_MESH_ANIMATOR_STATE_PLAYING;
+    } else {
+        KWARN("%s - No current animation assigned, state will default to stopped.", __FUNCTION__);
+        animator->state = KANIMATED_MESH_ANIMATOR_STATE_STOPPED;
+    }
 }
 void kanimated_mesh_instance_pause(struct kanimated_mesh_system_state* state, kanimated_mesh_instance instance) {
-    // TODO: set instance state to pause
+    kanimated_mesh_instance_data* inst = &state->instances[instance.base_mesh][instance.instance];
+    kanimated_mesh_animator* animator = &inst->animator;
+    if (animator->current_animation != INVALID_ID_U16) {
+        animator->state = KANIMATED_MESH_ANIMATOR_STATE_PAUSED;
+    } else {
+        KWARN("%s - No current animation assigned, state will default to stopped.", __FUNCTION__);
+        animator->state = KANIMATED_MESH_ANIMATOR_STATE_STOPPED;
+    }
 }
 void kanimated_mesh_instance_stop(struct kanimated_mesh_system_state* state, kanimated_mesh_instance instance) {
-    // TODO: set instance state to stopped, reset time to 0.
+    kanimated_mesh_instance_data* inst = &state->instances[instance.base_mesh][instance.instance];
+    kanimated_mesh_animator* animator = &inst->animator;
+    animator->state = KANIMATED_MESH_ANIMATOR_STATE_STOPPED;
+    animator->time_in_ticks = 0.0f;
 }
 void kanimated_mesh_instance_seek(struct kanimated_mesh_system_state* state, kanimated_mesh_instance instance, f32 time) {
-    // TODO: Set instance time, but clamp within range (maybe mod?). Loop if enabled?
+    kanimated_mesh_instance_data* inst = &state->instances[instance.base_mesh][instance.instance];
+    kanimated_mesh_animator* animator = &inst->animator;
+    kanimated_mesh_base* base = &state->base_meshes[instance.base_mesh];
+    kanimated_mesh_animation* current = &base->animations[animator->current_animation];
+    f32 ticks_per_second = current->ticks_per_second;
+
+    // Wrap around.
+    f32 duration = current->duration;
+    if (duration > 0.0f) {
+        animator->time_in_ticks = ticks_per_second * kmod(time, duration);
+        if (animator->time_in_ticks < 0.0f) {
+            animator->time_in_ticks += duration;
+        }
+    }
 }
+
 void kanimated_mesh_instance_seek_percent(struct kanimated_mesh_system_state* state, kanimated_mesh_instance instance, f32 percent) {
-    // TODO: clamp 0-1, set to percent of duration.
-}
-void kanimated_mesh_instance_playback_speed(struct kanimated_mesh_system_state* state, kanimated_mesh_instance instance, f32 speed) {
-    // TODO: Same as time scale.
+    kanimated_mesh_instance_data* inst = &state->instances[instance.base_mesh][instance.instance];
+    kanimated_mesh_animator* animator = &inst->animator;
+    kanimated_mesh_base* base = &state->base_meshes[instance.base_mesh];
+    kanimated_mesh_animation* current = &base->animations[animator->current_animation];
+    f32 clamped_pct = KCLAMP(percent, 0, 1.0f);
+    f32 time = current->duration * clamped_pct;
+
+    kanimated_mesh_instance_seek(state, instance, time);
 }
 
 static kanimated_mesh_channel* kanimation_find_channel(kanimated_mesh_animation* animation, kname node_name) {
@@ -687,10 +779,15 @@ static void animator_update(kanimated_mesh_system_state* state, kanimated_mesh_a
     if (animator->current_animation == INVALID_ID_U16) {
         return;
     }
+    // Skip updates for animators that are not currently in the playing state.
+    if (animator->state != KANIMATED_MESH_ANIMATOR_STATE_PLAYING) {
+        return;
+    }
     kanimated_mesh_base* base = &state->base_meshes[animator->base];
     kanimated_mesh_animation* current = &base->animations[animator->current_animation];
     f32 ticks_per_second = current->ticks_per_second;
-    f32 delta_ticks = delta_time * ticks_per_second;
+    f32 time_scale = state->global_time_scale * animator->time_scale;
+    f32 delta_ticks = delta_time * time_scale * ticks_per_second;
     animator->time_in_ticks += delta_ticks;
 
     // Wrap around.

@@ -20,7 +20,7 @@
 #include "runtime_defines.h"
 #include "serializers/kasset_shader_serializer.h"
 #include "strings/kname.h"
-#include "systems/animation_system.h"
+#include "systems/kanimation_system.h"
 #include "systems/kmaterial_system.h"
 #include "systems/kshader_system.h"
 #include "systems/ktransform_system.h"

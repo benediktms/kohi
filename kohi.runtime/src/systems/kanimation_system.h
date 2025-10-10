@@ -62,7 +62,7 @@ typedef struct kanimated_mesh_node {
 typedef struct kanimated_mesh {
     kname name;
     kgeometry geo;
-    kmaterial_instance material;
+    kname material_name;
 } kanimated_mesh;
 
 // This is the "base" animated mesh, queried by all animators/instances
@@ -87,6 +87,12 @@ typedef struct kanimated_mesh_animation_shader_data {
     mat4 final_bone_matrices[KANIMATION_MAX_BONES];
 } kanimated_mesh_animation_shader_data;
 
+typedef enum kanimated_mesh_animator_state {
+    KANIMATED_MESH_ANIMATOR_STATE_STOPPED,
+    KANIMATED_MESH_ANIMATOR_STATE_PLAYING,
+    KANIMATED_MESH_ANIMATOR_STATE_PAUSED
+} kanimated_mesh_animator_state;
+
 // One animator = one animated mesh instance state
 typedef struct kanimated_mesh_animator {
     kname name;
@@ -95,10 +101,19 @@ typedef struct kanimated_mesh_animator {
     // Index into the animation array. INVALID_ID_U16 = no current animation.
     u16 current_animation;
     f32 time_in_ticks;
+    f32 time_scale;
+    b8 loop;
+    kanimated_mesh_animator_state state;
     // Pointer to shader_data array where data is stored.
     kanimated_mesh_animation_shader_data* shader_data;
     u32 max_bones;
 } kanimated_mesh_animator;
+
+typedef struct kanimated_mesh_instance_data {
+    kanimated_mesh_animator animator;
+    // NOTE: Size aligns with base mesh submesh count.
+    kmaterial_instance* materials;
+} kanimated_mesh_instance_data;
 
 typedef struct kanimated_mesh_instance {
     u16 base_mesh;
@@ -123,7 +138,7 @@ typedef struct kanimated_mesh_system_state {
 
     // darray First dimension matches base_meshes (indexed by base mesh id).
     // Second dimension is a darray indexed by instance id.
-    kanimated_mesh_animator** instances;
+    kanimated_mesh_instance_data** instances;
 
     krenderbuffer global_animation_ssbo;
 
@@ -137,7 +152,7 @@ typedef void (*PFN_animated_mesh_loaded)(kanimated_mesh_instance instance, void*
 b8 kanimated_mesh_system_initialize(u64* memory_requirement, kanimated_mesh_system_state* memory, const kanimated_mesh_system_config* config);
 void kanimated_mesh_system_shutdown(kanimated_mesh_system_state* state);
 
-void kanimated_mesh_system_update(kanimated_mesh_system_state* state, frame_data* p_frame_data);
+void kanimated_mesh_system_update(kanimated_mesh_system_state* state, f32 delta_time, frame_data* p_frame_data);
 void kanimated_mesh_system_frame_prepare(kanimated_mesh_system_state* state, frame_data* p_frame_data);
 
 KAPI void kanimated_mesh_system_time_scale(kanimated_mesh_system_state* state, f32 time_scale); // 1.0 - normal
@@ -159,4 +174,3 @@ KAPI void kanimated_mesh_instance_pause(struct kanimated_mesh_system_state* stat
 KAPI void kanimated_mesh_instance_stop(struct kanimated_mesh_system_state* state, kanimated_mesh_instance instance);
 KAPI void kanimated_mesh_instance_seek(struct kanimated_mesh_system_state* state, kanimated_mesh_instance instance, f32 time);            // 0-total animation track time
 KAPI void kanimated_mesh_instance_seek_percent(struct kanimated_mesh_system_state* state, kanimated_mesh_instance instance, f32 percent); // 0-1
-KAPI void kanimated_mesh_instance_playback_speed(struct kanimated_mesh_system_state* state, kanimated_mesh_instance instance, f32 speed); // 1.0 is normal, 2.0 is double, etc.

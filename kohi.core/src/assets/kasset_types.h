@@ -494,6 +494,8 @@ typedef struct kasset_animated_mesh_submesh_data {
     skinned_vertex_3d* vertices;
     u32 index_count;
     u32* indices;
+    vec3 center;
+    extents_3d extents;
 } kasset_animated_mesh_submesh_data;
 
 /**
@@ -512,4 +514,6 @@ typedef struct kasset_animated_mesh {
 
     u32 submesh_count;
     kasset_animated_mesh_submesh_data* submeshes;
+    vec3 center;
+    extents_3d extents;
 } kasset_animated_mesh;

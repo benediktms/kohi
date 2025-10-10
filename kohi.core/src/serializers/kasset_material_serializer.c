@@ -598,9 +598,15 @@ static void add_map_obj(kson_object* base_obj, const char* source_channel, kmate
         kson_object_value_add_kname_as_string(&map_obj, INPUT_MAP_PACKAGE_NAME, texture->package_name);
     }
     // Sampler name. Optional.
-    if (texture->sampler_name) {
-        kson_object_value_add_kname_as_string(&map_obj, INPUT_MAP_SAMPLER_NAME, texture->sampler_name);
+    if (texture->sampler.name) {
+        kson_object_value_add_kname_as_string(&map_obj, INPUT_MAP_SAMPLER_NAME, texture->sampler.name);
     }
+    kson_object_value_add_string(&map_obj, "sampler_filter_min", texture_filter_mode_to_string(texture->sampler.filter_min));
+    kson_object_value_add_string(&map_obj, "sampler_filter_mag", texture_filter_mode_to_string(texture->sampler.filter_mag));
+    kson_object_value_add_string(&map_obj, "sampler_repeat_u", texture_repeat_to_string(texture->sampler.repeat_u));
+    kson_object_value_add_string(&map_obj, "sampler_repeat_v", texture_repeat_to_string(texture->sampler.repeat_v));
+    kson_object_value_add_string(&map_obj, "sampler_repeat_w", texture_repeat_to_string(texture->sampler.repeat_w));
+
     // Source channel, if provided.
     if (source_channel) {
         kson_object_value_add_string(&map_obj, INPUT_MAP_SOURCE_CHANNEL, source_channel);
@@ -622,8 +628,39 @@ static b8 extract_map(const kson_object* map_obj, kmaterial_texture_input_config
     }
 
     // Optional property, so it doesn't matter if we get it or not.
-    if (!kson_object_property_value_get_string_as_kname(map_obj, INPUT_MAP_SAMPLER_NAME, &out_texture->sampler_name)) {
-        out_texture->sampler_name = INVALID_KNAME;
+    if (!kson_object_property_value_get_string_as_kname(map_obj, INPUT_MAP_SAMPLER_NAME, &out_texture->sampler.name)) {
+        out_texture->sampler.name = INVALID_KNAME;
+    }
+    {
+        const char* filter_min_str = 0;
+        kson_object_property_value_get_string(map_obj, "sampler_filter_min", &filter_min_str);
+        out_texture->sampler.filter_min = string_to_texture_filter_mode(filter_min_str);
+        string_free(filter_min_str);
+    }
+    {
+        const char* filter_mag_str = 0;
+        kson_object_property_value_get_string(map_obj, "sampler_filter_mag", &filter_mag_str);
+        out_texture->sampler.filter_min = string_to_texture_filter_mode(filter_mag_str);
+        string_free(filter_mag_str);
+    }
+
+    {
+        const char* repeat_u = 0;
+        kson_object_property_value_get_string(map_obj, "sampler_repeat_u", &repeat_u);
+        out_texture->sampler.repeat_u = string_to_texture_repeat(repeat_u);
+        string_free(repeat_u);
+    }
+    {
+        const char* repeat_v = 0;
+        kson_object_property_value_get_string(map_obj, "sampler_repeat_v", &repeat_v);
+        out_texture->sampler.repeat_v = string_to_texture_repeat(repeat_v);
+        string_free(repeat_v);
+    }
+    {
+        const char* repeat_w = 0;
+        kson_object_property_value_get_string(map_obj, "sampler_repeat_w", &repeat_w);
+        out_texture->sampler.repeat_w = string_to_texture_repeat(repeat_w);
+        string_free(repeat_w);
     }
 
     if (out_source_channel) {

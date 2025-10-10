@@ -14,7 +14,7 @@ typedef struct binary_animated_mesh_header {
     // The animated_mesh center point.
     vec3 center;
     // The number of geometries in the animated_mesh.
-    u16 geometry_count;
+    u16 submesh_count;
 } binary_animated_mesh_header;
 
 typedef struct binary_animated_mesh_geometry {
@@ -40,26 +40,26 @@ KAPI void* kasset_animated_mesh_serialize(const kasset_animated_mesh* asset, u64
 
     kasset_animated_mesh* typed_asset = (kasset_animated_mesh*)asset;
 
-    header.geometry_count = typed_asset->geometry_count;
+    header.submesh_count = typed_asset->submesh_count;
     header.extents = typed_asset->extents;
     header.center = typed_asset->center;
 
     // Calculate the total required size first (for everything after the header.
     {
 
-        for (u32 i = 0; i < typed_asset->geometry_count; ++i) {
-            kasset_animated_mesh_geometry* g = &typed_asset->geometries[i];
+        for (u32 i = 0; i < typed_asset->submesh_count; ++i) {
+            kasset_animated_mesh_submesh_data* s = &typed_asset->submeshes[i];
 
             // Center and extents.
-            header.base.data_block_size += sizeof(g->center);
-            header.base.data_block_size += sizeof(g->extents);
+            header.base.data_block_size += sizeof(s->center);
+            header.base.data_block_size += sizeof(s->extents);
 
             // Name length.
             header.base.data_block_size += sizeof(u32);
 
             // Name string (no null terminator).
-            if (g->name) {
-                const char* gname = kname_string_get(g->name);
+            if (s->name != INVALID_KNAME) {
+                const char* gname = kname_string_get(s->name);
                 u64 len = string_length(gname);
                 header.base.data_block_size += len;
             }
@@ -68,8 +68,8 @@ KAPI void* kasset_animated_mesh_serialize(const kasset_animated_mesh* asset, u64
             header.base.data_block_size += sizeof(u32);
 
             // Material asset name string (no null terminator).
-            if (g->material_asset_name) {
-                const char* gmat_asset_name = kname_string_get(g->material_asset_name);
+            if (s->material_name) {
+                const char* gmat_asset_name = kname_string_get(s->material_name);
                 u64 len = string_length(gmat_asset_name) + 1;
                 header.base.data_block_size += len;
             }
@@ -78,9 +78,9 @@ KAPI void* kasset_animated_mesh_serialize(const kasset_animated_mesh* asset, u64
             header.base.data_block_size += sizeof(u32);
 
             // Indices
-            if (g->index_count && g->indices) {
+            if (s->index_count && s->indices) {
                 // indices.
-                u64 index_array_size = sizeof(u32) * g->index_count;
+                u64 index_array_size = sizeof(u32) * s->index_count;
                 header.base.data_block_size += index_array_size;
             }
 
@@ -88,9 +88,9 @@ KAPI void* kasset_animated_mesh_serialize(const kasset_animated_mesh* asset, u64
             header.base.data_block_size += sizeof(u32);
 
             // Vertices
-            if (g->vertex_count && g->indices) {
+            if (s->vertex_count && s->indices) {
                 // Write vertices.
-                u64 vertex_array_size = sizeof(vertex_3d) * g->vertex_count;
+                u64 vertex_array_size = sizeof(vertex_3d) * s->vertex_count;
                 header.base.data_block_size += vertex_array_size;
             }
         }
@@ -110,8 +110,8 @@ KAPI void* kasset_animated_mesh_serialize(const kasset_animated_mesh* asset, u64
 
     // Iterate the geometries, writing first the size of the block it takes, followed
     // by the actual block of data itself.
-    for (u32 i = 0; i < header.geometry_count; ++i) {
-        kasset_animated_mesh_geometry* g = &typed_asset->geometries[i];
+    for (u32 i = 0; i < header.submesh_count; ++i) {
+        kasset_animated_mesh_submesh_data* g = &typed_asset->submeshes[i];
 
         // Copy center and extents.
         kcopy_memory(block + offset, &g->center, sizeof(g->center));
@@ -143,8 +143,8 @@ KAPI void* kasset_animated_mesh_serialize(const kasset_animated_mesh* asset, u64
         {
             u32 mat_asset_name_len = 0;
             const char* str = 0;
-            if (g->material_asset_name) {
-                str = kname_string_get(g->material_asset_name);
+            if (g->material_name) {
+                str = kname_string_get(g->material_name);
                 mat_asset_name_len = string_length(str);
             }
 
@@ -208,17 +208,17 @@ KAPI b8 kasset_animated_mesh_deserialize(u64 size, const void* in_block, kasset_
     }
 
     kasset_animated_mesh* typed_asset = (kasset_animated_mesh*)out_asset;
-    typed_asset->geometry_count = header->geometry_count;
+    typed_asset->submesh_count = header->submesh_count;
     typed_asset->extents = header->extents;
     typed_asset->center = header->center;
 
     u64 offset = sizeof(binary_animated_mesh_header);
-    if (typed_asset->geometry_count) {
-        typed_asset->geometries = kallocate(sizeof(kasset_animated_mesh_geometry) * typed_asset->geometry_count, MEMORY_TAG_ARRAY);
+    if (typed_asset->submesh_count) {
+        typed_asset->submeshes = kallocate(sizeof(kasset_animated_mesh_submesh_data) * typed_asset->submesh_count, MEMORY_TAG_ARRAY);
 
         // Get geometry data.
-        for (u32 i = 0; i < typed_asset->geometry_count; ++i) {
-            kasset_animated_mesh_geometry* g = &typed_asset->geometries[i];
+        for (u32 i = 0; i < typed_asset->submesh_count; ++i) {
+            kasset_animated_mesh_submesh_data* g = &typed_asset->submeshes[i];
 
             // Copy center and extents.
             kcopy_memory(&g->center, block + offset, sizeof(g->center));
@@ -259,7 +259,7 @@ KAPI b8 kasset_animated_mesh_deserialize(u64 size, const void* in_block, kasset_
                     kcopy_memory(mat_name_buffer, block + offset, sizeof(char) * mat_asset_name_len);
                     mat_name_buffer[mat_asset_name_len] = 0;
                     offset += mat_asset_name_len;
-                    g->material_asset_name = kname_create(mat_name_buffer);
+                    g->material_name = kname_create(mat_name_buffer);
                     string_free(mat_name_buffer);
                 }
             }
