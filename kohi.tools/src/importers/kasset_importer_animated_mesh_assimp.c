@@ -14,6 +14,8 @@
 #include "assimp/anim.h"
 #include "assimp/matrix4x4.h"
 
+#include "containers/darray.h"
+#include "core_render_types.h"
 #include "debug/kassert.h"
 
 #include "logger.h"
@@ -22,6 +24,7 @@
 #include "memory/kmemory.h"
 
 #include "platform/filesystem.h"
+#include "serializers/kasset_animated_mesh_serializer.h"
 #include "serializers/kasset_material_serializer.h"
 
 // TODO: If this is needed, perhaps move types to separate header file.
@@ -32,7 +35,7 @@
 static void skinned_vertex_3d_defaults(skinned_vertex_3d* vert);
 static void get_material_texture_data_by_type(kname package_name, const struct aiMaterial* material, enum aiTextureType texture_type, kasset_material* new_material, kmaterial_texture_input_config* input);
 static mat4 mat4_from_ai(const struct aiMatrix4x4* source);
-static b8 materials_from_assimp(const struct aiScene* scene, kname package_name, const char* output_directory);
+static b8 materials_from_assimp(const struct aiScene* scene, kname package_name, const char* output_directory, b8 force_pbr);
 static const struct aiScene* assimp_open_file(const char* source_path);
 static b8 anim_asset_from_assimp(const struct aiScene* scene, kname package_name, kasset_animated_mesh* out_asset);
 static void anim_asset_destroy(kasset_animated_mesh* asset);
@@ -50,13 +53,35 @@ b8 kasset_animated_mesh_assimp_import(const char* source_path, const char* targe
         return false;
     }
 
-    // Import materials
-    if (!materials_from_assimp(scene, pkg_name, material_target_dir)) {
-        KERROR("Failed to import materials from assimp asset '%s'.", source_path);
-        return false;
+    b8 success = false;
+
+    // Serialize animation asset.
+    u64 serialized_size = 0;
+    void* serialized_data = kasset_animated_mesh_serialize(&new_asset, &serialized_size);
+    if (!serialized_size || !serialized_data) {
+        KERROR("Failed to serialize animated mesh asset '%s'.", target_path);
+        goto ai_import_cleanup;
     }
 
-    return true;
+    // Write out .kam file.
+    if (!filesystem_write_entire_binary_file(target_path, serialized_size, serialized_data)) {
+        KWARN("Failed to write .kam file '%s'. See logs for details.", target_path);
+        goto ai_import_cleanup;
+    }
+
+    // Import materials
+    b8 force_pbr = true; // NOTE: for now, forcing all materials to import as PBR.
+    if (!materials_from_assimp(scene, pkg_name, material_target_dir, force_pbr)) {
+        KERROR("Failed to import materials from assimp asset '%s'.", source_path);
+        goto ai_import_cleanup;
+    }
+
+ai_import_cleanup:
+
+    // Release all assimp resources.
+    aiReleaseImport(scene);
+
+    return success;
 }
 
 static void skinned_vertex_3d_defaults(skinned_vertex_3d* vert) {
@@ -136,40 +161,61 @@ static mat4 mat4_from_ai(const struct aiMatrix4x4* source) {
 }
 
 // Import all materials from an assimp scene.
-static b8 materials_from_assimp(const struct aiScene* scene, kname package_name, const char* output_directory) {
+static b8 materials_from_assimp(const struct aiScene* scene, kname package_name, const char* output_directory, b8 force_pbr) {
 
     for (u32 i = 0; i < scene->mNumMaterials; ++i) {
         struct aiMaterial* material = scene->mMaterials[i];
+        enum aiReturn result;
 
         kasset_material new_material = {0};
+
+        // Base properties
+        struct aiString ai_name;
+        aiGetMaterialString(material, AI_MATKEY_NAME, &ai_name);
+        new_material.name = kname_create(ai_name.data);
+
+        i32 double_sided = 0;
+        aiGetMaterialInteger(material, AI_MATKEY_TWOSIDED, &double_sided);
+        new_material.double_sided = (b8)double_sided;
+
+        // NOTE: These properties are just assumed, and can be adjusted post-import.
+        new_material.recieves_shadow = true;
+        new_material.casts_shadow = true;
+
+        // FIXME: use opacity or one of the transparency matkeys?
+
+        // Imported materials are just treated as standard materials for now.
+        new_material.type = KMATERIAL_TYPE_STANDARD;
 
         // Extract the shading model. Use this to determine what maps and properties to extract.
         i32 shading_model_int = 0;
         new_material.model = KMATERIAL_MODEL_PBR;
-        enum aiReturn result = aiGetMaterialInteger(material, AI_MATKEY_SHADING_MODEL, &shading_model_int);
-        if (result == aiReturn_SUCCESS) {
-            switch (((enum aiShadingMode)shading_model_int)) {
-            case aiShadingMode_PBR_BRDF:
-            case aiShadingMode_CookTorrance:
-                new_material.model = KMATERIAL_MODEL_PBR;
-                break;
-            case aiShadingMode_Phong:
-            case aiShadingMode_Blinn:
-                new_material.model = KMATERIAL_MODEL_PHONG;
-                break;
-            case aiShadingMode_NoShading:
-                new_material.model = KMATERIAL_MODEL_UNLIT;
-                break;
-            case aiShadingMode_Gouraud:
-            case aiShadingMode_Flat:
-            case aiShadingMode_Toon:
-            case aiShadingMode_OrenNayar:
-            case aiShadingMode_Minnaert:
-            case aiShadingMode_Fresnel:
-            default:
-                KWARN("Shading model not supported, defaulting to PBR.");
-                new_material.model = KMATERIAL_MODEL_PBR;
-                break;
+        if (!force_pbr) {
+            result = aiGetMaterialInteger(material, AI_MATKEY_SHADING_MODEL, &shading_model_int);
+            if (result == aiReturn_SUCCESS) {
+                switch (((enum aiShadingMode)shading_model_int)) {
+                case aiShadingMode_PBR_BRDF:
+                case aiShadingMode_CookTorrance:
+                    new_material.model = KMATERIAL_MODEL_PBR;
+                    break;
+                case aiShadingMode_Phong:
+                case aiShadingMode_Blinn:
+                    new_material.model = KMATERIAL_MODEL_PHONG;
+                    break;
+                case aiShadingMode_NoShading:
+                    new_material.model = KMATERIAL_MODEL_UNLIT;
+                    break;
+                case aiShadingMode_Gouraud:
+                case aiShadingMode_Flat:
+                case aiShadingMode_Toon:
+                case aiShadingMode_OrenNayar:
+                case aiShadingMode_Minnaert:
+                case aiShadingMode_Fresnel:
+                default:
+                    KWARN("Shading model not supported, defaulting to PBR.");
+                    new_material.model = KMATERIAL_MODEL_PBR;
+                    break;
+                }
             }
         }
 
@@ -177,12 +223,24 @@ static b8 materials_from_assimp(const struct aiScene* scene, kname package_name,
         default:
         case KMATERIAL_MODEL_PBR:
             get_material_texture_data_by_type(package_name, material, aiTextureType_BASE_COLOR, &new_material, &new_material.base_colour_map);
+            if (!new_material.base_colour_map.resource_name) {
+                // Fall back to diffuse if basecolour isn't defined.
+                get_material_texture_data_by_type(package_name, material, aiTextureType_DIFFUSE, &new_material, &new_material.base_colour_map);
+            }
+
             get_material_texture_data_by_type(package_name, material, aiTextureType_NORMALS, &new_material, &new_material.normal_map);
+            if (!new_material.normal_map.resource_name) {
+                // Fall back to displacement if normals aren't defined.
+                get_material_texture_data_by_type(package_name, material, aiTextureType_DISPLACEMENT, &new_material, &new_material.normal_map);
+            }
+            new_material.normal_enabled = new_material.normal_map.resource_name != INVALID_KNAME;
+
             get_material_texture_data_by_type(package_name, material, aiTextureType_METALNESS, &new_material, &new_material.metallic_map);
             get_material_texture_data_by_type(package_name, material, aiTextureType_DIFFUSE_ROUGHNESS, &new_material, &new_material.roughness_map);
             get_material_texture_data_by_type(package_name, material, aiTextureType_AMBIENT_OCCLUSION, &new_material, &new_material.ambient_occlusion_map);
             get_material_texture_data_by_type(package_name, material, aiTextureType_GLTF_METALLIC_ROUGHNESS, &new_material, &new_material.mra_map);
             get_material_texture_data_by_type(package_name, material, aiTextureType_EMISSIVE, &new_material, &new_material.emissive_map);
+            new_material.emissive_enabled = new_material.emissive_map.resource_name != INVALID_KNAME;
             break;
         case KMATERIAL_MODEL_UNLIT: {
             get_material_texture_data_by_type(package_name, material, aiTextureType_BASE_COLOR, &new_material, &new_material.base_colour_map);
@@ -201,10 +259,21 @@ static b8 materials_from_assimp(const struct aiScene* scene, kname package_name,
         case KMATERIAL_MODEL_PHONG: {
             get_material_texture_data_by_type(package_name, material, aiTextureType_BASE_COLOR, &new_material, &new_material.base_colour_map);
             if (!new_material.base_colour_map.resource_name) {
+                // Fall back to diffuse if basecolour isn't defined.
                 get_material_texture_data_by_type(package_name, material, aiTextureType_DIFFUSE, &new_material, &new_material.base_colour_map);
             }
+
             get_material_texture_data_by_type(package_name, material, aiTextureType_NORMALS, &new_material, &new_material.normal_map);
+            if (!new_material.normal_map.resource_name) {
+                // Fall back to displacement if normals aren't defined.
+                get_material_texture_data_by_type(package_name, material, aiTextureType_DISPLACEMENT, &new_material, &new_material.normal_map);
+            }
+            new_material.normal_enabled = new_material.normal_map.resource_name != INVALID_KNAME;
+
             get_material_texture_data_by_type(package_name, material, aiTextureType_SPECULAR, &new_material, &new_material.specular_colour_map);
+
+            get_material_texture_data_by_type(package_name, material, aiTextureType_EMISSIVE, &new_material, &new_material.emissive_map);
+            new_material.emissive_enabled = new_material.emissive_map.resource_name != INVALID_KNAME;
 
             // Phong-specific properties.
 
@@ -273,6 +342,33 @@ static const struct aiScene* assimp_open_file(const char* source_path) {
     return scene;
 }
 
+typedef struct vertex_weight_accumulator {
+    i32 bone_ids[4];
+    f32 weights[4];
+} vertex_weight_accumulator;
+
+static void add_bone_weight(vertex_weight_accumulator* a, i32 bone_id, f32 weight) {
+    for (u8 i = 0; i < 4; ++i) {
+        if (a->weights[i] == 0.0f) {
+            a->bone_ids[i] = bone_id;
+            a->weights[i] = weight;
+            return;
+        }
+    }
+
+    // If full, replace the smallest weight.
+    u8 smallest = 0;
+    for (u8 i = 1; i < 4; ++i) {
+        if (a->weights[i] < a->weights[smallest]) {
+            smallest = i;
+        }
+    }
+    if (weight > a->weights[smallest]) {
+        a->bone_ids[smallest] = bone_id;
+        a->weights[smallest] = weight;
+    }
+}
+
 static b8 anim_asset_from_assimp(const struct aiScene* scene, kname package_name, kasset_animated_mesh* out_asset) {
 
     kzero_memory(out_asset, sizeof(kasset_animated_mesh));
@@ -284,6 +380,7 @@ static b8 anim_asset_from_assimp(const struct aiScene* scene, kname package_name
     u32 bone_count = 0;
     for (u32 m = 0; m < scene->mNumMeshes; ++m) {
         struct aiMesh* mesh = scene->mMeshes[m];
+        // Extract the bones from it.
         for (u32 b = 0; b < mesh->mNumBones; ++b) {
             struct aiBone* ai_bone = mesh->mBones[b];
             kasset_animated_mesh_bone* bone = &bones[bone_count];
@@ -314,18 +411,14 @@ static b8 anim_asset_from_assimp(const struct aiScene* scene, kname package_name
     KCOPY_TYPE_CARRAY(out_asset->bones, bones, kasset_animated_mesh_bone, bone_count);
 
     // Flatten the node structure into a single array and reference by index instead.
-    u32 node_capacity = 256;
-    u32 node_count = 0;
-    kasset_animated_mesh_node* nodes = KALLOC_TYPE_CARRAY(kasset_animated_mesh_node, node_capacity);
+    kasset_animated_mesh_node* nodes = darray_create(kasset_animated_mesh_node);
 
     typedef struct node_map_entry {
         const struct aiNode* node;
         u32 index;
     } node_map_entry;
 
-    u32 node_map_count = 0;
-    u32 node_map_capacity = 0;
-    node_map_entry* node_map = KNULL;
+    node_map_entry* node_map = darray_create(node_map_entry);
 
     // Push the root first
     const struct aiNode* root = scene->mRootNode;
@@ -334,33 +427,30 @@ static b8 anim_asset_from_assimp(const struct aiScene* scene, kname package_name
     stack_nodes[stack_top++] = root;
     while (stack_top) {
         const struct aiNode* current = stack_nodes[--stack_top];
-        if (node_count == node_capacity) {
-            nodes = KREALLOC_TYPE_CARRAY(nodes, kasset_animated_mesh_node, node_capacity, node_capacity * 2);
-            node_capacity *= 2;
-        }
-        kasset_animated_mesh_node* node = &nodes[node_count];
-        kzero_memory(node, sizeof(kasset_animated_mesh_node));
-        node->name = kname_create(current->mName.data);
-        node->parent_index = INVALID_ID;
-        node->children = KNULL;
-        node->child_count = 0;
+
+        // Add to flat nodes list.
+        kasset_animated_mesh_node new_node = {
+            .name = kname_create(current->mName.data),
+            .parent_index = INVALID_ID,
+            .children = KNULL,
+            .child_count = 0};
+        u32 node_index = darray_length(nodes);
+        darray_push(nodes, new_node);
+
         // Add it to the map
-        if (node_map_count == node_map_capacity) {
-            node_map = KREALLOC_TYPE_CARRAY(node_map, node_map_entry, node_map_capacity, node_map_capacity ? node_map_capacity * 2 : 64);
-            node_map_capacity = node_map_capacity ? node_map_capacity * 2 : 64;
-        }
-        node_map_entry* entry = &node_map[node_map_count];
-        entry->node = current;
-        entry->index = node_count;
-        node_map_count++;
-        node_count++;
-        // Push children.
+        node_map_entry new_map_entry = {
+            .node = current,
+            .index = node_index};
+        darray_push(node_map, new_map_entry);
+
+        // Push children onto the stack.
         for (u32 i = 0; i < current->mNumChildren; ++i) {
             stack_nodes[stack_top++] = current->mChildren[i];
         }
     }
 
     // Set parent/child by re-iterating the map.
+    u32 node_map_count = darray_length(node_map);
     for (u32 i = 0; i < node_map_count; ++i) {
         const struct aiNode* current = node_map[i].node;
         u32 index = node_map[i].index;
@@ -382,16 +472,17 @@ static b8 anim_asset_from_assimp(const struct aiScene* scene, kname package_name
         }
     }
 
+    u32 node_count = darray_length(nodes);
     out_asset->nodes = KALLOC_TYPE_CARRAY(kasset_animated_mesh_node, node_count);
     KCOPY_TYPE_CARRAY(out_asset->nodes, nodes, kasset_animated_mesh_node, node_count);
     out_asset->node_count = node_count;
-    KFREE_TYPE_CARRAY(nodes, kasset_animated_mesh_node, node_capacity);
+    darray_destroy(nodes);
+    darray_destroy(node_map);
 
     // Copy channels and keys
-    u32 animation_count = out_asset->animation_count;
-    out_asset->animation_count = animation_count;
+    out_asset->animation_count = scene->mNumAnimations;
     out_asset->animations = KALLOC_TYPE_CARRAY(kasset_animated_mesh_animation, out_asset->animation_count);
-    for (u32 a = 0; a < animation_count; ++a) {
+    for (u32 a = 0; a < out_asset->animation_count; ++a) {
         struct aiAnimation* anim = scene->mAnimations[a];
         kasset_animated_mesh_animation* out = &out_asset->animations[a];
         out->name = kname_create(anim->mName.data);
@@ -446,10 +537,78 @@ static b8 anim_asset_from_assimp(const struct aiScene* scene, kname package_name
         }
     }
 
-    // Extract materials.
+    // Extract submeshes
+    out_asset->submesh_count = scene->mNumMeshes;
+    out_asset->submeshes = KALLOC_TYPE_CARRAY(kasset_animated_mesh_submesh_data, out_asset->submesh_count);
+    for (u32 m = 0; m < scene->mNumMeshes; ++m) {
+        struct aiMesh* mesh = scene->mMeshes[m];
+        kasset_animated_mesh_submesh_data* target = &out_asset->submeshes[m];
 
-    // Release all assimp resources.
-    aiReleaseImport(scene);
+        vertex_weight_accumulator* bone_data = KALLOC_TYPE_CARRAY(vertex_weight_accumulator, mesh->mNumVertices);
+
+        // Extract the bone weights from it.
+        // NOTE: It's possible this might not line up index-wise to the global bones array.
+        // May need to reconcile this later if this is an issue.
+        for (u32 b = 0; b < mesh->mNumBones; ++b) {
+            struct aiBone* ai_bone = mesh->mBones[b];
+            for (u32 w = 0; w < ai_bone->mNumWeights; ++w) {
+                add_bone_weight(&bone_data[ai_bone->mWeights[w].mVertexId], b, ai_bone->mWeights[w].mWeight);
+            }
+        }
+
+        target->vertex_count = mesh->mNumVertices;
+        target->vertices = KALLOC_TYPE_CARRAY(skinned_vertex_3d, target->vertex_count);
+        target->index_count = mesh->mNumFaces * 3; // NOTE: assumes triangulated mesh, which should be fine here.
+        target->indices = KALLOC_TYPE_CARRAY(u32, target->index_count);
+
+        // Process all vertices
+        for (u32 i = 0; i < mesh->mNumVertices; ++i) {
+            struct aiVector3D* v = &mesh->mVertices[i];
+            target->vertices[i].position = vec3_create(v->x, v->y, v->z);
+            if (mesh->mNormals) {
+                struct aiVector3D* n = &mesh->mNormals[i];
+                target->vertices[i].normal = vec3_create(n->x, n->y, n->z);
+            }
+            if (mesh->mTangents && mesh->mBitangents) {
+                struct aiVector3D* at = &mesh->mTangents[i];
+                struct aiVector3D* ab = &mesh->mBitangents[i];
+                vec3 t = vec3_create(at->x, at->y, at->z);
+                vec3 b = vec3_create(ab->x, ab->y, ab->z);
+                vec3 n = target->vertices[i].normal;
+
+                f32 handedness = (vec3_dot(vec3_cross(n, t), b) < 0.0f) ? -1.0f : 1.0f;
+                target->vertices[i].tangent = vec4_from_vec3(t, handedness);
+            }
+
+            if (mesh->mTextureCoords[0]) {
+                target->vertices[i].texcoord = vec2_create(mesh->mTextureCoords[0][i].x, mesh->mTextureCoords[0][i].y);
+            }
+
+            if (mesh->mColors[0]) {
+                struct aiColor4D* c = &mesh->mColors[0][i];
+                target->vertices[i].colour = vec4_create(c->r, c->g, c->b, c->a);
+            } else {
+                target->vertices[i].colour = vec4_one();
+            }
+
+            for (u8 b = 0; b < 4; ++b) {
+                target->vertices[i].bone_ids.elements[b] = bone_data[i].bone_ids[b];
+                target->vertices[i].weights.elements[b] = bone_data[i].weights[b];
+            }
+        }
+
+        KFREE_TYPE_CARRAY(bone_data, vertex_weight_accumulator, mesh->mNumVertices);
+
+        // Process all Indices
+        u32 idx = 0;
+        for (u32 f = 0; f < mesh->mNumFaces; ++f) {
+            const struct aiFace* face = &mesh->mFaces[f];
+            for (u32 k = 0; k < face->mNumIndices; ++k) {
+                target->indices[idx] = face->mIndices[k];
+                idx++;
+            }
+        }
+    }
 
     return true;
 }

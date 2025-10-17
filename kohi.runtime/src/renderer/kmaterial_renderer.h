@@ -2,7 +2,6 @@
 
 #include "core_render_types.h"
 #include "kresources/kresource_types.h"
-#include "math/kmath.h"
 #include "math/math_types.h"
 #include "renderer/renderer_types.h"
 #include "systems/kmaterial_system.h"
@@ -81,34 +80,42 @@ typedef struct kmaterial_settings_ubo {
     f32 shadow_split_mult;
 } kmaterial_settings_ubo;
 
-typedef struct kmaterial_render_immediate_data {
-    // bytes 0-15
-    // Index into global ubo views
-    u32 view_index;
-    // Index into global ubo projections
-    u32 projection_index;
-    // Handle to transform.
-    u32 transform_index;
-    // Handle to base material
-    u32 base_material_index;
+typedef enum kmaterial_data_index {
+    KMATERIAL_DATA_INDEX_VIEW = 0,
+    KMATERIAL_DATA_INDEX_PROJECTION = 1
+} kmaterial_data_index;
 
-    // bytes 16-31
+typedef enum kmaterial_data_index2 {
+    KMATERIAL_DATA_INDEX2_ANIMATION = 0,
+    KMATERIAL_DATA_INDEX2_BASE_MATERIAL = 1
+} kmaterial_data_index2;
+
+typedef struct kmaterial_render_immediate_data {
+    // bytes 0-31
+    // Packed data indices, 2x indices [view,projection]. see kmaterial_data_index
+    u32 data_indices;
+    // Packed data indices, 2x indices [transform,base_material]. see kmaterial_data_index2
+    u32 data_indices2;
+    u32 transform_index;
+    u32 padding;
+
+    // bytes 32-47
     // Index into the global point lights array. Up to 16 indices as u8s packed into 2 uints.
     uvec2 packed_point_light_indices; // 8 bytes
     u32 num_p_lights;
     // Index into global irradiance cubemap texture array
     u32 irradiance_cubemap_index;
 
-    // bytes 32-47
+    // bytes 48-63
     vec4 clipping_plane;
 
-    // bytes 48-63
+    // bytes 64-79
     u32 dir_light_index; // probably zero
     f32 tiling;          // only used for water materials
     f32 wave_strength;   // only used for water materials
     f32 wave_speed;      // only used for water materials
 
-    // 64-127 available
+    // 80-127 available
 } kmaterial_render_immediate_data;
 
 /** @brief State for the material renderer. */

@@ -52,6 +52,12 @@ const uint MATERIAL_STANDARD_FLAG_USE_AO_TEX = 0x0010;
 const uint MATERIAL_STANDARD_FLAG_USE_MRA_TEX = 0x0020;
 const uint MATERIAL_STANDARD_FLAG_USE_EMISSIVE_TEX = 0x0040;
 
+const uint KMATERIAL_DATA_INDEX_VIEW = 0;
+const uint KMATERIAL_DATA_INDEX_PROJECTION = 1;
+
+const uint KMATERIAL_DATA_INDEX2_ANIMATION = 0;
+const uint KMATERIAL_DATA_INDEX2_BASE_MATERIAL = 1;
+
 struct light_data {
     // Directional light: .rgb = colour, .w = ignored - Point lights: .rgb = colour, .a = linear 
     vec4 colour;
@@ -103,10 +109,10 @@ struct animation_skin_data {
 
 // Global settings for the scene.
 layout(std140, set = 0, binding = 0) uniform kmaterial_settings_ubo {
-    mat4 views[KMATERIAL_UBO_MAX_VIEWS]; // indexed by immediate.view_index
-    mat4 projections[KMATERIAL_UBO_MAX_PROJECTIONS]; // indexed by immediate.projection_index
+    mat4 views[KMATERIAL_UBO_MAX_VIEWS]; // indexed by in_dto.view_index
+    mat4 projections[KMATERIAL_UBO_MAX_PROJECTIONS]; // indexed by in_dto.projection_index
     mat4 directional_light_spaces[KMATERIAL_UBO_MAX_SHADOW_CASCADES]; // 256 bytes
-    vec4 view_positions[KMATERIAL_UBO_MAX_VIEWS]; // indexed by immediate.view_index
+    vec4 view_positions[KMATERIAL_UBO_MAX_VIEWS]; // indexed by in_dto.view_index
     vec4 cascade_splits;                                         // 16 bytes
 
     float delta_time;
@@ -119,8 +125,6 @@ layout(std140, set = 0, binding = 0) uniform kmaterial_settings_ubo {
     float shadow_distance;
     float shadow_fade_distance;
     float shadow_split_mult;
-
-
 } global_settings;
 
 // All transforms
@@ -130,17 +134,17 @@ layout(std430, set = 0, binding = 1) readonly buffer global_transforms_ssbo {
 
 // All lighting
 layout(std430, set = 0, binding = 2) readonly buffer global_lighting_ssbo {
-    light_data lights[]; // indexed by immediate.packed_point_light_indices (needs unpacking to 16x u8s)
+    light_data lights[]; // indexed by in_dto.packed_point_light_indices (needs unpacking to 16x u8s)
 } global_lighting;
 
 // All materials
 layout(std430, set = 0, binding = 3) readonly buffer global_materials_ssbo {
-    base_material_data base_materials[]; // indexed by immediate.transform_index
+    base_material_data base_materials[]; // indexed by in_dto.transform_index
 } global_materials;
 
 // All animation data
 layout(std430, set = 0, binding = 4) readonly buffer global_animations_ssbo {
-    animation_skin_data animations[]; // indexed by immediate.animation_index;
+    animation_skin_data animations[]; // indexed by in_dto.animation_index;
 } global_animations;
 
 layout(set = 0, binding = 5) uniform texture2DArray shadow_texture;
@@ -154,28 +158,31 @@ layout(set = 1, binding = 1) uniform sampler material_samplers[MATERIAL_STANDARD
 
 // Immediate data
 layout(push_constant) uniform immediate_data {
-    // bytes 0-15
-    uint view_index;
-    uint projection_index;
-    uint transform_index;
-    uint base_material_index;
 
-    // bytes 16-31
+    // bytes 0-31
+    // Packed data indices, 2x indices [view,projection]. see kmaterial_data_index
+    uint data_indices;
+    // Packed data indices, 2x indices [animation,base_material]. see kmaterial_data_index2
+    uint data_indices2;
+    uint transform_index;
+    uint padding;
+
+    // bytes 32-47
     // Index into the global point lights array. Up to 16 indices as u8s packed into 2 uints.
     uvec2 packed_point_light_indices; // 8 bytes
     uint num_p_lights;
     uint irradiance_cubemap_index;
 
-    // bytes 32-47
+    // bytes 48-63
     vec4 clipping_plane;
 
-    // bytes 48-63
+    // bytes 64-79
     uint dir_light_index;
     float tiling;
     float wave_strength;
     float wave_speed;
 
-    // 64-127 available
+    // 80-127 available
 } immediate;
 
 // Data Transfer Object
@@ -185,11 +192,12 @@ layout(location = 0) in dto {
 	vec4 light_space_frag_pos[KMATERIAL_UBO_MAX_SHADOW_CASCADES];
     vec4 vertex_colour;
 	vec3 normal;
-    float padding;
+    uint view_index;
 	vec3 tangent;
-    float padding2;
+    uint projection_index;
 	vec2 tex_coord;
-    vec2 padding3;
+    uint animation_index;
+    uint base_material_index;
     vec3 world_to_camera;
     float padding4;
 } in_dto;
@@ -206,14 +214,15 @@ float calculate_pcf(vec3 projected, int cascade_index, float shadow_bias);
 float calculate_unfiltered(vec3 projected, int cascade_index, float shadow_bias);
 float calculate_shadow(vec4 light_space_frag_pos, vec3 normal, int cascade_index);
 float geometry_schlick_ggx(float normal_dot_direction, float roughness);
-void unpack_u32(uint n, out uint x, out uint y, out uint z, out uint w);
+void unpack_u32_u8s(uint n, out uint x, out uint y, out uint z, out uint w);
+void unpack_u32_u16s(uint n, out uint x, out uint y);
 bool flag_get(uint flags, uint flag);
 uint flag_set(uint flags, uint flag, bool enabled);
 
 void main() {
-    mat4 view = global_settings.views[immediate.view_index];
-    vec3 view_position = global_settings.view_positions[immediate.view_index].xyz;
-    base_material_data base_material = global_materials.base_materials[immediate.base_material_index];
+    mat4 view = global_settings.views[in_dto.view_index];
+    vec3 view_position = global_settings.view_positions[in_dto.view_index].xyz;
+    base_material_data base_material = global_materials.base_materials[in_dto.base_material_index];
 
     vec2 distorted_texcoords;
     vec3 normal;
@@ -267,7 +276,7 @@ void main() {
 
     light_data directional_light = global_lighting.lights[immediate.dir_light_index];
 
-    base_material_data material = global_materials.base_materials[immediate.base_material_index];
+    base_material_data material = global_materials.base_materials[in_dto.base_material_index];
 
     vec3 albedo;
     float metallic;
@@ -501,7 +510,7 @@ void main() {
         for(uint ppli = 0; ppli < 2 && plights_rendered < immediate.num_p_lights; ++ppli) {
             uint packed = immediate.packed_point_light_indices[ppli];
             uint unpacked[4];
-            unpack_u32(packed, unpacked[0], unpacked[1], unpacked[2], unpacked[3]);
+            unpack_u32_u8s(packed, unpacked[0], unpacked[1], unpacked[2], unpacked[3]);
             for(uint upi = 0; upi < 4 && plights_rendered < immediate.num_p_lights; ++upi) {
                 light_data light = global_lighting.lights[unpacked[upi]];
                 vec3 light_direction = normalize(light.position.xyz - in_dto.frag_position.xyz);
@@ -656,11 +665,16 @@ float geometry_schlick_ggx(float normal_dot_direction, float roughness) {
     return normal_dot_direction / (normal_dot_direction * (1.0 - k) + k);
 }
 
-void unpack_u32(uint n, out uint x, out uint y, out uint z, out uint w) {
+void unpack_u32_u8s(uint n, out uint x, out uint y, out uint z, out uint w) {
     x = (n >> 24) & 0xFF;
     y = (n >> 16) & 0xFF;
     z = (n >> 8) & 0xFF;
     w = n & 0xFF;
+}
+
+void unpack_u32_u16s(uint n, out uint x, out uint y) {
+    x = (n >> 16) & 0xFF;
+    y = n & 0xFF;
 }
 
 /**

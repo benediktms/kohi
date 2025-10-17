@@ -379,3 +379,33 @@ KINLINE krange get_aligned_range(u64 offset, u64 size, u64 granularity) {
  * @param index The index to pack at (0-1).
  */
 #define PACK_U64_U32_AT(target, n, index) (target = (target | ((u64)n << ((1 - index) * 32))))
+
+/**
+ * Unpacks 2 u16s from a single u32.
+ * @param packed The packed u32.
+ * @param a A pointer to a u16 to hold the first value.
+ * @param b A pointer to a u16 to hold the second value.
+ */
+#define UNPACK_U32_U16S(packed, a, b) \
+    {                                 \
+        a = (u16)(packed >> 16);      \
+        b = (u16)(packed >> 0);       \
+    }
+
+/**
+ * Unpacks a single u16 at the given index (0-1).
+ */
+#define UNPACK_U32_U16_AT(packed, index) ((u16)(packed >> ((1 - index) * 16)))
+
+/**
+ * @brief Packs 2 u16s into a single u32
+ */
+#define PACK_U32_U16S(a, b) (((u32)a << 16) | ((u32)b))
+
+/**
+ * @brief Packs n into target. Target can be an already-packed u32.
+ * @param target The u32 to be packed into.
+ * @param n The u16 to be packed.
+ * @param index The index to pack at (0-1).
+ */
+#define PACK_U32_U16_AT(target, n, index) (target = (target | ((u32)n << ((1 - index) * 16))))

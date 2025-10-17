@@ -23,6 +23,10 @@ The items in this list are not in any particular order. This list will be update
   - [ ] Remove all references to scenes in engine core/runtime.
 - [ ] Refactor Testbed project for the above changes.
 - [x] Remove viewports, enhance camera system to include this instead.
+- [ ] Change to use multiple vertex buffers instead of a single one to handle extra data (i.e. bone
+      ids/weights, terrain material weights, etc. should be in a second buffer). Could then use the
+      same pipeline for static/animated geometry by binding a 'dummy' vertex binding for binding 1
+      and not using those attributes in the shader if there are no bone weights.
 - [ ] Remove legacy systems (i.e. lighting, etc.)
 - [ ] Hoist Overdrive project to it's own repo, refactor similar to Testbed.
 - [x] Bugfix: #274 Fix validation issues regarding window resize.

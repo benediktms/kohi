@@ -162,6 +162,10 @@ KAPI kanimated_mesh_instance kanimated_mesh_instance_acquire_from_package(struct
 // NOTE: Also releases held material instances.
 KAPI void kanimated_mesh_instance_release(struct kanimated_mesh_system_state* state, kanimated_mesh_instance* instance);
 
+KAPI b8 kanimated_mesh_submesh_count_get(struct kanimated_mesh_system_state* state, u16 base_mesh_id, u16* out_count);
+KAPI const kgeometry* kanimated_mesh_submesh_geometry_get_at(struct kanimated_mesh_system_state* state, u16 base_mesh_id, u16 index);
+KAPI const kmaterial_instance* kanimated_mesh_submesh_material_instance_get_at(struct kanimated_mesh_system_state* state, kanimated_mesh_instance instance, u16 index);
+
 // NOTE: Returns dynamic array, needs to be freed by caller.
 KAPI kname* kanimated_mesh_query_animations(struct kanimated_mesh_system_state* state, u16 base_mesh, u32* out_count);
 

@@ -1,3 +1,9 @@
+/**
+ *  LEFTOFF:
+ *  - Hook up animated meshes to renderer
+ *  - Finalize import process
+ *
+ * */
 #include "kanimation_system.h"
 
 #include "assets/kasset_types.h"
@@ -524,6 +530,22 @@ void kanimated_mesh_instance_release(struct kanimated_mesh_system_state* state, 
 
         base->id = INVALID_ID_U16;
     }
+}
+
+b8 kanimated_mesh_submesh_count_get(struct kanimated_mesh_system_state* state, u16 base_mesh_id, u16* out_count) {
+    if (!state || base_mesh_id == INVALID_ID_U16) {
+        return false;
+    }
+    *out_count = state->base_meshes[base_mesh_id].mesh_count;
+    return true;
+}
+
+const kgeometry* kanimated_mesh_submesh_geometry_get_at(struct kanimated_mesh_system_state* state, u16 base_mesh_id, u16 index) {
+    return &state->base_meshes[base_mesh_id].meshes[index].geo;
+}
+
+const kmaterial_instance* kanimated_mesh_submesh_material_instance_get_at(struct kanimated_mesh_system_state* state, kanimated_mesh_instance instance, u16 index) {
+    return &state->instances[instance.base_mesh][instance.instance].materials[index];
 }
 
 // NOTE: Returns dynamic array, needs to be freed by caller.

@@ -13,8 +13,18 @@ typedef struct binary_animated_mesh_header {
     extents_3d extents;
     // The animated_mesh center point.
     vec3 center;
+    // The number of strings stored in the file.
+    u16 string_count;
     // The number of geometries in the animated_mesh.
     u16 submesh_count;
+    // The number of bones.
+    u16 bone_count;
+    // The number of nodes.
+    u16 node_count;
+    // The number of animations.
+    u16 animation_count;
+    // The inverse global transform.
+    mat4 inverse_global_transform;
 } binary_animated_mesh_header;
 
 typedef struct binary_animated_mesh_geometry {
@@ -23,6 +33,23 @@ typedef struct binary_animated_mesh_geometry {
     extents_3d extents;
     vec3 center;
 } binary_animated_mesh_geometry;
+
+typedef struct serialized_string {
+    u32 length;
+    const char* data;
+} serialized_string;
+
+typedef struct serialized_mesh_bone {
+    u32 name_string_id;
+    mat4 offset_matrix;
+    u32 bone_id;
+} serialized_mesh_bone;
+
+typedef struct serialized_mesh_node {
+    u32 name_string_id;
+    mat4 local_transform;
+    u32 parent_index;
+} serialized_mesh_node;
 
 KAPI void* kasset_animated_mesh_serialize(const kasset_animated_mesh* asset, u64* out_size) {
     if (!asset) {
@@ -43,6 +70,11 @@ KAPI void* kasset_animated_mesh_serialize(const kasset_animated_mesh* asset, u64
     header.submesh_count = typed_asset->submesh_count;
     header.extents = typed_asset->extents;
     header.center = typed_asset->center;
+
+    header.bone_count = typed_asset->bone_count;
+    header.node_count = typed_asset->node_count;
+    header.animation_count = typed_asset->animation_count;
+    header.inverse_global_transform = typed_asset->global_inverse_transform;
 
     // Calculate the total required size first (for everything after the header.
     {
@@ -94,6 +126,16 @@ KAPI void* kasset_animated_mesh_serialize(const kasset_animated_mesh* asset, u64
                 header.base.data_block_size += vertex_array_size;
             }
         }
+
+        // FIXME: bones have names, these names need to be stored as strings.
+        // Perhaps these strings could be stored at the top level of the file, and
+        // referenced by index.
+        header.base.data_block_size += sizeof(kasset_animated_mesh_bone) * header.bone_count;
+        // LEFTOFF: Need to finish bones, nodes and animations with all of thier sub-arrays.
+
+        // Nodes contain children, so the storage of these has to be somewhat different.
+        // Store these as a flat list of nodes _without_ the children ids, but with a parent id.
+        // Rebuild this list on deserialization.
     }
 
     // The total space required for the data block.
@@ -181,6 +223,10 @@ KAPI void* kasset_animated_mesh_serialize(const kasset_animated_mesh* asset, u64
             offset += vertex_array_size;
         }
     }
+
+    // Bone data
+
+    // Animation data
 
     // Return the serialized block of memory.
     return block;

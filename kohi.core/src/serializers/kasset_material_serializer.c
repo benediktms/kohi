@@ -20,6 +20,7 @@
 #define INPUT_AO "ao"
 #define INPUT_MRA "mra"
 #define INPUT_EMISSIVE "emissive"
+#define INPUT_SPECULAR "specular"
 #define INPUT_DUDV "dudv"
 
 #define INPUT_MAP "map"
@@ -99,52 +100,67 @@ const char* kasset_material_serialize(const kasset_material* asset) {
 
     // Properties and maps only used in standard materials.
     if (material->type == KMATERIAL_TYPE_STANDARD) {
-        // Metallic
-        {
-            kson_object metallic = kson_object_create();
-            if (material->metallic_map.resource_name) {
-                const char* channel = texture_channel_to_string(material->metallic_map_source_channel);
-                add_map_obj(&metallic, channel, &material->metallic_map);
-            } else {
-                kson_object_value_add_float(&metallic, INPUT_VALUE, material->metallic);
-            }
-            kson_object_value_add_object(&inputs, INPUT_METALLIC, metallic);
-        }
+        if (material->model == KMATERIAL_MODEL_PBR) {
+            // PBR-Only properties
 
-        // Roughness
-        {
-            kson_object roughness = kson_object_create();
-            if (material->roughness_map.resource_name) {
-                const char* channel = texture_channel_to_string(material->roughness_map_source_channel);
-                add_map_obj(&roughness, channel, &material->roughness_map);
-            } else {
-                kson_object_value_add_float(&roughness, INPUT_VALUE, material->roughness);
+            // Metallic
+            {
+                kson_object metallic = kson_object_create();
+                if (material->metallic_map.resource_name) {
+                    const char* channel = texture_channel_to_string(material->metallic_map_source_channel);
+                    add_map_obj(&metallic, channel, &material->metallic_map);
+                } else {
+                    kson_object_value_add_float(&metallic, INPUT_VALUE, material->metallic);
+                }
+                kson_object_value_add_object(&inputs, INPUT_METALLIC, metallic);
             }
-            kson_object_value_add_object(&inputs, INPUT_ROUGHNESS, roughness);
-        }
 
-        // Ambient Occlusion
-        {
-            kson_object ao = kson_object_create();
-            if (material->ambient_occlusion_map.resource_name) {
-                const char* channel = texture_channel_to_string(material->ambient_occlusion_map_source_channel);
-                add_map_obj(&ao, channel, &material->ambient_occlusion_map);
-            } else {
-                kson_object_value_add_float(&ao, INPUT_VALUE, material->ambient_occlusion);
+            // Roughness
+            {
+                kson_object roughness = kson_object_create();
+                if (material->roughness_map.resource_name) {
+                    const char* channel = texture_channel_to_string(material->roughness_map_source_channel);
+                    add_map_obj(&roughness, channel, &material->roughness_map);
+                } else {
+                    kson_object_value_add_float(&roughness, INPUT_VALUE, material->roughness);
+                }
+                kson_object_value_add_object(&inputs, INPUT_ROUGHNESS, roughness);
             }
-            kson_object_value_add_boolean(&ao, INPUT_ENABLED, material->ambient_occlusion_enabled);
-            kson_object_value_add_object(&inputs, INPUT_AO, ao);
-        }
 
-        // Metallic/roughness/ao combined value (mra) - only written out if used.
-        if (material->use_mra) {
-            kson_object mra = kson_object_create();
-            if (material->mra_map.resource_name) {
-                add_map_obj(&mra, 0, &material->mra_map);
-            } else {
-                kson_object_value_add_vec3(&mra, INPUT_VALUE, material->mra);
+            // Ambient Occlusion
+            {
+                kson_object ao = kson_object_create();
+                if (material->ambient_occlusion_map.resource_name) {
+                    const char* channel = texture_channel_to_string(material->ambient_occlusion_map_source_channel);
+                    add_map_obj(&ao, channel, &material->ambient_occlusion_map);
+                } else {
+                    kson_object_value_add_float(&ao, INPUT_VALUE, material->ambient_occlusion);
+                }
+                kson_object_value_add_boolean(&ao, INPUT_ENABLED, material->ambient_occlusion_enabled);
+                kson_object_value_add_object(&inputs, INPUT_AO, ao);
             }
-            kson_object_value_add_object(&inputs, INPUT_MRA, mra);
+
+            // Metallic/roughness/ao combined value (mra) - only written out if used.
+            if (material->use_mra) {
+                kson_object mra = kson_object_create();
+                if (material->mra_map.resource_name) {
+                    add_map_obj(&mra, 0, &material->mra_map);
+                } else {
+                    kson_object_value_add_vec3(&mra, INPUT_VALUE, material->mra);
+                }
+                kson_object_value_add_object(&inputs, INPUT_MRA, mra);
+            }
+        } else if (material->model == KMATERIAL_MODEL_PHONG) {
+            // Phong-only properties
+
+            // Specular
+            kson_object specular = kson_object_create();
+            if (material->specular_colour_map.resource_name) {
+                add_map_obj(&specular, 0, &material->specular_colour_map);
+            } else {
+                kson_object_value_add_vec4(&specular, INPUT_VALUE, material->specular_colour);
+            }
+            kson_object_value_add_object(&inputs, INPUT_SPECULAR, specular);
         }
 
         // Emissive
