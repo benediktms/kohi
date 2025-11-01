@@ -1,4 +1,4 @@
-#include "kasset_importer_animated_mesh_assimp.h"
+#include "kasset_importer_model_assimp.h"
 
 #include <assimp/cimport.h>
 #include <assimp/color4.h>
@@ -24,8 +24,8 @@
 #include "memory/kmemory.h"
 
 #include "platform/filesystem.h"
-#include "serializers/kasset_animated_mesh_serializer.h"
 #include "serializers/kasset_material_serializer.h"
+#include "serializers/kasset_model_serializer.h"
 
 // TODO: If this is needed, perhaps move types to separate header file.
 #include "strings/kname.h"
@@ -37,11 +37,11 @@ static void get_material_texture_data_by_type(kname package_name, const struct a
 static mat4 mat4_from_ai(const struct aiMatrix4x4* source);
 static b8 materials_from_assimp(const struct aiScene* scene, kname package_name, const char* output_directory, b8 force_pbr);
 static const struct aiScene* assimp_open_file(const char* source_path);
-static b8 anim_asset_from_assimp(const struct aiScene* scene, kname package_name, kasset_animated_mesh* out_asset);
-static void anim_asset_destroy(kasset_animated_mesh* asset);
+static b8 anim_asset_from_assimp(const struct aiScene* scene, kname package_name, kasset_model* out_asset);
+static void anim_asset_destroy(kasset_model* asset);
 
-b8 kasset_animated_mesh_assimp_import(const char* source_path, const char* target_path, const char* material_target_dir, const char* package_name) {
-    kasset_animated_mesh new_asset = {0};
+b8 kasset_model_assimp_import(const char* source_path, const char* target_path, const char* material_target_dir, const char* package_name) {
+    kasset_model new_asset = {0};
 
     const struct aiScene* scene = assimp_open_file(source_path);
 
@@ -57,7 +57,7 @@ b8 kasset_animated_mesh_assimp_import(const char* source_path, const char* targe
 
     // Serialize animation asset.
     u64 serialized_size = 0;
-    void* serialized_data = kasset_animated_mesh_serialize(&new_asset, &serialized_size);
+    void* serialized_data = kasset_model_serialize(&new_asset, KASSET_EXPORTER_TYPE_KOHI_IMPORTER, KASSET_EXPORTER_TYPE_KOHI_IMPORTER_VERSION, &serialized_size);
     if (!serialized_size || !serialized_data) {
         KERROR("Failed to serialize animated mesh asset '%s'.", target_path);
         goto ai_import_cleanup;
@@ -369,21 +369,21 @@ static void add_bone_weight(vertex_weight_accumulator* a, i32 bone_id, f32 weigh
     }
 }
 
-static b8 anim_asset_from_assimp(const struct aiScene* scene, kname package_name, kasset_animated_mesh* out_asset) {
+static b8 anim_asset_from_assimp(const struct aiScene* scene, kname package_name, kasset_model* out_asset) {
 
-    kzero_memory(out_asset, sizeof(kasset_animated_mesh));
+    kzero_memory(out_asset, sizeof(kasset_model));
     out_asset->global_inverse_transform = mat4_from_ai(&scene->mRootNode->mTransformation);
     // TODO: Does this need to be the inverse?
 
     // Get all unique bones across all meshes.
-    kasset_animated_mesh_bone bones[KANIMATION_MAX_BONES] = {0};
+    kasset_model_bone bones[KANIMATION_MAX_BONES] = {0};
     u32 bone_count = 0;
     for (u32 m = 0; m < scene->mNumMeshes; ++m) {
         struct aiMesh* mesh = scene->mMeshes[m];
         // Extract the bones from it.
         for (u32 b = 0; b < mesh->mNumBones; ++b) {
             struct aiBone* ai_bone = mesh->mBones[b];
-            kasset_animated_mesh_bone* bone = &bones[bone_count];
+            kasset_model_bone* bone = &bones[bone_count];
             kname ai_bone_name = kname_create(ai_bone->mName.data);
 
             b8 found = false;
@@ -406,12 +406,12 @@ static b8 anim_asset_from_assimp(const struct aiScene* scene, kname package_name
         }
     }
 
-    out_asset->bones = KALLOC_TYPE_CARRAY(kasset_animated_mesh_bone, bone_count);
+    out_asset->bones = KALLOC_TYPE_CARRAY(kasset_model_bone, bone_count);
     out_asset->bone_count = bone_count;
-    KCOPY_TYPE_CARRAY(out_asset->bones, bones, kasset_animated_mesh_bone, bone_count);
+    KCOPY_TYPE_CARRAY(out_asset->bones, bones, kasset_model_bone, bone_count);
 
     // Flatten the node structure into a single array and reference by index instead.
-    kasset_animated_mesh_node* nodes = darray_create(kasset_animated_mesh_node);
+    kasset_model_node* nodes = darray_create(kasset_model_node);
 
     typedef struct node_map_entry {
         const struct aiNode* node;
@@ -429,9 +429,9 @@ static b8 anim_asset_from_assimp(const struct aiScene* scene, kname package_name
         const struct aiNode* current = stack_nodes[--stack_top];
 
         // Add to flat nodes list.
-        kasset_animated_mesh_node new_node = {
+        kasset_model_node new_node = {
             .name = kname_create(current->mName.data),
-            .parent_index = INVALID_ID,
+            .parent_index = INVALID_ID_U16,
             .children = KNULL,
             .child_count = 0};
         u32 node_index = darray_length(nodes);
@@ -464,8 +464,8 @@ static b8 anim_asset_from_assimp(const struct aiScene* scene, kname package_name
                 }
             }
             if (child_index != INVALID_ID) {
-                kasset_animated_mesh_node* cn = &nodes[index];
-                cn->children = KREALLOC_TYPE_CARRAY(cn->children, u32, cn->child_count, cn->child_count + 1);
+                kasset_model_node* cn = &nodes[index];
+                cn->children = KREALLOC_TYPE_CARRAY(cn->children, u16, cn->child_count, cn->child_count + 1);
                 cn->children[cn->child_count++] = child_index;
                 nodes[child_index].parent_index = index;
             }
@@ -473,33 +473,33 @@ static b8 anim_asset_from_assimp(const struct aiScene* scene, kname package_name
     }
 
     u32 node_count = darray_length(nodes);
-    out_asset->nodes = KALLOC_TYPE_CARRAY(kasset_animated_mesh_node, node_count);
-    KCOPY_TYPE_CARRAY(out_asset->nodes, nodes, kasset_animated_mesh_node, node_count);
+    out_asset->nodes = KALLOC_TYPE_CARRAY(kasset_model_node, node_count);
+    KCOPY_TYPE_CARRAY(out_asset->nodes, nodes, kasset_model_node, node_count);
     out_asset->node_count = node_count;
     darray_destroy(nodes);
     darray_destroy(node_map);
 
     // Copy channels and keys
     out_asset->animation_count = scene->mNumAnimations;
-    out_asset->animations = KALLOC_TYPE_CARRAY(kasset_animated_mesh_animation, out_asset->animation_count);
+    out_asset->animations = KALLOC_TYPE_CARRAY(kasset_model_animation, out_asset->animation_count);
     for (u32 a = 0; a < out_asset->animation_count; ++a) {
         struct aiAnimation* anim = scene->mAnimations[a];
-        kasset_animated_mesh_animation* out = &out_asset->animations[a];
+        kasset_model_animation* out = &out_asset->animations[a];
         out->name = kname_create(anim->mName.data);
         out->duration = anim->mDuration;
         out->ticks_per_second = anim->mTicksPerSecond;
         out->channel_count = anim->mNumChannels;
-        out->channels = KALLOC_TYPE_CARRAY(kasset_animated_mesh_channel, out->channel_count);
+        out->channels = KALLOC_TYPE_CARRAY(kasset_model_channel, out->channel_count);
         for (u32 c = 0; c < out->channel_count; c++) {
             struct aiNodeAnim* chn = anim->mChannels[c];
-            kasset_animated_mesh_channel* oc = &out->channels[c];
+            kasset_model_channel* oc = &out->channels[c];
             kzero_memory(oc, sizeof(kanimated_mesh_channel));
             oc->name = kname_create(chn->mNodeName.data);
 
             // Positions
             oc->pos_count = chn->mNumPositionKeys;
             if (oc->pos_count) {
-                oc->positions = KALLOC_TYPE_CARRAY(kasset_animated_mesh_key_vec3, oc->pos_count);
+                oc->positions = KALLOC_TYPE_CARRAY(kasset_model_key_vec3, oc->pos_count);
                 for (u32 k = 0; k < oc->pos_count; ++k) {
                     struct aiVectorKey* vk = &chn->mPositionKeys[k];
                     oc->positions[k].time = vk->mTime;
@@ -512,7 +512,7 @@ static b8 anim_asset_from_assimp(const struct aiScene* scene, kname package_name
             // Rotations
             oc->rot_count = chn->mNumRotationKeys;
             if (oc->rot_count) {
-                oc->rotations = KALLOC_TYPE_CARRAY(kasset_animated_mesh_key_quat, oc->rot_count);
+                oc->rotations = KALLOC_TYPE_CARRAY(kasset_model_key_quat, oc->rot_count);
                 for (u32 k = 0; k < oc->rot_count; ++k) {
                     struct aiQuatKey* vk = &chn->mRotationKeys[k];
                     oc->rotations[k].time = vk->mTime;
@@ -525,7 +525,7 @@ static b8 anim_asset_from_assimp(const struct aiScene* scene, kname package_name
             // Scales
             oc->scale_count = chn->mNumScalingKeys;
             if (oc->scale_count) {
-                oc->scales = KALLOC_TYPE_CARRAY(kasset_animated_mesh_key_vec3, oc->scale_count);
+                oc->scales = KALLOC_TYPE_CARRAY(kasset_model_key_vec3, oc->scale_count);
                 for (u32 k = 0; k < oc->scale_count; ++k) {
                     struct aiVectorKey* vk = &chn->mScalingKeys[k];
                     oc->scales[k].time = vk->mTime;
@@ -539,10 +539,10 @@ static b8 anim_asset_from_assimp(const struct aiScene* scene, kname package_name
 
     // Extract submeshes
     out_asset->submesh_count = scene->mNumMeshes;
-    out_asset->submeshes = KALLOC_TYPE_CARRAY(kasset_animated_mesh_submesh_data, out_asset->submesh_count);
+    out_asset->submeshes = KALLOC_TYPE_CARRAY(kasset_model_submesh_data, out_asset->submesh_count);
     for (u32 m = 0; m < scene->mNumMeshes; ++m) {
         struct aiMesh* mesh = scene->mMeshes[m];
-        kasset_animated_mesh_submesh_data* target = &out_asset->submeshes[m];
+        kasset_model_submesh_data* target = &out_asset->submeshes[m];
 
         vertex_weight_accumulator* bone_data = KALLOC_TYPE_CARRAY(vertex_weight_accumulator, mesh->mNumVertices);
 
@@ -562,6 +562,8 @@ static b8 anim_asset_from_assimp(const struct aiScene* scene, kname package_name
         target->indices = KALLOC_TYPE_CARRAY(u32, target->index_count);
 
         // Process all vertices
+        // LEFTOFF: Determine if this is a skinned mesh or a normal one, and cast
+        // target->vertices accordingly.
         for (u32 i = 0; i < mesh->mNumVertices; ++i) {
             struct aiVector3D* v = &mesh->mVertices[i];
             target->vertices[i].position = vec3_create(v->x, v->y, v->z);
@@ -613,15 +615,15 @@ static b8 anim_asset_from_assimp(const struct aiScene* scene, kname package_name
     return true;
 }
 
-static void anim_asset_destroy(kasset_animated_mesh* asset) {
+static void anim_asset_destroy(kasset_model* asset) {
     if (!asset) {
         return;
     }
 
     for (u32 i = 0; i < asset->animation_count; ++i) {
-        kasset_animated_mesh_animation* a = &asset->animations[i];
+        kasset_model_animation* a = &asset->animations[i];
         for (u32 c = 0; c < a->channel_count; c++) {
-            kasset_animated_mesh_channel* ch = &a->channels[c];
+            kasset_model_channel* ch = &a->channels[c];
             KFREE_TYPE_CARRAY(ch->positions, anim_key_vec3, ch->pos_count);
             KFREE_TYPE_CARRAY(ch->rotations, anim_key_quat, ch->rot_count);
             KFREE_TYPE_CARRAY(ch->scales, anim_key_vec3, ch->scale_count);
@@ -629,9 +631,9 @@ static void anim_asset_destroy(kasset_animated_mesh* asset) {
         KFREE_TYPE_CARRAY(a->channels, kanimated_mesh_channel, a->channel_count);
     }
     KFREE_TYPE_CARRAY(asset->animations, kanimated_mesh_animation, asset->animation_count);
-    KFREE_TYPE_CARRAY(asset->bones, kasset_animated_mesh_bone, asset->bone_count);
+    KFREE_TYPE_CARRAY(asset->bones, kasset_model_bone, asset->bone_count);
     for (u32 i = 0; i < asset->node_count; ++i) {
         KFREE_TYPE_CARRAY(asset->nodes[i].children, u32, asset->nodes[i].child_count);
     }
-    KFREE_TYPE_CARRAY(asset->nodes, kasset_animated_mesh_node, asset->node_count);
+    KFREE_TYPE_CARRAY(asset->nodes, kasset_model_node, asset->node_count);
 }

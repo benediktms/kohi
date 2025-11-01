@@ -51,7 +51,7 @@ KAPI kname kname_create(const char* str);
 /**
  * Attempts to get the original string associated with the given kname.
  * This will only work if the name was originally registered in the internal
- * global lookup table.
+ * global lookup table. Also returns 0/null if INVALID_KNAME/0 is provided as the name.
  *
  * @param name The kname to lookup.
  * @returns A constant pointer to the string if found, otherwise 0/null. NOTE: Do *NOT* free this string!

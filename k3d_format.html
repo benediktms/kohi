@@ -1,0 +1,544 @@
+<!doctype html>
+<html>
+  <head>
+    <title>K3D Format Specification</title>
+    <style type="text/css">
+      html,
+      body {
+        font-family: Geneva, Verdana, Arial, Helvetica, sans-serif;
+      }
+
+      h1,
+      h2,
+      h3,
+      h4 {
+        border-bottom: 1px solid #ccc;
+      }
+
+      #toc {
+        box-sizing: border-box;
+        width: 150px;
+        border: 1px solid #ccc;
+        padding: 5px;
+        background-color: #f9f9f9;
+      }
+    </style>
+  </head>
+
+  <body>
+    <h1>K3D (Kohi 3D model format)</h1>
+
+    <div id="toc">
+      <h2 id="toctitle">Contents</h2>
+      <ol>
+        <li><a href="#Introduction">Introduction</a></li>
+        <li><a href="#K3D_Format">K3D Format</a></li>
+        <li><a href="#Header">Header</a></li>
+        <li><a href="#Submeshes">Submeshes</a></li>
+        <li><a href="#Bones">Bones</a></li>
+        <li><a href="#Nodes">Nodes</a></li>
+        <li><a href="#Animations">Animations</a></li>
+        <li><a href="#Animation_Channels">Animation Channels</a></li>
+        <li><a href="#Strings">Strings</a></li>
+      </ol>
+    </div>
+
+    <a name="Introduction"></a>
+    <h2>Introduction</h2>
+
+    <p>
+      K3D is the native, binary format used by Kohi to store mesh shape,
+      animation, and skeletal data. This document serves as a basic
+      specification for the K3D format.
+    </p>
+
+    <a name="K3D_Format"></a>
+    <h2>K3D Format</h2>
+
+    <a name="Header"></a>
+    <h3>Header</h3>
+
+    <table border="1">
+      <tr>
+        <th>Field Name</th>
+        <th>Bytes</th>
+        <th>Data Type</th>
+        <th>Description</th>
+      </tr>
+      <tr>
+        <td>Kohi Magic</td>
+        <td>4</td>
+        <td>u32</td>
+        <td>Marks file as Kohi Asset. Value must be 0xDECAFBAD</td>
+      </tr>
+      <tr>
+        <td>Asset Type</td>
+        <td>4</td>
+        <td>u32</td>
+        <td>Should match the enum value of KASSET_TYPE_MODEL</td>
+      </tr>
+      <tr>
+        <td>Version</td>
+        <td>1</td>
+        <td>u8</td>
+        <td>The K3D asset version.</td>
+      </tr>
+      <tr>
+        <td>Exp. Type</td>
+        <td>1</td>
+        <td>u32</td>
+        <td>
+          Used to track the type of exporter used. 0x00000001 means imported via
+          Kohi's importer toolchain. Ignored by the engine, mostly used for
+          debugging purposes.
+        </td>
+      </tr>
+      <tr>
+        <td>Exp. Ver.</td>
+        <td>1</td>
+        <td>u8</td>
+        <td>
+          Used to track version of the exporter used. Ignored by the engine,
+          mostly used for debugging purposes.
+        </td>
+      </tr>
+      <tr>
+        <td>Extents</td>
+        <td>24</td>
+        <td>extents_3d</td>
+        <td>The combined extents of all submeshes.</td>
+      </tr>
+      <tr>
+        <td>Center</td>
+        <td>12</td>
+        <td>vec3</td>
+        <td>The center point of all submeshes.</td>
+      </tr>
+      <tr>
+        <td>Inverse Global Transform</td>
+        <td>64</td>
+        <td>mat4</td>
+        <td>The inverse global transform matrix.</td>
+      </tr>
+      <tr>
+        <td>Submesh Count</td>
+        <td>2</td>
+        <td>u16</td>
+        <td>Number of submeshes present.</td>
+      </tr>
+      <tr>
+        <td>Bone count</td>
+        <td>2</td>
+        <td>u16</td>
+        <td>Number of bones present.</td>
+      </tr>
+      <tr>
+        <td>Node count</td>
+        <td>2</td>
+        <td>u16</td>
+        <td>Number of nodes present.</td>
+      </tr>
+      <tr>
+        <td>Animation count</td>
+        <td>2</td>
+        <td>u16</td>
+        <td>Number of animations present.</td>
+      </tr>
+      <tr>
+        <td>String table offset</td>
+        <td>4</td>
+        <td>u32</td>
+        <td>
+          Offset in bytes in the entire file where the string table begins.
+        </td>
+      </tr>
+    </table>
+
+    <a name="Submeshes"></a>
+    <h3>Submeshes</h3>
+    <p>NOTE: This section should only exist if Submesh Count > 0.</p>
+
+    <table border="1">
+      <tr>
+        <th>Field Name</th>
+        <th>Bytes</th>
+        <th>Data Type</th>
+        <th>Description</th>
+      </tr>
+      <tr>
+        <td>SUBMESHES BEGIN GUARD</td>
+        <td>4</td>
+        <td>u32</td>
+        <td>
+          Serves as a checkpoint to ensure the beginning of the submeshes
+          section is where it belongs. Value should indicate section type =
+          0x00000001.
+        </td>
+      </tr>
+      <tr>
+        <td>Name Ids</td>
+        <td>2 * Submesh Count</td>
+        <td>u16*</td>
+        <td>
+          An array of string ids of the names of the submeshes (length = Submesh
+          Count).
+        </td>
+      </tr>
+      <tr>
+        <td>Material Name Ids</td>
+        <td>2 * Submesh Count</td>
+        <td>u16*</td>
+        <td>
+          An array of string ids of the material names of the submeshes (length
+          = Submesh Count).
+        </td>
+      </tr>
+      <tr>
+        <td>Vertex Counts</td>
+        <td>4 * Submesh Count</td>
+        <td>u32*</td>
+        <td>
+          An array of counts of vertices per Submesh (length = Submesh Count).
+        </td>
+      </tr>
+      <tr>
+        <td>Index Counts</td>
+        <td>4 * Submesh Count</td>
+        <td>u32*</td>
+        <td>
+          An array of counts of indices per Submesh (length = Submesh Count).
+        </td>
+      </tr>
+      <tr>
+        <td>Mesh Types</td>
+        <td>1 * Submesh Count</td>
+        <td>u8*</td>
+        <td>
+          An array of types of vertex data for a submesh. I.e. 0 = vertex_3d
+          format, 1 = skinned_vertex_3d format, etc.
+        </td>
+      </tr>
+      <tr>
+        <td>Centers</td>
+        <td>12 * Submesh Count</td>
+        <td>vec3*</td>
+        <td>
+          An array of center positions per Submesh (length = Submesh Count).
+        </td>
+      </tr>
+      <tr>
+        <td>Extents</td>
+        <td>24 * Submesh Count</td>
+        <td>extents_3d*</td>
+        <td>An array of extents per Submesh (length = Submesh Count).</td>
+      </tr>
+      <tr>
+        <td>Vertex Data Buffer</td>
+        <td>4</td>
+        <td>f32* or i32*</td>
+        <td>
+          A buffer of f32s that stores all vertex data for all submeshes,
+          regardless of format. The overall size of this is determined by the
+          vertex format of each submesh, how many vertices that submesh has, as
+          well as how many submeshes there are.
+        </td>
+      </tr>
+      <tr>
+        <td>Index Data Buffer</td>
+        <td>4</td>
+        <td>u32*</td>
+        <td>
+          A buffer of u32s that stores all index data for all submeshes. The
+          overall size of this is determined by the how many indices each
+          submesh has, as well as how many submeshes there are.
+        </td>
+      </tr>
+    </table>
+
+    <a name="Bones"></a>
+    <h3>Bones</h3>
+    <p>NOTE: This section should only exist if Bone Count > 0.</p>
+
+    <table border="1">
+      <tr>
+        <th>Field Name</th>
+        <th>Bytes</th>
+        <th>Data Type</th>
+        <th>Description</th>
+      </tr>
+      <tr>
+        <td>BONES BEGIN GUARD</td>
+        <td>4</td>
+        <td>u32</td>
+        <td>
+          Serves as a checkpoint to ensure the beginning of the bones section is
+          where it belongs. Value should indicate section type = 0x00000002.
+        </td>
+      </tr>
+      <tr>
+        <td>Name Ids</td>
+        <td>2 * Bone Count</td>
+        <td>u16*</td>
+        <td>
+          An array of string ids of the names of the bones (length = Bone
+          Count).
+        </td>
+      </tr>
+      <tr>
+        <td>Offset Matrices</td>
+        <td>64 * Bone Count</td>
+        <td>mat4*</td>
+        <td>An array of offset matrices of the bones (length = Bone Count).</td>
+      </tr>
+    </table>
+
+    <a name="Nodes"></a>
+    <h3>Nodes</h3>
+    <p>NOTE: This section should only exist if Node Count > 0.</p>
+
+    <table border="1">
+      <tr>
+        <th>Field Name</th>
+        <th>Bytes</th>
+        <th>Data Type</th>
+        <th>Description</th>
+      </tr>
+      <tr>
+        <td>NODES BEGIN GUARD</td>
+        <td>4</td>
+        <td>u32</td>
+        <td>
+          Serves as a checkpoint to ensure the beginning of the nodes section is
+          where it belongs. Value should indicate section type = 0x00000003.
+        </td>
+      </tr>
+      <tr>
+        <td>Name Ids</td>
+        <td>2 * Node Count</td>
+        <td>u16*</td>
+        <td>
+          An array of string ids of the names of the nodes (length = Node
+          Count).
+        </td>
+      </tr>
+      <tr>
+        <td>Parent Indices</td>
+        <td>2 * Node Count</td>
+        <td>u16*</td>
+        <td>
+          An array of indices of parents of the nodes (length = Node Count).
+          INVALID_ID_U16 = root node (no parent)
+        </td>
+      </tr>
+      <tr>
+        <td>Local transforms</td>
+        <td>64 * Node Count</td>
+        <td>mat4*</td>
+        <td>
+          An array of local transform matrices of the nodes (length = Node
+          Count).
+        </td>
+      </tr>
+    </table>
+
+    <a name="Animations"></a>
+    <h3>Animations</h3>
+    <p>NOTE: This section should only exist if Animation Count > 0.</p>
+
+    <table border="1">
+      <tr>
+        <th>Field Name</th>
+        <th>Bytes</th>
+        <th>Data Type</th>
+        <th>Description</th>
+      </tr>
+      <tr>
+        <td>ANIMATIONS BEGIN GUARD</td>
+        <td>4</td>
+        <td>u32</td>
+        <td>
+          Serves as a checkpoint to ensure the beginning of the animations
+          section is where it belongs. Value should indicate section type =
+          0x00000004.
+        </td>
+      </tr>
+      <tr>
+        <td>Total Channel Count</td>
+        <td>2</td>
+        <td>u16</td>
+        <td>The total number of channels for all animations</td>
+      </tr>
+      <tr>
+        <td>Name Ids</td>
+        <td>2 * Animation Count</td>
+        <td>u16*</td>
+        <td>
+          An array of string ids of the names of the animations (length =
+          Animation Count).
+        </td>
+      </tr>
+      <tr>
+        <td>Durations</td>
+        <td>4 * Animation Count</td>
+        <td>f32*</td>
+        <td>
+          An array of durations of each animation (length = Animation Count).
+        </td>
+      </tr>
+      <tr>
+        <td>Ticks Per Seconds</td>
+        <td>4 * Animation Count</td>
+        <td>f32*</td>
+        <td>
+          An array of ticks-per-second of each animation (length = Animation
+          Count).
+        </td>
+      </tr>
+      <tr>
+        <td>Channel Counts</td>
+        <td>2 * Animation Count</td>
+        <td>u16*</td>
+        <td>
+          An array of channel counts of each animation (length = Animation
+          Count).
+        </td>
+      </tr>
+    </table>
+
+    <a name="Animation_Channels"></a>
+    <h3>Animation Channels</h3>
+    <p>
+      NOTE: This section should only exist if Animation Count > 0 AND Total
+      Channel Count > 0.
+    </p>
+
+    <table border="1">
+      <tr>
+        <th>Field Name</th>
+        <th>Bytes</th>
+        <th>Data Type</th>
+        <th>Description</th>
+      </tr>
+      <tr>
+        <td>ANIMATION CHANNELS BEGIN GUARD</td>
+        <td>4</td>
+        <td>u32</td>
+        <td>
+          Serves as a checkpoint to ensure the beginning of the animation
+          channels section is where it belongs. Value should indicate section
+          type = 0x00000005.
+        </td>
+      </tr>
+      <tr>
+        <td>Channel Anim. Ids</td>
+        <td>2 * Total Channel Count</td>
+        <td>u16*</td>
+        <td>
+          An array of animation ids for each channel (length = Total Channel
+          Count). Used to link a channel back to an animation.
+        </td>
+      </tr>
+      <tr>
+        <td>Channel Name Ids</td>
+        <td>2 * Total Channel Count</td>
+        <td>u16*</td>
+        <td>
+          An array of string ids of the names of the animation channels (length
+          = Total Channel Count).
+        </td>
+      </tr>
+      <tr>
+        <td>Channel Position Counts</td>
+        <td>4 * Total Channel Count</td>
+        <td>u32*</td>
+        <td>
+          An array of position counts for each channel (length = Total Channel
+          Count).
+        </td>
+      </tr>
+      <tr>
+        <td>Channel Position Offsets</td>
+        <td>4 * Total Channel Count</td>
+        <td>u32*</td>
+        <td>
+          An offset into the positions array for each channel (length = Total
+          Channel Count).
+        </td>
+      </tr>
+      <tr>
+        <td>Channel Rotation Counts</td>
+        <td>4 * Total Channel Count</td>
+        <td>u32*</td>
+        <td>
+          An array of rotation counts for each channel (length = Total Channel
+          Count).
+        </td>
+      </tr>
+      <tr>
+        <td>Channel Rotation Offsets</td>
+        <td>4 * Total Channel Count</td>
+        <td>u32*</td>
+        <td>
+          An offset into the rotations array for each channel (length = Total
+          Channel Count).
+        </td>
+      </tr>
+      <tr>
+        <td>Channel Scale Counts</td>
+        <td>4 * Total Channel Count</td>
+        <td>u32*</td>
+        <td>
+          An array of scale counts for each channel (length = Total Channel
+          Count).
+        </td>
+      </tr>
+      <tr>
+        <td>Channel Scale Offsets</td>
+        <td>4 * Total Channel Count</td>
+        <td>u32*</td>
+        <td>
+          An offset into the scales array for each channel (length = Total
+          Channel Count).
+        </td>
+      </tr>
+      <tr>
+        <td>Channel Data Buffer</td>
+        <td>4</td>
+        <td>f32*</td>
+        <td>
+          A buffer of f32s that stores all position/rotation/scale data for all
+          animation channels. The overall size of this is determined by the how
+          many keys each channel has, as well as how many channels there are.
+          Bytes extracted from this vary by the type of key data being extracted
+          (i.e a key_vec3 extracts 4 f32s whereas a key_quat extracts 5.
+        </td>
+      </tr>
+    </table>
+
+    <a name="Strings"></a>
+    <h3>Strings</h3>
+
+    <table border="1">
+      <tr>
+        <th>Field Name</th>
+        <th>Bytes</th>
+        <th>Data Type</th>
+        <th>Description</th>
+      </tr>
+      <tr>
+        <td>STRINGS BEGIN GUARD</td>
+        <td>4</td>
+        <td>u32</td>
+        <td>
+          Serves as a checkpoint to ensure the beginning of the strings section
+          is where it belongs. Value should indicate section type = 0x00000006.
+        </td>
+      </tr>
+    </table>
+
+    <p>
+      NOTE: Strings are handled by a binary_string_table that is serialized into
+      one large block of memory and is appended to the end of the file.
+    </p>
+  </body>
+</html>

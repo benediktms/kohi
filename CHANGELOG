@@ -29,6 +29,9 @@ Changelog
   - Changed renderer frontend (and backend) to use the same texture handle for both, eliminating the need for handle lookups between the two.
     This also means there is no longer a backend ktexture handle type. Only the texture system manages these handles now, so any handle must be obtained via the texture system.
   - Added pool_allocator.
+  - Added binary_string_table.
+  - Replaced MEMORY_TAG_ENTITY and MEMORY_TAG_ENTITY_NODE with MEMORY_TAG_BINARY_STRING_TABLE and MEMORY_TAG_BINARY_DATA, respectively, as entities are not a part of Kohi core.
+  - Changed Kohi binary file magic number marker from 0xCAFEBABE to 0xDECAFBAD. This will require all assets to be re-imported.
 
 - 0.10.0
   - Combined asset_image_format and texture_format into a single kpixel_format which is used for both.

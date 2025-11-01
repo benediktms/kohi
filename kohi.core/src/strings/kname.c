@@ -46,6 +46,9 @@ kname kname_create(const char* str) {
 }
 
 const char* kname_string_get(kname name) {
+    if (name == INVALID_KNAME) {
+        return 0;
+    }
 
     const bt_node* entry = u64_bst_find(string_lookup, name);
     if (entry) {

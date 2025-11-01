@@ -10,8 +10,7 @@
 #include "strings/kname.h"
 
 /** @brief A magic number indicating the file as a kohi binary asset file. */
-#define ASSET_MAGIC 0xcafebabe
-#define ASSET_MAGIC_U64 0xcafebabebadc0ffee
+#define ASSET_MAGIC 0xDECAFBAD
 
 // The maximum length of the string representation of an asset type.
 #define KASSET_TYPE_MAX_LENGTH 64
@@ -40,6 +39,7 @@ typedef enum kasset_type {
     KASSET_TYPE_ANIMATED_MESH = 12,
     KASSET_TYPE_AUDIO = 13,
     KASSET_TYPE_SHADER = 14,
+    KASSET_TYPE_MODEL = 15,
     KASSET_TYPE_MAX
 } kasset_type;
 
@@ -440,80 +440,91 @@ typedef struct kasset_audio {
     i16* pcm_data;
 } kasset_audio;
 
-#define KASSET_TYPE_NAME_ANIMATED_MESH "AnimatedMesh"
+#define KASSET_TYPE_NAME_MODEL "Model"
 
-typedef struct kasset_animated_mesh_key_vec3 {
+#define KASSET_MODEL_CURRENT_VERSION 1
+
+typedef struct kasset_model_key_vec3 {
     vec3 value;
     f32 time;
-} kasset_animated_mesh_key_vec3;
+} kasset_model_key_vec3;
 
-typedef struct kasset_animated_mesh_key_quat {
+typedef struct kasset_model_key_quat {
     quat value;
     f32 time;
-} kasset_animated_mesh_key_quat;
+} kasset_model_key_quat;
 
-typedef struct kasset_animated_mesh_channel {
+typedef struct kasset_model_channel {
     kname name;
     u32 pos_count;
-    kasset_animated_mesh_key_vec3* positions;
+    kasset_model_key_vec3* positions;
     u32 scale_count;
-    kasset_animated_mesh_key_vec3* scales;
+    kasset_model_key_vec3* scales;
     u32 rot_count;
-    kasset_animated_mesh_key_quat* rotations;
-} kasset_animated_mesh_channel;
+    kasset_model_key_quat* rotations;
+} kasset_model_channel;
 
-typedef struct kasset_animated_mesh_animation {
+typedef struct kasset_model_animation {
     kname name;
     f32 duration;
     f32 ticks_per_second;
-    u32 channel_count;
-    kasset_animated_mesh_channel* channels;
-} kasset_animated_mesh_animation;
+    u16 channel_count;
+    kasset_model_channel* channels;
+} kasset_model_animation;
 
 // Bone data
-typedef struct kasset_animated_mesh_bone {
+typedef struct kasset_model_bone {
     kname name;
     // Transformation from mesh space to bone space.
     mat4 offset;
     // Index into bone array.
     u32 id;
-} kasset_animated_mesh_bone;
+} kasset_model_bone;
 
-typedef struct kasset_animated_mesh_node {
+typedef struct kasset_model_node {
     kname name;
     mat4 local_transform;
-    u32 parent_index; // INVALID_ID = root
-    u32 child_count;
-    u32* children;
-} kasset_animated_mesh_node;
+    u16 parent_index; // INVALID_ID_U16 = root
+    u16 child_count;
+    u16* children;
+} kasset_model_node;
 
-typedef struct kasset_animated_mesh_submesh_data {
+typedef enum kasset_model_mesh_type {
+    KASSET_MODEL_MESH_TYPE_STATIC = 0,  // maps to vertex_3d
+    KASSET_MODEL_MESH_TYPE_SKINNED = 1, // maps to skinned_vertex_3d
+
+    KASSET_MODEL_MESH_TYPE_MAX
+} kasset_model_mesh_type;
+
+typedef struct kasset_model_submesh_data {
     kname name;
     kname material_name;
     u32 vertex_count;
-    skinned_vertex_3d* vertices;
+    kasset_model_mesh_type type;
+    void* vertices;
     u32 index_count;
     u32* indices;
     vec3 center;
     extents_3d extents;
-} kasset_animated_mesh_submesh_data;
+} kasset_model_submesh_data;
 
 /**
- * Represents a Kohi Animated Mesh asset.
- * The wrapper for the entire animated mesh asset.
+ * Represents a Kohi Model asset. A model can contain
+ * mesh data (i.e. vertices/indices), bone, node,
+ * and animation data.
  */
-typedef struct kasset_animated_mesh {
-    u32 animation_count;
-    kasset_animated_mesh_animation* animations;
-    u32 bone_count;
-    kasset_animated_mesh_bone* bones;
-    u32 node_count;
-    kasset_animated_mesh_node* nodes;
+typedef struct kasset_model {
+    u16 submesh_count;
+    kasset_model_submesh_data* submeshes;
+    u16 bone_count;
+    kasset_model_bone* bones;
+    u16 node_count;
+    kasset_model_node* nodes;
+    u16 animation_count;
+    kasset_model_animation* animations;
 
     mat4 global_inverse_transform;
 
-    u32 submesh_count;
-    kasset_animated_mesh_submesh_data* submeshes;
     vec3 center;
     extents_3d extents;
-} kasset_animated_mesh;
+} kasset_model;
