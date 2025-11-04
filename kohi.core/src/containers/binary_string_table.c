@@ -1,5 +1,3 @@
-#pragma once
-
 #include "binary_string_table.h"
 #include "darray.h"
 #include "debug/kassert.h"
@@ -71,6 +69,8 @@ u32 binary_string_table_add(binary_string_table* table, const char* string) {
         kcopy_memory(new_db, table->data, table->header.data_block_size);
         kfree(table->data, table->header.data_block_size, MEMORY_TAG_BINARY_STRING_TABLE);
     }
+
+    table->data = new_db;
 
     // Copy the string's content.
     kcopy_memory(table->data + new_entry.offset, string, new_entry.length);

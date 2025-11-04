@@ -135,6 +135,7 @@ KAPI void asset_system_release_system_font(struct asset_system_state* state, kas
 // STATIC MESH ASSETS
 // ////////////////////////////////////
 
+// TODO: remove these and replace with model version below.
 typedef void (*PFN_kasset_static_mesh_loaded_callback)(void* listener, kasset_static_mesh* asset);
 
 // async load from game package.
@@ -149,21 +150,21 @@ KAPI kasset_static_mesh* asset_system_request_static_mesh_from_package_sync(stru
 KAPI void asset_system_release_static_mesh(struct asset_system_state* state, kasset_static_mesh* asset);
 
 // ////////////////////////////////////
-// ANIMATED MESH ASSETS
+// MODEL ASSETS
 // ////////////////////////////////////
 
-typedef void (*PFN_kasset_animated_mesh_loaded_callback)(void* listener, kasset_animated_mesh* asset);
+typedef void (*PFN_kasset_model_loaded_callback)(void* listener, kasset_model* asset);
 
 // async load from game package.
-KAPI kasset_animated_mesh* asset_system_request_animated_mesh(struct asset_system_state* state, const char* name, void* listener, PFN_kasset_animated_mesh_loaded_callback callback);
+KAPI kasset_model* asset_system_request_model(struct asset_system_state* state, const char* name, void* listener, PFN_kasset_model_loaded_callback callback);
 // sync load from game package.
-KAPI kasset_animated_mesh* asset_system_request_animated_mesh_sync(struct asset_system_state* state, const char* name);
+KAPI kasset_model* asset_system_request_model_sync(struct asset_system_state* state, const char* name);
 // async load from specific package.
-KAPI kasset_animated_mesh* asset_system_request_animated_mesh_from_package(struct asset_system_state* state, const char* package_name, const char* name, void* listener, PFN_kasset_animated_mesh_loaded_callback callback);
+KAPI kasset_model* asset_system_request_model_from_package(struct asset_system_state* state, const char* package_name, const char* name, void* listener, PFN_kasset_model_loaded_callback callback);
 // sync load from specific package.
-KAPI kasset_animated_mesh* asset_system_request_animated_mesh_from_package_sync(struct asset_system_state* state, const char* package_name, const char* name);
+KAPI kasset_model* asset_system_request_model_from_package_sync(struct asset_system_state* state, const char* package_name, const char* name);
 
-KAPI void asset_system_release_animated_mesh(struct asset_system_state* state, kasset_animated_mesh* asset);
+KAPI void asset_system_release_model(struct asset_system_state* state, kasset_model* asset);
 
 // ////////////////////////////////////
 // HEIGHTMAP TERRAIN ASSETS

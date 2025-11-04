@@ -12,12 +12,12 @@
 #include <memory/kmemory.h>
 #include <parsers/kson_parser.h>
 #include <platform/platform.h>
-#include <serializers/kasset_animated_mesh_serializer.h>
 #include <serializers/kasset_audio_serializer.h>
 #include <serializers/kasset_bitmap_font_serializer.h>
 #include <serializers/kasset_heightmap_terrain_serializer.h>
 #include <serializers/kasset_image_serializer.h>
 #include <serializers/kasset_material_serializer.h>
+#include <serializers/kasset_model_serializer.h>
 #include <serializers/kasset_scene_serializer.h>
 #include <serializers/kasset_shader_serializer.h>
 #include <serializers/kasset_static_mesh_serializer.h>
@@ -629,21 +629,21 @@ void asset_system_release_static_mesh(struct asset_system_state* state, kasset_s
 }
 
 // ////////////////////////////////////
-// ANIMATED MESH ASSETS
+// MODEL ASSETS
 // ////////////////////////////////////
 
-typedef struct kasset_animated_mesh_vfs_context {
+typedef struct kasset_model_vfs_context {
     void* listener;
-    PFN_kasset_animated_mesh_loaded_callback callback;
-    kasset_animated_mesh* asset;
-} kasset_animated_mesh_vfs_context;
+    PFN_kasset_model_loaded_callback callback;
+    kasset_model* asset;
+} kasset_model_vfs_context;
 
-static void vfs_on_animated_mesh_asset_loaded_callback(struct vfs_state* vfs, vfs_asset_data asset_data) {
-    kasset_animated_mesh_vfs_context* context = asset_data.context;
-    kasset_animated_mesh* out_asset = context->asset;
-    b8 result = kasset_animated_mesh_deserialize(asset_data.size, asset_data.bytes, out_asset);
+static void vfs_on_model_asset_loaded_callback(struct vfs_state* vfs, vfs_asset_data asset_data) {
+    kasset_model_vfs_context* context = asset_data.context;
+    kasset_model* out_asset = context->asset;
+    b8 result = kasset_model_deserialize(asset_data.size, asset_data.bytes, out_asset);
     if (!result) {
-        KERROR("Failed to deserialize animated_mesh asset. See logs for details.");
+        KERROR("Failed to deserialize model asset. See logs for details.");
     }
 
     if (context->callback) {
@@ -652,23 +652,23 @@ static void vfs_on_animated_mesh_asset_loaded_callback(struct vfs_state* vfs, vf
 }
 
 // async load from game package.
-kasset_animated_mesh* asset_system_request_animated_mesh(struct asset_system_state* state, const char* name, void* listener, PFN_kasset_animated_mesh_loaded_callback callback) {
-    return asset_system_request_animated_mesh_from_package(state, state->default_package_name_str, name, listener, callback);
+kasset_model* asset_system_request_model(struct asset_system_state* state, const char* name, void* listener, PFN_kasset_model_loaded_callback callback) {
+    return asset_system_request_model_from_package(state, state->default_package_name_str, name, listener, callback);
 }
 // sync load from game package.
-kasset_animated_mesh* asset_system_request_animated_mesh_sync(struct asset_system_state* state, const char* name) {
-    return asset_system_request_animated_mesh_from_package_sync(state, state->default_package_name_str, name);
+kasset_model* asset_system_request_model_sync(struct asset_system_state* state, const char* name) {
+    return asset_system_request_model_from_package_sync(state, state->default_package_name_str, name);
 }
 // async load from specific package.
-kasset_animated_mesh* asset_system_request_animated_mesh_from_package(struct asset_system_state* state, const char* package_name, const char* name, void* listener, PFN_kasset_animated_mesh_loaded_callback callback) {
+kasset_model* asset_system_request_model_from_package(struct asset_system_state* state, const char* package_name, const char* name, void* listener, PFN_kasset_model_loaded_callback callback) {
     if (!state || !name || !string_length(name)) {
         KERROR("%s requires valid pointers to state and name.", __FUNCTION__);
         return 0;
     }
 
-    kasset_animated_mesh* out_asset = KALLOC_TYPE(kasset_animated_mesh, MEMORY_TAG_ASSET);
+    kasset_model* out_asset = KALLOC_TYPE(kasset_model, MEMORY_TAG_ASSET);
 
-    kasset_animated_mesh_vfs_context* context = KALLOC_TYPE(kasset_animated_mesh_vfs_context, MEMORY_TAG_ASSET);
+    kasset_model_vfs_context* context = KALLOC_TYPE(kasset_model_vfs_context, MEMORY_TAG_ASSET);
     context->asset = out_asset;
     context->callback = callback;
     context->listener = listener;
@@ -677,21 +677,21 @@ kasset_animated_mesh* asset_system_request_animated_mesh_from_package(struct ass
         .asset_name = kname_create(name),
         .package_name = state->default_package_name,
         .is_binary = true,
-        .vfs_callback = vfs_on_animated_mesh_asset_loaded_callback,
+        .vfs_callback = vfs_on_model_asset_loaded_callback,
         .context = context,
-        .context_size = sizeof(kasset_animated_mesh_vfs_context)};
+        .context_size = sizeof(kasset_model_vfs_context)};
     vfs_request_asset(state->vfs, info);
 
     return out_asset;
 }
 // sync load from specific package.
-kasset_animated_mesh* asset_system_request_animated_mesh_from_package_sync(struct asset_system_state* state, const char* package_name, const char* name) {
+kasset_model* asset_system_request_model_from_package_sync(struct asset_system_state* state, const char* package_name, const char* name) {
     if (!state || !name || !string_length(name)) {
         KERROR("%s requires valid pointers to state and name.", __FUNCTION__);
         return 0;
     }
 
-    kasset_animated_mesh* out_asset = KALLOC_TYPE(kasset_animated_mesh, MEMORY_TAG_ASSET);
+    kasset_model* out_asset = KALLOC_TYPE(kasset_model, MEMORY_TAG_ASSET);
     vfs_request_info info = {
         .asset_name = kname_create(name),
         .package_name = kname_create(package_name),
@@ -699,22 +699,22 @@ kasset_animated_mesh* asset_system_request_animated_mesh_from_package_sync(struc
     };
     vfs_asset_data data = vfs_request_asset_sync(state->vfs, info);
 
-    b8 result = kasset_animated_mesh_deserialize(data.size, data.bytes, out_asset);
+    b8 result = kasset_model_deserialize(data.size, data.bytes, out_asset);
     if (!result) {
-        KERROR("Failed to deserialize animated_mesh asset. See logs for details.");
-        KFREE_TYPE(out_asset, kasset_animated_mesh, MEMORY_TAG_ASSET);
+        KERROR("Failed to deserialize model asset. See logs for details.");
+        KFREE_TYPE(out_asset, kasset_model, MEMORY_TAG_ASSET);
         return 0;
     }
 
     return out_asset;
 }
 
-void asset_system_release_animated_mesh(struct asset_system_state* state, kasset_animated_mesh* asset) {
+void asset_system_release_model(struct asset_system_state* state, kasset_model* asset) {
     if (state && asset) {
         // Asset type-specific data cleanup
         if (asset->submeshes && asset->submesh_count) {
             for (u32 i = 0; i < asset->submesh_count; ++i) {
-                kasset_animated_mesh_submesh_data* g = &asset->submeshes[i];
+                kasset_model_submesh_data* g = &asset->submeshes[i];
                 if (g->vertices && g->vertex_count) {
                     kfree(g->vertices, sizeof(g->vertices[0]) * g->vertex_count, MEMORY_TAG_ARRAY);
                 }
@@ -727,34 +727,34 @@ void asset_system_release_animated_mesh(struct asset_system_state* state, kasset
         if (asset->animations && asset->animation_count) {
             for (u32 i = 0; i < asset->animation_count; ++i) {
                 for (u32 c = 0; asset->animations[i].channel_count; c++) {
-                    kasset_animated_mesh_channel* ch = &asset->animations[i].channels[c];
+                    kasset_model_channel* ch = &asset->animations[i].channels[c];
 
                     if (ch->pos_count && ch->positions) {
-                        KFREE_TYPE_CARRAY(ch->positions, kasset_animated_mesh_key_vec3, ch->pos_count);
+                        KFREE_TYPE_CARRAY(ch->positions, kasset_model_key_vec3, ch->pos_count);
                     }
 
                     if (ch->scale_count && ch->scales) {
-                        KFREE_TYPE_CARRAY(ch->scales, kasset_animated_mesh_key_vec3, ch->scale_count);
+                        KFREE_TYPE_CARRAY(ch->scales, kasset_model_key_vec3, ch->scale_count);
                     }
 
                     if (ch->rot_count && ch->rotations) {
-                        KFREE_TYPE_CARRAY(ch->rotations, kasset_animated_mesh_key_quat, ch->rot_count);
+                        KFREE_TYPE_CARRAY(ch->rotations, kasset_model_key_quat, ch->rot_count);
                     }
                 }
-                KFREE_TYPE_CARRAY(asset->animations[i].channels, kasset_animated_mesh_channel, asset->animations[i].channel_count);
+                KFREE_TYPE_CARRAY(asset->animations[i].channels, kasset_model_channel, asset->animations[i].channel_count);
             }
-            KFREE_TYPE_CARRAY(asset->animations, kasset_animated_mesh_animation, asset->animation_count);
+            KFREE_TYPE_CARRAY(asset->animations, kasset_model_animation, asset->animation_count);
         }
 
         if (asset->bone_count && asset->bones) {
-            KFREE_TYPE_CARRAY(asset->bones, kasset_animated_mesh_bone, asset->bone_count);
+            KFREE_TYPE_CARRAY(asset->bones, kasset_model_bone, asset->bone_count);
         }
 
         if (asset->nodes && asset->node_count) {
-            KFREE_TYPE_CARRAY(asset->nodes, kasset_animated_mesh_node, asset->node_count);
+            KFREE_TYPE_CARRAY(asset->nodes, kasset_model_node, asset->node_count);
         }
 
-        KFREE_TYPE(asset, kasset_animated_mesh, MEMORY_TAG_ASSET);
+        KFREE_TYPE(asset, kasset_model, MEMORY_TAG_ASSET);
     }
 }
 

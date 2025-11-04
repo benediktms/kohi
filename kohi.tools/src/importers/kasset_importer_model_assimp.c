@@ -562,40 +562,54 @@ static b8 anim_asset_from_assimp(const struct aiScene* scene, kname package_name
         target->indices = KALLOC_TYPE_CARRAY(u32, target->index_count);
 
         // Process all vertices
-        // LEFTOFF: Determine if this is a skinned mesh or a normal one, and cast
-        // target->vertices accordingly.
         for (u32 i = 0; i < mesh->mNumVertices; ++i) {
             struct aiVector3D* v = &mesh->mVertices[i];
-            target->vertices[i].position = vec3_create(v->x, v->y, v->z);
+
+            // Extract base vertex properties first.
+            vertex_3d* target_vert = 0;
+            if (mesh->mNumBones) {
+                skinned_vertex_3d* sv = &((skinned_vertex_3d*)target->vertices)[i];
+                target_vert = (vertex_3d*)sv;
+            } else {
+                target_vert = &((vertex_3d*)target->vertices)[i];
+            }
+
+            target_vert->position = vec3_create(v->x, v->y, v->z);
             if (mesh->mNormals) {
                 struct aiVector3D* n = &mesh->mNormals[i];
-                target->vertices[i].normal = vec3_create(n->x, n->y, n->z);
+                target_vert->normal = vec3_create(n->x, n->y, n->z);
             }
             if (mesh->mTangents && mesh->mBitangents) {
                 struct aiVector3D* at = &mesh->mTangents[i];
                 struct aiVector3D* ab = &mesh->mBitangents[i];
                 vec3 t = vec3_create(at->x, at->y, at->z);
                 vec3 b = vec3_create(ab->x, ab->y, ab->z);
-                vec3 n = target->vertices[i].normal;
+                vec3 n = target_vert->normal;
 
                 f32 handedness = (vec3_dot(vec3_cross(n, t), b) < 0.0f) ? -1.0f : 1.0f;
-                target->vertices[i].tangent = vec4_from_vec3(t, handedness);
+                target_vert->tangent = vec4_from_vec3(t, handedness);
             }
 
             if (mesh->mTextureCoords[0]) {
-                target->vertices[i].texcoord = vec2_create(mesh->mTextureCoords[0][i].x, mesh->mTextureCoords[0][i].y);
+                target_vert->texcoord = vec2_create(mesh->mTextureCoords[0][i].x, mesh->mTextureCoords[0][i].y);
             }
 
             if (mesh->mColors[0]) {
                 struct aiColor4D* c = &mesh->mColors[0][i];
-                target->vertices[i].colour = vec4_create(c->r, c->g, c->b, c->a);
+                target_vert->colour = vec4_create(c->r, c->g, c->b, c->a);
             } else {
-                target->vertices[i].colour = vec4_one();
+                target_vert->colour = vec4_one();
             }
 
-            for (u8 b = 0; b < 4; ++b) {
-                target->vertices[i].bone_ids.elements[b] = bone_data[i].bone_ids[b];
-                target->vertices[i].weights.elements[b] = bone_data[i].weights[b];
+            // Extract bone data, if it exists.
+            if (mesh->mNumBones) {
+                for (u8 b = 0; b < 4; ++b) {
+                    ((skinned_vertex_3d*)target->vertices)[i].bone_ids.elements[b] = bone_data[i].bone_ids[b];
+                    ((skinned_vertex_3d*)target->vertices)[i].weights.elements[b] = bone_data[i].weights[b];
+                }
+
+                // If the mesh has bones, it's skinned. Mark it as such.
+                target->type = KASSET_MODEL_MESH_TYPE_SKINNED;
             }
         }
 

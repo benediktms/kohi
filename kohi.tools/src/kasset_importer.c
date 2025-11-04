@@ -3,11 +3,11 @@
 #include "containers/darray.h"
 #include "core_render_types.h"
 #include "defines.h"
-#include "importers/kasset_importer_animated_mesh_assimp.h"
 #include "importers/kasset_importer_audio.h"
 #include "importers/kasset_importer_bitmap_font_fnt.h"
 #include "importers/kasset_importer_image.h"
 #include "importers/kasset_importer_material_obj_mtl.h"
+#include "importers/kasset_importer_model_assimp.h"
 #include "importers/kasset_importer_static_mesh_obj.h"
 #include "logger.h"
 #include "platform/filesystem.h"
@@ -103,7 +103,7 @@ b8 fnt_2_kbf(const char* source_path, const char* target_path) {
 
 b8 dae_fbx_2_kam(const char* source_path, const char* target_path, const char* material_target_dir, const char* package_name) {
     KDEBUG("Executing %s...", __FUNCTION__);
-    return kasset_animated_mesh_assimp_import(source_path, target_path, material_target_dir, package_name);
+    return kasset_model_assimp_import(source_path, target_path, material_target_dir, package_name);
 }
 
 b8 import_from_path(const char* source_path, const char* target_path, u8 option_count, const import_option* options) {

@@ -163,8 +163,6 @@ KAPI b8 kasset_model_deserialize(u64 size, const void* in_block, kasset_model* o
         for (u32 i = 0; i < header->submesh_count; ++i) {
             KASSERT(submeshes.mesh_types[i] < K3D_MESH_TYPE_MAX);
             k3d_mesh_type mesh_type = (k3d_mesh_type)submeshes.mesh_types[i];
-
-            u32 vert_size = sizeof(vertex_3d);
             switch (mesh_type) {
             default:
                 total_vert_buffer_size += (sizeof(vertex_3d) * submeshes.vertex_counts[i]);
@@ -652,6 +650,7 @@ KAPI void* kasset_model_serialize(const kasset_model* asset, u32 exporter_type, 
     // Animation Channels
     total_block_size += sizeof(u32); // Animation channels begin guard
     k3d_animation_channels channels = {
+        .animation_ids = KALLOC_TYPE_CARRAY(u16, animations.total_channel_count),
         .name_ids = KALLOC_TYPE_CARRAY(u16, animations.total_channel_count),
         .pos_counts = KALLOC_TYPE_CARRAY(u32, animations.total_channel_count),
         .rot_counts = KALLOC_TYPE_CARRAY(u32, animations.total_channel_count),
@@ -720,7 +719,8 @@ KAPI void* kasset_model_serialize(const kasset_model* asset, u32 exporter_type, 
     *out_size = total_block_size;
 
     // Start with the header first.
-    u64 offset = write_binary(block, &header, offset, sizeof(k3d_header));
+    u64 offset = 0;
+    offset = write_binary(block, &header, offset, sizeof(k3d_header));
 
     // Submeshes - Only write this if there are submeshes.
     if (header.submesh_count) {

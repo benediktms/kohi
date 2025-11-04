@@ -180,7 +180,7 @@ typedef struct animated_mesh_asset_request_listener {
     u16 instance_id;
 } animated_mesh_asset_request_listener;
 
-static void kasset_animated_mesh_loaded(void* listener, kasset_animated_mesh* asset) {
+static void kasset_animated_mesh_loaded(void* listener, kasset_model* asset) {
     animated_mesh_asset_request_listener* typed_listener = (animated_mesh_asset_request_listener*)listener;
 
     kanimated_mesh_system_state* state = typed_listener->state;
@@ -196,7 +196,7 @@ static void kasset_animated_mesh_loaded(void* listener, kasset_animated_mesh* as
     base->bone_count = asset->bone_count;
     base->bones = KALLOC_TYPE_CARRAY(kanimated_mesh_bone, base->bone_count);
     for (u32 i = 0; i < base->bone_count; ++i) {
-        kasset_animated_mesh_bone* source = &asset->bones[i];
+        kasset_model_bone* source = &asset->bones[i];
         kanimated_mesh_bone* target = &base->bones[i];
         target->id = source->id;
         target->name = source->name;
@@ -206,7 +206,7 @@ static void kasset_animated_mesh_loaded(void* listener, kasset_animated_mesh* as
     base->node_count = asset->node_count;
     base->nodes = KALLOC_TYPE_CARRAY(kanimated_mesh_node, base->node_count);
     for (u32 i = 0; i < base->node_count; ++i) {
-        kasset_animated_mesh_node* source = &asset->nodes[i];
+        kasset_model_node* source = &asset->nodes[i];
         kanimated_mesh_node* target = &base->nodes[i];
 
         target->name = source->name;
@@ -222,7 +222,7 @@ static void kasset_animated_mesh_loaded(void* listener, kasset_animated_mesh* as
     base->animation_count = asset->animation_count;
     base->animations = KALLOC_TYPE_CARRAY(kanimated_mesh_animation, base->animation_count);
     for (u32 i = 0; i < base->animation_count; ++i) {
-        kasset_animated_mesh_animation* source = &asset->animations[i];
+        kasset_model_animation* source = &asset->animations[i];
         kanimated_mesh_animation* target = &base->animations[i];
 
         target->name = source->name;
@@ -233,7 +233,7 @@ static void kasset_animated_mesh_loaded(void* listener, kasset_animated_mesh* as
             target->channels = KALLOC_TYPE_CARRAY(kanimated_mesh_channel, target->channel_count);
 
             for (u32 c = 0; c < target->channel_count; c++) {
-                kasset_animated_mesh_channel* sc = &source->channels[c];
+                kasset_model_channel* sc = &source->channels[c];
                 kanimated_mesh_channel* tc = &target->channels[c];
 
                 tc->name = sc->name;
@@ -274,7 +274,7 @@ static void kasset_animated_mesh_loaded(void* listener, kasset_animated_mesh* as
     base->meshes = KALLOC_TYPE_CARRAY(kanimated_mesh, base->mesh_count);
     for (u32 i = 0; i < base->mesh_count; ++i) {
         kanimated_mesh* target = &base->meshes[i];
-        kasset_animated_mesh_submesh_data* source = &asset->submeshes[i];
+        kasset_model_submesh_data* source = &asset->submeshes[i];
 
         target->name = source->name;
         target->material_name = source->material_name;
@@ -295,9 +295,17 @@ static void kasset_animated_mesh_loaded(void* listener, kasset_animated_mesh* as
         // Extract the extents.
         vec3 min_pos = vec3_zero();
         vec3 max_pos = vec3_zero();
-        for (u32 v = 0; v < source->vertex_count; ++v) {
-            min_pos = vec3_min(min_pos, source->vertices[v].position);
-            max_pos = vec3_max(max_pos, source->vertices[v].position);
+
+        if (source->type == KASSET_MODEL_MESH_TYPE_SKINNED) {
+            for (u32 v = 0; v < source->vertex_count; ++v) {
+                min_pos = vec3_min(min_pos, ((skinned_vertex_3d*)source->vertices)[v].position);
+                max_pos = vec3_max(max_pos, ((skinned_vertex_3d*)source->vertices)[v].position);
+            }
+        } else if (source->type == KASSET_MODEL_MESH_TYPE_STATIC) {
+            for (u32 v = 0; v < source->vertex_count; ++v) {
+                min_pos = vec3_min(min_pos, ((vertex_3d*)source->vertices)[v].position);
+                max_pos = vec3_max(max_pos, ((vertex_3d*)source->vertices)[v].position);
+            }
         }
         target->geo.extents.min = min_pos;
         target->geo.extents.max = max_pos;
@@ -372,7 +380,7 @@ static void kasset_animated_mesh_loaded(void* listener, kasset_animated_mesh* as
     animator->time_in_ticks = 0.0f;
 
     // After copying over all properties, release the asset.
-    asset_system_release_animated_mesh(engine_systems_get()->asset_state, asset);
+    asset_system_release_model(engine_systems_get()->asset_state, asset);
 
     // Cleanup the listener.
     KFREE_TYPE(listener, animated_mesh_asset_request_listener, MEMORY_TAG_ASSET);
@@ -394,7 +402,7 @@ kanimated_mesh_instance kanimated_mesh_instance_acquire_from_package(struct kani
         listener->instance_id = instance_id;
 
         // Kick off async asset load via the asset system.
-        kasset_animated_mesh* asset = asset_system_request_animated_mesh_from_package(engine_systems_get()->asset_state, kname_string_get(package_name), kname_string_get(asset_name), listener, kasset_animated_mesh_loaded);
+        kasset_model* asset = asset_system_request_model_from_package(engine_systems_get()->asset_state, kname_string_get(package_name), kname_string_get(asset_name), listener, kasset_animated_mesh_loaded);
         KASSERT_DEBUG(asset);
     } else {
         // Base mesh already loaded, just need to get material instances.
