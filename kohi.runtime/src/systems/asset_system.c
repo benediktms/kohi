@@ -723,35 +723,49 @@ void asset_system_release_model(struct asset_system_state* state, kasset_model* 
                 }
             }
             kfree(asset->submeshes, sizeof(asset->submeshes[0]) * asset->submesh_count, MEMORY_TAG_ARRAY);
+            asset->submeshes = KNULL;
+            asset->submesh_count = 0;
         }
         if (asset->animations && asset->animation_count) {
             for (u32 i = 0; i < asset->animation_count; ++i) {
-                for (u32 c = 0; asset->animations[i].channel_count; c++) {
+                for (u32 c = 0; c < asset->animations[i].channel_count; c++) {
                     kasset_model_channel* ch = &asset->animations[i].channels[c];
 
                     if (ch->pos_count && ch->positions) {
                         KFREE_TYPE_CARRAY(ch->positions, kasset_model_key_vec3, ch->pos_count);
+                        ch->pos_count = 0;
+                        ch->positions = KNULL;
                     }
 
                     if (ch->scale_count && ch->scales) {
                         KFREE_TYPE_CARRAY(ch->scales, kasset_model_key_vec3, ch->scale_count);
+                        ch->scale_count = 0;
+                        ch->scales = KNULL;
                     }
 
                     if (ch->rot_count && ch->rotations) {
                         KFREE_TYPE_CARRAY(ch->rotations, kasset_model_key_quat, ch->rot_count);
+                        ch->rot_count = 0;
+                        ch->rotations = KNULL;
                     }
                 }
                 KFREE_TYPE_CARRAY(asset->animations[i].channels, kasset_model_channel, asset->animations[i].channel_count);
+                asset->animations[i].channels = KNULL;
             }
             KFREE_TYPE_CARRAY(asset->animations, kasset_model_animation, asset->animation_count);
+            asset->animations = KNULL;
         }
 
         if (asset->bone_count && asset->bones) {
             KFREE_TYPE_CARRAY(asset->bones, kasset_model_bone, asset->bone_count);
+            asset->bones = KNULL;
+            asset->bone_count = 0;
         }
 
         if (asset->nodes && asset->node_count) {
             KFREE_TYPE_CARRAY(asset->nodes, kasset_model_node, asset->node_count);
+            asset->nodes = KNULL;
+            asset->node_count = 0;
         }
 
         KFREE_TYPE(asset, kasset_model, MEMORY_TAG_ASSET);

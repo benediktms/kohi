@@ -100,10 +100,10 @@ typedef struct k3d_animation_channels {
     f32* data_buffer;
 } k3d_animation_channels;
 
-static u64 write_binary(void* block, void* source, u64 offset, u64 size);
+static u64 write_binary(void* block, const void* source, u64 offset, u64 size);
 static u64 write_binary_u32(void* block, u32 value, u64 offset);
 static u64 write_binary_u16(void* block, u16 value, u64 offset);
-static u64 write_binary_array(void* block, void* source, u64 offset, u64 element_size, u32 count);
+static u64 write_binary_array(void* block, const void* source, u64 offset, u64 element_size, u32 count);
 
 static u32 read_guard(const void* in_block, u64* offset) {
     u32 guard = *(u32*)(((u8*)in_block) + *offset);
@@ -274,9 +274,9 @@ KAPI b8 kasset_model_deserialize(u64 size, const void* in_block, kasset_model* o
 
             u64 data_buffer_size = 0;
             for (u32 i = 0; i < animations.total_channel_count; ++i) {
-                data_buffer_size += (sizeof(vec3) * channels.pos_counts[i]);
-                data_buffer_size += (sizeof(quat) * channels.rot_counts[i]);
-                data_buffer_size += (sizeof(vec3) * channels.scale_counts[i]);
+                data_buffer_size += (sizeof(kasset_model_key_vec3) * channels.pos_counts[i]);
+                data_buffer_size += (sizeof(kasset_model_key_quat) * channels.rot_counts[i]);
+                data_buffer_size += (sizeof(kasset_model_key_vec3) * channels.scale_counts[i]);
             }
             channels.data_buffer = (f32*)(((u8*)in_block) + offset);
             offset += data_buffer_size;
@@ -324,27 +324,33 @@ KAPI b8 kasset_model_deserialize(u64 size, const void* in_block, kasset_model* o
             // Extract vertex/index data, etc.
             submesh->vertex_count = submeshes.vertex_counts[i];
             u64 submesh_vertex_buffer_size = vert_size * submeshes.vertex_counts[i];
+            submesh->vertices = kallocate(submesh_vertex_buffer_size, MEMORY_TAG_BINARY_DATA);
             kcopy_memory(submesh->vertices, ((u8*)submeshes.vertex_data_buffer) + vertex_buffer_offset, submesh_vertex_buffer_size);
             vertex_buffer_offset += submesh_vertex_buffer_size;
 
             submesh->index_count = submeshes.index_counts[i];
             u64 submesh_index_buffer_size = sizeof(u32) * submeshes.index_counts[i];
+            submesh->indices = kallocate(submesh_index_buffer_size, MEMORY_TAG_BINARY_DATA);
             kcopy_memory(submesh->indices, ((u8*)submeshes.index_data_buffer) + index_buffer_offset, submesh_index_buffer_size);
             index_buffer_offset += submesh_index_buffer_size;
 
             submesh->extents = submeshes.extents[i];
             submesh->center = submeshes.centers[i];
 
-            const char* name = binary_string_table_get(&string_table, submeshes.name_ids[i]);
-            if (name) {
-                submesh->name = kname_create(name);
-                string_free(name);
+            if (submeshes.name_ids[i] != INVALID_ID_U16) {
+                const char* name = binary_string_table_get(&string_table, submeshes.name_ids[i]);
+                if (name) {
+                    submesh->name = kname_create(name);
+                    string_free(name);
+                }
             }
 
-            const char* material_name = binary_string_table_get(&string_table, submeshes.material_name_ids[i]);
-            if (material_name) {
-                submesh->material_name = kname_create(material_name);
-                string_free(material_name);
+            if (submeshes.material_name_ids[i] != INVALID_ID_U16) {
+                const char* material_name = binary_string_table_get(&string_table, submeshes.material_name_ids[i]);
+                if (material_name) {
+                    submesh->material_name = kname_create(material_name);
+                    string_free(material_name);
+                }
             }
         }
     }
@@ -495,224 +501,249 @@ KAPI void* kasset_model_serialize(const kasset_model* asset, u32 exporter_type, 
     };
     total_block_size += sizeof(header);
 
-    total_block_size += sizeof(u32); // Submeshes begin guard
-
-    // Submeshes
-    k3d_submeshes submeshes = {
-        .name_ids = KALLOC_TYPE_CARRAY(u16, header.submesh_count),
-        .material_name_ids = KALLOC_TYPE_CARRAY(u16, header.submesh_count),
-        .vertex_counts = KALLOC_TYPE_CARRAY(u32, header.submesh_count),
-        .index_counts = KALLOC_TYPE_CARRAY(u32, header.submesh_count),
-        .mesh_types = KALLOC_TYPE_CARRAY(u8, header.submesh_count),
-        .centers = KALLOC_TYPE_CARRAY(vec3, header.submesh_count),
-        .extents = KALLOC_TYPE_CARRAY(extents_3d, header.submesh_count)};
-
-    total_block_size += (sizeof(u16) * header.submesh_count);
-    total_block_size += (sizeof(u16) * header.submesh_count);
-    total_block_size += (sizeof(u32) * header.submesh_count);
-    total_block_size += (sizeof(u32) * header.submesh_count);
-    total_block_size += (sizeof(u8) * header.submesh_count);
-    total_block_size += (sizeof(vec3) * header.submesh_count);
-    total_block_size += (sizeof(extents_3d) * header.submesh_count);
-
+    k3d_submeshes submeshes = {0};
     u32 total_submesh_vertex_buffer_size = 0;
     u32 total_submesh_index_buffer_size = 0;
+    if (header.submesh_count) {
+        KDEBUG("Submesh guard offset=%llu", total_block_size);
+        total_block_size += sizeof(u32); // Submeshes begin guard
 
-    // Iterate once to get the total size of the buffer.
-    for (u32 i = 0; i < header.submesh_count; ++i) {
-        kasset_model_submesh_data* submesh = &asset->submeshes[i];
-        u32 vert_size = sizeof(vertex_3d);
-        switch (submesh->type) {
-        default:
-        case KASSET_MODEL_MESH_TYPE_STATIC:
-            vert_size = sizeof(vertex_3d);
-            break;
-        case KASSET_MODEL_MESH_TYPE_SKINNED:
-            vert_size = sizeof(skinned_vertex_3d);
-            break;
+        // Submeshes
+        submeshes = (k3d_submeshes){
+            .name_ids = KALLOC_TYPE_CARRAY(u16, header.submesh_count),
+            .material_name_ids = KALLOC_TYPE_CARRAY(u16, header.submesh_count),
+            .vertex_counts = KALLOC_TYPE_CARRAY(u32, header.submesh_count),
+            .index_counts = KALLOC_TYPE_CARRAY(u32, header.submesh_count),
+            .mesh_types = KALLOC_TYPE_CARRAY(u8, header.submesh_count),
+            .centers = KALLOC_TYPE_CARRAY(vec3, header.submesh_count),
+            .extents = KALLOC_TYPE_CARRAY(extents_3d, header.submesh_count)};
+
+        total_block_size += (sizeof(u16) * header.submesh_count);
+        total_block_size += (sizeof(u16) * header.submesh_count);
+        total_block_size += (sizeof(u32) * header.submesh_count);
+        total_block_size += (sizeof(u32) * header.submesh_count);
+        total_block_size += (sizeof(u8) * header.submesh_count);
+        total_block_size += (sizeof(vec3) * header.submesh_count);
+        total_block_size += (sizeof(extents_3d) * header.submesh_count);
+
+        // Iterate once to get the total size of the buffer.
+        for (u32 i = 0; i < header.submesh_count; ++i) {
+            kasset_model_submesh_data* submesh = &asset->submeshes[i];
+            u32 vert_size = sizeof(vertex_3d);
+            switch (submesh->type) {
+            default:
+            case KASSET_MODEL_MESH_TYPE_STATIC:
+                vert_size = sizeof(vertex_3d);
+                break;
+            case KASSET_MODEL_MESH_TYPE_SKINNED:
+                vert_size = sizeof(skinned_vertex_3d);
+                break;
+            }
+            total_submesh_vertex_buffer_size += (vert_size * submesh->vertex_count);
+            total_submesh_index_buffer_size += (sizeof(u32) * submesh->index_count);
         }
-        total_submesh_vertex_buffer_size += (vert_size * submesh->vertex_count);
-        total_submesh_index_buffer_size += (sizeof(u32) * submesh->index_count);
-    }
-    submeshes.vertex_data_buffer = kallocate(total_submesh_vertex_buffer_size, MEMORY_TAG_BINARY_DATA);
-    submeshes.index_data_buffer = kallocate(total_submesh_index_buffer_size, MEMORY_TAG_BINARY_DATA);
+        submeshes.vertex_data_buffer = kallocate(total_submesh_vertex_buffer_size, MEMORY_TAG_BINARY_DATA);
+        submeshes.index_data_buffer = kallocate(total_submesh_index_buffer_size, MEMORY_TAG_BINARY_DATA);
 
-    total_block_size += total_submesh_vertex_buffer_size;
-    total_block_size += total_submesh_index_buffer_size;
+        total_block_size += total_submesh_vertex_buffer_size;
+        total_block_size += total_submesh_index_buffer_size;
 
-    // Iterate again and actually fill out the data.
-    u32 vert_offset = 0;
-    u32 index_offset = 0;
-    for (u32 i = 0; i < header.submesh_count; ++i) {
-        kasset_model_submesh_data* submesh = &asset->submeshes[i];
-        u32 vert_size = sizeof(vertex_3d);
-        u8 mesh_type = 0;
-        switch (submesh->type) {
-        default:
-        case KASSET_MODEL_MESH_TYPE_STATIC:
-            vert_size = sizeof(vertex_3d);
-            mesh_type = 0;
-            break;
-        case KASSET_MODEL_MESH_TYPE_SKINNED:
-            vert_size = sizeof(skinned_vertex_3d);
-            mesh_type = 1;
-            break;
+        // Iterate again and actually fill out the data.
+        u32 vert_offset = 0;
+        u32 index_offset = 0;
+        for (u32 i = 0; i < header.submesh_count; ++i) {
+            kasset_model_submesh_data* submesh = &asset->submeshes[i];
+            u32 vert_size = sizeof(vertex_3d);
+            u8 mesh_type = 0;
+            switch (submesh->type) {
+            default:
+            case KASSET_MODEL_MESH_TYPE_STATIC:
+                vert_size = sizeof(vertex_3d);
+                mesh_type = 0;
+                break;
+            case KASSET_MODEL_MESH_TYPE_SKINNED:
+                vert_size = sizeof(skinned_vertex_3d);
+                mesh_type = 1;
+                break;
+            }
+            u32 vsize = (vert_size * submesh->vertex_count);
+            u32 isize = (sizeof(u32) * submesh->index_count);
+            kcopy_memory(((u8*)submeshes.vertex_data_buffer) + vert_offset, submesh->vertices, vsize);
+            kcopy_memory(((u8*)submeshes.index_data_buffer) + index_offset, submesh->indices, isize);
+
+            vert_offset += vsize;
+            index_offset += isize;
+
+            submeshes.vertex_counts[i] = submesh->vertex_count;
+            submeshes.index_counts[i] = submesh->index_count;
+            submeshes.centers[i] = submesh->center;
+            submeshes.extents[i] = submesh->extents;
+            submeshes.mesh_types[i] = mesh_type;
+
+            const char* name = kname_string_get(submesh->name);
+            submeshes.name_ids[i] = name ? binary_string_table_add(&string_table, name) : INVALID_ID_U16;
+
+            const char* material_name = kname_string_get(submesh->material_name);
+            submeshes.material_name_ids[i] = material_name ? binary_string_table_add(&string_table, material_name) : INVALID_ID_U16;
         }
-        u32 vsize = (vert_size * submesh->vertex_count);
-        u32 isize = (sizeof(u32) * submesh->index_count);
-        kcopy_memory(((u8*)submeshes.vertex_data_buffer) + vert_offset, submesh->vertices, vsize);
-        kcopy_memory(((u8*)submeshes.index_data_buffer) + index_offset, submesh->indices, isize);
-
-        vert_offset += vsize;
-        index_offset += isize;
-
-        submeshes.vertex_counts[i] = submesh->vertex_count;
-        submeshes.index_counts[i] = submesh->index_count;
-        submeshes.centers[i] = submesh->center;
-        submeshes.extents[i] = submesh->extents;
-        submeshes.mesh_types[i] = mesh_type;
-
-        const char* name = kname_string_get(submesh->name);
-        submeshes.name_ids[i] = name ? binary_string_table_add(&string_table, name) : INVALID_ID_U16;
-
-        const char* material_name = kname_string_get(submesh->material_name);
-        submeshes.material_name_ids[i] = material_name ? binary_string_table_add(&string_table, material_name) : INVALID_ID_U16;
     }
 
     // Bones
-    total_block_size += sizeof(u32); // Bones begin guard
-    k3d_bones bones = {
-        .name_ids = KALLOC_TYPE_CARRAY(u16, header.bone_count),
-        .offset_matrices = KALLOC_TYPE_CARRAY(mat4, header.bone_count)};
-    for (u16 i = 0; i < header.bone_count; ++i) {
-        const char* name = kname_string_get(asset->bones[i].name);
-        bones.name_ids[i] = name ? binary_string_table_add(&string_table, name) : INVALID_ID_U16;
+    k3d_bones bones = {0};
+    if (header.bone_count) {
+        KDEBUG("Bone guard offset=%llu", total_block_size);
+        total_block_size += sizeof(u32); // Bones begin guard
+        bones = (k3d_bones){
+            .name_ids = KALLOC_TYPE_CARRAY(u16, header.bone_count),
+            .offset_matrices = KALLOC_TYPE_CARRAY(mat4, header.bone_count)};
+        for (u16 i = 0; i < header.bone_count; ++i) {
+            const char* name = kname_string_get(asset->bones[i].name);
+            bones.name_ids[i] = name ? binary_string_table_add(&string_table, name) : INVALID_ID_U16;
 
-        bones.offset_matrices[i] = asset->bones[i].offset;
+            bones.offset_matrices[i] = asset->bones[i].offset;
+        }
+        total_block_size += (sizeof(u16) * header.bone_count);
+        total_block_size += (sizeof(mat4) * header.bone_count);
     }
-    total_block_size += (sizeof(u16) * header.bone_count);
-    total_block_size += (sizeof(mat4) * header.bone_count);
 
     // Nodes
-    total_block_size += sizeof(u32); // Nodes begin guard
-    k3d_nodes nodes = {
-        .name_ids = KALLOC_TYPE_CARRAY(u16, header.node_count),
-        .local_transforms = KALLOC_TYPE_CARRAY(mat4, header.node_count),
-        .parent_indices = KALLOC_TYPE_CARRAY(u16, header.node_count)};
-    for (u16 i = 0; i < header.node_count; ++i) {
-        const char* name = kname_string_get(asset->nodes[i].name);
-        nodes.name_ids[i] = name ? binary_string_table_add(&string_table, name) : INVALID_ID_U16;
+    k3d_nodes nodes = {0};
+    if (header.node_count) {
+        KDEBUG("Node guard offset=%llu", total_block_size);
+        total_block_size += sizeof(u32); // Nodes begin guard
+        nodes = (k3d_nodes){
+            .name_ids = KALLOC_TYPE_CARRAY(u16, header.node_count),
+            .local_transforms = KALLOC_TYPE_CARRAY(mat4, header.node_count),
+            .parent_indices = KALLOC_TYPE_CARRAY(u16, header.node_count)};
+        for (u16 i = 0; i < header.node_count; ++i) {
+            const char* name = kname_string_get(asset->nodes[i].name);
+            nodes.name_ids[i] = name ? binary_string_table_add(&string_table, name) : INVALID_ID_U16;
 
-        nodes.local_transforms[i] = asset->nodes[i].local_transform;
-        nodes.parent_indices[i] = asset->nodes[i].parent_index;
+            nodes.local_transforms[i] = asset->nodes[i].local_transform;
+            nodes.parent_indices[i] = asset->nodes[i].parent_index;
+        }
+        total_block_size += (sizeof(u16) * header.node_count);
+        total_block_size += (sizeof(mat4) * header.node_count);
+        total_block_size += (sizeof(u16) * header.node_count);
     }
-    total_block_size += (sizeof(u16) * header.node_count);
-    total_block_size += (sizeof(mat4) * header.node_count);
-    total_block_size += (sizeof(u16) * header.node_count);
 
     // Animations
-    total_block_size += sizeof(u32); // Animations begin guard
-    k3d_animations animations = {
-        .name_ids = KALLOC_TYPE_CARRAY(u16, header.animation_count),
-        .ticks_per_seconds = KALLOC_TYPE_CARRAY(f32, header.animation_count),
-        .durations = KALLOC_TYPE_CARRAY(f32, header.animation_count),
-        .channel_counts = KALLOC_TYPE_CARRAY(u16, header.animation_count),
-        .total_channel_count = 0};
-    for (u16 i = 0; i < header.animation_count; ++i) {
-        animations.total_channel_count += asset->animations[i].channel_count;
-
-        animations.channel_counts[i] = asset->animations[i].channel_count;
-        animations.durations[i] = asset->animations[i].duration;
-        animations.ticks_per_seconds[i] = asset->animations[i].ticks_per_second;
-
-        const char* name = kname_string_get(asset->animations[i].name);
-        animations.name_ids[i] = name ? binary_string_table_add(&string_table, name) : INVALID_ID_U16;
-    }
-
-    total_block_size += (sizeof(u16) * header.animation_count);
-    total_block_size += (sizeof(f32) * header.animation_count);
-    total_block_size += (sizeof(f32) * header.animation_count);
-    total_block_size += (sizeof(u16) * header.animation_count);
-    total_block_size += sizeof(u16);
-
+    k3d_animations animations = {0};
+    k3d_animation_channels channels = {0};
     u32 channel_buffer_size = 0;
-    for (u16 i = 0; i < header.animation_count; ++i) {
-        kasset_model_animation* anim = &asset->animations[i];
-        for (u16 c = 0; animations.channel_counts[c]; c++) {
-            kasset_model_channel* channel = &anim->channels[c];
+    if (header.animation_count) {
+        KDEBUG("Animation guard offset=%llu", total_block_size);
+        total_block_size += sizeof(u32); // Animations begin guard
+        animations = (k3d_animations){
+            .name_ids = KALLOC_TYPE_CARRAY(u16, header.animation_count),
+            .ticks_per_seconds = KALLOC_TYPE_CARRAY(f32, header.animation_count),
+            .durations = KALLOC_TYPE_CARRAY(f32, header.animation_count),
+            .channel_counts = KALLOC_TYPE_CARRAY(u16, header.animation_count),
+            .total_channel_count = 0};
+        for (u16 i = 0; i < header.animation_count; ++i) {
+            animations.total_channel_count += asset->animations[i].channel_count;
 
-            channel_buffer_size += sizeof(kasset_model_key_vec3) * channel->pos_count;
-            channel_buffer_size += sizeof(kasset_model_key_vec3) * channel->scale_count;
-            channel_buffer_size += sizeof(kasset_model_key_quat) * channel->rot_count;
+            animations.channel_counts[i] = asset->animations[i].channel_count;
+            animations.durations[i] = asset->animations[i].duration;
+            animations.ticks_per_seconds[i] = asset->animations[i].ticks_per_second;
+
+            const char* name = kname_string_get(asset->animations[i].name);
+            animations.name_ids[i] = name ? binary_string_table_add(&string_table, name) : INVALID_ID_U16;
         }
-    }
 
-    // Animation Channels
-    total_block_size += sizeof(u32); // Animation channels begin guard
-    k3d_animation_channels channels = {
-        .animation_ids = KALLOC_TYPE_CARRAY(u16, animations.total_channel_count),
-        .name_ids = KALLOC_TYPE_CARRAY(u16, animations.total_channel_count),
-        .pos_counts = KALLOC_TYPE_CARRAY(u32, animations.total_channel_count),
-        .rot_counts = KALLOC_TYPE_CARRAY(u32, animations.total_channel_count),
-        .scale_counts = KALLOC_TYPE_CARRAY(u32, animations.total_channel_count),
-        .pos_offsets = KALLOC_TYPE_CARRAY(u32, animations.total_channel_count),
-        .rot_offsets = KALLOC_TYPE_CARRAY(u32, animations.total_channel_count),
-        .scale_offsets = KALLOC_TYPE_CARRAY(u32, animations.total_channel_count),
-        .data_buffer = kallocate(channel_buffer_size, MEMORY_TAG_BINARY_DATA)};
+        total_block_size += (sizeof(u16) * header.animation_count);
+        total_block_size += (sizeof(f32) * header.animation_count);
+        total_block_size += (sizeof(f32) * header.animation_count);
+        total_block_size += (sizeof(u16) * header.animation_count);
+        total_block_size += sizeof(u16);
 
-    total_block_size += (sizeof(u16) * header.animation_count);
-    total_block_size += (sizeof(u32) * header.animation_count);
-    total_block_size += (sizeof(u32) * header.animation_count);
-    total_block_size += (sizeof(u32) * header.animation_count);
-    total_block_size += (sizeof(u32) * header.animation_count);
-    total_block_size += (sizeof(u32) * header.animation_count);
-    total_block_size += (sizeof(u32) * header.animation_count);
-    total_block_size += channel_buffer_size;
+        for (u16 i = 0; i < header.animation_count; ++i) {
+            kasset_model_animation* anim = &asset->animations[i];
+            for (u16 c = 0; c < animations.channel_counts[i]; c++) {
+                kasset_model_channel* channel = &anim->channels[c];
 
-    u16 channel_id = 0;
-    u32 channel_data_buffer_offset = 0;
-    for (u16 i = 0; i < header.animation_count; ++i) {
-        kasset_model_animation* anim = &asset->animations[i];
-        for (u16 c = 0; animations.channel_counts[c]; c++) {
-            kasset_model_channel* channel = &anim->channels[c];
+                channel_buffer_size += (sizeof(kasset_model_key_vec3) * channel->pos_count);
+                channel_buffer_size += (sizeof(kasset_model_key_vec3) * channel->scale_count);
+                channel_buffer_size += (sizeof(kasset_model_key_quat) * channel->rot_count);
+            }
+        }
 
-            channels.animation_ids[channel_id] = i;
+        // Animation Channels
+        if (animations.total_channel_count) {
+            KDEBUG("Animation Channels guard offset=%llu", total_block_size);
+            total_block_size += sizeof(u32); // Animation channels begin guard
+            channels = (k3d_animation_channels){
+                .animation_ids = KALLOC_TYPE_CARRAY(u16, animations.total_channel_count),
+                .name_ids = KALLOC_TYPE_CARRAY(u16, animations.total_channel_count),
+                .pos_counts = KALLOC_TYPE_CARRAY(u32, animations.total_channel_count),
+                .rot_counts = KALLOC_TYPE_CARRAY(u32, animations.total_channel_count),
+                .scale_counts = KALLOC_TYPE_CARRAY(u32, animations.total_channel_count),
+                .pos_offsets = KALLOC_TYPE_CARRAY(u32, animations.total_channel_count),
+                .rot_offsets = KALLOC_TYPE_CARRAY(u32, animations.total_channel_count),
+                .scale_offsets = KALLOC_TYPE_CARRAY(u32, animations.total_channel_count),
+                .data_buffer = kallocate(channel_buffer_size, MEMORY_TAG_BINARY_DATA)};
 
-            const char* name = kname_string_get(channel->name);
-            channels.name_ids[channel_id] = name ? binary_string_table_add(&string_table, name) : INVALID_ID_U16;
+            total_block_size += (sizeof(u16) * animations.total_channel_count);
+            total_block_size += (sizeof(u16) * animations.total_channel_count);
+            total_block_size += (sizeof(u32) * animations.total_channel_count);
+            total_block_size += (sizeof(u32) * animations.total_channel_count);
+            total_block_size += (sizeof(u32) * animations.total_channel_count);
+            total_block_size += (sizeof(u32) * animations.total_channel_count);
+            total_block_size += (sizeof(u32) * animations.total_channel_count);
+            total_block_size += (sizeof(u32) * animations.total_channel_count);
+            total_block_size += channel_buffer_size;
 
-            channels.pos_counts[channel_id] = channel->pos_count;
-            channels.rot_counts[channel_id] = channel->rot_count;
-            channels.scale_counts[channel_id] = channel->scale_count;
+            u16 channel_id = 0;
+            u32 channel_data_buffer_offset = 0;
+            for (u16 i = 0; i < header.animation_count; ++i) {
+                kasset_model_animation* anim = &asset->animations[i];
+                for (u16 c = 0; c < animations.channel_counts[i]; c++) {
+                    kasset_model_channel* channel = &anim->channels[c];
 
-            // NOTE: write position, rotation, then scale per channel
-            u32 pos_size = sizeof(kasset_model_key_vec3) * channel->pos_count;
-            u32 rot_size = sizeof(kasset_model_key_quat) * channel->rot_count;
-            u32 scale_size = sizeof(kasset_model_key_vec3) * channel->scale_count;
+                    channels.animation_ids[channel_id] = i;
 
-            channels.pos_offsets[channel_id] = channel_data_buffer_offset;
-            kcopy_memory(((u8*)channels.data_buffer) + channel_data_buffer_offset, channel->positions, pos_size);
-            channel_data_buffer_offset += pos_size;
+                    const char* name = kname_string_get(channel->name);
+                    channels.name_ids[channel_id] = name ? binary_string_table_add(&string_table, name) : INVALID_ID_U16;
 
-            channels.rot_offsets[channel_id] = channel_data_buffer_offset;
-            kcopy_memory(((u8*)channels.data_buffer) + channel_data_buffer_offset, channel->rotations, rot_size);
-            channel_data_buffer_offset += rot_size;
+                    channels.pos_counts[channel_id] = channel->pos_count;
+                    channels.rot_counts[channel_id] = channel->rot_count;
+                    channels.scale_counts[channel_id] = channel->scale_count;
 
-            channels.scale_offsets[channel_id] = channel_data_buffer_offset;
-            kcopy_memory(((u8*)channels.data_buffer) + channel_data_buffer_offset, channel->scales, scale_size);
-            channel_data_buffer_offset += scale_size;
+                    // NOTE: write position, rotation, then scale per channel
+                    u32 pos_size = sizeof(kasset_model_key_vec3) * channel->pos_count;
+                    u32 rot_size = sizeof(kasset_model_key_quat) * channel->rot_count;
+                    u32 scale_size = sizeof(kasset_model_key_vec3) * channel->scale_count;
 
-            channel_id++;
+                    channels.pos_offsets[channel_id] = channel_data_buffer_offset;
+                    kcopy_memory(((u8*)channels.data_buffer) + channel_data_buffer_offset, channel->positions, pos_size);
+                    channel_data_buffer_offset += pos_size;
+
+                    channels.rot_offsets[channel_id] = channel_data_buffer_offset;
+                    kcopy_memory(((u8*)channels.data_buffer) + channel_data_buffer_offset, channel->rotations, rot_size);
+                    channel_data_buffer_offset += rot_size;
+
+                    channels.scale_offsets[channel_id] = channel_data_buffer_offset;
+                    kcopy_memory(((u8*)channels.data_buffer) + channel_data_buffer_offset, channel->scales, scale_size);
+                    channel_data_buffer_offset += scale_size;
+
+                    channel_id++;
+                }
+            }
         }
     }
 
     // Strings
+    KDEBUG("Strings guard offset=%llu", total_block_size);
     total_block_size += sizeof(u32); // strings table begin guard
     // Tell the header where the string table should begin.
     header.string_table_offset = total_block_size;
     u64 string_table_size = 0;
     void* string_table_serialized = binary_string_table_serialized(&string_table, &string_table_size);
     total_block_size += string_table_size;
+
+    // ===========================
+    // BEGIN WRITE TO BINARY BLOCK
+    // ===========================
 
     // Allocate the data block and copy all data to it.
     void* block = kallocate(total_block_size, MEMORY_TAG_BINARY_DATA);
@@ -724,6 +755,7 @@ KAPI void* kasset_model_serialize(const kasset_model* asset, u32 exporter_type, 
 
     // Submeshes - Only write this if there are submeshes.
     if (header.submesh_count) {
+        KDEBUG("->Submeshes guard offset=%llu", offset);
         offset = write_binary_u32(block, K3D_GUARD_SUBMESHES, offset);
 
         offset = write_binary_array(block, submeshes.name_ids, offset, sizeof(u16), header.submesh_count);
@@ -739,6 +771,7 @@ KAPI void* kasset_model_serialize(const kasset_model* asset, u32 exporter_type, 
     }
 
     if (header.bone_count) {
+        KDEBUG("->Bones guard offset=%llu", offset);
         offset = write_binary_u32(block, K3D_GUARD_BONES, offset);
 
         offset = write_binary_array(block, bones.name_ids, offset, sizeof(u16), header.bone_count);
@@ -746,14 +779,16 @@ KAPI void* kasset_model_serialize(const kasset_model* asset, u32 exporter_type, 
     }
 
     if (header.node_count) {
+        KDEBUG("->Nodes guard offset=%llu", offset);
         offset = write_binary_u32(block, K3D_GUARD_NODES, offset);
 
         offset = write_binary_array(block, nodes.name_ids, offset, sizeof(u16), header.node_count);
-        offset = write_binary_array(block, nodes.local_transforms, offset, sizeof(mat4), header.node_count);
         offset = write_binary_array(block, nodes.parent_indices, offset, sizeof(u16), header.node_count);
+        offset = write_binary_array(block, nodes.local_transforms, offset, sizeof(mat4), header.node_count);
     }
 
     if (header.animation_count) {
+        KDEBUG("->Animation guard offset=%llu", offset);
         offset = write_binary_u32(block, K3D_GUARD_ANIMATIONS, offset);
 
         offset = write_binary_u16(block, animations.total_channel_count, offset);
@@ -763,6 +798,7 @@ KAPI void* kasset_model_serialize(const kasset_model* asset, u32 exporter_type, 
         offset = write_binary_array(block, animations.channel_counts, offset, sizeof(u16), header.animation_count);
 
         if (animations.total_channel_count) {
+            KDEBUG("->Animation channels guard offset=%llu", offset);
             offset = write_binary_u32(block, K3D_GUARD_ANIM_CHANNELS, offset);
             offset = write_binary_array(block, channels.animation_ids, offset, sizeof(u16), animations.total_channel_count);
             offset = write_binary_array(block, channels.name_ids, offset, sizeof(u16), animations.total_channel_count);
@@ -779,6 +815,7 @@ KAPI void* kasset_model_serialize(const kasset_model* asset, u32 exporter_type, 
     }
 
     // Strings - always write the guard.
+    KDEBUG("->String guard offset=%llu", offset);
     offset = write_binary_u32(block, K3D_GUARD_STRINGS, offset);
 
     // Write out the serialized string table.
@@ -828,8 +865,8 @@ KAPI void* kasset_model_serialize(const kasset_model* asset, u32 exporter_type, 
     return block;
 }
 
-static u64 write_binary(void* block, void* source, u64 offset, u64 size) {
-    kcopy_memory(block + offset, source, size);
+static u64 write_binary(void* block, const void* source, u64 offset, u64 size) {
+    kcopy_memory((void*)((u8*)block + offset), source, size);
     return offset + size;
 }
 
@@ -841,6 +878,6 @@ static u64 write_binary_u16(void* block, u16 value, u64 offset) {
     return write_binary(block, &value, offset, sizeof(u16));
 }
 
-static u64 write_binary_array(void* block, void* source, u64 offset, u64 element_size, u32 count) {
+static u64 write_binary_array(void* block, const void* source, u64 offset, u64 element_size, u32 count) {
     return write_binary(block, source, offset, element_size * count);
 }

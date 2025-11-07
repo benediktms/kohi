@@ -1,7 +1,8 @@
 version = 3
 type = "standard"
 model = "pbr"
-has_transparency = true
+has_transparency = false
+masked = false
 double_sided = false
 recieves_shadow = true
 casts_shadow = true
@@ -11,6 +12,11 @@ inputs = {
         map = {
             resource_name = "DB2X2_L01"
             package_name = "Testbed"
+            sampler_filter_min = "nearest"
+            sampler_filter_mag = "nearest"
+            sampler_repeat_u = "repeat"
+            sampler_repeat_v = "repeat"
+            sampler_repeat_w = "repeat"
         }
     }
     normal = {

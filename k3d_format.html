@@ -6,6 +6,8 @@
       html,
       body {
         font-family: Geneva, Verdana, Arial, Helvetica, sans-serif;
+        background-color: #222;
+        color: #ddd;
       }
 
       h1,
@@ -15,12 +17,19 @@
         border-bottom: 1px solid #ccc;
       }
 
+      a,
+      a:visited,
+      a:active,
+      a:focus {
+        color: #ff6600;
+      }
+
       #toc {
         box-sizing: border-box;
         width: 150px;
         border: 1px solid #ccc;
         padding: 5px;
-        background-color: #f9f9f9;
+        background-color: #333;
       }
     </style>
   </head>
@@ -510,7 +519,8 @@
           animation channels. The overall size of this is determined by the how
           many keys each channel has, as well as how many channels there are.
           Bytes extracted from this vary by the type of key data being extracted
-          (i.e a key_vec3 extracts 4 f32s whereas a key_quat extracts 5.
+          (i.e a key_vec3 extracts 4 f32s whereas a key_quat extracts 5. Each
+          channel is stored in the order of position, rotation, then scale.
         </td>
       </tr>
     </table>

@@ -47,9 +47,6 @@ typedef enum resource_type {
     RESOURCE_TYPE_CUSTOM
 } resource_type;
 
-/** @brief A magic number indicating the file as a kohi binary file. */
-#define RESOURCE_MAGIC 0xcafebabe
-
 /**
  * @brief The header data for binary resource types.
  */

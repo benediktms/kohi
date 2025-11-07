@@ -190,7 +190,7 @@ KAPI void* kreallocate(void* block, u64 old_size, u64 new_size, memory_tag tag);
  * @param old_count The number of elements existing in the array.
  * @param new_count The number of elements in the resized array.
  */
-#define KREALLOC_TYPE_CARRAY(block, type, old_count, new_count) (type*)kreallocate(block, sizeof(type) * old_count, sizeof(type) * new_count, MEMORY_TAG_ARRAY)
+#define KREALLOC_TYPE_CARRAY(block, type, old_count, new_count) (type*)kreallocate(block, sizeof(type) * (old_count), sizeof(type) * (new_count), MEMORY_TAG_ARRAY)
 
 /**
  * @brief Performs a memory reallocation from the host of the given size and alignment, and also frees the

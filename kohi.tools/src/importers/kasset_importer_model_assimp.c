@@ -76,6 +76,7 @@ b8 kasset_model_assimp_import(const char* source_path, const char* target_path, 
         goto ai_import_cleanup;
     }
 
+    KINFO("Import complete.");
 ai_import_cleanup:
 
     // Release all assimp resources.
@@ -370,6 +371,7 @@ static void add_bone_weight(vertex_weight_accumulator* a, i32 bone_id, f32 weigh
 }
 
 static b8 anim_asset_from_assimp(const struct aiScene* scene, kname package_name, kasset_model* out_asset) {
+    KASSERT(scene);
 
     kzero_memory(out_asset, sizeof(kasset_model));
     out_asset->global_inverse_transform = mat4_from_ai(&scene->mRootNode->mTransformation);
@@ -415,7 +417,7 @@ static b8 anim_asset_from_assimp(const struct aiScene* scene, kname package_name
 
     typedef struct node_map_entry {
         const struct aiNode* node;
-        u32 index;
+        u16 index;
     } node_map_entry;
 
     node_map_entry* node_map = darray_create(node_map_entry);
@@ -434,7 +436,7 @@ static b8 anim_asset_from_assimp(const struct aiScene* scene, kname package_name
             .parent_index = INVALID_ID_U16,
             .children = KNULL,
             .child_count = 0};
-        u32 node_index = darray_length(nodes);
+        u16 node_index = darray_length(nodes);
         darray_push(nodes, new_node);
 
         // Add it to the map
@@ -444,29 +446,30 @@ static b8 anim_asset_from_assimp(const struct aiScene* scene, kname package_name
         darray_push(node_map, new_map_entry);
 
         // Push children onto the stack.
-        for (u32 i = 0; i < current->mNumChildren; ++i) {
+        for (u16 i = 0; i < current->mNumChildren; ++i) {
             stack_nodes[stack_top++] = current->mChildren[i];
         }
     }
 
     // Set parent/child by re-iterating the map.
-    u32 node_map_count = darray_length(node_map);
-    for (u32 i = 0; i < node_map_count; ++i) {
+    u16 node_map_count = darray_length(node_map);
+    for (u16 i = 0; i < node_map_count; ++i) {
         const struct aiNode* current = node_map[i].node;
-        u32 index = node_map[i].index;
-        for (u32 c = 0; c < current->mNumChildren; c++) {
+        u16 index = node_map[i].index;
+        for (u16 c = 0; c < current->mNumChildren; c++) {
             const struct aiNode* child = current->mChildren[c];
-            u32 child_index = INVALID_ID;
-            for (u32 s = 0; s < node_map_count; ++s) {
+            u16 child_index = INVALID_ID_U16;
+            for (u16 s = 0; s < node_map_count; ++s) {
                 if (node_map[s].node == child) {
                     child_index = node_map[s].index;
                     break;
                 }
             }
-            if (child_index != INVALID_ID) {
+            if (child_index != INVALID_ID_U16) {
                 kasset_model_node* cn = &nodes[index];
                 cn->children = KREALLOC_TYPE_CARRAY(cn->children, u16, cn->child_count, cn->child_count + 1);
-                cn->children[cn->child_count++] = child_index;
+                cn->children[cn->child_count] = child_index;
+                cn->child_count++;
                 nodes[child_index].parent_index = index;
             }
         }
@@ -482,7 +485,7 @@ static b8 anim_asset_from_assimp(const struct aiScene* scene, kname package_name
     // Copy channels and keys
     out_asset->animation_count = scene->mNumAnimations;
     out_asset->animations = KALLOC_TYPE_CARRAY(kasset_model_animation, out_asset->animation_count);
-    for (u32 a = 0; a < out_asset->animation_count; ++a) {
+    for (u16 a = 0; a < out_asset->animation_count; ++a) {
         struct aiAnimation* anim = scene->mAnimations[a];
         kasset_model_animation* out = &out_asset->animations[a];
         out->name = kname_create(anim->mName.data);
@@ -490,7 +493,7 @@ static b8 anim_asset_from_assimp(const struct aiScene* scene, kname package_name
         out->ticks_per_second = anim->mTicksPerSecond;
         out->channel_count = anim->mNumChannels;
         out->channels = KALLOC_TYPE_CARRAY(kasset_model_channel, out->channel_count);
-        for (u32 c = 0; c < out->channel_count; c++) {
+        for (u16 c = 0; c < out->channel_count; c++) {
             struct aiNodeAnim* chn = anim->mChannels[c];
             kasset_model_channel* oc = &out->channels[c];
             kzero_memory(oc, sizeof(kanimated_mesh_channel));
@@ -555,6 +558,8 @@ static b8 anim_asset_from_assimp(const struct aiScene* scene, kname package_name
                 add_bone_weight(&bone_data[ai_bone->mWeights[w].mVertexId], b, ai_bone->mWeights[w].mWeight);
             }
         }
+
+        target->name = kname_create(mesh->mName.data);
 
         target->vertex_count = mesh->mNumVertices;
         target->vertices = KALLOC_TYPE_CARRAY(skinned_vertex_3d, target->vertex_count);
@@ -634,9 +639,9 @@ static void anim_asset_destroy(kasset_model* asset) {
         return;
     }
 
-    for (u32 i = 0; i < asset->animation_count; ++i) {
+    for (u16 i = 0; i < asset->animation_count; ++i) {
         kasset_model_animation* a = &asset->animations[i];
-        for (u32 c = 0; c < a->channel_count; c++) {
+        for (u16 c = 0; c < a->channel_count; c++) {
             kasset_model_channel* ch = &a->channels[c];
             KFREE_TYPE_CARRAY(ch->positions, anim_key_vec3, ch->pos_count);
             KFREE_TYPE_CARRAY(ch->rotations, anim_key_quat, ch->rot_count);
@@ -646,8 +651,8 @@ static void anim_asset_destroy(kasset_model* asset) {
     }
     KFREE_TYPE_CARRAY(asset->animations, kanimated_mesh_animation, asset->animation_count);
     KFREE_TYPE_CARRAY(asset->bones, kasset_model_bone, asset->bone_count);
-    for (u32 i = 0; i < asset->node_count; ++i) {
-        KFREE_TYPE_CARRAY(asset->nodes[i].children, u32, asset->nodes[i].child_count);
+    for (u16 i = 0; i < asset->node_count; ++i) {
+        KFREE_TYPE_CARRAY(asset->nodes[i].children, u16, asset->nodes[i].child_count);
     }
     KFREE_TYPE_CARRAY(asset->nodes, kasset_model_node, asset->node_count);
 }

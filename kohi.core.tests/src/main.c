@@ -1,6 +1,7 @@
 #include <logger.h>
 
 #include "containers/array_tests.h"
+#include "containers/binary_string_table_tests.h"
 #include "containers/darray_tests.h"
 #include "containers/freelist_tests.h"
 #include "containers/hashtable_tests.h"
@@ -16,6 +17,7 @@ int main(void) {
     test_manager_init();
 
     // TODO: add test registrations here.
+    binary_string_table_register_tests();
     string_register_tests();
     array_register_tests();
     darray_register_tests();

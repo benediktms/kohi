@@ -1116,10 +1116,10 @@ const char* string_filename_no_extension_from_path(const char* path) {
         }
     }
 
-    u32 new_length = (end - start) + 1;
-    char* dest = kallocate(new_length, MEMORY_TAG_STRING);
+    u32 new_length = end - start;
+    char* dest = kallocate(new_length + 1, MEMORY_TAG_STRING);
     dest[new_length] = 0;
-    string_ncopy(dest, path + start, new_length - 1);
+    string_ncopy(dest, path + start, new_length);
     return dest;
 }
 
