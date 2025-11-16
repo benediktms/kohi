@@ -33,7 +33,7 @@ void vulkan_platform_get_required_extension_names(const char*** names_darray) {
 b8 vulkan_platform_create_vulkan_surface(vulkan_context* context, struct kwindow* window) {
     u64 size = 0;
     platform_get_handle_info(&size, 0);
-    void* block = kallocate(size, MEMORY_TAG_RENDERER);
+    void* block = kallocate_aligned(size, 16, MEMORY_TAG_RENDERER);
     platform_get_handle_info(&size, block);
 
     linux_handle_info* handle = (linux_handle_info*)block;
@@ -59,7 +59,7 @@ b8 vulkan_platform_create_vulkan_surface(vulkan_context* context, struct kwindow
 b8 vulkan_platform_presentation_support(vulkan_context* context, VkPhysicalDevice physical_device, u32 queue_family_index) {
     u64 size = 0;
     platform_get_handle_info(&size, 0);
-    void* block = kallocate(size, MEMORY_TAG_RENDERER);
+    void* block = kallocate_aligned(size, 16, MEMORY_TAG_RENDERER);
     platform_get_handle_info(&size, block);
 
     linux_handle_info* handle = (linux_handle_info*)block;

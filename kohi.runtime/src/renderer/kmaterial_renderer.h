@@ -91,31 +91,32 @@ typedef enum kmaterial_data_index2 {
 } kmaterial_data_index2;
 
 typedef struct kmaterial_render_immediate_data {
-    // bytes 0-31
-    // Packed data indices, 2x indices [view,projection]. see kmaterial_data_index
-    u32 data_indices;
-    // Packed data indices, 2x indices [transform,base_material]. see kmaterial_data_index2
-    u32 data_indices2;
-    u32 transform_index;
-    u32 padding;
+    // bytes 0-15
+    u32 view_index;
+    u32 projection_index;
+    u32 animation_index;
+    u32 base_material_index;
 
-    // bytes 32-47
+    // bytes 16-31
     // Index into the global point lights array. Up to 16 indices as u8s packed into 2 uints.
     uvec2 packed_point_light_indices; // 8 bytes
     u32 num_p_lights;
     // Index into global irradiance cubemap texture array
     u32 irradiance_cubemap_index;
 
-    // bytes 48-63
+    // bytes 32-47
     vec4 clipping_plane;
 
-    // bytes 64-79
+    // bytes 48-63
     u32 dir_light_index; // probably zero
     f32 tiling;          // only used for water materials
     f32 wave_strength;   // only used for water materials
     f32 wave_speed;      // only used for water materials
 
-    // 80-127 available
+    // bytes 64-79
+    u32 transform_index;
+    vec3 padding;
+    // 80-128 available
 } kmaterial_render_immediate_data;
 
 /** @brief State for the material renderer. */
@@ -178,4 +179,4 @@ KAPI void kmaterial_renderer_apply_globals(kmaterial_renderer* state);
 KAPI void kmaterial_renderer_bind_base(kmaterial_renderer* state, kmaterial base);
 
 // Updates material instance immediates using the provided data.
-KAPI void kmaterial_renderer_apply_immediates(kmaterial_renderer* state, kmaterial_instance instance, const kmaterial_render_immediate_data* immediates);
+KAPI void kmaterial_renderer_apply_immediates(kmaterial_renderer* state, kmaterial_instance instance, const kmaterial_render_immediate_data* immediates, b8 is_animated);

@@ -158,31 +158,32 @@ layout(set = 1, binding = 1) uniform sampler material_samplers[MATERIAL_STANDARD
 
 // Immediate data
 layout(push_constant) uniform immediate_data {
+    // bytes 0-15
+    uint view_index;
+    uint projection_index;
+    uint animation_index;
+    uint base_material_index;
 
-    // bytes 0-31
-    // Packed data indices, 2x indices [view,projection]. see kmaterial_data_index
-    uint data_indices;
-    // Packed data indices, 2x indices [animation,base_material]. see kmaterial_data_index2
-    uint data_indices2;
-    uint transform_index;
-    uint padding;
-
-    // bytes 32-47
+    // bytes 16-31
     // Index into the global point lights array. Up to 16 indices as u8s packed into 2 uints.
     uvec2 packed_point_light_indices; // 8 bytes
     uint num_p_lights;
+    // Index into global irradiance cubemap texture array
     uint irradiance_cubemap_index;
 
-    // bytes 48-63
+    // bytes 32-47
     vec4 clipping_plane;
 
-    // bytes 64-79
-    uint dir_light_index;
-    float tiling;
-    float wave_strength;
-    float wave_speed;
+    // bytes 48-63
+    uint dir_light_index; // probably zero
+    float tiling;          // only used for water materials
+    float wave_strength;   // only used for water materials
+    float wave_speed;      // only used for water materials
 
-    // 80-127 available
+    // bytes 64-79
+    uint transform_index;
+    vec3 padding;
+    // 80-128 available
 } immediate;
 
 // Data Transfer Object
@@ -192,14 +193,10 @@ layout(location = 0) in dto {
 	vec4 light_space_frag_pos[KMATERIAL_UBO_MAX_SHADOW_CASCADES];
     vec4 vertex_colour;
 	vec3 normal;
-    uint view_index;
 	vec3 tangent;
-    uint projection_index;
 	vec2 tex_coord;
-    uint animation_index;
-    uint base_material_index;
     vec3 world_to_camera;
-    float padding4;
+    float padding;
 } in_dto;
 
 // =========================================================
@@ -220,9 +217,9 @@ bool flag_get(uint flags, uint flag);
 uint flag_set(uint flags, uint flag, bool enabled);
 
 void main() {
-    mat4 view = global_settings.views[in_dto.view_index];
-    vec3 view_position = global_settings.view_positions[in_dto.view_index].xyz;
-    base_material_data base_material = global_materials.base_materials[in_dto.base_material_index];
+    mat4 view = global_settings.views[immediate.view_index];
+    vec3 view_position = global_settings.view_positions[immediate.view_index].xyz;
+    base_material_data base_material = global_materials.base_materials[immediate.base_material_index];
 
     vec2 distorted_texcoords;
     vec3 normal;
@@ -276,7 +273,7 @@ void main() {
 
     light_data directional_light = global_lighting.lights[immediate.dir_light_index];
 
-    base_material_data material = global_materials.base_materials[in_dto.base_material_index];
+    base_material_data material = global_materials.base_materials[immediate.base_material_index];
 
     vec3 albedo;
     float metallic;

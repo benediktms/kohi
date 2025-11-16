@@ -45,7 +45,7 @@
 
 // NOTE: To disable the custom allocator, comment this out or set to 0.
 #ifndef KVULKAN_USE_CUSTOM_ALLOCATOR
-#    define KVULKAN_USE_CUSTOM_ALLOCATOR 1
+#    define KVULKAN_USE_CUSTOM_ALLOCATOR 0
 #endif
 
 VKAPI_ATTR VkBool32 VKAPI_CALL vk_debug_callback(
@@ -90,8 +90,8 @@ static b8 create_vulkan_allocator(vulkan_context* context, VkAllocationCallbacks
 #endif // KVULKAN_USE_CUSTOM_ALLOCATOR == 1
 
 b8 vulkan_renderer_backend_initialize(renderer_backend_interface* backend, const renderer_backend_config* config) {
-    backend->internal_context_size = sizeof(vulkan_context);
-    backend->internal_context = kallocate(backend->internal_context_size, MEMORY_TAG_RENDERER);
+    backend->internal_context_size = get_aligned(sizeof(vulkan_context), 16);
+    backend->internal_context = kallocate_aligned(backend->internal_context_size, 16, MEMORY_TAG_RENDERER);
     // Cold-cast the context
     vulkan_context* context = (vulkan_context*)backend->internal_context;
 
@@ -116,7 +116,7 @@ b8 vulkan_renderer_backend_initialize(renderer_backend_interface* backend, const
     // NOTE: Custom allocator.
 #if KVULKAN_USE_CUSTOM_ALLOCATOR == 1
     context->allocator =
-        kallocate(sizeof(VkAllocationCallbacks), MEMORY_TAG_RENDERER);
+        kallocate_aligned(sizeof(VkAllocationCallbacks), 16, MEMORY_TAG_RENDERER);
     if (!create_vulkan_allocator(context, context->allocator)) {
         // If this fails, gracefully fall back to the default allocator.
         KFATAL(
@@ -4443,6 +4443,9 @@ static void* vulkan_alloc_allocation(
         return 0;
     }
 
+    // Size must be aligned also.
+    size = get_aligned(size, alignment);
+
     void* result = kallocate_aligned(size, (u16)alignment, MEMORY_TAG_VULKAN);
 #    ifdef KVULKAN_ALLOCATOR_TRACE
     KTRACE("Allocated block %p. Size=%llu, Alignment=%llu", result, size, alignment);
@@ -4478,6 +4481,10 @@ static void vulkan_alloc_free(void* user_data, void* memory) {
             "Block %p found with size/alignment: %llu/%u. Freeing aligned block...",
             memory, size, alignment);
 #    endif
+
+        // Size must be aligned also.
+        size = get_aligned(size, alignment);
+
         kfree_aligned(memory, size, alignment, MEMORY_TAG_VULKAN);
     } else {
         KERROR("vulkan_alloc_free failed to get alignment lookup for block %p.", memory);
@@ -4512,6 +4519,9 @@ static void* vulkan_alloc_reallocation(
         vulkan_alloc_free(user_data, original);
         return 0;
     }
+
+    // Size must be aligned also.
+    size = get_aligned(size, alignment);
 
     // NOTE: if pOriginal is not null, the same alignment must be used for the new
     // allocation as original.

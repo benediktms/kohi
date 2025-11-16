@@ -27,11 +27,13 @@ pool_allocator pool_allocator_create(u64 element_size, u64 capacity) {
 void pool_allocator_destroy(pool_allocator* allocator) {
 }
 
-void* pool_allocator_allocate(pool_allocator* allocator) {
+void* pool_allocator_allocate(pool_allocator* allocator, u32* out_index) {
     pool_allocator_free_node* head = allocator->free_list_head;
     KASSERT_DEBUG(head);
     u64 offset = head->offset;
     allocator->free_list_head = head->next;
+
+    *out_index = (u32)(offset / allocator->element_size);
 
     return (void*)(((u8*)allocator->memory) + offset);
 }

@@ -27,7 +27,6 @@
 #include "serializers/kasset_material_serializer.h"
 #include "serializers/kasset_model_serializer.h"
 
-// TODO: If this is needed, perhaps move types to separate header file.
 #include "strings/kname.h"
 #include "strings/kstring.h"
 #include "systems/kanimation_system.h"
@@ -334,7 +333,7 @@ static b8 materials_from_assimp(const struct aiScene* scene, kname package_name,
 }
 
 static const struct aiScene* assimp_open_file(const char* source_path) {
-    const struct aiScene* scene = aiImportFile(source_path, aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_CalcTangentSpace);
+    const struct aiScene* scene = aiImportFile(source_path, aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_CalcTangentSpace | aiProcess_LimitBoneWeights);
     if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
         KERROR("Error importing via assimp: %s", aiGetErrorString());
         return 0;
@@ -375,7 +374,7 @@ static b8 anim_asset_from_assimp(const struct aiScene* scene, kname package_name
 
     kzero_memory(out_asset, sizeof(kasset_model));
     out_asset->global_inverse_transform = mat4_from_ai(&scene->mRootNode->mTransformation);
-    // TODO: Does this need to be the inverse?
+    out_asset->global_inverse_transform = mat4_inverse(out_asset->global_inverse_transform);
 
     // Get all unique bones across all meshes.
     kasset_model_bone bones[KANIMATION_MAX_BONES] = {0};
@@ -396,6 +395,7 @@ static b8 anim_asset_from_assimp(const struct aiScene* scene, kname package_name
                 }
             }
             if (found) {
+                KTRACE("Bone named '%s' already exists. Skipping.", ai_bone->mName.data);
                 // Bone already exists, skip it.
                 continue;
             }
@@ -435,7 +435,8 @@ static b8 anim_asset_from_assimp(const struct aiScene* scene, kname package_name
             .name = kname_create(current->mName.data),
             .parent_index = INVALID_ID_U16,
             .children = KNULL,
-            .child_count = 0};
+            .child_count = 0,
+            .local_transform = mat4_from_ai(&current->mTransformation)};
         u16 node_index = darray_length(nodes);
         darray_push(nodes, new_node);
 
@@ -554,15 +555,45 @@ static b8 anim_asset_from_assimp(const struct aiScene* scene, kname package_name
         // May need to reconcile this later if this is an issue.
         for (u32 b = 0; b < mesh->mNumBones; ++b) {
             struct aiBone* ai_bone = mesh->mBones[b];
+            kname ai_bone_name = kname_create(ai_bone->mName.data);
+
             for (u32 w = 0; w < ai_bone->mNumWeights; ++w) {
-                add_bone_weight(&bone_data[ai_bone->mWeights[w].mVertexId], b, ai_bone->mWeights[w].mWeight);
+                const struct aiVertexWeight vw = ai_bone->mWeights[w];
+                for (u32 bid = 0; bid < bone_count; ++bid) {
+                    if (bones[bid].name == ai_bone_name) {
+                        add_bone_weight(&bone_data[vw.mVertexId], bid, vw.mWeight);
+                        break;
+                    }
+                }
+                /* add_bone_weight(&bone_data[vw.mVertexId], b, vw.mWeight); */
             }
+        }
+
+        // HACK: Verify vertex weights.
+        for (u32 v = 0; v < mesh->mNumVertices; ++v) {
+            f32 total_weight = 0.0f;
+            for (u8 i = 0; i < 4; ++i) {
+                total_weight += bone_data[v].weights[i];
+            }
+            KASSERT(kabs(total_weight - 1.0f) < 0.01f);
         }
 
         target->name = kname_create(mesh->mName.data);
 
+        // Material name.
+        struct aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
+
+        // Base properties
+        struct aiString ai_name;
+        aiGetMaterialString(material, AI_MATKEY_NAME, &ai_name);
+        target->material_name = kname_create(ai_name.data);
+
         target->vertex_count = mesh->mNumVertices;
-        target->vertices = KALLOC_TYPE_CARRAY(skinned_vertex_3d, target->vertex_count);
+        if (mesh->mNumBones) {
+            target->vertices = KALLOC_TYPE_CARRAY(skinned_vertex_3d, target->vertex_count);
+        } else {
+            target->vertices = KALLOC_TYPE_CARRAY(vertex_3d, target->vertex_count);
+        }
         target->index_count = mesh->mNumFaces * 3; // NOTE: assumes triangulated mesh, which should be fine here.
         target->indices = KALLOC_TYPE_CARRAY(u32, target->index_count);
 
@@ -608,10 +639,9 @@ static b8 anim_asset_from_assimp(const struct aiScene* scene, kname package_name
 
             // Extract bone data, if it exists.
             if (mesh->mNumBones) {
-                for (u8 b = 0; b < 4; ++b) {
-                    ((skinned_vertex_3d*)target->vertices)[i].bone_ids.elements[b] = bone_data[i].bone_ids[b];
-                    ((skinned_vertex_3d*)target->vertices)[i].weights.elements[b] = bone_data[i].weights[b];
-                }
+                skinned_vertex_3d* out_v = &((skinned_vertex_3d*)target->vertices)[i];
+                kcopy_memory(out_v->bone_ids.elements, bone_data[i].bone_ids, sizeof(i32) * 4);
+                kcopy_memory(out_v->weights.elements, bone_data[i].weights, sizeof(f32) * 4);
 
                 // If the mesh has bones, it's skinned. Mark it as such.
                 target->type = KASSET_MODEL_MESH_TYPE_SKINNED;

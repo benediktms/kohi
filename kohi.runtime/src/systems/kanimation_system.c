@@ -1,9 +1,3 @@
-/**
- *  LEFTOFF:
- *  - Hook up animated meshes to renderer
- *  - Finalize import process
- *
- * */
 #include "kanimation_system.h"
 
 #include "assets/kasset_types.h"
@@ -140,7 +134,7 @@ static b8 get_base_id(struct kanimated_mesh_system_state* state, kname asset_nam
     new_base->id = id;
 
     // Also push a new entry into the instance array for this base.
-    kanimated_mesh_animator* new_inst_array = darray_create(kanimated_mesh_animator);
+    kanimated_mesh_instance_data* new_inst_array = darray_create(kanimated_mesh_instance_data);
     darray_push(state->instances, new_inst_array);
 
     *out_id = id;
@@ -158,17 +152,18 @@ static u16 get_new_instance_id(struct kanimated_mesh_system_state* state, u16 ba
             // Free slot found, use it.
             animator->base = base_id;
             animator->current_animation = INVALID_ID_U16;
-            animator->shader_data = pool_allocator_allocate(&state->shader_data_pool);
+            animator->shader_data = pool_allocator_allocate(&state->shader_data_pool, &animator->shader_data_index);
             animator->time_scale = 1.0f; // Always default time scale to 1.0f
             return i;
         }
     }
 
-    kanimated_mesh_animator new_inst = {0};
-    new_inst.base = base_id;
-    new_inst.current_animation = INVALID_ID_U16;
-    new_inst.shader_data = pool_allocator_allocate(&state->shader_data_pool);
-    new_inst.time_scale = 1.0f; // Always default time scale to 1.0f
+    kanimated_mesh_instance_data new_inst = {
+        .animator.base = base_id,
+        .animator.current_animation = INVALID_ID_U16,
+        .animator.time_scale = 1.0f, // Always default time scale to 1.0f
+    };
+    new_inst.animator.shader_data = pool_allocator_allocate(&state->shader_data_pool, &new_inst.animator.shader_data_index);
     darray_push(state->instances[base_id], new_inst);
 
     return len;
@@ -178,10 +173,13 @@ typedef struct animated_mesh_asset_request_listener {
     kanimated_mesh_system_state* state;
     u16 base_id;
     u16 instance_id;
+    PFN_animated_mesh_loaded callback;
+    void* context;
 } animated_mesh_asset_request_listener;
 
 static void kasset_animated_mesh_loaded(void* listener, kasset_model* asset) {
     animated_mesh_asset_request_listener* typed_listener = (animated_mesh_asset_request_listener*)listener;
+    KDEBUG("%s - model loaded", __FUNCTION__);
 
     kanimated_mesh_system_state* state = typed_listener->state;
     u16 base_id = typed_listener->base_id;
@@ -214,8 +212,8 @@ static void kasset_animated_mesh_loaded(void* listener, kasset_model* asset) {
         target->local_transform = source->local_transform;
         target->child_count = source->child_count;
         if (target->child_count) {
-            target->children = KALLOC_TYPE_CARRAY(u32, target->child_count);
-            KCOPY_TYPE_CARRAY(target->children, source->children, u32, target->child_count);
+            target->children = KALLOC_TYPE_CARRAY(u16, target->child_count);
+            KCOPY_TYPE_CARRAY(target->children, source->children, u16, target->child_count);
         }
     }
 
@@ -278,6 +276,7 @@ static void kasset_animated_mesh_loaded(void* listener, kasset_model* asset) {
 
         target->name = source->name;
         target->material_name = source->material_name;
+        KTRACE("Animated submesh %u has a material_name of '%s'", i, kname_string_get(source->material_name));
         target->geo.name = source->name;
         target->geo.generation = INVALID_ID_U16;
         target->geo.type = KGEOMETRY_TYPE_3D_SKINNED;
@@ -370,6 +369,7 @@ static void kasset_animated_mesh_loaded(void* listener, kasset_model* asset) {
     // Acquire material instances.
     for (u32 i = 0; i < base->mesh_count; ++i) {
         kanimated_mesh* mesh = &base->meshes[i];
+        KTRACE("Animated mesh is newly loaded, acquiring animated mesh material '%s' instance for submesh %u...", kname_string_get(mesh->material_name), i);
         if (!kmaterial_system_acquire(engine_systems_get()->material_system, mesh->material_name, &instance->materials[i])) {
             KERROR("Failed to get material '%s' for animated mesh submesh '%s'.", kname_string_get(mesh->material_name), kname_string_get(mesh->name));
             // TODO: Should this just use the default material instead?
@@ -381,6 +381,13 @@ static void kasset_animated_mesh_loaded(void* listener, kasset_model* asset) {
 
     // After copying over all properties, release the asset.
     asset_system_release_model(engine_systems_get()->asset_state, asset);
+
+    if (typed_listener->callback) {
+        kanimated_mesh_instance inst = {
+            .instance = typed_listener->instance_id,
+            .base_mesh = typed_listener->base_id};
+        typed_listener->callback(inst, typed_listener->context);
+    }
 
     // Cleanup the listener.
     KFREE_TYPE(listener, animated_mesh_asset_request_listener, MEMORY_TAG_ASSET);
@@ -400,6 +407,8 @@ kanimated_mesh_instance kanimated_mesh_instance_acquire_from_package(struct kani
         listener->state = state;
         listener->base_id = base_id;
         listener->instance_id = instance_id;
+        listener->callback = callback;
+        listener->context = context;
 
         // Kick off async asset load via the asset system.
         kasset_model* asset = asset_system_request_model_from_package(engine_systems_get()->asset_state, kname_string_get(package_name), kname_string_get(asset_name), listener, kasset_animated_mesh_loaded);
@@ -412,6 +421,7 @@ kanimated_mesh_instance kanimated_mesh_instance_acquire_from_package(struct kani
         // Acquire material instances.
         for (u32 i = 0; i < base->mesh_count; ++i) {
             kanimated_mesh* mesh = &base->meshes[i];
+            KTRACE("Animated mesh already loaded, acquiring animated mesh material '%s' instance...", kname_string_get(mesh->material_name));
             if (!kmaterial_system_acquire(engine_systems_get()->material_system, mesh->material_name, &instance->materials[i])) {
                 KERROR("Failed to get material '%s' for animated mesh submesh '%s'.", kname_string_get(mesh->material_name), kname_string_get(mesh->name));
                 // TODO: Should this just use the default material instead?
@@ -523,7 +533,7 @@ void kanimated_mesh_instance_release(struct kanimated_mesh_system_state* state, 
                 kanimated_mesh_node* node = &base->nodes[i];
 
                 if (node->child_count && node->children) {
-                    KFREE_TYPE_CARRAY(node->children, u32, node->child_count);
+                    KFREE_TYPE_CARRAY(node->children, u16, node->child_count);
                 }
             }
 
@@ -583,8 +593,8 @@ void kanimated_mesh_instance_animation_set(struct kanimated_mesh_system_state* s
         }
     }
 
-    KWARN("Animation '%s' not found on base mesh '%s'.", kname_string_get(animation_name), kname_string_get(base->asset_name));
     if (animator->current_animation == INVALID_ID_U16) {
+        KWARN("Animation '%s' not found on base mesh '%s'.", kname_string_get(animation_name), kname_string_get(base->asset_name));
         if (base->animation_count > 0) {
             animator->current_animation = 0;
             KWARN("Set animation to default of the first entry, '%s'.", kname_string_get(base->animations[0].name));
@@ -592,6 +602,13 @@ void kanimated_mesh_instance_animation_set(struct kanimated_mesh_system_state* s
             KWARN("No animations exist, thus there is nothing to set.");
         }
     }
+}
+
+u32 kanimated_mesh_instance_animation_id_get(struct kanimated_mesh_system_state* state, kanimated_mesh_instance instance) {
+    kanimated_mesh_instance_data* inst = &state->instances[instance.base_mesh][instance.instance];
+    kanimated_mesh_animator* animator = &inst->animator;
+
+    return animator->shader_data_index;
 }
 
 void kanimated_mesh_instance_time_scale_set(kanimated_mesh_system_state* state, kanimated_mesh_instance instance, f32 time_scale) {
@@ -754,7 +771,13 @@ static vec3 interpolate_scale(const kanimated_mesh_channel* channel, f32 time) {
     return vec3_lerp(channel->scales[idx].value, channel->scales[idx + 1].value, factor);
 }
 
-static void process_animator(kanimated_mesh_system_state* state, kanimated_mesh_animator* animator, kanimated_mesh_animation* animation, u32 node_index, const mat4 parent_transform) {
+static void process_animator(
+    kanimated_mesh_system_state* state,
+    kanimated_mesh_animator* animator,
+    kanimated_mesh_animation* animation,
+    u32 node_index,
+    const mat4 parent_transform) {
+
     kanimated_mesh_base* asset = &state->base_meshes[animator->base];
     kanimated_mesh_node* node = &asset->nodes[node_index];
     mat4 node_transform = node->local_transform;
@@ -767,15 +790,13 @@ static void process_animator(kanimated_mesh_system_state* state, kanimated_mesh_
         node_transform = mat4_from_translation_rotation_scale(translation, rotation, scale);
     }
 
-    mat4 world_transform = mat4_mul(parent_transform, node_transform);
+    mat4 world_transform = mat4_mul(node_transform, parent_transform);
 
     u32 bone_index = base_find_bone_index(asset, node->name);
-    if (bone_index != INVALID_ID) {
-        mat4 final_matrix = mat4_mul(asset->global_inverse_transform, world_transform);
-        final_matrix = mat4_mul(final_matrix, asset->bones[bone_index].offset);
-        if (bone_index < animator->max_bones) {
-            animator->shader_data->final_bone_matrices[bone_index] = final_matrix;
-        }
+    mat4 final_matrix = world_transform;
+    if (bone_index < animator->max_bones) {
+        final_matrix = mat4_mul(asset->bones[bone_index].offset, final_matrix);
+        animator->shader_data->final_bone_matrices[bone_index] = final_matrix;
     }
 
     // Recurse children.
@@ -823,16 +844,17 @@ static void animator_update(kanimated_mesh_system_state* state, kanimated_mesh_a
     // Wrap around.
     f32 duration = current->duration;
     if (duration > 0.0f) {
-        animator->time_in_ticks += kmod(animator->time_in_ticks, duration);
+        animator->time_in_ticks = kmod(animator->time_in_ticks, duration);
         if (animator->time_in_ticks < 0.0f) {
             animator->time_in_ticks += duration;
         }
     }
 
     // Process the hierarchy starting at the root.
+    kanimated_mesh_base* asset = &state->base_meshes[animator->base];
     for (u32 i = 0; i < base->node_count; ++i) {
-        if (base->nodes[i].parent_index == INVALID_ID) {
-            process_animator(state, animator, current, i, mat4_identity());
+        if (base->nodes[i].parent_index == INVALID_ID_U16) {
+            process_animator(state, animator, current, i, asset->global_inverse_transform);
         }
     }
 }

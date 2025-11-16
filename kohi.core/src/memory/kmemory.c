@@ -12,7 +12,7 @@
 #include <stdio.h>
 #include <string.h>
 // NOTE: If this is disabled, C11 must be used to enable aligned_alloc.
-#define K_USE_CUSTOM_MEMORY_ALLOCATOR 1
+#define K_USE_CUSTOM_MEMORY_ALLOCATOR 0
 
 #if !K_USE_CUSTOM_MEMORY_ALLOCATOR
 #    if _MSC_VER
@@ -119,7 +119,8 @@ b8 memory_system_initialize(memory_system_configuration config) {
         return false;
     }
 #else
-    state_ptr = kaligned_alloc(sizeof(memory_system_state), 16);
+    u64 size = get_aligned(sizeof(memory_system_state), 16);
+    state_ptr = kaligned_alloc(size, 16);
     kzero_memory(state_ptr, sizeof(memory_system_state));
     state_ptr->config = config;
     state_ptr->alloc_count = 0;

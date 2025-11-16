@@ -54,9 +54,9 @@ typedef struct kanimated_mesh_bone {
 typedef struct kanimated_mesh_node {
     kname name;
     mat4 local_transform;
-    u32 parent_index; // INVALID_ID = root
-    u32 child_count;
-    u32* children;
+    u16 parent_index; // INVALID_ID = root
+    u16 child_count;
+    u16* children;
 } kanimated_mesh_node;
 
 typedef struct kanimated_mesh {
@@ -105,6 +105,7 @@ typedef struct kanimated_mesh_animator {
     b8 loop;
     kanimated_mesh_animator_state state;
     // Pointer to shader_data array where data is stored.
+    u32 shader_data_index;
     kanimated_mesh_animation_shader_data* shader_data;
     u32 max_bones;
 } kanimated_mesh_animator;
@@ -170,6 +171,7 @@ KAPI const kmaterial_instance* kanimated_mesh_submesh_material_instance_get_at(s
 KAPI kname* kanimated_mesh_query_animations(struct kanimated_mesh_system_state* state, u16 base_mesh, u32* out_count);
 
 KAPI void kanimated_mesh_instance_animation_set(struct kanimated_mesh_system_state* state, kanimated_mesh_instance instance, kname animation_name);
+KAPI u32 kanimated_mesh_instance_animation_id_get(struct kanimated_mesh_system_state* state, kanimated_mesh_instance instance);
 
 KAPI void kanimated_mesh_instance_time_scale_set(kanimated_mesh_system_state* state, kanimated_mesh_instance instance, f32 time_scale); // 1.0 - normal
 KAPI void kanimated_mesh_instance_loop_set(struct kanimated_mesh_system_state* state, kanimated_mesh_instance instance, b8 loop);

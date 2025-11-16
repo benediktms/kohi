@@ -18,7 +18,7 @@ typedef struct pool_allocator {
 KAPI pool_allocator pool_allocator_create(u64 element_size, u64 capacity);
 KAPI void pool_allocator_destroy(pool_allocator* allocator);
 
-KAPI void* pool_allocator_allocate(pool_allocator* allocator);
+KAPI void* pool_allocator_allocate(pool_allocator* allocator, u32* out_index);
 KAPI void pool_allocator_free(pool_allocator* allocator, void* block);
 
 KAPI u32 pool_allocator_elements_free(const pool_allocator* allocator);

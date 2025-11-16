@@ -110,31 +110,32 @@ layout(std430, set = 0, binding = 4) readonly buffer global_animations_ssbo {
 
 // Immediate data
 layout(push_constant) uniform immediate_data {
+    // bytes 0-15
+    uint view_index;
+    uint projection_index;
+    uint animation_index;
+    uint base_material_index;
 
-    // bytes 0-31
-    // Packed data indices, 2x indices [view,projection]. see kmaterial_data_index
-    uint data_indices;
-    // Packed data indices, 2x indices [animation,base_material]. see kmaterial_data_index2
-    uint data_indices2;
-    uint transform_index;
-    uint padding;
-
-    // bytes 32-47
+    // bytes 16-31
     // Index into the global point lights array. Up to 16 indices as u8s packed into 2 uints.
     uvec2 packed_point_light_indices; // 8 bytes
     uint num_p_lights;
+    // Index into global irradiance cubemap texture array
     uint irradiance_cubemap_index;
 
-    // bytes 48-63
+    // bytes 32-47
     vec4 clipping_plane;
 
-    // bytes 64-79
-    uint dir_light_index;
-    float tiling;
-    float wave_strength;
-    float wave_speed;
+    // bytes 48-63
+    uint dir_light_index; // probably zero
+    float tiling;          // only used for water materials
+    float wave_strength;   // only used for water materials
+    float wave_speed;      // only used for water materials
 
-    // 80-127 available
+    // bytes 64-79
+    uint transform_index;
+    vec3 padding;
+    // 80-128 available
 } immediate;
 
 // =========================================================
@@ -148,14 +149,10 @@ layout(location = 0) out dto {
 	vec4 light_space_frag_pos[KMATERIAL_UBO_MAX_SHADOW_CASCADES];
     vec4 vertex_colour;
 	vec3 normal;
-    uint view_index;
 	vec3 tangent;
-    uint projection_index;
 	vec2 tex_coord;
-    uint animation_index;
-    uint base_material_index;
     vec3 world_to_camera;
-    float padding4;
+    float padding;
 } out_dto;
 
 /** 
@@ -170,19 +167,11 @@ const mat4 ndc_to_uvw = mat4(
 	0.5, 0.5, 0.0, 1.0 
 );
 
-void unpack_u32_u8s(uint n, out uint x, out uint y, out uint z, out uint w);
-void unpack_u32_u16s(uint n, out uint x, out uint y);
-
 void main() {
-
-    // Extract indices into SSBO data
-    unpack_u32_u16s(immediate.data_indices, out_dto.view_index, out_dto.projection_index);
-    unpack_u32_u16s(immediate.data_indices2, out_dto.animation_index, out_dto.base_material_index);
-
     mat4 model = global_transforms.transforms[immediate.transform_index];
-    mat4 view = global_settings.views[out_dto.view_index];
-    mat4 projection = global_settings.projections[out_dto.projection_index];
-    base_material_data base_material = global_materials.base_materials[out_dto.base_material_index];
+    mat4 view = global_settings.views[immediate.view_index];
+    mat4 projection = global_settings.projections[immediate.projection_index];
+    base_material_data base_material = global_materials.base_materials[immediate.base_material_index];
 
     if(base_material.material_type == 0) {
 	    out_dto.tex_coord = in_texcoord;
@@ -207,17 +196,6 @@ void main() {
 	    out_dto.light_space_frag_pos[i] = (ndc_to_uvw * global_settings.directional_light_spaces[i]) * out_dto.frag_position;
     }
 
-	out_dto.world_to_camera = global_settings.view_positions[out_dto.view_index].xyz - out_dto.frag_position.xyz;
+	out_dto.world_to_camera = global_settings.view_positions[immediate.view_index].xyz - out_dto.frag_position.xyz;
 }
 
-void unpack_u32_u8s(uint n, out uint x, out uint y, out uint z, out uint w) {
-    x = (n >> 24) & 0xFF;
-    y = (n >> 16) & 0xFF;
-    z = (n >> 8) & 0xFF;
-    w = n & 0xFF;
-}
-
-void unpack_u32_u16s(uint n, out uint x, out uint y) {
-    x = (n >> 16) & 0xFF;
-    y = n & 0xFF;
-}

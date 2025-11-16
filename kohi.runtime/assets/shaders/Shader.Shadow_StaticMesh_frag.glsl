@@ -32,11 +32,8 @@ layout(location = 1) in struct dto {
 // Outputs
 // =========================================================
 
-layout(location = 0) out vec4 out_colour;
-
 void main() {
     float alpha = texture(sampler2D(base_colour_texture, base_colour_sampler), in_dto.tex_coord).a;
-    out_colour = vec4(1.0, 1.0, 1.0, alpha);
     if(alpha < 0.5) { // TODO: This should probably be configurable.
         discard;
     }
