@@ -23,11 +23,11 @@ const uint MAT_STANDARD_IDX_AO = 4;
 const uint MAT_STANDARD_IDX_MRA = 5;
 const uint MAT_STANDARD_IDX_EMISSIVE = 6;
 
+const uint MAT_WATER_IDX_NORMAL = 1; // MAT_STANDARD_IDX_NORMAL;
 const uint MAT_WATER_IDX_REFLECTION = 2; // MAT_STANDARD_IDX_METALLIC;
 const uint MAT_WATER_IDX_REFRACTION = 3; // MAT_STANDARD_IDX_ROUGHNESS;
 const uint MAT_WATER_IDX_REFRACTION_DEPTH = 4; // MAT_STANDARD_IDX_AO;
 const uint MAT_WATER_IDX_DUDV = 5; // MAT_STANDARD_IDX_MRA;
-const uint MAT_WATER_IDX_NORMAL = 1; // MAT_STANDARD_IDX_NORMAL;
 
 const uint MAT_TYPE_STANDARD = 0;
 const uint MAT_TYPE_WATER = 1;
@@ -192,11 +192,12 @@ layout(location = 0) in dto {
     vec4 clip_space;
 	vec4 light_space_frag_pos[KMATERIAL_UBO_MAX_SHADOW_CASCADES];
     vec4 vertex_colour;
+	vec4 tangent;
 	vec3 normal;
-	vec3 tangent;
-	vec2 tex_coord;
-    vec3 world_to_camera;
     float padding;
+    vec3 world_to_camera;
+    float padding2;
+	vec2 tex_coord;
 } in_dto;
 
 // =========================================================
@@ -225,33 +226,26 @@ void main() {
     vec3 normal;
     vec3 tangent;
     vec2 tex_coord;
+    vec4 normal_colour = vec4(0, 1, 0, 1);
 
     if(base_material.material_type == MAT_TYPE_STANDARD) {
         normal = in_dto.normal;
-        tangent = in_dto.tangent;
+        tangent = in_dto.tangent.xyz;
         tex_coord = in_dto.tex_coord;
     } else if (base_material.material_type == MAT_TYPE_WATER) {
         normal = in_dto.normal;
-        tangent = in_dto.tangent;
+        tangent = in_dto.tangent.xyz;
         float move_factor = immediate.wave_speed * global_settings.game_time;
         // Calculate surface distortion and bring it into [-1.0 - 1.0] range
         distorted_texcoords = texture(sampler2D(material_textures[MAT_WATER_IDX_DUDV], material_samplers[MAT_WATER_IDX_DUDV]), vec2(in_dto.tex_coord.x + move_factor, in_dto.tex_coord.y)).rg * 0.1;
         distorted_texcoords = in_dto.tex_coord + vec2(distorted_texcoords.x, distorted_texcoords.y + move_factor);
 
-        // Compute the surface normal using the normal map.
-        vec4 normal_colour = texture(sampler2D(material_textures[MAT_WATER_IDX_NORMAL], material_samplers[MAT_WATER_IDX_NORMAL]), distorted_texcoords);
-        // Extract the normal, shifting to a range of [-1 - 1]
-                /* normal = (2.0 * normal_colour.rgb - 1.0); */
-        /* normal = vec3(normal_colour.r * 2.0 - 1.0, normal_colour.g * 2.5, normal_colour.b * 2.0 - 1.0); */
-
-        /* vec3 original_tangent = normalize(vec3(1, 0, -0)); */
-        /* tangent = in_dto.tangent; */
-        /* tangent = original_tangent; // TODO: take from actual plane */
         tex_coord = distorted_texcoords;
     }
 
     tangent = (tangent - dot(tangent, normal) *  normal);
-    vec3 bitangent = cross(in_dto.normal, in_dto.tangent);
+    vec3 bitangent = normalize(cross(normal, tangent.xyz) * in_dto.tangent.w); // FIXME: Use updated tangent instead?
+    tangent = normalize(cross(bitangent, normal));
     mat3 TBN = mat3(tangent, bitangent, normal);
 
     // Calculate "local normal".
@@ -260,14 +254,15 @@ void main() {
     vec3 local_normal = vec3(0, 0, 1.0);
     if(flag_get(base_material.flags, KMATERIAL_FLAG_NORMAL_ENABLED_BIT)){
         if(flag_get(base_material.tex_flags, MATERIAL_STANDARD_FLAG_USE_NORMAL_TEX)) {
-            local_normal = texture(sampler2D(material_textures[MAT_STANDARD_IDX_NORMAL], material_samplers[MAT_STANDARD_IDX_NORMAL]), tex_coord).rgb;
-            local_normal = (2.0 * local_normal - 1.0);
+            normal_colour = texture(sampler2D(material_textures[MAT_STANDARD_IDX_NORMAL], material_samplers[MAT_STANDARD_IDX_NORMAL]), tex_coord);
+            local_normal = normal_colour.rgb * 2.0 - 1.0;
         } else {
             local_normal = base_material.normal;
         }
     } 
+
     // Update the normal to use a sample from the normal map.
-    normal = base_material.material_type == MAT_TYPE_STANDARD ? normalize(TBN * local_normal) : local_normal;
+    normal = normalize(TBN * local_normal);
 
     vec3 cascade_colour = vec3(1.0);
 
@@ -408,6 +403,7 @@ void main() {
         // Calculate the fresnel effect.
         float fresnel_factor = dot(normalize(in_dto.world_to_camera), normal);
         fresnel_factor = clamp(fresnel_factor, 0.0, 1.0);
+        /* fresnel_factor = 0.03 + (1.0 - 0.03) * pow(1.0 - fresnel_factor, 5.0); */
 
         out_colour = mix(reflect_colour, refract_colour, fresnel_factor);
         vec4 tint = vec4(0.0, 0.3, 0.5, 1.0); // TODO: configurable.
@@ -514,6 +510,7 @@ void main() {
                 vec3 radiance = calculate_point_light_radiance(light, view_direction, in_dto.frag_position.xyz);
 
                 total_reflectance += calculate_reflectance(albedo, normal, view_direction, light_direction, metallic, roughness, base_reflectivity, radiance);
+                plights_rendered++;
             }
         }
 
@@ -544,7 +541,6 @@ void main() {
         // wireframe, just render a solid colour.
         out_colour = vec4(0.0, 1.0, 1.0, 1.0); // cyan
     }
-
 }
 
 vec3 calculate_reflectance(vec3 albedo, vec3 normal, vec3 view_direction, vec3 light_direction, float metallic, float roughness, vec3 base_reflectivity, vec3 radiance) {

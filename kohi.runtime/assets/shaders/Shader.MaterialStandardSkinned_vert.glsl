@@ -147,11 +147,12 @@ layout(location = 0) out dto {
     vec4 clip_space;
 	vec4 light_space_frag_pos[KMATERIAL_UBO_MAX_SHADOW_CASCADES];
     vec4 vertex_colour;
+	vec4 tangent;
 	vec3 normal;
-	vec3 tangent;
-	vec2 tex_coord;
-    vec3 world_to_camera;
     float padding;
+    vec3 world_to_camera;
+    float padding2;
+	vec2 tex_coord;
 } out_dto;
 
 /** 
@@ -192,7 +193,8 @@ void main() {
 	mat3 m3_model = mat3(model);
     vec4 normal4 = bone_transform * vec4(in_normal, 0.0);
 	out_dto.normal = normalize(m3_model * normal4.xyz);
-	out_dto.tangent = normalize(m3_model * vec3(in_tangent));
+	out_dto.tangent.xyz = normalize(m3_model * vec3(in_tangent));
+    out_dto.tangent.w = in_tangent.w;
     out_dto.clip_space = projection * view * out_dto.frag_position;// model * vec4(in_position, 1.0);
     gl_Position = out_dto.clip_space;
 

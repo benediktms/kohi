@@ -38,6 +38,11 @@ b8 water_plane_initialize(water_plane* plane) {
         plane->vertices[1] = (vertex_3d){-size, 0, +size, 0, 0, 1, 0, 1};
         plane->vertices[2] = (vertex_3d){+size, 0, +size, 0, 0, 1, 1, 1};
         plane->vertices[3] = (vertex_3d){+size, 0, -size, 0, 0, 1, 1, 0};
+        for (u8 i = 0; i < 4; ++i) {
+            plane->vertices[i].normal = (vec3){0, 0, 1};
+            plane->vertices[i].colour = vec4_one();
+            plane->vertices[i].tangent = (vec4){1, 0, 0, 1};
+        }
 
         plane->indices[0] = 0;
         plane->indices[1] = 1;
@@ -46,8 +51,8 @@ b8 water_plane_initialize(water_plane* plane) {
         plane->indices[4] = 3;
         plane->indices[5] = 0;
 
-        geometry_generate_normals(4, plane->vertices, 6, plane->indices);
-        geometry_generate_tangents(4, plane->vertices, 6, plane->indices);
+        /* geometry_generate_normals(4, plane->vertices, 6, plane->indices);
+        geometry_generate_tangents(4, plane->vertices, 6, plane->indices); */
 
         return true;
     }
