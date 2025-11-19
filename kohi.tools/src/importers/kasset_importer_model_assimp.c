@@ -29,7 +29,7 @@
 
 #include "strings/kname.h"
 #include "strings/kstring.h"
-#include "systems/kanimation_system.h"
+#include "systems/kmodel_system.h"
 
 static void skinned_vertex_3d_defaults(skinned_vertex_3d* vert);
 static void get_material_texture_data_by_type(kname package_name, const struct aiMaterial* material, enum aiTextureType texture_type, kasset_material* new_material, kmaterial_texture_input_config* input);
@@ -497,7 +497,7 @@ static b8 anim_asset_from_assimp(const struct aiScene* scene, kname package_name
         for (u16 c = 0; c < out->channel_count; c++) {
             struct aiNodeAnim* chn = anim->mChannels[c];
             kasset_model_channel* oc = &out->channels[c];
-            kzero_memory(oc, sizeof(kanimated_mesh_channel));
+            kzero_memory(oc, sizeof(kmodel_channel));
             oc->name = kname_create(chn->mNodeName.data);
 
             // Positions
@@ -677,9 +677,9 @@ static void anim_asset_destroy(kasset_model* asset) {
             KFREE_TYPE_CARRAY(ch->rotations, anim_key_quat, ch->rot_count);
             KFREE_TYPE_CARRAY(ch->scales, anim_key_vec3, ch->scale_count);
         }
-        KFREE_TYPE_CARRAY(a->channels, kanimated_mesh_channel, a->channel_count);
+        KFREE_TYPE_CARRAY(a->channels, kmodel_channel, a->channel_count);
     }
-    KFREE_TYPE_CARRAY(asset->animations, kanimated_mesh_animation, asset->animation_count);
+    KFREE_TYPE_CARRAY(asset->animations, kmodel_animation, asset->animation_count);
     KFREE_TYPE_CARRAY(asset->bones, kasset_model_bone, asset->bone_count);
     for (u16 i = 0; i < asset->node_count; ++i) {
         KFREE_TYPE_CARRAY(asset->nodes[i].children, u16, asset->nodes[i].child_count);

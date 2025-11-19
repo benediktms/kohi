@@ -315,9 +315,11 @@ KAPI b8 kasset_model_deserialize(u64 size, const void* in_block, kasset_model* o
             switch (mesh_type) {
             default:
                 vert_size = sizeof(vertex_3d);
+                submesh->type = KASSET_MODEL_MESH_TYPE_STATIC;
                 break;
             case K3D_MESH_TYPE_SKINNED:
                 vert_size = sizeof(skinned_vertex_3d);
+                submesh->type = KASSET_MODEL_MESH_TYPE_SKINNED;
                 break;
             }
 

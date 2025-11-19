@@ -480,6 +480,7 @@ static void ensure_arrays_allocated(static_mesh_system_state* state, u32 new_cou
         KRESIZE_ARRAY(state->states, kstatic_mesh_state, state->max_mesh_count, new_count);
         KRESIZE_ARRAY(state->submesh_datas, static_mesh_submesh_data, state->max_mesh_count, new_count);
         KRESIZE_ARRAY(state->base_instance_datas, base_mesh_instance_data, state->max_mesh_count, new_count);
+        state->max_mesh_count = new_count;
     }
 }
 
@@ -487,6 +488,7 @@ static void ensure_instance_arrays_allocated(base_mesh_instance_data* base_insta
     if (base_instance_data) {
         KRESIZE_ARRAY(base_instance_data->instances, instance_data, base_instance_data->max_instance_count, new_count);
         KRESIZE_ARRAY(base_instance_data->states, kstatic_mesh_instance_state, base_instance_data->max_instance_count, new_count);
+        base_instance_data->max_instance_count = new_count;
     }
 }
 

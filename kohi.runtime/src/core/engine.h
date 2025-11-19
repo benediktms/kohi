@@ -18,7 +18,6 @@
 
 #include "identifiers/khandle.h"
 #include "platform/vfs.h"
-#include "systems/kanimation_system.h"
 
 struct application;
 struct frame_data;
@@ -38,7 +37,7 @@ struct texture_system_state;
 struct font_system_state;
 struct kmaterial_system_state;
 struct static_mesh_system_state;
-struct kanimated_mesh_system_state;
+struct kmodel_system_state;
 struct light_system_state;
 struct camera_system_state;
 struct plugin_system_state;
@@ -97,8 +96,8 @@ typedef struct engine_system_states {
     u64 light_system_memory_requirement;
     struct light_system_state* light_system;
 
-    u64 kanimation_system_memory_requirement;
-    struct kanimated_mesh_system_state* animation_system;
+    u64 model_system_memory_requirement;
+    struct kmodel_system_state* model_system;
 
     u64 camera_system_memory_requirement;
     struct camera_system_state* camera_system;
