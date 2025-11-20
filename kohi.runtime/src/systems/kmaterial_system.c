@@ -52,14 +52,6 @@ typedef struct kmaterial_system_state {
     kname runtime_package_name;
 } kmaterial_system_state;
 
-// Holds data for a material instance request.
-typedef struct kasset_material_request_listener {
-    kmaterial material_handle;
-    u16 instance_id;
-    kmaterial_system_state* state;
-    b8 needs_cleanup;
-} kasset_material_request_listener;
-
 static b8 create_default_standard_material(kmaterial_system_state* state);
 static b8 create_default_water_material(kmaterial_system_state* state);
 static b8 create_default_blended_material(kmaterial_system_state* state);
@@ -70,7 +62,7 @@ static b8 material_create(kmaterial_system_state* state, kmaterial material_hand
 static void material_destroy(kmaterial_system_state* state, kmaterial_data* material, u32 material_index);
 static b8 kmaterial_instance_create(kmaterial_system_state* state, kmaterial base_material, u16* out_instance_id);
 static void kmaterial_instance_destroy(kmaterial_system_state* state, kmaterial_data* base_material, kmaterial_instance_data* inst);
-static void kasset_material_loaded(void* listener, kasset_material* asset);
+static u16 material_asset_loaded(kmaterial_system_state* state, kasset_material* asset, kmaterial new_handle, b8 create_instance);
 static kmaterial_instance default_kmaterial_instance_get(kmaterial_system_state* state, kmaterial_data* base_material);
 static kmaterial_data* get_material_data(kmaterial_system_state* state, kmaterial material_handle);
 static kmaterial_instance_data* get_kmaterial_instance_data(kmaterial_system_state* state, kmaterial_instance instance);
@@ -357,7 +349,7 @@ b8 kmaterial_system_acquire(kmaterial_system_state* state, kname name, kmaterial
             // Request instance and set handle.
             b8 instance_result = kmaterial_instance_create(state, out_instance->base_material, &out_instance->instance_id);
             if (!instance_result) {
-                KERROR("Failed to create material instance during new material creation.");
+                KERROR("Failed to create material instance from existing material.");
             }
             return instance_result;
         }
@@ -373,16 +365,12 @@ b8 kmaterial_system_acquire(kmaterial_system_state* state, kname name, kmaterial
     kmaterial_data* material = &state->materials[new_handle];
     material->state = KMATERIAL_STATE_LOADING;
 
-    // Setup a listener.
-    kasset_material_request_listener* listener = KALLOC_TYPE(kasset_material_request_listener, MEMORY_TAG_MATERIAL_INSTANCE);
-    listener->state = state;
-    listener->material_handle = new_handle;
-    listener->instance_id = out_instance->instance_id;
-    listener->needs_cleanup = true;
+    // Request the asset synchronously so there's never a need to check it's properties.
+    kasset_material* asset = asset_system_request_material_sync(engine_systems_get()->asset_state, kname_string_get(name));
 
-    // Request the asset.
-    kasset_material* asset = asset_system_request_material(engine_systems_get()->asset_state, kname_string_get(name), listener, kasset_material_loaded);
-    return asset != 0;
+    out_instance->instance_id = material_asset_loaded(state, asset, new_handle, true);
+
+    return true;
 }
 
 void kmaterial_system_release(kmaterial_system_state* state, kmaterial_instance* instance) {
@@ -565,14 +553,8 @@ static b8 create_default_standard_material(kmaterial_system_state* state) {
     // Setup a new handle for the material.
     kmaterial new_material = material_handle_create(state, material_name);
 
-    // Setup a listener.
-    kasset_material_request_listener listener = {
-        .state = state,
-        .material_handle = new_material,
-        .instance_id = KMATERIAL_INSTANCE_INVALID, // NOTE: creation of default materials does not immediately need an instance.
-        .needs_cleanup = false,                    // This is done in-line, so don't need to cleanup.
-    };
-    kasset_material_loaded(&listener, &asset);
+    // NOTE: creation of default materials does not immediately need an instance.
+    material_asset_loaded(state, &asset, new_material, false);
 
     // Save off a pointer to the material.
     state->default_standard_material = &state->materials[new_material];
@@ -616,14 +598,8 @@ static b8 create_default_water_material(kmaterial_system_state* state) {
     // Setup a new handle for the material.
     kmaterial new_material = material_handle_create(state, material_name);
 
-    // Setup a listener.
-    kasset_material_request_listener listener = {
-        .state = state,
-        .material_handle = new_material,
-        .instance_id = KMATERIAL_INSTANCE_INVALID, // NOTE: creation of default materials does not immediately need an instance.
-        .needs_cleanup = false,                    // This is done in-line, so don't need to cleanup.
-    };
-    kasset_material_loaded(&listener, &asset);
+    // NOTE: creation of default materials does not immediately need an instance.
+    material_asset_loaded(state, &asset, new_material, false);
 
     // Save off a pointer to the material.
     state->default_water_material = &state->materials[new_material];
@@ -1028,21 +1004,15 @@ static b8 kmaterial_instance_create(kmaterial_system_state* state, kmaterial bas
     kmaterial_instance_data* inst = &state->instances[base_material][*out_instance_id];
     inst->state = KMATERIAL_INSTANCE_STATE_UNINITIALIZED;
 
-    // Only request resources and copy base material properties if the base material is actually loaded and ready to go.
-    if (material->state == KMATERIAL_STATE_LOADED) {
-        inst->state = KMATERIAL_INSTANCE_STATE_LOADING;
+    inst->state = KMATERIAL_INSTANCE_STATE_LOADING;
 
-        // Take a copy of the base material properties.
-        inst->flags = material->flags;
-        inst->uv_scale = material->uv_scale;
-        inst->uv_offset = material->uv_offset;
-        inst->base_colour = material->base_colour;
+    // Take a copy of the base material properties.
+    inst->flags = material->flags;
+    inst->uv_scale = material->uv_scale;
+    inst->uv_offset = material->uv_offset;
+    inst->base_colour = material->base_colour;
 
-        inst->state = KMATERIAL_INSTANCE_STATE_LOADED;
-    } else {
-        // Base material NOT loaded, handle in async callback from asset system.
-        inst->state = KMATERIAL_INSTANCE_STATE_LOADING;
-    }
+    inst->state = KMATERIAL_INSTANCE_STATE_LOADED;
 
     return true;
 }
@@ -1054,49 +1024,6 @@ static void kmaterial_instance_destroy(kmaterial_system_state* state, kmaterial_
 
         // Make sure to invalidate the entry.
         inst->material = KMATERIAL_INVALID;
-    }
-}
-
-static void kasset_material_loaded(void* listener, kasset_material* asset) {
-    kasset_material_request_listener* listener_inst = (kasset_material_request_listener*)listener;
-    kmaterial_system_state* state = listener_inst->state;
-
-    KTRACE("Material system - Resource '%s' loaded. Creating material...", kname_string_get(asset->name));
-
-    // Create the base material.
-    if (!material_create(state, listener_inst->material_handle, asset)) {
-        KERROR("Failed to create material. See logs for details.");
-        return;
-    }
-
-    // Create an instance of it if one is required.
-    if (listener_inst->instance_id != KMATERIAL_INSTANCE_INVALID) {
-        if (!kmaterial_instance_create(state, listener_inst->material_handle, &listener_inst->instance_id)) {
-            KERROR("Failed to create material instance during new material creation.");
-        }
-    }
-
-    // Iterate the instances of the material and see if any were waiting on the asset to load.
-    kmaterial_data* material = &state->materials[listener_inst->material_handle];
-
-    u32 instance_count = darray_length(state->instances[listener_inst->material_handle]);
-    for (u32 i = 0; i < instance_count; ++i) {
-        kmaterial_instance_data* inst = &state->instances[listener_inst->material_handle][i];
-        if (inst->state == KMATERIAL_INSTANCE_STATE_LOADING) {
-
-            // Take a copy of the base material properties.
-            inst->flags = material->flags;
-            inst->uv_scale = material->uv_scale;
-            inst->uv_offset = material->uv_offset;
-            inst->base_colour = material->base_colour;
-
-            inst->state = KMATERIAL_INSTANCE_STATE_LOADED;
-        }
-    }
-
-    // Free the listener if needed.
-    if (listener_inst->needs_cleanup) {
-        KFREE_TYPE(listener_inst, kasset_material_request_listener, MEMORY_TAG_MATERIAL_INSTANCE);
     }
 }
 
@@ -1186,4 +1113,27 @@ static b8 material_on_event(u16 code, void* sender, void* listener_inst, event_c
 
     // Allow other systems to pick up event.
     return false;
+}
+
+static u16 material_asset_loaded(kmaterial_system_state* state, kasset_material* asset, kmaterial new_handle, b8 create_instance) {
+    u16 out_instance_id = KMATERIAL_INSTANCE_INVALID;
+    if (asset) {
+        KTRACE("Material system - Resource '%s' loaded. Creating material...", kname_string_get(asset->name));
+
+        // Create the base material.
+        if (!material_create(state, new_handle, asset)) {
+            KERROR("Failed to create material. See logs for details.");
+            return false;
+        }
+
+        // Create an instance of it if one is required.
+        if (create_instance) {
+            if (!kmaterial_instance_create(state, new_handle, &out_instance_id)) {
+                KERROR("Failed to create material instance during new material creation.");
+                return KMATERIAL_INSTANCE_INVALID;
+            }
+        }
+    }
+
+    return out_instance_id;
 }

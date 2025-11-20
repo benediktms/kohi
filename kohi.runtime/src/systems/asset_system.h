@@ -192,7 +192,7 @@ typedef void (*PFN_kasset_material_loaded_callback)(void* listener, kasset_mater
 // async load from game package.
 KAPI kasset_material* asset_system_request_material(struct asset_system_state* state, const char* name, void* listener, PFN_kasset_material_loaded_callback callback);
 // sync load from game package.
-KAPI kasset_material* asset_system_terrain_request_material_sync(struct asset_system_state* state, const char* name);
+KAPI kasset_material* asset_system_request_material_sync(struct asset_system_state* state, const char* name);
 // async load from specific package.
 KAPI kasset_material* asset_system_request_material_from_package(struct asset_system_state* state, const char* package_name, const char* name, void* listener, PFN_kasset_material_loaded_callback callback);
 // sync load from specific package.

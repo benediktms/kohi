@@ -891,7 +891,7 @@ kasset_material* asset_system_request_material(struct asset_system_state* state,
     return asset_system_request_material_from_package(state, state->default_package_name_str, name, listener, callback);
 }
 // sync load from game package.
-kasset_material* asset_system_terrain_request_material_sync(struct asset_system_state* state, const char* name) {
+kasset_material* asset_system_request_material_sync(struct asset_system_state* state, const char* name) {
     return asset_system_request_material_from_package_sync(state, state->default_package_name_str, name);
 }
 // async load from specific package.

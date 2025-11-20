@@ -32,6 +32,9 @@ Changelog
   - Added binary_string_table.
   - Replaced MEMORY_TAG_ENTITY and MEMORY_TAG_ENTITY_NODE with MEMORY_TAG_BINARY_STRING_TABLE and MEMORY_TAG_BINARY_DATA, respectively, as entities are not a part of Kohi core.
   - Changed Kohi binary file magic number marker from 0xCAFEBABE to 0xDECAFBAD. This will require all assets to be re-imported.
+  - Material system base material loads are now synchronous, eliminating the need to wait to check its properties. Its textures are still async, though.
+  - Animation system added (part of the model system);
+  - Created K3D universal model format, which can store either animated or static mesh data.
 
 - 0.10.0
   - Combined asset_image_format and texture_format into a single kpixel_format which is used for both.

@@ -1,6 +1,7 @@
 #include "kmodel_system.h"
 
 #include "assets/kasset_types.h"
+#include "containers/darray.h"
 #include "core/engine.h"
 #include "core_render_types.h"
 #include "debug/kassert.h"
@@ -48,6 +49,8 @@ b8 kmodel_system_initialize(u64* memory_requirement, kmodel_system_state* memory
     // The free states of instances here are managed by a pool allocator.
     state->shader_data_pool = pool_allocator_create(sizeof(kmodel_animation_shader_data), state->max_instance_count);
     state->shader_data = (kmodel_animation_shader_data*)state->shader_data_pool.memory;
+
+    state->instance_queue = darray_create(kmodel_instance_queue_entry);
 
     return true;
 }
@@ -99,9 +102,6 @@ kmodel_instance kmodel_instance_acquire(struct kmodel_system_state* state, kname
 typedef struct animated_mesh_asset_request_listener {
     kmodel_system_state* state;
     u16 base_id;
-    u16 instance_id;
-    PFN_animated_mesh_loaded callback;
-    void* context;
 } animated_mesh_asset_request_listener;
 
 static void kasset_animated_mesh_loaded(void* listener, kasset_model* asset) {
@@ -307,33 +307,42 @@ static void kasset_animated_mesh_loaded(void* listener, kasset_model* asset) {
 
     state->states[base_id] = KMODEL_STATE_LOADED;
 
-    // Setup already-existing mesh instances.
-    for (u16 i = 0; i < state->models[base_id].instance_count; ++i) {
+    // Setup queued instances.
+    for (u16 i = 0; i < darray_length(state->instance_queue);) {
+        kmodel_instance_queue_entry* entry = &state->instance_queue[i];
+        if (entry->base_mesh_id == typed_listener->base_id) {
 
-        // Instance setup.
-        kmodel_instance_data* instance = &state->models[base_id].instances[i];
+            u16 instance_id = entry->instance_id;
 
-        acquire_material_instances(state, base_id, i);
+            // Instance setup.
+            kmodel_instance_data* instance = &state->models[base_id].instances[instance_id];
 
-        // For animated models, alloc shader data from the animation SSBO.
-        if (base->type == KMODEL_TYPE_ANIMATED) {
-            kmodel_animator* animator = &instance->animator;
-            animator->shader_data = pool_allocator_allocate(&state->shader_data_pool, &animator->shader_data_index);
-            animator->time_scale = 1.0f; // Always default time scale to 1.0f
-            animator->max_bones = asset->bone_count;
-            animator->time_in_ticks = 0.0f;
+            acquire_material_instances(state, base_id, instance_id);
+
+            // For animated models, alloc shader data from the animation SSBO.
+            if (base->type == KMODEL_TYPE_ANIMATED) {
+                kmodel_animator* animator = &instance->animator;
+                animator->shader_data = pool_allocator_allocate(&state->shader_data_pool, &animator->shader_data_index);
+                animator->time_scale = 1.0f; // Always default time scale to 1.0f
+                animator->max_bones = asset->bone_count;
+                animator->time_in_ticks = 0.0f;
+            }
+
+            if (entry->callback) {
+                kmodel_instance inst = {
+                    .instance = entry->instance_id,
+                    .base_mesh = typed_listener->base_id};
+                entry->callback(inst, entry->context);
+            }
+
+            darray_pop_at(state->instance_queue, i, 0);
+        } else {
+            ++i;
         }
     }
 
     // After copying over all properties, release the asset.
     asset_system_release_model(engine_systems_get()->asset_state, asset);
-
-    if (typed_listener->callback) {
-        kmodel_instance inst = {
-            .instance = typed_listener->instance_id,
-            .base_mesh = typed_listener->base_id};
-        typed_listener->callback(inst, typed_listener->context);
-    }
 
     // Cleanup the listener.
     KFREE_TYPE(listener, animated_mesh_asset_request_listener, MEMORY_TAG_ASSET);
@@ -365,6 +374,8 @@ static void acquire_material_instances(struct kmodel_system_state* state, u16 ba
 }
 
 kmodel_instance kmodel_instance_acquire_from_package(struct kmodel_system_state* state, kname asset_name, kname package_name, PFN_animated_mesh_loaded callback, void* context) {
+    KASSERT_MSG(state, "State is required, ya dingus");
+
     // Obtain a unique id for lookup into the resource arrays.
     u16 base_id = INVALID_ID_U16;
     b8 exists = get_base_id(state, asset_name, package_name, &base_id);
@@ -377,25 +388,50 @@ kmodel_instance kmodel_instance_acquire_from_package(struct kmodel_system_state*
         animated_mesh_asset_request_listener* listener = KALLOC_TYPE(animated_mesh_asset_request_listener, MEMORY_TAG_ASSET);
         listener->state = state;
         listener->base_id = base_id;
-        listener->instance_id = instance_id;
-        listener->callback = callback;
-        listener->context = context;
+
+        // Queue this so that we can make the callback when it loads.
+        kmodel_instance_queue_entry new_entry = {
+            .base_mesh_id = base_id,
+            .instance_id = instance_id,
+            .callback = callback,
+            .context = context};
+        darray_push(state->instance_queue, new_entry);
 
         // Kick off async asset load via the asset system.
-        kasset_model* asset = asset_system_request_model_from_package(engine_systems_get()->asset_state, kname_string_get(package_name), kname_string_get(asset_name), listener, kasset_animated_mesh_loaded);
+        kasset_model* asset = asset_system_request_model_from_package(
+            engine_systems_get()->asset_state,
+            kname_string_get(package_name),
+            kname_string_get(asset_name),
+            listener,
+            kasset_animated_mesh_loaded);
         KASSERT_DEBUG(asset);
     } else {
-        // Base mesh already loaded, just need to get material instances.
+        // Base mesh already exists, just need to get material instances.
         kmodel_base* base = &state->models[base_id];
         kmodel_instance_data* instance = &state->models[base_id].instances[instance_id];
 
         acquire_material_instances(state, base_id, instance_id);
 
-        // For animated meshes, req
+        // For animated meshes, setup the animator.
         if (base->type == KMODEL_TYPE_ANIMATED) {
             kmodel_animator* animator = &instance->animator;
             animator->shader_data = pool_allocator_allocate(&state->shader_data_pool, &animator->shader_data_index);
             animator->time_scale = 1.0f; // Always default time scale to 1.0f
+        }
+
+        if (state->states[base_id] == KMODEL_STATE_LOADED) {
+            // Make the callback immediately if loaded.
+            if (callback) {
+                callback((kmodel_instance){.base_mesh = base_id, .instance = instance_id}, context);
+            }
+        } else {
+            // Queue this so that we can make the callback when it loads.
+            kmodel_instance_queue_entry new_entry = {
+                .base_mesh_id = base_id,
+                .instance_id = instance_id,
+                .callback = callback,
+                .context = context};
+            darray_push(state->instance_queue, new_entry);
         }
     }
 
@@ -421,7 +457,10 @@ void kmodel_instance_release(struct kmodel_system_state* state, kmodel_instance*
     kmodel_base* base = &state->models[instance->base_mesh];
     kmodel_instance_data* inst = &base->instances[instance->instance];
 
-    kmaterial_system_release(engine_systems_get()->material_system, &inst->materials[instance->instance]);
+    u16 submesh_count = base->submesh_count;
+    for (u16 i = 0; i < submesh_count; ++i) {
+        kmaterial_system_release(engine_systems_get()->material_system, &inst->materials[i]);
+    }
 
     kmodel_animator* animator = &inst->animator;
 

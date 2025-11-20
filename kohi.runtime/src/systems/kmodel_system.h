@@ -155,6 +155,15 @@ typedef struct kmodel_system_config {
     u16 max_instance_count;
 } kmodel_system_config;
 
+typedef void (*PFN_animated_mesh_loaded)(kmodel_instance instance, void* context);
+
+typedef struct kmodel_instance_queue_entry {
+    u16 base_mesh_id;
+    u16 instance_id;
+    PFN_animated_mesh_loaded callback;
+    void* context;
+} kmodel_instance_queue_entry;
+
 typedef struct kmodel_system_state {
     kname default_application_package_name;
     // Max number of instances shared across all meshes.
@@ -169,12 +178,13 @@ typedef struct kmodel_system_state {
 
     krenderbuffer global_animation_ssbo;
 
+    // Queue of instances awaiting base asset load.
+    kmodel_instance_queue_entry* instance_queue;
+
     // Element count = max_instance_count
     pool_allocator shader_data_pool;
     kmodel_animation_shader_data* shader_data;
 } kmodel_system_state;
-
-typedef void (*PFN_animated_mesh_loaded)(kmodel_instance instance, void* context);
 
 b8 kmodel_system_initialize(u64* memory_requirement, kmodel_system_state* memory, const kmodel_system_config* config);
 void kmodel_system_shutdown(kmodel_system_state* state);

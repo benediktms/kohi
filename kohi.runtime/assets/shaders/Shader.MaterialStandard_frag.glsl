@@ -411,6 +411,10 @@ void main() {
         out_colour = mix(out_colour, tint, tint_strength);
 
         albedo = out_colour.rgb;
+
+        // Falloff depth of the water at the edge.
+        float edge_depth_falloff = 0.5; // TODO: configurable
+        alpha = clamp(water_depth / edge_depth_falloff, 0.0, 1.0);
     }
 
     // Shadows: 1.0 means NOT in shadow, which is the default.
