@@ -42,7 +42,6 @@
 #include "systems/ktransform_system.h"
 #include "systems/light_system.h"
 #include "systems/plugin_system.h"
-#include "systems/static_mesh_system.h"
 #include "systems/texture_system.h"
 
 struct kwindow;
@@ -498,17 +497,17 @@ b8 engine_create(application* app) {
         }
     }
 
-    // Animated mesh system
+    // Model system
     {
-        kmodel_system_config animated_mesh_sys_config = {
+        kmodel_system_config model_sys_config = {
             .default_application_package_name = app->app_config.default_package_name,
             // FIXME: Read from app config.
             .max_instance_count = 128};
 
-        kmodel_system_initialize(&systems->model_system_memory_requirement, 0, &animated_mesh_sys_config);
+        kmodel_system_initialize(&systems->model_system_memory_requirement, 0, &model_sys_config);
         systems->model_system = kallocate(systems->model_system_memory_requirement, MEMORY_TAG_ENGINE);
-        if (!kmodel_system_initialize(&systems->model_system_memory_requirement, systems->model_system, &animated_mesh_sys_config)) {
-            KERROR("Failed to initialize animated mesh system.");
+        if (!kmodel_system_initialize(&systems->model_system_memory_requirement, systems->model_system, &model_sys_config)) {
+            KERROR("Failed to initialize model system.");
             return false;
         }
     }
@@ -537,17 +536,6 @@ b8 engine_create(application* app) {
         // Setup default materials in material system. Must be done after the renderer is initialized
         // since it handles all GPU resources.
         KASSERT_MSG(kmaterial_system_setup_defaults(systems->material_system), "Failed to setup material system defaults.");
-    }
-
-    // Static mesh system
-    {
-        static_mesh_system_config config = {.application_package_name = app->app_config.default_package_name};
-        static_mesh_system_initialize(&systems->static_mesh_system_memory_requirement, 0, config);
-        systems->static_mesh_system = kallocate(systems->static_mesh_system_memory_requirement, MEMORY_TAG_ENGINE);
-        if (!static_mesh_system_initialize(&systems->static_mesh_system_memory_requirement, systems->static_mesh_system, config)) {
-            KERROR("Failed to initialize static mesh system.");
-            return false;
-        }
     }
 
     // Font system
@@ -843,7 +831,6 @@ b8 engine_run(application* app) {
         engine_system_states* systems = &engine_state->systems;
 
         kcamera_system_shutdown(systems->camera_system);
-        static_mesh_system_shutdown(systems->static_mesh_system);
         kmodel_system_shutdown(systems->model_system);
         kmaterial_system_shutdown(systems->material_system);
         kmaterial_renderer_shutdown(systems->material_renderer);

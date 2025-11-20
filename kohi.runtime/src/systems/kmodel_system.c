@@ -576,6 +576,9 @@ const kmaterial_instance* kmodel_submesh_material_instance_get_at(struct kmodel_
 // NOTE: Returns dynamic array, needs to be freed by caller.
 kname* kmodel_query_animations(struct kmodel_system_state* state, u16 base_mesh, u32* out_count) {
     u32 count = state->models[base_mesh].animation_count;
+    if (!count) {
+        return KNULL;
+    }
 
     kname* anim_names = KALLOC_TYPE_CARRAY(kname, count);
     for (u32 i = 0; i < count; ++i) {

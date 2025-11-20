@@ -149,7 +149,7 @@ layout(location = 0) out dto {
     vec4 vertex_colour;
 	vec4 tangent;
 	vec3 normal;
-    float padding;
+    uint geo_type; // 0 = static, 1 = animated
     vec3 world_to_camera;
     float padding2;
 	vec2 tex_coord;
@@ -168,6 +168,7 @@ const mat4 ndc_to_uvw = mat4(
 );
 
 void main() {
+    out_dto.geo_type = 1;
     mat4 model = global_transforms.transforms[immediate.transform_index];
     mat4 view = global_settings.views[immediate.view_index];
     mat4 projection = global_settings.projections[immediate.projection_index];

@@ -858,7 +858,9 @@ KAPI void* kasset_model_serialize(const kasset_model* asset, u32 exporter_type, 
     KFREE_TYPE_CARRAY(channels.rot_offsets, u32, animations.total_channel_count);
     KFREE_TYPE_CARRAY(channels.scale_counts, u32, animations.total_channel_count);
     KFREE_TYPE_CARRAY(channels.scale_offsets, u32, animations.total_channel_count);
-    kfree(channels.data_buffer, channel_buffer_size, MEMORY_TAG_BINARY_DATA);
+    if (channels.data_buffer) {
+        kfree(channels.data_buffer, channel_buffer_size, MEMORY_TAG_BINARY_DATA);
+    }
 
     // Cleanup strings binary table.
     binary_string_table_destroy(&string_table);

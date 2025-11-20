@@ -209,27 +209,6 @@ typedef struct kasset_image {
     u8* pixels;
 } kasset_image;
 
-#define KASSET_TYPE_NAME_STATIC_MESH "StaticMesh"
-
-typedef struct kasset_static_mesh_geometry {
-    kname name;
-    kname material_asset_name;
-    u32 vertex_count;
-    vertex_3d* vertices;
-    u32 index_count;
-    u32* indices;
-    extents_3d extents;
-    vec3 center;
-} kasset_static_mesh_geometry;
-
-/** @brief Represents a static mesh asset. */
-typedef struct kasset_static_mesh {
-    u16 geometry_count;
-    kasset_static_mesh_geometry* geometries;
-    extents_3d extents;
-    vec3 center;
-} kasset_static_mesh;
-
 #define KASSET_TYPE_NAME_MATERIAL "Material"
 
 typedef struct kasset_material {

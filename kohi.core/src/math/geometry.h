@@ -25,7 +25,7 @@ typedef enum kgeometry_type {
     KGEOMETRY_TYPE_3D_STATIC_POSITION_ONLY = 0x05,
     /** @brief Used for 3d geometry that changes often. */
     KGEOMETRY_TYPE_3D_DYNAMIC = 0x06,
-    /** @brief Used for skinned 3d geometry that changes potentially every frame, and includes bone/weight data. */
+    /** @brief Used for skinned 3d geometry doesn't change often, and includes bone/weight data. */
     KGEOMETRY_TYPE_3D_SKINNED = 0x07,
     /** @brief Used for heightmap terrain-specific geometry that rarely (if ever) changes - includes material index/weight data. */
     KGEOMETRY_TYPE_3D_HEIGHTMAP_TERRAIN = 0x08,

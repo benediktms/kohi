@@ -62,9 +62,9 @@ b8 kasset_model_assimp_import(const char* source_path, const char* target_path, 
         goto ai_import_cleanup;
     }
 
-    // Write out .kam file.
+    // Write out .k3d file.
     if (!filesystem_write_entire_binary_file(target_path, serialized_size, serialized_data)) {
-        KWARN("Failed to write .kam file '%s'. See logs for details.", target_path);
+        KWARN("Failed to write .k3d file '%s'. See logs for details.", target_path);
         goto ai_import_cleanup;
     }
 
@@ -408,10 +408,11 @@ static b8 anim_asset_from_assimp(const struct aiScene* scene, kname package_name
         }
     }
 
-    out_asset->bones = KALLOC_TYPE_CARRAY(kasset_model_bone, bone_count);
     out_asset->bone_count = bone_count;
-    KCOPY_TYPE_CARRAY(out_asset->bones, bones, kasset_model_bone, bone_count);
-
+    if (bone_count) {
+        out_asset->bones = KALLOC_TYPE_CARRAY(kasset_model_bone, bone_count);
+        KCOPY_TYPE_CARRAY(out_asset->bones, bones, kasset_model_bone, bone_count);
+    }
     // Flatten the node structure into a single array and reference by index instead.
     kasset_model_node* nodes = darray_create(kasset_model_node);
 
@@ -477,186 +478,197 @@ static b8 anim_asset_from_assimp(const struct aiScene* scene, kname package_name
     }
 
     u32 node_count = darray_length(nodes);
-    out_asset->nodes = KALLOC_TYPE_CARRAY(kasset_model_node, node_count);
-    KCOPY_TYPE_CARRAY(out_asset->nodes, nodes, kasset_model_node, node_count);
     out_asset->node_count = node_count;
+    if (node_count) {
+        out_asset->nodes = KALLOC_TYPE_CARRAY(kasset_model_node, node_count);
+        KCOPY_TYPE_CARRAY(out_asset->nodes, nodes, kasset_model_node, node_count);
+    }
     darray_destroy(nodes);
     darray_destroy(node_map);
 
     // Copy channels and keys
     out_asset->animation_count = scene->mNumAnimations;
-    out_asset->animations = KALLOC_TYPE_CARRAY(kasset_model_animation, out_asset->animation_count);
-    for (u16 a = 0; a < out_asset->animation_count; ++a) {
-        struct aiAnimation* anim = scene->mAnimations[a];
-        kasset_model_animation* out = &out_asset->animations[a];
-        out->name = kname_create(anim->mName.data);
-        out->duration = anim->mDuration;
-        out->ticks_per_second = anim->mTicksPerSecond;
-        out->channel_count = anim->mNumChannels;
-        out->channels = KALLOC_TYPE_CARRAY(kasset_model_channel, out->channel_count);
-        for (u16 c = 0; c < out->channel_count; c++) {
-            struct aiNodeAnim* chn = anim->mChannels[c];
-            kasset_model_channel* oc = &out->channels[c];
-            kzero_memory(oc, sizeof(kmodel_channel));
-            oc->name = kname_create(chn->mNodeName.data);
+    if (out_asset->animation_count) {
+        out_asset->animations = KALLOC_TYPE_CARRAY(kasset_model_animation, out_asset->animation_count);
+        for (u16 a = 0; a < out_asset->animation_count; ++a) {
+            struct aiAnimation* anim = scene->mAnimations[a];
+            kasset_model_animation* out = &out_asset->animations[a];
+            out->name = kname_create(anim->mName.data);
+            out->duration = anim->mDuration;
+            out->ticks_per_second = anim->mTicksPerSecond;
+            out->channel_count = anim->mNumChannels;
+            out->channels = KALLOC_TYPE_CARRAY(kasset_model_channel, out->channel_count);
+            for (u16 c = 0; c < out->channel_count; c++) {
+                struct aiNodeAnim* chn = anim->mChannels[c];
+                kasset_model_channel* oc = &out->channels[c];
+                kzero_memory(oc, sizeof(kmodel_channel));
+                oc->name = kname_create(chn->mNodeName.data);
 
-            // Positions
-            oc->pos_count = chn->mNumPositionKeys;
-            if (oc->pos_count) {
-                oc->positions = KALLOC_TYPE_CARRAY(kasset_model_key_vec3, oc->pos_count);
-                for (u32 k = 0; k < oc->pos_count; ++k) {
-                    struct aiVectorKey* vk = &chn->mPositionKeys[k];
-                    oc->positions[k].time = vk->mTime;
-                    oc->positions[k].value = (vec3){vk->mValue.x, vk->mValue.y, vk->mValue.z};
+                // Positions
+                oc->pos_count = chn->mNumPositionKeys;
+                if (oc->pos_count) {
+                    oc->positions = KALLOC_TYPE_CARRAY(kasset_model_key_vec3, oc->pos_count);
+                    for (u32 k = 0; k < oc->pos_count; ++k) {
+                        struct aiVectorKey* vk = &chn->mPositionKeys[k];
+                        oc->positions[k].time = vk->mTime;
+                        oc->positions[k].value = (vec3){vk->mValue.x, vk->mValue.y, vk->mValue.z};
+                    }
+                } else {
+                    oc->positions = KNULL;
                 }
-            } else {
-                oc->positions = KNULL;
-            }
 
-            // Rotations
-            oc->rot_count = chn->mNumRotationKeys;
-            if (oc->rot_count) {
-                oc->rotations = KALLOC_TYPE_CARRAY(kasset_model_key_quat, oc->rot_count);
-                for (u32 k = 0; k < oc->rot_count; ++k) {
-                    struct aiQuatKey* vk = &chn->mRotationKeys[k];
-                    oc->rotations[k].time = vk->mTime;
-                    oc->rotations[k].value = (quat){vk->mValue.x, vk->mValue.y, vk->mValue.z, vk->mValue.w};
+                // Rotations
+                oc->rot_count = chn->mNumRotationKeys;
+                if (oc->rot_count) {
+                    oc->rotations = KALLOC_TYPE_CARRAY(kasset_model_key_quat, oc->rot_count);
+                    for (u32 k = 0; k < oc->rot_count; ++k) {
+                        struct aiQuatKey* vk = &chn->mRotationKeys[k];
+                        oc->rotations[k].time = vk->mTime;
+                        oc->rotations[k].value = (quat){vk->mValue.x, vk->mValue.y, vk->mValue.z, vk->mValue.w};
+                    }
+                } else {
+                    oc->rotations = KNULL;
                 }
-            } else {
-                oc->rotations = KNULL;
-            }
 
-            // Scales
-            oc->scale_count = chn->mNumScalingKeys;
-            if (oc->scale_count) {
-                oc->scales = KALLOC_TYPE_CARRAY(kasset_model_key_vec3, oc->scale_count);
-                for (u32 k = 0; k < oc->scale_count; ++k) {
-                    struct aiVectorKey* vk = &chn->mScalingKeys[k];
-                    oc->scales[k].time = vk->mTime;
-                    oc->scales[k].value = (vec3){vk->mValue.x, vk->mValue.y, vk->mValue.z};
+                // Scales
+                oc->scale_count = chn->mNumScalingKeys;
+                if (oc->scale_count) {
+                    oc->scales = KALLOC_TYPE_CARRAY(kasset_model_key_vec3, oc->scale_count);
+                    for (u32 k = 0; k < oc->scale_count; ++k) {
+                        struct aiVectorKey* vk = &chn->mScalingKeys[k];
+                        oc->scales[k].time = vk->mTime;
+                        oc->scales[k].value = (vec3){vk->mValue.x, vk->mValue.y, vk->mValue.z};
+                    }
+                } else {
+                    oc->scales = KNULL;
                 }
-            } else {
-                oc->scales = KNULL;
             }
         }
     }
 
     // Extract submeshes
     out_asset->submesh_count = scene->mNumMeshes;
-    out_asset->submeshes = KALLOC_TYPE_CARRAY(kasset_model_submesh_data, out_asset->submesh_count);
-    for (u32 m = 0; m < scene->mNumMeshes; ++m) {
-        struct aiMesh* mesh = scene->mMeshes[m];
-        kasset_model_submesh_data* target = &out_asset->submeshes[m];
+    if (out_asset->submesh_count) {
+        out_asset->submeshes = KALLOC_TYPE_CARRAY(kasset_model_submesh_data, out_asset->submesh_count);
+        for (u32 m = 0; m < scene->mNumMeshes; ++m) {
+            struct aiMesh* mesh = scene->mMeshes[m];
+            kasset_model_submesh_data* target = &out_asset->submeshes[m];
 
-        vertex_weight_accumulator* bone_data = KALLOC_TYPE_CARRAY(vertex_weight_accumulator, mesh->mNumVertices);
+            vertex_weight_accumulator* bone_data = 0;
+            if (mesh->mNumBones) {
+                bone_data = KALLOC_TYPE_CARRAY(vertex_weight_accumulator, mesh->mNumVertices);
 
-        // Extract the bone weights from it.
-        // NOTE: It's possible this might not line up index-wise to the global bones array.
-        // May need to reconcile this later if this is an issue.
-        for (u32 b = 0; b < mesh->mNumBones; ++b) {
-            struct aiBone* ai_bone = mesh->mBones[b];
-            kname ai_bone_name = kname_create(ai_bone->mName.data);
+                // Extract the bone weights from it.
+                // NOTE: It's possible this might not line up index-wise to the global bones array.
+                // May need to reconcile this later if this is an issue.
+                for (u32 b = 0; b < mesh->mNumBones; ++b) {
+                    struct aiBone* ai_bone = mesh->mBones[b];
+                    kname ai_bone_name = kname_create(ai_bone->mName.data);
 
-            for (u32 w = 0; w < ai_bone->mNumWeights; ++w) {
-                const struct aiVertexWeight vw = ai_bone->mWeights[w];
-                for (u32 bid = 0; bid < bone_count; ++bid) {
-                    if (bones[bid].name == ai_bone_name) {
-                        add_bone_weight(&bone_data[vw.mVertexId], bid, vw.mWeight);
-                        break;
+                    for (u32 w = 0; w < ai_bone->mNumWeights; ++w) {
+                        const struct aiVertexWeight vw = ai_bone->mWeights[w];
+                        for (u32 bid = 0; bid < bone_count; ++bid) {
+                            if (bones[bid].name == ai_bone_name) {
+                                add_bone_weight(&bone_data[vw.mVertexId], bid, vw.mWeight);
+                                break;
+                            }
+                        }
+                        /* add_bone_weight(&bone_data[vw.mVertexId], b, vw.mWeight); */
                     }
                 }
-                /* add_bone_weight(&bone_data[vw.mVertexId], b, vw.mWeight); */
+
+                // HACK: Verify vertex weights.
+                for (u32 v = 0; v < mesh->mNumVertices; ++v) {
+                    f32 total_weight = 0.0f;
+                    for (u8 i = 0; i < 4; ++i) {
+                        total_weight += bone_data[v].weights[i];
+                    }
+                    KASSERT(kabs(total_weight - 1.0f) < 0.01f);
+                }
             }
-        }
 
-        // HACK: Verify vertex weights.
-        for (u32 v = 0; v < mesh->mNumVertices; ++v) {
-            f32 total_weight = 0.0f;
-            for (u8 i = 0; i < 4; ++i) {
-                total_weight += bone_data[v].weights[i];
-            }
-            KASSERT(kabs(total_weight - 1.0f) < 0.01f);
-        }
+            target->name = kname_create(mesh->mName.data);
 
-        target->name = kname_create(mesh->mName.data);
+            // Material name.
+            struct aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
 
-        // Material name.
-        struct aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
+            // Base properties
+            struct aiString ai_name;
+            aiGetMaterialString(material, AI_MATKEY_NAME, &ai_name);
+            target->material_name = kname_create(ai_name.data);
 
-        // Base properties
-        struct aiString ai_name;
-        aiGetMaterialString(material, AI_MATKEY_NAME, &ai_name);
-        target->material_name = kname_create(ai_name.data);
-
-        target->vertex_count = mesh->mNumVertices;
-        if (mesh->mNumBones) {
-            target->vertices = KALLOC_TYPE_CARRAY(skinned_vertex_3d, target->vertex_count);
-        } else {
-            target->vertices = KALLOC_TYPE_CARRAY(vertex_3d, target->vertex_count);
-        }
-        target->index_count = mesh->mNumFaces * 3; // NOTE: assumes triangulated mesh, which should be fine here.
-        target->indices = KALLOC_TYPE_CARRAY(u32, target->index_count);
-
-        // Process all vertices
-        for (u32 i = 0; i < mesh->mNumVertices; ++i) {
-            struct aiVector3D* v = &mesh->mVertices[i];
-
-            // Extract base vertex properties first.
-            vertex_3d* target_vert = 0;
+            target->vertex_count = mesh->mNumVertices;
             if (mesh->mNumBones) {
-                skinned_vertex_3d* sv = &((skinned_vertex_3d*)target->vertices)[i];
-                target_vert = (vertex_3d*)sv;
+                target->vertices = KALLOC_TYPE_CARRAY(skinned_vertex_3d, target->vertex_count);
             } else {
-                target_vert = &((vertex_3d*)target->vertices)[i];
+                target->vertices = KALLOC_TYPE_CARRAY(vertex_3d, target->vertex_count);
+            }
+            target->index_count = mesh->mNumFaces * 3; // NOTE: assumes triangulated mesh, which should be fine here.
+            target->indices = KALLOC_TYPE_CARRAY(u32, target->index_count);
+
+            // Process all vertices
+            for (u32 i = 0; i < mesh->mNumVertices; ++i) {
+                struct aiVector3D* v = &mesh->mVertices[i];
+
+                // Extract base vertex properties first.
+                vertex_3d* target_vert = 0;
+                if (mesh->mNumBones) {
+                    skinned_vertex_3d* sv = &((skinned_vertex_3d*)target->vertices)[i];
+                    target_vert = (vertex_3d*)sv;
+                } else {
+                    target_vert = &((vertex_3d*)target->vertices)[i];
+                }
+
+                target_vert->position = vec3_create(v->x, v->y, v->z);
+                if (mesh->mNormals) {
+                    struct aiVector3D* n = &mesh->mNormals[i];
+                    target_vert->normal = vec3_create(n->x, n->y, n->z);
+                }
+                if (mesh->mTangents && mesh->mBitangents) {
+                    struct aiVector3D* at = &mesh->mTangents[i];
+                    struct aiVector3D* ab = &mesh->mBitangents[i];
+                    vec3 t = vec3_create(at->x, at->y, at->z);
+                    vec3 b = vec3_create(ab->x, ab->y, ab->z);
+                    vec3 n = target_vert->normal;
+
+                    f32 handedness = (vec3_dot(vec3_cross(n, t), b) < 0.0f) ? -1.0f : 1.0f;
+                    target_vert->tangent = vec4_from_vec3(t, handedness);
+                }
+
+                if (mesh->mTextureCoords[0]) {
+                    target_vert->texcoord = vec2_create(mesh->mTextureCoords[0][i].x, mesh->mTextureCoords[0][i].y);
+                }
+
+                if (mesh->mColors[0]) {
+                    struct aiColor4D* c = &mesh->mColors[0][i];
+                    target_vert->colour = vec4_create(c->r, c->g, c->b, c->a);
+                } else {
+                    target_vert->colour = vec4_one();
+                }
+
+                // Extract bone data, if it exists.
+                if (mesh->mNumBones) {
+                    skinned_vertex_3d* out_v = &((skinned_vertex_3d*)target->vertices)[i];
+                    kcopy_memory(out_v->bone_ids.elements, bone_data[i].bone_ids, sizeof(i32) * 4);
+                    kcopy_memory(out_v->weights.elements, bone_data[i].weights, sizeof(f32) * 4);
+
+                    // If the mesh has bones, it's skinned. Mark it as such.
+                    target->type = KASSET_MODEL_MESH_TYPE_SKINNED;
+                }
             }
 
-            target_vert->position = vec3_create(v->x, v->y, v->z);
-            if (mesh->mNormals) {
-                struct aiVector3D* n = &mesh->mNormals[i];
-                target_vert->normal = vec3_create(n->x, n->y, n->z);
-            }
-            if (mesh->mTangents && mesh->mBitangents) {
-                struct aiVector3D* at = &mesh->mTangents[i];
-                struct aiVector3D* ab = &mesh->mBitangents[i];
-                vec3 t = vec3_create(at->x, at->y, at->z);
-                vec3 b = vec3_create(ab->x, ab->y, ab->z);
-                vec3 n = target_vert->normal;
-
-                f32 handedness = (vec3_dot(vec3_cross(n, t), b) < 0.0f) ? -1.0f : 1.0f;
-                target_vert->tangent = vec4_from_vec3(t, handedness);
+            if (bone_data) {
+                KFREE_TYPE_CARRAY(bone_data, vertex_weight_accumulator, mesh->mNumVertices);
             }
 
-            if (mesh->mTextureCoords[0]) {
-                target_vert->texcoord = vec2_create(mesh->mTextureCoords[0][i].x, mesh->mTextureCoords[0][i].y);
-            }
-
-            if (mesh->mColors[0]) {
-                struct aiColor4D* c = &mesh->mColors[0][i];
-                target_vert->colour = vec4_create(c->r, c->g, c->b, c->a);
-            } else {
-                target_vert->colour = vec4_one();
-            }
-
-            // Extract bone data, if it exists.
-            if (mesh->mNumBones) {
-                skinned_vertex_3d* out_v = &((skinned_vertex_3d*)target->vertices)[i];
-                kcopy_memory(out_v->bone_ids.elements, bone_data[i].bone_ids, sizeof(i32) * 4);
-                kcopy_memory(out_v->weights.elements, bone_data[i].weights, sizeof(f32) * 4);
-
-                // If the mesh has bones, it's skinned. Mark it as such.
-                target->type = KASSET_MODEL_MESH_TYPE_SKINNED;
-            }
-        }
-
-        KFREE_TYPE_CARRAY(bone_data, vertex_weight_accumulator, mesh->mNumVertices);
-
-        // Process all Indices
-        u32 idx = 0;
-        for (u32 f = 0; f < mesh->mNumFaces; ++f) {
-            const struct aiFace* face = &mesh->mFaces[f];
-            for (u32 k = 0; k < face->mNumIndices; ++k) {
-                target->indices[idx] = face->mIndices[k];
-                idx++;
+            // Process all Indices
+            u32 idx = 0;
+            for (u32 f = 0; f < mesh->mNumFaces; ++f) {
+                const struct aiFace* face = &mesh->mFaces[f];
+                for (u32 k = 0; k < face->mNumIndices; ++k) {
+                    target->indices[idx] = face->mIndices[k];
+                    idx++;
+                }
             }
         }
     }

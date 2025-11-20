@@ -132,7 +132,10 @@ KAPI void* kallocate(u64 size, memory_tag tag);
  * @param type The type to be used when determining allocation size.
  * @param count The number of elements in the array to be freed.
  */
-#define KFREE_TYPE_CARRAY(block, type, count) kfree(block, sizeof(type) * count, MEMORY_TAG_ARRAY)
+#define KFREE_TYPE_CARRAY(block, type, count)                 \
+    if (block) {                                              \
+        kfree(block, sizeof(type) * count, MEMORY_TAG_ARRAY); \
+    }
 
 /**
  * @brief Resizes the given array of the provided type, also copying the contents of the old

@@ -4,12 +4,6 @@
 
 #include <core_render_types.h>
 
-b8 obj_2_ksm(const char* source_path, const char* target_path, const char* mtl_target_dir, const char* package_name);
-
-b8 mtl_2_kmt(const char* source_path, const char* target_filename, const char* mtl_target_dir, const char* package_name);
-
-b8 mtl_2_kmt(const char* source_path, const char* target_filename, const char* mtl_target_dir, const char* package_name);
-
 b8 source_audio_2_kaf(const char* source_path, const char* target_path);
 
 // if output_format is set, force that format. Otherwise use source file format.

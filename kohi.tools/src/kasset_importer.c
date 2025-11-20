@@ -6,9 +6,7 @@
 #include "importers/kasset_importer_audio.h"
 #include "importers/kasset_importer_bitmap_font_fnt.h"
 #include "importers/kasset_importer_image.h"
-#include "importers/kasset_importer_material_obj_mtl.h"
 #include "importers/kasset_importer_model_assimp.h"
-#include "importers/kasset_importer_static_mesh_obj.h"
 #include "logger.h"
 #include "platform/filesystem.h"
 #include "platform/kpackage.h"
@@ -31,60 +29,6 @@ static const char* get_option_value(const char* name, u8 option_count, const imp
 static b8 extension_is_audio(const char* extension);
 static b8 extension_is_image(const char* extension);
 
-b8 obj_2_ksm(const char* source_path, const char* target_path, const char* mtl_target_dir, const char* package_name) {
-    KDEBUG("Executing %s...", __FUNCTION__);
-    // OBJ import
-    const char* content = filesystem_read_entire_text_file(source_path);
-    if (!content) {
-        KERROR("Failed to read file content for path '%s'. Import failed.", source_path);
-        return false;
-    }
-
-    u32 material_file_count = 0;
-    const char** material_file_names = 0;
-    // Parses source file, imports and writes asset to disk.
-    if (!kasset_static_mesh_obj_import(target_path, content, &material_file_count, &material_file_names)) {
-        KERROR("Failed to import obj file '%s'. See logs for details.", source_path);
-        return false;
-    }
-
-    const char* source_folder = string_directory_from_path(source_path);
-
-    // Secondary import of materials. If these fail, should not count as a static mesh import failure.
-    for (u32 i = 0; i < material_file_count; ++i) {
-        const char* mtl_file_name_no_extension = string_filename_no_extension_from_path(material_file_names[i]);
-        const char* src_mtl_file_path = string_format("%s/%s", source_folder, material_file_names[i]);
-        const char* data = filesystem_read_entire_text_file(src_mtl_file_path);
-        b8 mtl_result = kasset_material_obj_mtl_import(mtl_target_dir, mtl_file_name_no_extension, package_name, data);
-        string_free(mtl_file_name_no_extension);
-        string_free(src_mtl_file_path);
-        string_free(data);
-        if (!mtl_result) {
-            KWARN("Material file import failed (%s). See logs for details.", source_path);
-        }
-    }
-
-    string_free(source_folder);
-
-    return true;
-}
-
-b8 mtl_2_kmt(const char* source_path, const char* target_filename, const char* mtl_target_dir, const char* package_name) {
-    KDEBUG("Executing %s...", __FUNCTION__);
-    // MTL import
-    /* const char* mtl_file_name = string_filename_from_path(source_path); */
-    const char* data = filesystem_read_entire_text_file(source_path);
-    b8 success = kasset_material_obj_mtl_import(mtl_target_dir, target_filename, package_name, data);
-    /* string_free(mtl_file_name); */
-    string_free(data);
-    if (!success) {
-        KERROR("Material file import failed (%s). See logs for details.", source_path);
-        return false;
-    }
-
-    return true;
-}
-
 b8 source_audio_2_kaf(const char* source_path, const char* target_path) {
     KDEBUG("Executing %s...", __FUNCTION__);
     return kasset_audio_import(source_path, target_path);
@@ -101,7 +45,7 @@ b8 fnt_2_kbf(const char* source_path, const char* target_path) {
     return kasset_bitmap_font_fnt_import(source_path, target_path);
 }
 
-b8 dae_fbx_2_kam(const char* source_path, const char* target_path, const char* material_target_dir, const char* package_name) {
+b8 assimp_2_k3d(const char* source_path, const char* target_path, const char* material_target_dir, const char* package_name) {
     KDEBUG("Executing %s...", __FUNCTION__);
     return kasset_model_assimp_import(source_path, target_path, material_target_dir, package_name);
 }
@@ -131,37 +75,7 @@ b8 import_from_path(const char* source_path, const char* target_path, u8 option_
     b8 success = false;
 
     // NOTE: No VFS state available here. Use raw filesystem instead here.
-
-    if (strings_equali(source_extension, ".obj")) {
-        // optional
-        const char* mtl_target_dir = get_option_value("mtl_target_path", option_count, options);
-        // optional
-        const char* package_name = get_option_value("package_name", option_count, options);
-
-        if (!obj_2_ksm(source_path, target_path, mtl_target_dir, package_name)) {
-            goto import_from_path_cleanup;
-        }
-
-    } else if (strings_equali(source_extension, ".mtl")) {
-
-        // required
-        const char* mtl_target_dir = get_option_value("mtl_target_path", option_count, options);
-        if (!mtl_target_dir) {
-            KERROR("mtl_2_kmt requires property 'mtl_target_path' to be set.");
-            goto import_from_path_cleanup;
-        }
-
-        // required
-        const char* package_name = get_option_value("package_name", option_count, options);
-        if (!package_name) {
-            KERROR("mtl_2_kmt requires property 'package_name' to be set.");
-            goto import_from_path_cleanup;
-        }
-
-        if (!mtl_2_kmt(source_path, target_filename, mtl_target_dir, package_name)) {
-            goto import_from_path_cleanup;
-        }
-    } else if (extension_is_audio(source_extension)) {
+    if (extension_is_audio(source_extension)) {
         if (!source_audio_2_kaf(source_path, target_path)) {
             goto import_from_path_cleanup;
         }
@@ -187,14 +101,14 @@ b8 import_from_path(const char* source_path, const char* target_path, u8 option_
         if (!fnt_2_kbf(source_path, target_path)) {
             goto import_from_path_cleanup;
         }
-    } else if (strings_equali(source_extension, ".dae") || strings_equali(source_extension, ".fbx")) {
+    } else if (strings_equali(source_extension, ".dae") || strings_equali(source_extension, ".fbx") || strings_equali(source_extension, ".obj")) {
         // TODO: add other extensions to this check
         // TODO: required?
         const char* mtl_target_dir = get_option_value("material_target_path", option_count, options);
         // TODO: required?
         const char* package_name = get_option_value("package_name", option_count, options);
 
-        if (!dae_fbx_2_kam(source_path, target_path, mtl_target_dir, package_name)) {
+        if (!assimp_2_k3d(source_path, target_path, mtl_target_dir, package_name)) {
             goto import_from_path_cleanup;
         }
 
@@ -256,30 +170,11 @@ b8 import_all_from_manifest(const char* manifest_path) {
                 continue;
             }
 
-            if (strings_equali(source_extension, ".obj")) {
-                // NOTE: Using defaults for this.
+            if (strings_equali(source_extension, ".dae") || strings_equali(source_extension, ".fbx") || strings_equali(source_extension, ".obj")) {
                 const char* mtl_target_dir = string_format("%s/%s", manifest.path, "assets/materials/");
                 const char* package_name = kname_string_get(manifest.name);
 
-                if (!obj_2_ksm(asset->source_path, asset->path, mtl_target_dir, package_name)) {
-                    goto import_all_from_manifest_cleanup;
-                }
-            } else if (strings_equali(source_extension, ".dae") || strings_equali(source_extension, ".fbx")) {
-                const char* mtl_target_dir = string_format("%s/%s", manifest.path, "assets/materials/");
-                const char* package_name = kname_string_get(manifest.name);
-
-                if (!dae_fbx_2_kam(asset->source_path, asset->path, mtl_target_dir, package_name)) {
-                    goto import_all_from_manifest_cleanup;
-                }
-            } else if (strings_equali(source_extension, ".mtl")) {
-                const char* mtl_target_dir = string_directory_from_path(asset->path);
-                if (!mtl_target_dir) {
-                    KERROR("mtl_2_kmt requires property 'mtl_target_path' to be set.");
-                    goto import_all_from_manifest_cleanup;
-                }
-
-                const char* package_name = kname_string_get(manifest.name);
-                if (!mtl_2_kmt(asset->source_path, asset->path, mtl_target_dir, package_name)) {
+                if (!assimp_2_k3d(asset->source_path, asset->path, mtl_target_dir, package_name)) {
                     goto import_all_from_manifest_cleanup;
                 }
             } else if (extension_is_audio(source_extension)) {

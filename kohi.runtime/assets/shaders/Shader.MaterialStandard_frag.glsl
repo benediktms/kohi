@@ -194,7 +194,7 @@ layout(location = 0) in dto {
     vec4 vertex_colour;
 	vec4 tangent;
 	vec3 normal;
-    float padding;
+    uint geo_type; // 0 = static, 1 = animated
     vec3 world_to_camera;
     float padding2;
 	vec2 tex_coord;
@@ -542,8 +542,15 @@ void main() {
     } else if(global_settings.render_mode == 2) {
         out_colour = vec4(abs(normal), 1.0);
     } else if(global_settings.render_mode == 4) {
+        // LEFTOFF: Why this no worky?
         // wireframe, just render a solid colour.
-        out_colour = vec4(0.0, 1.0, 1.0, 1.0); // cyan
+        if(in_dto.geo_type == 0) {
+            out_colour = vec4(0.0, 1.0, 1.0, 1.0); // cyan
+        } else if(in_dto.geo_type == 1) {
+            out_colour = vec4(1.0, 0.0, 1.0, 1.0); // magenta
+        } else {
+            out_colour = vec4(1.0, 0.0, 0.0, 1.0); // red - what are you doing, you dingus?
+        }
     }
 }
 
