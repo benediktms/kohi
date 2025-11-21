@@ -28,25 +28,25 @@ typedef u16 kskinned_mesh;
 #define INVALID_KSKINNED_MESH INVALID_ID_U16
 
 typedef struct font_glyph {
-    i32 codepoint;
-    u16 x;
-    u16 y;
-    u16 width;
-    u16 height;
-    i16 x_offset;
-    i16 y_offset;
-    i16 x_advance;
-    u8 page_id;
+	i32 codepoint;
+	u16 x;
+	u16 y;
+	u16 width;
+	u16 height;
+	i16 x_offset;
+	i16 y_offset;
+	i16 x_advance;
+	u8 page_id;
 } font_glyph;
 
 typedef struct font_kerning {
-    i32 codepoint_0;
-    i32 codepoint_1;
-    i16 amount;
+	i32 codepoint_0;
+	i32 codepoint_1;
+	i16 amount;
 } font_kerning;
 
 typedef struct font_page {
-    kname image_asset_name;
+	kname image_asset_name;
 } font_page;
 
 ARRAY_TYPE(font_glyph);

@@ -24,7 +24,7 @@ KAPI const char* kasset_type_to_string(kasset_type type);
 
 /**
  * @brief Indicates if the given asset type is a binary asset type.
- * 
+ *
  * @param type The asset type.
  * @return True if the given asset type is binary; otherwise false.
  */

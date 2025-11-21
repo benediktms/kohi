@@ -61,27 +61,27 @@ typedef _Bool b8;
 
 /** @brief A range, typically of memory */
 typedef struct krange {
-    /** @brief The offset in bytes. */
-    u64 offset;
-    /** @brief The size in bytes. */
-    u64 size;
+	/** @brief The offset in bytes. */
+	u64 offset;
+	/** @brief The size in bytes. */
+	u64 size;
 } krange;
 
 /** @brief A range, typically of memory */
 typedef struct range32 {
-    /** @brief The offset in bytes. */
-    i32 offset;
-    /** @brief The size in bytes. */
-    i32 size;
+	/** @brief The offset in bytes. */
+	i32 offset;
+	/** @brief The size in bytes. */
+	i32 size;
 } range32;
 // Properly define static assertions.
 #if defined(__clang__) || defined(__GNUC__)
 /** @brief Static assertion */
-#    define STATIC_ASSERT _Static_assert
+#	define STATIC_ASSERT _Static_assert
 #else
 
 /** @brief Static assertion */
-#    define STATIC_ASSERT static_assert
+#	define STATIC_ASSERT static_assert
 #endif
 
 // Ensure all types are of the correct size.
@@ -154,76 +154,76 @@ STATIC_ASSERT(sizeof(f64) == 8, "Expected f64 to be 8 bytes.");
 
 // Platform detection
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__)
-#    define KPLATFORM_WINDOWS 1
-#    ifndef _WIN64
-#        error "64-bit is required on Windows!"
-#    endif
+#	define KPLATFORM_WINDOWS 1
+#	ifndef _WIN64
+#		error "64-bit is required on Windows!"
+#	endif
 #elif defined(__linux__) || defined(__gnu_linux__)
 // Linux OS
-#    define KPLATFORM_LINUX 1
-#    if defined(__ANDROID__)
-#        define KPLATFORM_ANDROID 1
-#    endif
+#	define KPLATFORM_LINUX 1
+#	if defined(__ANDROID__)
+#		define KPLATFORM_ANDROID 1
+#	endif
 #elif defined(__unix__)
 // Catch anything not caught by the above.
-#    define KPLATFORM_UNIX 1
+#	define KPLATFORM_UNIX 1
 #elif defined(_POSIX_VERSION)
 // Posix
-#    define KPLATFORM_POSIX 1
+#	define KPLATFORM_POSIX 1
 #elif __APPLE__
 // Apple platforms
-#    define KPLATFORM_APPLE 1
-#    include <TargetConditionals.h>
-#    if TARGET_IPHONE_SIMULATOR
+#	define KPLATFORM_APPLE 1
+#	include <TargetConditionals.h>
+#	if TARGET_IPHONE_SIMULATOR
 // iOS Simulator
-#        define KPLATFORM_IOS 1
-#        define KPLATFORM_IOS_SIMULATOR 1
-#    elif TARGET_OS_IPHONE
-#        define KPLATFORM_IOS 1
+#		define KPLATFORM_IOS 1
+#		define KPLATFORM_IOS_SIMULATOR 1
+#	elif TARGET_OS_IPHONE
+#		define KPLATFORM_IOS 1
 // iOS device
-#    elif TARGET_OS_MAC
+#	elif TARGET_OS_MAC
 // HACK: Should probably be in the Vulkan Renderer lib, not here.
-#        define VK_USE_PLATFORM_MACOS_MVK
+#		define VK_USE_PLATFORM_MACOS_MVK
 // Other kinds of Mac OS
-#    else
-#        error "Unknown Apple platform"
-#    endif
+#	else
+#		error "Unknown Apple platform"
+#	endif
 #else
-#    error "Unknown platform!"
+#	error "Unknown platform!"
 #endif
 
 #ifdef KEXPORT
 // Exports
-#    ifdef _MSC_VER
-#        define KAPI __declspec(dllexport)
-#    else
-#        define KAPI __attribute__((visibility("default")))
-#    endif
+#	ifdef _MSC_VER
+#		define KAPI __declspec(dllexport)
+#	else
+#		define KAPI __attribute__((visibility("default")))
+#	endif
 #else
 // Imports
-#    ifdef _MSC_VER
+#	ifdef _MSC_VER
 /** @brief Import/export qualifier */
-#        define KAPI __declspec(dllimport)
-#    else
+#		define KAPI __declspec(dllimport)
+#	else
 /** @brief Import/export qualifier */
-#        define KAPI
-#    endif
+#		define KAPI
+#	endif
 #endif
 
 #if _DEBUG
-#    define KOHI_DEBUG 1
-#    define KOHI_RELEASE 0
+#	define KOHI_DEBUG 1
+#	define KOHI_RELEASE 0
 #else
-#    define KOHI_RELEASE 1
-#    define KOHI_DEBUG 0
+#	define KOHI_RELEASE 1
+#	define KOHI_DEBUG 0
 #endif
 
 // Feature build flags.
 
 #if KOHI_DEBUG
-#    define KOHI_HOT_RELOAD 1
+#	define KOHI_HOT_RELOAD 1
 #else
-#    define KOHI_HOT_RELOAD 0
+#	define KOHI_HOT_RELOAD 0
 #endif
 
 /**
@@ -234,40 +234,40 @@ STATIC_ASSERT(sizeof(f64) == 8, "Expected f64 to be 8 bytes.");
  * @returns The clamped value.
  */
 #define KCLAMP(value, min, max) ((value <= min) ? min : (value >= max) ? max \
-                                                                       : value)
+																	   : value)
 
 // Inlining
 #if defined(__clang__) || defined(__gcc__)
 /** @brief Inline qualifier */
-#    define KINLINE __attribute__((always_inline)) inline
+#	define KINLINE __attribute__((always_inline)) inline
 
 /** @brief No-inline qualifier */
-#    define KNOINLINE __attribute__((noinline))
+#	define KNOINLINE __attribute__((noinline))
 #elif defined(_MSC_VER)
 
 /** @brief Inline qualifier */
-#    define KINLINE __forceinline
+#	define KINLINE __forceinline
 
 /** @brief No-inline qualifier */
-#    define KNOINLINE __declspec(noinline)
+#	define KNOINLINE __declspec(noinline)
 #else
 
 /** @brief Inline qualifier */
-#    define KINLINE static inline
+#	define KINLINE static inline
 
 /** @brief No-inline qualifier */
-#    define KNOINLINE
+#	define KNOINLINE
 #endif
 
 // Deprecation
 #if defined(__clang__) || defined(__gcc__)
 /** @brief Mark something (i.e. a function) as deprecated. */
-#    define KDEPRECATED(message) __attribute__((deprecated(message)))
+#	define KDEPRECATED(message) __attribute__((deprecated(message)))
 #elif defined(_MSC_VER)
 /** @brief Mark something (i.e. a function) as deprecated. */
-#    define KDEPRECATED(message) __declspec(deprecated(message))
+#	define KDEPRECATED(message) __declspec(deprecated(message))
 #else
-#    error "Unsupported compiler - don't know how to define deprecations!"
+#	error "Unsupported compiler - don't know how to define deprecations!"
 #endif
 
 /** @brief Gets the number of bytes from amount of gibibytes (GiB) (1024*1024*1024) */
@@ -285,19 +285,19 @@ STATIC_ASSERT(sizeof(f64) == 8, "Expected f64 to be 8 bytes.");
 #define KILOBYTES(amount) ((amount) * 1000ULL)
 
 KINLINE u64 get_aligned(u64 operand, u64 granularity) {
-    return ((operand + (granularity - 1)) & ~(granularity - 1));
+	return ((operand + (granularity - 1)) & ~(granularity - 1));
 }
 
 KINLINE krange get_aligned_range(u64 offset, u64 size, u64 granularity) {
-    return (krange){get_aligned(offset, granularity), get_aligned(size, granularity)};
+	return (krange){get_aligned(offset, granularity), get_aligned(size, granularity)};
 }
 
 #define KSWAP(type, a, b) \
-    {                     \
-        type temp = a;    \
-        a = b;            \
-        b = temp;         \
-    }
+	{                     \
+		type temp = a;    \
+		a = b;            \
+		b = temp;         \
+	}
 
 #define KMIN(x, y) (x < y ? x : y)
 #define KMAX(x, y) (x > y ? x : y)
@@ -325,12 +325,12 @@ KINLINE krange get_aligned_range(u64 offset, u64 size, u64 granularity) {
  * @param d A pointer to a u16 to hold the fourth value.
  */
 #define UNPACK_U64_U16S(packed, a, b, c, d) \
-    {                                       \
-        a = (u16)(packed >> 48);            \
-        b = (u16)(packed >> 32);            \
-        c = (u16)(packed >> 16);            \
-        d = (u16)(packed >> 0);             \
-    }
+	{                                       \
+		a = (u16)(packed >> 48);            \
+		b = (u16)(packed >> 32);            \
+		c = (u16)(packed >> 16);            \
+		d = (u16)(packed >> 0);             \
+	}
 
 /**
  * Unpacks a single u16 at the given index (0-3).
@@ -357,10 +357,10 @@ KINLINE krange get_aligned_range(u64 offset, u64 size, u64 granularity) {
  * @param b A pointer to a u32 to hold the second value.
  */
 #define UNPACK_U64_U32S(packed, a, b) \
-    {                                 \
-        a = (u32)(packed >> 32);      \
-        b = (u32)(packed >> 0);       \
-    }
+	{                                 \
+		a = (u32)(packed >> 32);      \
+		b = (u32)(packed >> 0);       \
+	}
 
 /**
  * Unpacks a single u32 at the given index (0-1).
@@ -387,10 +387,10 @@ KINLINE krange get_aligned_range(u64 offset, u64 size, u64 granularity) {
  * @param b A pointer to a u16 to hold the second value.
  */
 #define UNPACK_U32_U16S(packed, a, b) \
-    {                                 \
-        a = (u16)(packed >> 16);      \
-        b = (u16)(packed >> 0);       \
-    }
+	{                                 \
+		a = (u16)(packed >> 16);      \
+		b = (u16)(packed >> 0);       \
+	}
 
 /**
  * Unpacks a single u16 at the given index (0-1).

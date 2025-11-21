@@ -28,131 +28,131 @@ struct renderer_system_state;
 
 /** @brief The standard UI system configuration. */
 typedef struct standard_ui_system_config {
-    u64 max_control_count;
+	u64 max_control_count;
 } standard_ui_system_config;
 
 typedef struct standard_ui_renderable {
-    // The per-control instance binding id for binding set 1.
-    u32 binding_instance_id;
-    ktexture atlas_override;
-    geometry_render_data render_data;
-    geometry_render_data* clip_mask_render_data;
+	// The per-control instance binding id for binding set 1.
+	u32 binding_instance_id;
+	ktexture atlas_override;
+	geometry_render_data render_data;
+	geometry_render_data* clip_mask_render_data;
 } standard_ui_renderable;
 
 typedef struct standard_ui_render_data {
-    ktexture ui_atlas;
-    u32 shader_set0_binding_instance_id;
-    // darray
-    standard_ui_renderable* renderables;
+	ktexture ui_atlas;
+	u32 shader_set0_binding_instance_id;
+	// darray
+	standard_ui_renderable* renderables;
 } standard_ui_render_data;
 
 // Global UBO data for the SUI shader.
 typedef struct sui_global_ubo {
-    mat4 projection;
-    mat4 view;
+	mat4 projection;
+	mat4 view;
 } sui_global_ubo;
 
 // Immediate (i.e. every draw) data for the SUI shader.
 typedef struct sui_immediate_data {
-    mat4 model;
-    vec4 diffuse_colour;
+	mat4 model;
+	vec4 diffuse_colour;
 } sui_immediate_data;
 
 typedef struct sui_mouse_event {
-    mouse_buttons mouse_button;
-    i16 x;
-    i16 y;
+	mouse_buttons mouse_button;
+	i16 x;
+	i16 y;
 } sui_mouse_event;
 
 typedef enum sui_keyboard_event_type {
-    SUI_KEYBOARD_EVENT_TYPE_PRESS,
-    SUI_KEYBOARD_EVENT_TYPE_RELEASE,
+	SUI_KEYBOARD_EVENT_TYPE_PRESS,
+	SUI_KEYBOARD_EVENT_TYPE_RELEASE,
 } sui_keyboard_event_type;
 
 typedef struct sui_keyboard_event {
-    keys key;
-    sui_keyboard_event_type type;
+	keys key;
+	sui_keyboard_event_type type;
 } sui_keyboard_event;
 
 typedef struct sui_clip_mask {
-    u32 reference_id;
-    ktransform clip_ktransform;
-    kgeometry clip_geometry;
-    geometry_render_data render_data;
+	u32 reference_id;
+	ktransform clip_ktransform;
+	kgeometry clip_geometry;
+	geometry_render_data render_data;
 } sui_clip_mask;
 
 typedef struct sui_control {
-    identifier id;
-    ktransform ktransform;
-    char* name;
-    // TODO: Convert to flags.
-    b8 is_active;
-    b8 is_visible;
-    b8 is_hovered;
-    b8 is_pressed;
-    rect_2d bounds;
+	identifier id;
+	ktransform ktransform;
+	char* name;
+	// TODO: Convert to flags.
+	b8 is_active;
+	b8 is_visible;
+	b8 is_hovered;
+	b8 is_pressed;
+	rect_2d bounds;
 
-    struct sui_control* parent;
-    // darray
-    struct sui_control** children;
+	struct sui_control* parent;
+	// darray
+	struct sui_control** children;
 
-    void* internal_data;
-    u64 internal_data_size;
+	void* internal_data;
+	u64 internal_data_size;
 
-    void* user_data;
-    u64 user_data_size;
+	void* user_data;
+	u64 user_data_size;
 
-    void (*destroy)(struct standard_ui_state* state, struct sui_control* self);
-    b8 (*load)(struct standard_ui_state* state, struct sui_control* self);
-    void (*unload)(struct standard_ui_state* state, struct sui_control* self);
+	void (*destroy)(struct standard_ui_state* state, struct sui_control* self);
+	b8 (*load)(struct standard_ui_state* state, struct sui_control* self);
+	void (*unload)(struct standard_ui_state* state, struct sui_control* self);
 
-    b8 (*update)(struct standard_ui_state* state, struct sui_control* self, struct frame_data* p_frame_data);
-    void (*render_prepare)(struct standard_ui_state* state, struct sui_control* self, const struct frame_data* p_frame_data);
-    b8 (*render)(struct standard_ui_state* state, struct sui_control* self, struct frame_data* p_frame_data, standard_ui_render_data* reneder_data);
+	b8 (*update)(struct standard_ui_state* state, struct sui_control* self, struct frame_data* p_frame_data);
+	void (*render_prepare)(struct standard_ui_state* state, struct sui_control* self, const struct frame_data* p_frame_data);
+	b8 (*render)(struct standard_ui_state* state, struct sui_control* self, struct frame_data* p_frame_data, standard_ui_render_data* reneder_data);
 
-    /**
-     * The click handler for a control.
-     * @param self A pointer to the control.
-     * @param event The mouse event.
-     * @returns True if the event should be allowed to propagate to other controls; otherwise false.
-     */
-    void (*on_click)(struct standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
-    void (*on_mouse_down)(struct standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
-    void (*on_mouse_up)(struct standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
-    void (*on_mouse_over)(struct standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
-    void (*on_mouse_out)(struct standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
-    void (*on_mouse_move)(struct standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
+	/**
+	 * The click handler for a control.
+	 * @param self A pointer to the control.
+	 * @param event The mouse event.
+	 * @returns True if the event should be allowed to propagate to other controls; otherwise false.
+	 */
+	void (*on_click)(struct standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
+	void (*on_mouse_down)(struct standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
+	void (*on_mouse_up)(struct standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
+	void (*on_mouse_over)(struct standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
+	void (*on_mouse_out)(struct standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
+	void (*on_mouse_move)(struct standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
 
-    void (*internal_click)(struct standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
-    void (*internal_mouse_over)(struct standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
-    void (*internal_mouse_out)(struct standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
-    void (*internal_mouse_down)(struct standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
-    void (*internal_mouse_up)(struct standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
-    void (*internal_mouse_move)(struct standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
+	void (*internal_click)(struct standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
+	void (*internal_mouse_over)(struct standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
+	void (*internal_mouse_out)(struct standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
+	void (*internal_mouse_down)(struct standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
+	void (*internal_mouse_up)(struct standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
+	void (*internal_mouse_move)(struct standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
 
-    void (*on_key)(struct standard_ui_state* state, struct sui_control* self, struct sui_keyboard_event event);
+	void (*on_key)(struct standard_ui_state* state, struct sui_control* self, struct sui_keyboard_event event);
 
 } sui_control;
 
 typedef struct standard_ui_state {
-    struct renderer_system_state* renderer;
-    struct font_system_state* font_system;
-    standard_ui_system_config config;
+	struct renderer_system_state* renderer;
+	struct font_system_state* font_system;
+	standard_ui_system_config config;
 
-    kshader shader;
-    u32 shader_set0_binding_instance_id;
-    // Array of pointers to controls, the system does not own these. The application does.
-    u32 total_control_count;
-    u32 active_control_count;
-    sui_control** active_controls;
-    u32 inactive_control_count;
-    sui_control** inactive_controls;
-    sui_control root;
-    // texture_map ui_atlas;
+	kshader shader;
+	u32 shader_set0_binding_instance_id;
+	// Array of pointers to controls, the system does not own these. The application does.
+	u32 total_control_count;
+	u32 active_control_count;
+	sui_control** active_controls;
+	u32 inactive_control_count;
+	sui_control** inactive_controls;
+	sui_control root;
+	// texture_map ui_atlas;
 
-    ktexture atlas_texture;
+	ktexture atlas_texture;
 
-    u64 focused_id;
+	u64 focused_id;
 
 } standard_ui_state;
 

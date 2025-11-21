@@ -6,15 +6,15 @@
 #include "systems/ktransform_system.h"
 
 typedef struct debug_box3d {
-    kname name;
-    vec3 size;
-    vec4 colour;
-    ktransform ktransform;
-    ktransform parent_ktransform;
+	kname name;
+	vec3 size;
+	vec4 colour;
+	ktransform ktransform;
+	ktransform parent_ktransform;
 
-    b8 is_dirty;
+	b8 is_dirty;
 
-    kgeometry geometry;
+	kgeometry geometry;
 } debug_box3d;
 
 struct frame_data;

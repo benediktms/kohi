@@ -18,32 +18,32 @@
 #include "logger.h"
 
 typedef struct platform_system_config {
-    /** @brief application_name The name of the application. */
-    const char* application_name;
+	/** @brief application_name The name of the application. */
+	const char* application_name;
 } platform_system_config;
 
 typedef struct dynamic_library_function {
-    const char* name;
-    void* pfn;
+	const char* name;
+	void* pfn;
 } dynamic_library_function;
 
 typedef struct dynamic_library {
-    const char* name;
-    const char* filename;
-    u64 internal_data_size;
-    void* internal_data;
-    u32 watch_id;
+	const char* name;
+	const char* filename;
+	u64 internal_data_size;
+	void* internal_data;
+	u32 watch_id;
 
-    // darray
-    dynamic_library_function* functions;
+	// darray
+	dynamic_library_function* functions;
 } dynamic_library;
 
 typedef enum platform_error_code {
-    PLATFORM_ERROR_SUCCESS = 0,
-    PLATFORM_ERROR_UNKNOWN = 1,
-    PLATFORM_ERROR_FILE_NOT_FOUND = 2,
-    PLATFORM_ERROR_FILE_LOCKED = 3,
-    PLATFORM_ERROR_FILE_EXISTS = 4
+	PLATFORM_ERROR_SUCCESS = 0,
+	PLATFORM_ERROR_UNKNOWN = 1,
+	PLATFORM_ERROR_FILE_NOT_FOUND = 2,
+	PLATFORM_ERROR_FILE_LOCKED = 3,
+	PLATFORM_ERROR_FILE_EXISTS = 4
 } platform_error_code;
 
 struct platform_state;
@@ -52,12 +52,12 @@ struct platform_state;
  * @brief A configuration structure used to create new windows.
  */
 typedef struct kwindow_config {
-    i32 position_x;
-    i32 position_y;
-    u32 width;
-    u32 height;
-    const char* title;
-    const char* name;
+	i32 position_x;
+	i32 position_y;
+	u32 width;
+	u32 height;
+	const char* title;
+	const char* name;
 } kwindow_config;
 
 struct kwindow_platform_state;
@@ -67,32 +67,32 @@ struct kwindow_renderer_state;
  * @brief Represents a window in the application.
  */
 typedef struct kwindow {
-    /** @brief The internal name of the window. */
-    const char* name;
-    /** @brief The title of the window. */
-    const char* title;
+	/** @brief The internal name of the window. */
+	const char* name;
+	/** @brief The title of the window. */
+	const char* title;
 
-    /** @brief The width of the window in pixels */
-    u16 width;
-    /** @brief The height of the window in pixels */
-    u16 height;
+	/** @brief The width of the window in pixels */
+	u16 width;
+	/** @brief The height of the window in pixels */
+	u16 height;
 
-    /**
-     * @brief Represents the pixel density of this window. Should only ever be
-     * read from, as the platform layer is responsible for determining this.
-     */
-    f32 device_pixel_ratio;
+	/**
+	 * @brief Represents the pixel density of this window. Should only ever be
+	 * read from, as the platform layer is responsible for determining this.
+	 */
+	f32 device_pixel_ratio;
 
-    /** @brief Indicates if this window is currently being resized. */
-    b8 resizing;
-    /** @brief Indicates the number of frames that have passed since the last resize event. */
-    u16 frames_since_resize;
+	/** @brief Indicates if this window is currently being resized. */
+	b8 resizing;
+	/** @brief Indicates the number of frames that have passed since the last resize event. */
+	u16 frames_since_resize;
 
-    /** @brief Holds platform-specific data. */
-    struct kwindow_platform_state* platform_state;
+	/** @brief Holds platform-specific data. */
+	struct kwindow_platform_state* platform_state;
 
-    /** @brief Holds renderer-specific data. */
-    struct kwindow_renderer_state* renderer_state;
+	/** @brief Holds renderer-specific data. */
+	struct kwindow_renderer_state* renderer_state;
 } kwindow;
 
 typedef void (*platform_filewatcher_file_deleted_callback)(u32 watcher_id, void* context);
@@ -370,7 +370,7 @@ KAPI void platform_register_process_mouse_wheel_callback(platform_process_mouse_
 
 /**
  * @brief Watch a file at the given path.
- * 
+ *
  * @param file_path The file path. Required.
  * @param is_binary Indicates if the file being watched is binary (if not, then text).
  * @param watcher_written_callback Callback to be invoked when the watched file is written to.
@@ -378,16 +378,16 @@ KAPI void platform_register_process_mouse_wheel_callback(platform_process_mouse_
  * @param watcher_deleted_callback Callback to be invoked when the watched file is deleted from disk.
  * @param watcher_deleted_context Context to be passed along when a file deletion occurs.
  * @param out_watch_id A pointer to hold the watch identifier.
- * @return True on success; otherwise false. 
+ * @return True on success; otherwise false.
  */
 KAPI b8 platform_watch_file(
-    const char* file_path,
-    b8 is_binary,
-    platform_filewatcher_file_written_callback watcher_written_callback,
-    void* watcher_written_context,
-    platform_filewatcher_file_deleted_callback watcher_deleted_callback,
-    void* watcher_deleted_context,
-    u32* out_watch_id);
+	const char* file_path,
+	b8 is_binary,
+	platform_filewatcher_file_written_callback watcher_written_callback,
+	void* watcher_written_context,
+	platform_filewatcher_file_deleted_callback watcher_deleted_callback,
+	void* watcher_deleted_context,
+	u32* out_watch_id);
 /**
  * @brief Stops watching the file with the given watch identifier.
  *

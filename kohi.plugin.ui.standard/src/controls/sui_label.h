@@ -4,26 +4,26 @@
 #include "systems/font_system.h"
 
 typedef struct sui_label_internal_data {
-    vec2i size;
-    vec4 colour;
-    u32 binding_instance_id;
+	vec2i size;
+	vec4 colour;
+	u32 binding_instance_id;
 
-    font_type type;
-    // Only used when set to use a bitmap font.
-    khandle bitmap_font;
-    // Only used when set to use a system font.
-    system_font_variant system_font;
+	font_type type;
+	// Only used when set to use a bitmap font.
+	khandle bitmap_font;
+	// Only used when set to use a system font.
+	system_font_variant system_font;
 
-    u64 vertex_buffer_offset;
-    u64 index_buffer_offset;
-    u64 vertex_buffer_size;
-    u64 index_buffer_size;
-    char* text;
-    u32 max_text_length;
-    u32 quad_count;
-    u32 max_quad_count;
+	u64 vertex_buffer_offset;
+	u64 index_buffer_offset;
+	u64 vertex_buffer_size;
+	u64 index_buffer_size;
+	char* text;
+	u32 max_text_length;
+	u32 quad_count;
+	u32 max_quad_count;
 
-    b8 is_dirty;
+	b8 is_dirty;
 } sui_label_internal_data;
 
 KAPI b8 sui_label_control_create(standard_ui_state* state, const char* name, font_type type, kname font_name, u16 font_size, const char* text, struct sui_control* out_control);

@@ -4,28 +4,28 @@
 
 // Represents the value of a binary tree node.
 typedef union bt_node_value {
-    void* p;
-    const char* str;
-    u64 u64;
-    i64 i64;
-    u32 u32;
-    i32 i32;
-    u16 u16;
-    i16 i16;
-    u8 u8;
-    i8 i8;
-    b8 b8;
-    f32 f32;
+	void* p;
+	const char* str;
+	u64 u64;
+	i64 i64;
+	u32 u32;
+	i32 i32;
+	u16 u16;
+	i16 i16;
+	u8 u8;
+	i8 i8;
+	b8 b8;
+	f32 f32;
 } bt_node_value;
 
 /**
  * A binary tree node, which also represents the base node of the BST itself.
  */
 typedef struct bt_node {
-    u64 key;
-    bt_node_value value;
-    struct bt_node* left;
-    struct bt_node* right;
+	u64 key;
+	bt_node_value value;
+	struct bt_node* left;
+	struct bt_node* right;
 } bt_node;
 
 /**

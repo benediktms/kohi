@@ -29,12 +29,12 @@ const char* vulkan_result_string(VkResult result, b8 get_extended);
 b8 vulkan_result_is_success(VkResult result);
 
 #define VK_CHECK_DETAILED(expr)                                                                                         \
-    {                                                                                                                   \
-        VkResult result = expr;                                                                                         \
-        if (!vulkan_result_is_success(result)) {                                                                        \
-            KFATAL("%s:%u - %s Failed with error:'%s'", __FILE__, __LINE__, #expr, vulkan_result_string(result, true)); \
-        }                                                                                                               \
-    }
+	{                                                                                                                   \
+		VkResult result = expr;                                                                                         \
+		if (!vulkan_result_is_success(result)) {                                                                        \
+			KFATAL("%s:%u - %s Failed with error:'%s'", __FILE__, __LINE__, #expr, vulkan_result_string(result, true)); \
+		}                                                                                                               \
+	}
 
 #if KOHI_DEBUG
 void vulkan_set_debug_object_name(vulkan_context* context, VkObjectType object_type, void* object_handle, const char* object_name);
@@ -43,20 +43,20 @@ void vulkan_set_debug_object_tag(vulkan_context* context, VkObjectType object_ty
 void vulkan_begin_label(vulkan_context* context, VkCommandBuffer buffer, const char* label_name, vec4 colour);
 void vulkan_end_label(vulkan_context* context, VkCommandBuffer buffer);
 
-#    define VK_SET_DEBUG_OBJECT_NAME(context, object_type, object_handle, object_name) vulkan_set_debug_object_name(context, object_type, object_handle, object_name)
-#    define VK_SET_DEBUG_OBJECT_NAME_INDEXED(context, object_type, object_handle, object_name, index) vulkan_set_debug_object_name_indexed(context, object_type, object_handle, object_name, index)
-#    define VK_SET_DEBUG_OBJECT_TAG(context, object_type, object_handle, tag_size, tag_data) vulkan_set_debug_object_tag(context, object_type, object_handle, tag_size, tag_data)
-#    define VK_BEGIN_DEBUG_LABEL(context, command_buffer, label_name, colour) vulkan_begin_label(context, command_buffer, label_name, colour)
-#    define VK_END_DEBUG_LABEL(context, command_buffer) vulkan_end_label(context, command_buffer)
+#	define VK_SET_DEBUG_OBJECT_NAME(context, object_type, object_handle, object_name) vulkan_set_debug_object_name(context, object_type, object_handle, object_name)
+#	define VK_SET_DEBUG_OBJECT_NAME_INDEXED(context, object_type, object_handle, object_name, index) vulkan_set_debug_object_name_indexed(context, object_type, object_handle, object_name, index)
+#	define VK_SET_DEBUG_OBJECT_TAG(context, object_type, object_handle, tag_size, tag_data) vulkan_set_debug_object_tag(context, object_type, object_handle, tag_size, tag_data)
+#	define VK_BEGIN_DEBUG_LABEL(context, command_buffer, label_name, colour) vulkan_begin_label(context, command_buffer, label_name, colour)
+#	define VK_END_DEBUG_LABEL(context, command_buffer) vulkan_end_label(context, command_buffer)
 #else
 // Does nothing in non-debug builds.
-#    define VK_SET_DEBUG_OBJECT_NAME(context, object_type, object_handle, object_name)
+#	define VK_SET_DEBUG_OBJECT_NAME(context, object_type, object_handle, object_name)
 // Does nothing in non-debug builds.
-#    define VK_SET_DEBUG_OBJECT_TAG(context, object_type, object_handle, tag_size, tag_data)
+#	define VK_SET_DEBUG_OBJECT_TAG(context, object_type, object_handle, tag_size, tag_data)
 // Does nothing in non-debug builds.
-#    define VK_BEGIN_DEBUG_LABEL(context, command_buffer, label_name, colour)
+#	define VK_BEGIN_DEBUG_LABEL(context, command_buffer, label_name, colour)
 // Does nothing in non-debug builds.
-#    define VK_END_DEBUG_LABEL(context, command_buffer)
+#	define VK_END_DEBUG_LABEL(context, command_buffer)
 #endif
 
 i32 vulkan_find_memory_index(vulkan_context* context, u32 type_filter, u32 property_flags);

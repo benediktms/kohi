@@ -40,10 +40,10 @@ void vulkan_device_destroy(vulkan_context* context);
  * @param out_support_info A pointer to hold the support info.
  */
 void vulkan_device_query_swapchain_support(
-    vulkan_context* context,
-    VkPhysicalDevice physical_device,
-    VkSurfaceKHR surface,
-    vulkan_swapchain_support_info* out_support_info);
+	vulkan_context* context,
+	VkPhysicalDevice physical_device,
+	VkSurfaceKHR surface,
+	vulkan_swapchain_support_info* out_support_info);
 
 /**
  * @brief Detects and assigns the depth format for the given device.

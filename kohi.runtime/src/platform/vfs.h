@@ -19,89 +19,89 @@ struct kasset_metadata;
 struct vfs_state;
 
 typedef struct vfs_config {
-    const char** text_user_types;
-    const char* manifest_file_path;
+	const char** text_user_types;
+	const char* manifest_file_path;
 } vfs_config;
 
 typedef enum vfs_asset_flag_bits {
-    VFS_ASSET_FLAG_NONE = 0,
-    VFS_ASSET_FLAG_BINARY_BIT = 0x01,
+	VFS_ASSET_FLAG_NONE = 0,
+	VFS_ASSET_FLAG_BINARY_BIT = 0x01,
 } vfs_asset_flag_bits;
 
 typedef u32 vfs_asset_flags;
 
 typedef enum vfs_request_result {
-    /** The request was fulfilled successfully. */
-    VFS_REQUEST_RESULT_SUCCESS = 0,
-    /** The asset exists on the manifest, but the primary file could not be found on disk. */
-    VFS_REQUEST_RESULT_FILE_DOES_NOT_EXIST,
-    /** The package does not contain the asset */
-    VFS_REQUEST_RESULT_NOT_IN_PACKAGE,
-    /** Package does not exist. */
-    VFS_REQUEST_RESULT_PACKAGE_DOES_NOT_EXIST,
-    /** There was an error reading from the file. */
-    VFS_REQUEST_RESULT_READ_ERROR,
-    /** There was an error writing to the file. */
-    VFS_REQUEST_RESULT_WRITE_ERROR,
-    /** An internal failure has occurred in the VFS itself. */
-    VFS_REQUEST_RESULT_INTERNAL_FAILURE,
+	/** The request was fulfilled successfully. */
+	VFS_REQUEST_RESULT_SUCCESS = 0,
+	/** The asset exists on the manifest, but the primary file could not be found on disk. */
+	VFS_REQUEST_RESULT_FILE_DOES_NOT_EXIST,
+	/** The package does not contain the asset */
+	VFS_REQUEST_RESULT_NOT_IN_PACKAGE,
+	/** Package does not exist. */
+	VFS_REQUEST_RESULT_PACKAGE_DOES_NOT_EXIST,
+	/** There was an error reading from the file. */
+	VFS_REQUEST_RESULT_READ_ERROR,
+	/** There was an error writing to the file. */
+	VFS_REQUEST_RESULT_WRITE_ERROR,
+	/** An internal failure has occurred in the VFS itself. */
+	VFS_REQUEST_RESULT_INTERNAL_FAILURE,
 } vfs_request_result;
 
 /**
  * @brief Represents data and properties from an asset loaded from the VFS.
  */
 typedef struct vfs_asset_data {
-    /** @brief The name of the asset stored as a kname. */
-    kname asset_name;
-    /** @brief The name of the package containing the asset, stored as a kname. */
-    kname package_name;
-    /** @brief A copy of the asset path. */
-    const char* path;
+	/** @brief The name of the asset stored as a kname. */
+	kname asset_name;
+	/** @brief The name of the package containing the asset, stored as a kname. */
+	kname package_name;
+	/** @brief A copy of the asset path. */
+	const char* path;
 
-    /** @brief The size of the asset in bytes. */
-    u64 size;
-    union {
-        /** The asset data as a string, if a text asset. Zero-terminated. */
-        const char* text;
-        /** The binary asset data, if a binary asset. */
-        const void* bytes;
-    };
-    /** @brief Various flags for the given asset. */
-    vfs_asset_flags flags;
+	/** @brief The size of the asset in bytes. */
+	u64 size;
+	union {
+		/** The asset data as a string, if a text asset. Zero-terminated. */
+		const char* text;
+		/** The binary asset data, if a binary asset. */
+		const void* bytes;
+	};
+	/** @brief Various flags for the given asset. */
+	vfs_asset_flags flags;
 
-    /** The result of the asset load operation. */
-    vfs_request_result result;
+	/** The result of the asset load operation. */
+	vfs_request_result result;
 
-    /** The size of the context in bytes. */
-    u32 context_size;
+	/** The size of the context in bytes. */
+	u32 context_size;
 
-    /** The context passed in from the original request. */
-    void* context;
+	/** The context passed in from the original request. */
+	void* context;
 } vfs_asset_data;
 
 typedef void (*PFN_on_asset_loaded_callback)(struct vfs_state* vfs, vfs_asset_data asset_data);
 
 typedef struct vfs_state {
-    // darray
-    struct kpackage* packages;
+	// darray
+	struct kpackage* packages;
 } vfs_state;
 
 /**
  * @brief The request options for getting an asset from the VFS.
  */
 typedef struct vfs_request_info {
-    /** @brief The name of the package to load the asset from. */
-    kname package_name;
-    /** @brief The name of the asset to request. */
-    kname asset_name;
-    /** @brief Indicates if the asset is binary. If not, the asset is loaded as text. */
-    b8 is_binary;
-    /** @brief The size of the context in bytes. */
-    u32 context_size;
-    /** @param context A constant pointer to the context to be used for this call. This is passed through to the result callback. NOTE: A copy of this is taken immediately, so lifetime of this isn't important. */
-    const void* context;
+	/** @brief The name of the package to load the asset from. */
+	kname package_name;
+	/** @brief The name of the asset to request. */
+	kname asset_name;
+	/** @brief Indicates if the asset is binary. If not, the asset is loaded as text. */
+	b8 is_binary;
+	/** @brief The size of the context in bytes. */
+	u32 context_size;
+	/** @param context A constant pointer to the context to be used for this call. This is passed through to the result callback. NOTE: A copy of this is taken immediately, so lifetime of this isn't important. */
+	const void* context;
 
-    PFN_on_asset_loaded_callback vfs_callback;
+	PFN_on_asset_loaded_callback vfs_callback;
 } vfs_request_info;
 
 /**

@@ -12,24 +12,24 @@ struct frame_data;
 
 /** @brief Describes a type of job */
 typedef enum job_type {
-    /**
-     * @brief A general job that does not have any specific thread requirements.
-     * This means it matters little which job thread this job runs on.
-     */
-    JOB_TYPE_GENERAL = 0x02,
+	/**
+	 * @brief A general job that does not have any specific thread requirements.
+	 * This means it matters little which job thread this job runs on.
+	 */
+	JOB_TYPE_GENERAL = 0x02,
 
-    /**
-     * @brief A resource loading job. Resources should always load on the same thread
-     * to avoid potential disk thrashing.
-     */
-    JOB_TYPE_RESOURCE_LOAD = 0x04,
+	/**
+	 * @brief A resource loading job. Resources should always load on the same thread
+	 * to avoid potential disk thrashing.
+	 */
+	JOB_TYPE_RESOURCE_LOAD = 0x04,
 
-    /**
-     * @brief Jobs using GPU resources should be bound to a thread using this job type. Multithreaded
-     * renderers will use a specific job thread, and this type of job will run on that thread.
-     * For single-threaded renderers, this will be on the main thread.
-     */
-    JOB_TYPE_GPU_RESOURCE = 0x08,
+	/**
+	 * @brief Jobs using GPU resources should be bound to a thread using this job type. Multithreaded
+	 * renderers will use a specific job thread, and this type of job will run on that thread.
+	 * For single-threaded renderers, this will be on the main thread.
+	 */
+	JOB_TYPE_GPU_RESOURCE = 0x08,
 } job_type;
 
 /**
@@ -38,63 +38,63 @@ typedef enum job_type {
  * be exhausted before processing the low-priority queue.
  */
 typedef enum job_priority {
-    /** @brief The lowest-priority job, used for things that can wait to be done if need be, such as log flushing. */
-    JOB_PRIORITY_LOW,
-    /** @brief A normal-priority job. Should be used for medium-priority tasks such as loading assets. */
-    JOB_PRIORITY_NORMAL,
-    /** @brief The highest-priority job. Should be used sparingly, and only for time-critical operations.*/
-    JOB_PRIORITY_HIGH
+	/** @brief The lowest-priority job, used for things that can wait to be done if need be, such as log flushing. */
+	JOB_PRIORITY_LOW,
+	/** @brief A normal-priority job. Should be used for medium-priority tasks such as loading assets. */
+	JOB_PRIORITY_NORMAL,
+	/** @brief The highest-priority job. Should be used sparingly, and only for time-critical operations.*/
+	JOB_PRIORITY_HIGH
 } job_priority;
 
 /**
  * @brief Describes a job to be run.
  */
 typedef struct job_info {
-    /** @brief The type of job. Used to determine which thread the job executes on. */
-    job_type type;
+	/** @brief The type of job. Used to determine which thread the job executes on. */
+	job_type type;
 
-    /** @brief The uniquie identifier of this job. */
-    u16 id;
+	/** @brief The uniquie identifier of this job. */
+	u16 id;
 
-    /** @brief The priority of this job. Higher priority jobs obviously run sooner. */
-    job_priority priority;
+	/** @brief The priority of this job. Higher priority jobs obviously run sooner. */
+	job_priority priority;
 
-    /** @brief A function pointer to be invoked when the job starts. Required. */
-    pfn_job_start entry_point;
+	/** @brief A function pointer to be invoked when the job starts. Required. */
+	pfn_job_start entry_point;
 
-    /** @brief A function pointer to be invoked when the job successfully completes. Optional. */
-    pfn_job_on_complete on_success;
+	/** @brief A function pointer to be invoked when the job successfully completes. Optional. */
+	pfn_job_on_complete on_success;
 
-    /** @brief A function pointer to be invoked when the job successfully fails. Optional. */
-    pfn_job_on_complete on_fail;
+	/** @brief A function pointer to be invoked when the job successfully fails. Optional. */
+	pfn_job_on_complete on_fail;
 
-    /** @brief Data to be passed to the entry point upon execution. */
-    void* param_data;
+	/** @brief Data to be passed to the entry point upon execution. */
+	void* param_data;
 
-    /** @brief The size of the data passed to the job. */
-    u32 param_data_size;
+	/** @brief The size of the data passed to the job. */
+	u32 param_data_size;
 
-    /** @brief Data to be passed to the success/fail function upon execution, if exists. */
-    void* result_data;
+	/** @brief Data to be passed to the success/fail function upon execution, if exists. */
+	void* result_data;
 
-    /** @brief The size of the data passed to the success/fail function. */
-    u32 result_data_size;
+	/** @brief The size of the data passed to the success/fail function. */
+	u32 result_data_size;
 
-    /** @brief A count of job identifiers that must be complete before this job starts. */
-    u8 dependency_count;
+	/** @brief A count of job identifiers that must be complete before this job starts. */
+	u8 dependency_count;
 
-    /** @brief An array of job identifiers that must be complete before this job starts. */
-    u16* dependency_ids;
+	/** @brief An array of job identifiers that must be complete before this job starts. */
+	u16* dependency_ids;
 } job_info;
 
 typedef struct job_system_config {
-    /**
-     * @param max_job_thread_count The maximum number of job threads to be spun up.
-     * Should be no more than the number of cores on the CPU, minus one to account for the main thread.
-     */
-    u8 max_job_thread_count;
-    /** @param type_masks A collection of type masks for each job thread. Must match max_job_thread_count. */
-    u32* type_masks;
+	/**
+	 * @param max_job_thread_count The maximum number of job threads to be spun up.
+	 * Should be no more than the number of cores on the CPU, minus one to account for the main thread.
+	 */
+	u8 max_job_thread_count;
+	/** @param type_masks A collection of type masks for each job thread. Must match max_job_thread_count. */
+	u32* type_masks;
 } job_system_config;
 
 /**
@@ -177,16 +177,16 @@ KAPI job_info job_create_priority(pfn_job_start entry_point, pfn_job_on_complete
  * @returns The newly created job information to be submitted for execution.
  */
 KAPI job_info job_create_with_dependencies(
-    pfn_job_start entry_point,
-    pfn_job_on_complete on_success,
-    pfn_job_on_complete on_fail,
-    void* param_data,
-    u32 param_data_size,
-    u32 result_data_size,
-    job_type type,
-    job_priority priority,
-    u8 dependency_count,
-    u16* dependencies);
+	pfn_job_start entry_point,
+	pfn_job_on_complete on_success,
+	pfn_job_on_complete on_fail,
+	void* param_data,
+	u32 param_data_size,
+	u32 result_data_size,
+	job_type type,
+	job_priority priority,
+	u8 dependency_count,
+	u16* dependencies);
 
 /**
  * @brief Returns whether or not the job with the given identifier has completed.

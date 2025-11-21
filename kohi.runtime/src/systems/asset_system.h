@@ -18,10 +18,10 @@
 #include <strings/kname.h>
 
 typedef struct asset_system_config {
-    // The maximum number of assets which may be loaded at once.
-    u32 max_asset_count;
+	// The maximum number of assets which may be loaded at once.
+	u32 max_asset_count;
 
-    kname default_package_name;
+	kname default_package_name;
 } asset_system_config;
 
 struct asset_system_state;
@@ -57,12 +57,12 @@ KAPI void asset_system_shutdown(struct asset_system_state* state);
 KAPI u32 _asset_system_watch_for_reload(struct asset_system_state* state, kasset_type type, kname asset_name, kname package_name);
 KAPI void _asset_system_stop_watch(struct asset_system_state* state, u32 watch_id);
 
-#    define asset_system_watch_for_reload(state, type, asset_name, package_name) _asset_system_watch_for_reload(state, type, asset_name, package_name)
-#    define asset_system_stop_watch(state, watch_id) _asset_system_stop_watch(state, watch_id)
+#	define asset_system_watch_for_reload(state, type, asset_name, package_name) _asset_system_watch_for_reload(state, type, asset_name, package_name)
+#	define asset_system_stop_watch(state, watch_id) _asset_system_stop_watch(state, watch_id)
 
 #else
-#    define asset_system_watch_for_reload(state, type, asset_name, package_name)
-#    define asset_system_stop_watch(state, watch_id)
+#	define asset_system_watch_for_reload(state, type, asset_name, package_name)
+#	define asset_system_stop_watch(state, watch_id)
 #endif
 
 // ////////////////////////////////////

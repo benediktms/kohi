@@ -19,62 +19,62 @@
 
 // Interface for a frame allocator.
 typedef struct frame_allocator_int {
-    void* (*allocate)(u64 size);
-    void (*free)(void* block, u64 size);
-    void (*free_all)(void);
-    u64 (*total_space)(void);
-    u64 (*allocated)(void);
+	void* (*allocate)(u64 size);
+	void (*free)(void* block, u64 size);
+	void (*free_all)(void);
+	u64 (*total_space)(void);
+	u64 (*allocated)(void);
 } frame_allocator_int;
 
 /** @brief Tags to indicate the usage of memory allocations made in this system. */
 typedef enum memory_tag {
-    // For temporary use. Should be assigned one of the below or have a new tag created.
-    MEMORY_TAG_UNKNOWN,
-    MEMORY_TAG_ARRAY,
-    MEMORY_TAG_LINEAR_ALLOCATOR,
-    MEMORY_TAG_POOL_ALLOCATOR,
-    MEMORY_TAG_DARRAY,
-    MEMORY_TAG_DICT,
-    MEMORY_TAG_RING_QUEUE,
-    MEMORY_TAG_BST,
-    MEMORY_TAG_STRING,
-    MEMORY_TAG_ENGINE,
-    MEMORY_TAG_JOB,
-    MEMORY_TAG_TEXTURE,
-    MEMORY_TAG_MATERIAL_INSTANCE,
-    MEMORY_TAG_RENDERER,
-    MEMORY_TAG_GAME,
-    MEMORY_TAG_TRANSFORM,
-    MEMORY_TAG_BINARY_STRING_TABLE,
-    MEMORY_TAG_BINARY_DATA,
-    MEMORY_TAG_SCENE,
-    MEMORY_TAG_RESOURCE,
-    MEMORY_TAG_VULKAN,
-    // "External" vulkan allocations, for reporting purposes only.
-    MEMORY_TAG_VULKAN_EXT,
-    MEMORY_TAG_DIRECT3D,
-    MEMORY_TAG_OPENGL,
-    // Representation of GPU-local/vram
-    MEMORY_TAG_GPU_LOCAL,
-    MEMORY_TAG_BITMAP_FONT,
-    MEMORY_TAG_SYSTEM_FONT,
-    MEMORY_TAG_KEYMAP,
-    MEMORY_TAG_HASHTABLE,
-    MEMORY_TAG_UI,
-    MEMORY_TAG_AUDIO,
-    MEMORY_TAG_REGISTRY,
-    MEMORY_TAG_PLUGIN,
-    MEMORY_TAG_PLATFORM,
-    MEMORY_TAG_SERIALIZER,
-    MEMORY_TAG_ASSET,
+	// For temporary use. Should be assigned one of the below or have a new tag created.
+	MEMORY_TAG_UNKNOWN,
+	MEMORY_TAG_ARRAY,
+	MEMORY_TAG_LINEAR_ALLOCATOR,
+	MEMORY_TAG_POOL_ALLOCATOR,
+	MEMORY_TAG_DARRAY,
+	MEMORY_TAG_DICT,
+	MEMORY_TAG_RING_QUEUE,
+	MEMORY_TAG_BST,
+	MEMORY_TAG_STRING,
+	MEMORY_TAG_ENGINE,
+	MEMORY_TAG_JOB,
+	MEMORY_TAG_TEXTURE,
+	MEMORY_TAG_MATERIAL_INSTANCE,
+	MEMORY_TAG_RENDERER,
+	MEMORY_TAG_GAME,
+	MEMORY_TAG_TRANSFORM,
+	MEMORY_TAG_BINARY_STRING_TABLE,
+	MEMORY_TAG_BINARY_DATA,
+	MEMORY_TAG_SCENE,
+	MEMORY_TAG_RESOURCE,
+	MEMORY_TAG_VULKAN,
+	// "External" vulkan allocations, for reporting purposes only.
+	MEMORY_TAG_VULKAN_EXT,
+	MEMORY_TAG_DIRECT3D,
+	MEMORY_TAG_OPENGL,
+	// Representation of GPU-local/vram
+	MEMORY_TAG_GPU_LOCAL,
+	MEMORY_TAG_BITMAP_FONT,
+	MEMORY_TAG_SYSTEM_FONT,
+	MEMORY_TAG_KEYMAP,
+	MEMORY_TAG_HASHTABLE,
+	MEMORY_TAG_UI,
+	MEMORY_TAG_AUDIO,
+	MEMORY_TAG_REGISTRY,
+	MEMORY_TAG_PLUGIN,
+	MEMORY_TAG_PLATFORM,
+	MEMORY_TAG_SERIALIZER,
+	MEMORY_TAG_ASSET,
 
-    MEMORY_TAG_MAX_TAGS
+	MEMORY_TAG_MAX_TAGS
 } memory_tag;
 
 /** @brief The configuration for the memory system. */
 typedef struct memory_system_configuration {
-    /** @brief The total memory size in byes used by the internal allocator for this system. */
-    u64 total_alloc_size;
+	/** @brief The total memory size in byes used by the internal allocator for this system. */
+	u64 total_alloc_size;
 } memory_system_configuration;
 
 /**
@@ -133,9 +133,9 @@ KAPI void* kallocate(u64 size, memory_tag tag);
  * @param count The number of elements in the array to be freed.
  */
 #define KFREE_TYPE_CARRAY(block, type, count)                 \
-    if (block) {                                              \
-        kfree(block, sizeof(type) * count, MEMORY_TAG_ARRAY); \
-    }
+	if (block) {                                              \
+		kfree(block, sizeof(type) * count, MEMORY_TAG_ARRAY); \
+	}
 
 /**
  * @brief Resizes the given array of the provided type, also copying the contents of the old
@@ -143,14 +143,14 @@ KAPI void* kallocate(u64 size, memory_tag tag);
  * NOTE: new_count must be greater than old_count
  */
 #define KRESIZE_ARRAY(array, type, old_count, new_count)     \
-    {                                                        \
-        type* temp = KALLOC_TYPE_CARRAY(type, new_count);    \
-        if (old_count && array) {                            \
-            KCOPY_TYPE_CARRAY(temp, array, type, old_count); \
-            KFREE_TYPE_CARRAY(array, type, old_count);       \
-        }                                                    \
-        array = temp;                                        \
-    }
+	{                                                        \
+		type* temp = KALLOC_TYPE_CARRAY(type, new_count);    \
+		if (old_count && array) {                            \
+			KCOPY_TYPE_CARRAY(temp, array, type, old_count); \
+			KFREE_TYPE_CARRAY(array, type, old_count);       \
+		}                                                    \
+		array = temp;                                        \
+	}
 
 /**
  * @brief Performs an aligned memory allocation from the host of the given size and alignment.

@@ -3,16 +3,16 @@
 #include "defines.h"
 
 typedef struct pool_allocator_free_node {
-    u64 offset;
-    struct pool_allocator_free_node* next;
+	u64 offset;
+	struct pool_allocator_free_node* next;
 } pool_allocator_free_node;
 
 typedef struct pool_allocator {
-    void* memory;
-    pool_allocator_free_node* free_list_nodes;
-    u64 element_size;
-    u64 capacity;
-    pool_allocator_free_node* free_list_head;
+	void* memory;
+	pool_allocator_free_node* free_list_nodes;
+	u64 element_size;
+	u64 capacity;
+	pool_allocator_free_node* free_list_head;
 } pool_allocator;
 
 KAPI pool_allocator pool_allocator_create(u64 element_size, u64 capacity);

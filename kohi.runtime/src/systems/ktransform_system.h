@@ -7,8 +7,8 @@
 struct frame_data;
 
 typedef struct ktransform_system_config {
-    // The initial number of slots to allocate for ktransforms on startup.
-    u32 initial_slot_count;
+	// The initial number of slots to allocate for ktransforms on startup.
+	u32 initial_slot_count;
 } ktransform_system_config;
 
 struct ktransform_system_state;

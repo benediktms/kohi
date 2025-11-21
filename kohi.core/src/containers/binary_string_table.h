@@ -23,24 +23,24 @@
 
 // A single entry in a binary string table.
 typedef struct binary_string_table_entry {
-    u32 offset;
-    u32 length;
+	u32 offset;
+	u32 length;
 } binary_string_table_entry;
 
 // Header for the binary string table.
 typedef struct binary_string_table_header {
-    u32 entry_count;
-    u64 data_block_size;
+	u32 entry_count;
+	u64 data_block_size;
 } binary_string_table_header;
 
 // The runtime representation of a binary string table.
 typedef struct binary_string_table {
-    binary_string_table_header header;
-    // Entry lookup
-    binary_string_table_entry* lookup;
-    // The data block holding all string data. Strings are NOT terminated since
-    // thier offset and length is stored in the header entries' lookup.
-    char* data;
+	binary_string_table_header header;
+	// Entry lookup
+	binary_string_table_entry* lookup;
+	// The data block holding all string data. Strings are NOT terminated since
+	// thier offset and length is stored in the header entries' lookup.
+	char* data;
 } binary_string_table;
 
 /**

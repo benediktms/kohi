@@ -47,72 +47,72 @@ struct vfs_state;
 struct kwindow;
 
 typedef struct engine_system_states {
-    u64 platform_memory_requirement;
-    struct platform_state* platform_system;
+	u64 platform_memory_requirement;
+	struct platform_state* platform_system;
 
-    u64 console_memory_requirement;
-    struct console_state* console_system;
+	u64 console_memory_requirement;
+	struct console_state* console_system;
 
-    u64 kvar_system_memory_requirement;
-    struct kvar_state* kvar_system;
+	u64 kvar_system_memory_requirement;
+	struct kvar_state* kvar_system;
 
-    u64 event_system_memory_requirement;
-    struct event_state* event_system;
+	u64 event_system_memory_requirement;
+	struct event_state* event_system;
 
-    u64 input_system_memory_requirement;
-    struct input_state* input_system;
+	u64 input_system_memory_requirement;
+	struct input_state* input_system;
 
-    u64 timeline_system_memory_requirement;
-    struct ktimeline_system_state* timeline_system;
+	u64 timeline_system_memory_requirement;
+	struct ktimeline_system_state* timeline_system;
 
-    u64 shader_system_memory_requirement;
-    struct shader_system_state* shader_system;
+	u64 shader_system_memory_requirement;
+	struct shader_system_state* shader_system;
 
-    u64 renderer_system_memory_requirement;
-    struct renderer_system_state* renderer_system;
+	u64 renderer_system_memory_requirement;
+	struct renderer_system_state* renderer_system;
 
-    u64 job_system_memory_requirement;
-    struct job_system_state* job_system;
+	u64 job_system_memory_requirement;
+	struct job_system_state* job_system;
 
-    u64 kaudio_system_memory_requirement;
-    struct kaudio_system_state* audio_system;
+	u64 kaudio_system_memory_requirement;
+	struct kaudio_system_state* audio_system;
 
-    u64 ktransform_system_memory_requirement;
-    struct ktransform_system_state* ktransform_system;
+	u64 ktransform_system_memory_requirement;
+	struct ktransform_system_state* ktransform_system;
 
-    u64 texture_system_memory_requirement;
-    struct texture_system_state* texture_system;
+	u64 texture_system_memory_requirement;
+	struct texture_system_state* texture_system;
 
-    u64 font_system_memory_requirement;
-    struct font_system_state* font_system;
+	u64 font_system_memory_requirement;
+	struct font_system_state* font_system;
 
-    u64 material_system_memory_requirement;
-    struct kmaterial_system_state* material_system;
-    struct kmaterial_renderer* material_renderer;
+	u64 material_system_memory_requirement;
+	struct kmaterial_system_state* material_system;
+	struct kmaterial_renderer* material_renderer;
 
-    u64 static_mesh_system_memory_requirement;
-    struct static_mesh_system_state* static_mesh_system;
+	u64 static_mesh_system_memory_requirement;
+	struct static_mesh_system_state* static_mesh_system;
 
-    u64 light_system_memory_requirement;
-    struct light_system_state* light_system;
+	u64 light_system_memory_requirement;
+	struct light_system_state* light_system;
 
-    u64 model_system_memory_requirement;
-    struct kmodel_system_state* model_system;
+	u64 model_system_memory_requirement;
+	struct kmodel_system_state* model_system;
 
-    u64 camera_system_memory_requirement;
-    struct camera_system_state* camera_system;
+	u64 camera_system_memory_requirement;
+	struct camera_system_state* camera_system;
 
-    u64 plugin_system_memory_requirement;
-    struct plugin_system_state* plugin_system;
+	u64 plugin_system_memory_requirement;
+	struct plugin_system_state* plugin_system;
 
-    u64 rendergraph_system_memory_requirement;
-    struct rendergraph_system_state* rendergraph_system;
+	u64 rendergraph_system_memory_requirement;
+	struct rendergraph_system_state* rendergraph_system;
 
-    u64 vfs_system_memory_requirement;
-    struct vfs_state* vfs_system_state;
+	u64 vfs_system_memory_requirement;
+	struct vfs_state* vfs_system_state;
 
-    u64 asset_system_memory_requirement;
-    struct asset_system_state* asset_state;
+	u64 asset_system_memory_requirement;
+	struct asset_system_state* asset_state;
 } engine_system_states;
 
 /**

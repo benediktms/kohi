@@ -65,48 +65,48 @@ extern const char* application_config_path_get(void);
  */
 int main(void) {
 
-    // TODO: load up application config file, get it parsed and ready to hand off.
-    // Request the application instance from the application.
-    application app_inst = {0};
+	// TODO: load up application config file, get it parsed and ready to hand off.
+	// Request the application instance from the application.
+	application app_inst = {0};
 
-    const char* app_file_content = filesystem_read_entire_text_file(application_config_path_get());
-    if (!app_file_content) {
-        KFATAL("Failed to read app_config.kson file text. Application cannot start.");
-        return -68;
-    }
+	const char* app_file_content = filesystem_read_entire_text_file(application_config_path_get());
+	if (!app_file_content) {
+		KFATAL("Failed to read app_config.kson file text. Application cannot start.");
+		return -68;
+	}
 
-    if (!application_config_parse_file_content(app_file_content, &app_inst.app_config)) {
-        KFATAL("Failed to parse application config. Cannot start.");
-        return -69;
-    }
+	if (!application_config_parse_file_content(app_file_content, &app_inst.app_config)) {
+		KFATAL("Failed to parse application config. Cannot start.");
+		return -69;
+	}
 
-    if (!create_application(&app_inst)) {
-        KFATAL("Could not create application!");
-        return -1;
-    }
+	if (!create_application(&app_inst)) {
+		KFATAL("Could not create application!");
+		return -1;
+	}
 
-    // Ensure the function pointers exist.
-    if (!app_inst.render_frame || !app_inst.prepare_frame || !app_inst.update || !app_inst.initialize) {
-        KFATAL("The application's function pointers must be assigned!");
-        return -2;
-    }
+	// Ensure the function pointers exist.
+	if (!app_inst.render_frame || !app_inst.prepare_frame || !app_inst.update || !app_inst.initialize) {
+		KFATAL("The application's function pointers must be assigned!");
+		return -2;
+	}
 
-    // Initialization.
-    if (!engine_create(&app_inst)) {
-        KFATAL("Engine failed to create!.");
-        return 1;
-    }
+	// Initialization.
+	if (!engine_create(&app_inst)) {
+		KFATAL("Engine failed to create!.");
+		return 1;
+	}
 
-    if (!initialize_application(&app_inst)) {
-        KFATAL("Could not initialize application!");
-        return -1;
-    }
+	if (!initialize_application(&app_inst)) {
+		KFATAL("Could not initialize application!");
+		return -1;
+	}
 
-    // Begin the engine loop.
-    if (!engine_run(&app_inst)) {
-        KINFO("Application did not shutdown gracefully.");
-        return 2;
-    }
+	// Begin the engine loop.
+	if (!engine_run(&app_inst)) {
+		KINFO("Application did not shutdown gracefully.");
+		return 2;
+	}
 
-    return 0;
+	return 0;
 }

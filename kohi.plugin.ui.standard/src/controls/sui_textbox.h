@@ -13,25 +13,25 @@
  * - The ability to hightlight text, then add/remove/overwrite highlighted text.
  */
 typedef struct sui_textbox_internal_data {
-    vec2i size;
-    vec4 colour;
-    nine_slice nslice;
-    u32 binding_instance_id;
-    sui_control content_label;
-    sui_control cursor;
-    sui_control highlight_box;
-    range32 highlight_range;
-    u32 cursor_position;
-    f32 text_view_offset;
-    sui_clip_mask clip_mask;
+	vec2i size;
+	vec4 colour;
+	nine_slice nslice;
+	u32 binding_instance_id;
+	sui_control content_label;
+	sui_control cursor;
+	sui_control highlight_box;
+	range32 highlight_range;
+	u32 cursor_position;
+	f32 text_view_offset;
+	sui_clip_mask clip_mask;
 
-    // Cached copy of the internal label's line height (taken in turn from its font.)
-    f32 label_line_height;
+	// Cached copy of the internal label's line height (taken in turn from its font.)
+	f32 label_line_height;
 
-    // HACK: Need to store a pointer to the standard ui state here because
-    // the event system can only pass a single pointer, which is already occupied
-    // by "self". Should probably re-think this before adding too many more controls.
-    struct standard_ui_state* state;
+	// HACK: Need to store a pointer to the standard ui state here because
+	// the event system can only pass a single pointer, which is already occupied
+	// by "self". Should probably re-think this before adding too many more controls.
+	struct standard_ui_state* state;
 } sui_textbox_internal_data;
 
 KAPI b8 sui_textbox_control_create(standard_ui_state* state, const char* name, font_type type, kname font_name, u16 font_size, const char* text, struct sui_control* out_control);

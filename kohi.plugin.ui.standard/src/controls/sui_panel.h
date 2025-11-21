@@ -5,11 +5,11 @@
 struct geometry;
 
 typedef struct sui_panel_internal_data {
-    vec4 rect;
-    vec4 colour;
-    kgeometry g;
-    u32 binding_instance_id;
-    b8 is_dirty;
+	vec4 rect;
+	vec4 colour;
+	kgeometry g;
+	u32 binding_instance_id;
+	b8 is_dirty;
 } sui_panel_internal_data;
 
 KAPI b8 sui_panel_control_create(standard_ui_state* state, const char* name, vec2 size, vec4 colour, struct sui_control* out_control);

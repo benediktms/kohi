@@ -14,8 +14,8 @@ b8 fnt_2_kbf(const char* source_path, const char* target_path);
 b8 dae_fbx_2_kam(const char* source_path, const char* target_path, const char* material_target_dir, const char* package_name);
 
 typedef struct import_option {
-    const char* name;
-    const char* value;
+	const char* name;
+	const char* value;
 } import_option;
 
 b8 import_from_path(const char* source_path, const char* target_path, u8 option_count, const import_option* options);

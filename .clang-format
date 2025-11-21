@@ -5,3 +5,5 @@ NamespaceIndentation: All
 BreakBeforeBraces: Attach
 PointerAlignment: Left
 IndentPPDirectives: AfterHash
+UseTab: Always
+TabWidth: 4

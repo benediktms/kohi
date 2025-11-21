@@ -1,15 +1,15 @@
 #pragma once
 
 #include "containers/queue.h"
+#include "defines.h"
 #include "threads/kmutex.h"
 #include "threads/ksemaphore.h"
 #include "threads/kthread.h"
-#include "defines.h"
 
 typedef struct worker_thread {
-    kthread thread;
-    queue work_queue;
-    kmutex queue_mutex;
+	kthread thread;
+	queue work_queue;
+	kmutex queue_mutex;
 } worker_thread;
 
 KAPI b8 worker_thread_create(worker_thread* out_thread);

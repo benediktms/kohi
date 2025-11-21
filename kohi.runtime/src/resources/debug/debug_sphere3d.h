@@ -6,15 +6,15 @@
 #include "systems/ktransform_system.h"
 
 typedef struct debug_sphere3d {
-    kname name;
-    f32 radius;
-    vec4 colour;
-    ktransform ktransform;
-    ktransform parent_ktransform;
+	kname name;
+	f32 radius;
+	vec4 colour;
+	ktransform ktransform;
+	ktransform parent_ktransform;
 
-    b8 is_dirty;
+	b8 is_dirty;
 
-    kgeometry geometry;
+	kgeometry geometry;
 } debug_sphere3d;
 
 struct frame_data;

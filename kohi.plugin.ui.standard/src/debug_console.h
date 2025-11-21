@@ -4,31 +4,31 @@
 #include "standard_ui_system.h"
 
 typedef struct command_history_entry {
-    const char* command;
+	const char* command;
 } command_history_entry;
 
 // TODO(travis): statically-defined state for now.
 typedef struct debug_console_state {
-    b8 loaded;
-    u8 console_consumer_id;
-    // Number of lines displayed at once.
-    u32 line_display_count;
-    // Number of lines offset from bottom of list.
-    u32 line_offset;
-    // darray
-    char** lines;
-    // darray
-    command_history_entry* history;
-    i32 history_offset;
+	b8 loaded;
+	u8 console_consumer_id;
+	// Number of lines displayed at once.
+	u32 line_display_count;
+	// Number of lines offset from bottom of list.
+	u32 line_offset;
+	// darray
+	char** lines;
+	// darray
+	command_history_entry* history;
+	i32 history_offset;
 
-    b8 dirty;
-    b8 visible;
+	b8 dirty;
+	b8 visible;
 
-    sui_control bg_panel;
-    sui_control text_control;
-    sui_control entry_textbox;
+	sui_control bg_panel;
+	sui_control text_control;
+	sui_control entry_textbox;
 
-    standard_ui_state* sui_state;
+	standard_ui_state* sui_state;
 
 } debug_console_state;
 

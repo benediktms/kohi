@@ -10,14 +10,14 @@ struct viewport;
 struct camera;
 
 typedef struct render_view_wireframe_data {
-    // darray
-    geometry_render_data* world_geometries;
-    // darray
-    geometry_render_data* terrain_geometries;
-    // darray
-    geometry_render_data* debug_geometries;
+	// darray
+	geometry_render_data* world_geometries;
+	// darray
+	geometry_render_data* terrain_geometries;
+	// darray
+	geometry_render_data* debug_geometries;
 
-    u32 selected_id;
+	u32 selected_id;
 } render_view_wireframe_data;
 
 b8 render_view_wireframe_on_registered(struct render_view* self);

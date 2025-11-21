@@ -41,18 +41,18 @@ struct frame_data;
 struct viewport;
 
 typedef struct renderer_system_config {
-    const char* application_name;
-    const char* backend_plugin_name;
-    b8 vsync;
-    b8 enable_validation;
-    b8 power_saving;
-    b8 triple_buffering_enabled;
+	const char* application_name;
+	const char* backend_plugin_name;
+	b8 vsync;
+	b8 enable_validation;
+	b8 power_saving;
+	b8 triple_buffering_enabled;
 
-    // The max number of shaders that can be held. Must match the shader system's count.
-    u16 max_shader_count;
-    u16 max_texture_count;
+	// The max number of shaders that can be held. Must match the shader system's count.
+	u16 max_shader_count;
+	u16 max_texture_count;
 
-    b8 require_discrete_gpu;
+	b8 require_discrete_gpu;
 } renderer_system_config;
 
 struct renderer_system_state;
@@ -453,19 +453,19 @@ KAPI void renderer_texture_prepare_for_sampling(struct renderer_system_state* st
  * @return b8 True on success; otherwise false.
  */
 KAPI b8 renderer_shader_create(
-    struct renderer_system_state* state,
-    kshader shader,
-    kname name,
-    shader_flags flags,
-    u32 topology_types,
-    u32 stage_count,
-    shader_stage* stages,
-    kname* stage_names,
-    const char** stage_sources,
-    u32 attribute_count,
-    const shader_attribute* attributes,
-    u8 binding_set_count,
-    const shader_binding_set_config* binding_sets);
+	struct renderer_system_state* state,
+	kshader shader,
+	kname name,
+	shader_flags flags,
+	u32 topology_types,
+	u32 stage_count,
+	shader_stage* stages,
+	kname* stage_names,
+	const char** stage_sources,
+	u32 attribute_count,
+	const shader_attribute* attributes,
+	u8 binding_set_count,
+	const shader_binding_set_config* binding_sets);
 
 /**
  * @brief Destroys the given shader and releases any resources held by it.

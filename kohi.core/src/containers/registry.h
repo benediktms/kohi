@@ -19,10 +19,10 @@
 #include "identifiers/khandle.h"
 
 typedef enum kregistry_entry_change_type {
-    // The block of memory was changed/replaced.
-    K_REGISTRY_CHANGE_TYPE_BLOCK_CHANGED,
-    // The block of memory/the entry was destroyed.
-    K_REGISTRY_CHANGE_TYPE_DESTROYED
+	// The block of memory was changed/replaced.
+	K_REGISTRY_CHANGE_TYPE_BLOCK_CHANGED,
+	// The block of memory/the entry was destroyed.
+	K_REGISTRY_CHANGE_TYPE_DESTROYED
 } kregistry_entry_change_type;
 
 /**
@@ -31,24 +31,24 @@ typedef enum kregistry_entry_change_type {
 typedef void (*PFN_on_registry_entry_updated)(void* sender, void* block, u64 size, kregistry_entry_change_type change_type);
 
 typedef struct kregistry_entry_listener_callback {
-    void* listener;
-    PFN_on_registry_entry_updated callback;
+	void* listener;
+	PFN_on_registry_entry_updated callback;
 } kregistry_entry_listener_callback;
 
 typedef struct kregistry_entry {
-    u64 uniqueid;
-    u64 block_size;
-    void* block;
-    i32 reference_count;
-    b8 auto_release;
+	u64 uniqueid;
+	u64 block_size;
+	void* block;
+	i32 reference_count;
+	b8 auto_release;
 
-    // darray
-    kregistry_entry_listener_callback* callbacks;
+	// darray
+	kregistry_entry_listener_callback* callbacks;
 } kregistry_entry;
 
 typedef struct k_registry {
-    // darray
-    kregistry_entry* entries;
+	// darray
+	kregistry_entry* entries;
 } kregistry;
 
 /**

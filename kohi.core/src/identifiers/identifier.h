@@ -18,8 +18,8 @@
  * To be used primarily as an identifier for resources. (De)serialization friendly.
  */
 typedef struct identifier {
-    // The actual internal identifier.
-    u64 uniqueid;
+	// The actual internal identifier.
+	u64 uniqueid;
 } identifier;
 
 /**

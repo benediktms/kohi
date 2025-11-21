@@ -7,9 +7,9 @@ struct kwindow;
 struct standard_ui_state;
 
 typedef struct standard_ui_plugin_state {
-    u64 sui_state_memory_requirement;
-    struct standard_ui_state* state;
-    standard_ui_render_data* render_data;
+	u64 sui_state_memory_requirement;
+	struct standard_ui_state* state;
+	standard_ui_render_data* render_data;
 } standard_ui_plugin_state;
 
 KAPI b8 kplugin_create(struct kruntime_plugin* out_plugin);

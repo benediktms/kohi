@@ -32,20 +32,20 @@
  * @param out_image A pointer to hold the newly-created image.
  */
 void vulkan_image_create(
-    vulkan_context* context,
-    ktexture_type type,
-    u32 width,
-    u32 height,
-    u16 layer_count,
-    VkFormat format,
-    VkImageTiling tiling,
-    VkImageUsageFlags usage,
-    VkMemoryPropertyFlags memory_flags,
-    b32 create_view,
-    VkImageAspectFlags view_aspect_flags,
-    const char* name,
-    u32 mip_levels,
-    vulkan_image* out_image);
+	vulkan_context* context,
+	ktexture_type type,
+	u32 width,
+	u32 height,
+	u16 layer_count,
+	VkFormat format,
+	VkImageTiling tiling,
+	VkImageUsageFlags usage,
+	VkMemoryPropertyFlags memory_flags,
+	b32 create_view,
+	VkImageAspectFlags view_aspect_flags,
+	const char* name,
+	u32 mip_levels,
+	vulkan_image* out_image);
 
 /**
  * @brief Destroys the given image.
@@ -76,12 +76,12 @@ void vulkan_image_recreate(vulkan_context* context, vulkan_image* image);
  * @param new_layout The new layout.
  */
 void vulkan_image_transition_layout(
-    vulkan_context* context,
-    vulkan_command_buffer* command_buffer,
-    vulkan_image* image,
-    VkFormat format,
-    VkImageLayout old_layout,
-    VkImageLayout new_layout);
+	vulkan_context* context,
+	vulkan_command_buffer* command_buffer,
+	vulkan_image* image,
+	VkFormat format,
+	VkImageLayout old_layout,
+	VkImageLayout new_layout);
 
 /**
  * @brief Generates mipmaps for the given image based on mip_levels set in the image.
@@ -93,9 +93,9 @@ void vulkan_image_transition_layout(
  * @returns True on success; otherwise false.
  */
 b8 vulkan_image_mipmaps_generate(
-    vulkan_context* context,
-    vulkan_image* image,
-    vulkan_command_buffer* command_buffer);
+	vulkan_context* context,
+	vulkan_image* image,
+	vulkan_command_buffer* command_buffer);
 
 /**
  * @brief Copies data in buffer to provided image.
@@ -106,11 +106,11 @@ b8 vulkan_image_mipmaps_generate(
  * @param command_buffer A pointer to the command buffer to be used for this operation.
  */
 void vulkan_image_copy_from_buffer(
-    vulkan_context* context,
-    vulkan_image* image,
-    VkBuffer buffer,
-    u64 offset,
-    vulkan_command_buffer* command_buffer);
+	vulkan_context* context,
+	vulkan_image* image,
+	VkBuffer buffer,
+	u64 offset,
+	vulkan_command_buffer* command_buffer);
 
 /**
  * @brief Copies data in the provided image to the given buffer.
@@ -121,10 +121,10 @@ void vulkan_image_copy_from_buffer(
  * @param command_buffer The command buffer to be used for the copy.
  */
 void vulkan_image_copy_to_buffer(
-    vulkan_context* context,
-    vulkan_image* image,
-    VkBuffer buffer,
-    vulkan_command_buffer* command_buffer);
+	vulkan_context* context,
+	vulkan_image* image,
+	VkBuffer buffer,
+	vulkan_command_buffer* command_buffer);
 
 /**
  * @brief Copies a single pixel's data from the given image to the provided buffer.
@@ -139,11 +139,11 @@ void vulkan_image_copy_to_buffer(
  * @param command_buffer The command buffer to be used for the copy.
  */
 void vulkan_image_copy_region_to_buffer(
-    vulkan_context* context,
-    vulkan_image* image,
-    VkBuffer buffer,
-    u32 x,
-    u32 y,
-    u32 width,
-    u32 height,
-    vulkan_command_buffer* command_buffer);
+	vulkan_context* context,
+	vulkan_image* image,
+	VkBuffer buffer,
+	u32 x,
+	u32 y,
+	u32 width,
+	u32 height,
+	vulkan_command_buffer* command_buffer);

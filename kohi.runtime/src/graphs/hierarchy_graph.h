@@ -25,49 +25,49 @@
 struct frame_data;
 
 typedef struct hierarchy_graph_view_node {
-    khierarchy_node node_handle;
-    ktransform ktransform_handle;
+	khierarchy_node node_handle;
+	ktransform ktransform_handle;
 
-    // An index into the view's nodes array. INVALID_ID if no parent.
-    u32 parent_index;
+	// An index into the view's nodes array. INVALID_ID if no parent.
+	u32 parent_index;
 
-    // darray An array of indices into the view's nodes array.
-    u32* children;
+	// darray An array of indices into the view's nodes array.
+	u32* children;
 } hierarchy_graph_view_node;
 
 typedef struct hierarchy_graph_view {
-    // darray A collective list of all view nodes.
-    hierarchy_graph_view_node* nodes;
-    // darray An array of indices into the nodes array.
-    u32* root_indices;
+	// darray A collective list of all view nodes.
+	hierarchy_graph_view_node* nodes;
+	// darray An array of indices into the nodes array.
+	u32* root_indices;
 } hierarchy_graph_view;
 
 typedef struct hierarchy_graph {
-    u32 nodes_allocated;
-    // Node indices. Populated nodes will match index in the array. Invalid handle = empty slot.
-    khierarchy_node* node_handles;
-    // Parent indices in the internal node array.
-    u32* parent_indices;
-    // Levels within the hierarchy. 0 = a root node.
-    // NOTE: might just keep this in debug builds only, but it might
-    // be useful for something.
-    u8* levels;
-    // Flags to mark the node as dirty.
-    b8* dirty_flags;
+	u32 nodes_allocated;
+	// Node indices. Populated nodes will match index in the array. Invalid handle = empty slot.
+	khierarchy_node* node_handles;
+	// Parent indices in the internal node array.
+	u32* parent_indices;
+	// Levels within the hierarchy. 0 = a root node.
+	// NOTE: might just keep this in debug builds only, but it might
+	// be useful for something.
+	u8* levels;
+	// Flags to mark the node as dirty.
+	b8* dirty_flags;
 
-    // Handles to the transforms.
-    // NOTE: This can be an invalid handle, meaning that this node
-    // does not have a transform. This allows nodes to exist in the hierarchy
-    // which do not have transforms (i.e. a skybox doesn't need one).
-    ktransform* ktransform_handles;
+	// Handles to the transforms.
+	// NOTE: This can be an invalid handle, meaning that this node
+	// does not have a transform. This allows nodes to exist in the hierarchy
+	// which do not have transforms (i.e. a skybox doesn't need one).
+	ktransform* ktransform_handles;
 
-    // Metadata associated with each node.
-    u64* meta;
-    // Default value to be used for metadata
-    u64 default_meta_value;
+	// Metadata associated with each node.
+	u64* meta;
+	// Default value to be used for metadata
+	u64 default_meta_value;
 
-    // A view of the tree.
-    hierarchy_graph_view view;
+	// A view of the tree.
+	hierarchy_graph_view view;
 } hierarchy_graph;
 
 /**

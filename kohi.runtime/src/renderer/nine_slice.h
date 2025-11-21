@@ -4,30 +4,30 @@
 #include "renderer/renderer_types.h"
 
 typedef struct nine_slice {
-    // Actual corner w/h
-    vec2i corner_size;
-    // Sampled corner w/h
-    vec2i corner_px_size;
+	// Actual corner w/h
+	vec2i corner_size;
+	// Sampled corner w/h
+	vec2i corner_px_size;
 
-    // Overall w/h of 9-slice.
-    vec2i size;
+	// Overall w/h of 9-slice.
+	vec2i size;
 
-    vec2i atlas_px_min;
-    vec2i atlas_px_max;
+	vec2i atlas_px_min;
+	vec2i atlas_px_max;
 
-    vec2i atlas_px_size;
+	vec2i atlas_px_size;
 
-    b8 is_dirty;
+	b8 is_dirty;
 
-    /** @brief The center of the geometry in local coordinates. */
-    vec3 center;
-    /** @brief The extents of the geometry in local coordinates. */
-    extents_3d extents;
+	/** @brief The center of the geometry in local coordinates. */
+	vec3 center;
+	/** @brief The extents of the geometry in local coordinates. */
+	extents_3d extents;
 
-    /** @brief The vertex renderbuffer data. */
-    renderbuffer_data vertex_data;
-    /** @brief The index renderbuffer data. */
-    renderbuffer_data index_data;
+	/** @brief The vertex renderbuffer data. */
+	renderbuffer_data vertex_data;
+	/** @brief The index renderbuffer data. */
+	renderbuffer_data index_data;
 
 } nine_slice;
 

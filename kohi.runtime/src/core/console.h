@@ -29,8 +29,8 @@ typedef b8 (*PFN_console_consumer_write)(void* inst, log_level level, const char
  * processing.
  */
 typedef struct console_command_argument {
-    /** @brief The argument's value. */
-    const char* value;
+	/** @brief The argument's value. */
+	const char* value;
 } console_command_argument;
 
 /**
@@ -38,18 +38,18 @@ typedef struct console_command_argument {
  * command (i.e. arguments to the command).
  */
 typedef struct console_command_context {
-    /** @brief The full, original console command. */
-    const char* command;
+	/** @brief The full, original console command. */
+	const char* command;
 
-    /** @brief The console command name only. */
-    const char* command_name;
+	/** @brief The console command name only. */
+	const char* command_name;
 
-    /** @brief The number of arguments passed.*/
-    u8 argument_count;
-    /** @brief The arguments array. */
-    console_command_argument* arguments;
-    /** @brief A pointer to a listener, if required. */
-    void* listener;
+	/** @brief The number of arguments passed.*/
+	u8 argument_count;
+	/** @brief The arguments array. */
+	console_command_argument* arguments;
+	/** @brief A pointer to a listener, if required. */
+	void* listener;
 } console_command_context;
 
 /**
@@ -136,11 +136,11 @@ KAPI b8 console_command_unregister(const char* command);
 KAPI b8 console_command_execute(const char* command);
 
 typedef enum console_object_type {
-    CONSOLE_OBJECT_TYPE_INT32,
-    CONSOLE_OBJECT_TYPE_UINT32,
-    CONSOLE_OBJECT_TYPE_F32,
-    CONSOLE_OBJECT_TYPE_BOOL,
-    CONSOLE_OBJECT_TYPE_STRUCT
+	CONSOLE_OBJECT_TYPE_INT32,
+	CONSOLE_OBJECT_TYPE_UINT32,
+	CONSOLE_OBJECT_TYPE_F32,
+	CONSOLE_OBJECT_TYPE_BOOL,
+	CONSOLE_OBJECT_TYPE_STRUCT
 } console_object_type;
 
 KAPI b8 console_object_register(const char* object_name, void* object, console_object_type type);

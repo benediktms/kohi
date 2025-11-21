@@ -7,14 +7,14 @@
 struct texture_map;
 
 typedef struct water_plane {
-    mat4 model;
-    vertex_3d vertices[4];
-    u32 indices[6];
-    u64 index_buffer_offset;
-    u64 vertex_buffer_offset;
+	mat4 model;
+	vertex_3d vertices[4];
+	u32 indices[6];
+	u64 index_buffer_offset;
+	u64 vertex_buffer_offset;
 
-    // Instance of water material.
-    kmaterial_instance material;
+	// Instance of water material.
+	kmaterial_instance material;
 
 } water_plane;
 

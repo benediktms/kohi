@@ -6,15 +6,15 @@
 #include "systems/ktransform_system.h"
 
 typedef struct debug_line3d {
-    char* name;
-    vec3 point_0;
-    vec3 point_1;
-    vec4 colour;
-    ktransform ktransform;
-    ktransform ktransform_parent;
-    b8 is_dirty;
+	char* name;
+	vec3 point_0;
+	vec3 point_1;
+	vec4 colour;
+	ktransform ktransform;
+	ktransform ktransform_parent;
+	b8 is_dirty;
 
-    kgeometry geometry;
+	kgeometry geometry;
 } debug_line3d;
 
 struct frame_data;

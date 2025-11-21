@@ -18,60 +18,60 @@
 #include "strings/kstring_id.h"
 
 typedef enum kson_token_type {
-    KSON_TOKEN_TYPE_UNKNOWN,
-    KSON_TOKEN_TYPE_WHITESPACE,
-    KSON_TOKEN_TYPE_COMMENT,
-    KSON_TOKEN_TYPE_IDENTIFIER,
-    KSON_TOKEN_TYPE_OPERATOR_EQUAL,
-    KSON_TOKEN_TYPE_OPERATOR_MINUS,
-    KSON_TOKEN_TYPE_OPERATOR_PLUS,
-    KSON_TOKEN_TYPE_OPERATOR_SLASH,
-    KSON_TOKEN_TYPE_OPERATOR_ASTERISK,
-    KSON_TOKEN_TYPE_OPERATOR_DOT,
-    KSON_TOKEN_TYPE_STRING_LITERAL,
-    KSON_TOKEN_TYPE_NUMERIC_LITERAL,
-    KSON_TOKEN_TYPE_BOOLEAN,
-    KSON_TOKEN_TYPE_CURLY_BRACE_OPEN,
-    KSON_TOKEN_TYPE_CURLY_BRACE_CLOSE,
-    KSON_TOKEN_TYPE_BRACKET_OPEN,
-    KSON_TOKEN_TYPE_BRACKET_CLOSE,
-    KSON_TOKEN_TYPE_NEWLINE,
-    KSON_TOKEN_TYPE_EOF
+	KSON_TOKEN_TYPE_UNKNOWN,
+	KSON_TOKEN_TYPE_WHITESPACE,
+	KSON_TOKEN_TYPE_COMMENT,
+	KSON_TOKEN_TYPE_IDENTIFIER,
+	KSON_TOKEN_TYPE_OPERATOR_EQUAL,
+	KSON_TOKEN_TYPE_OPERATOR_MINUS,
+	KSON_TOKEN_TYPE_OPERATOR_PLUS,
+	KSON_TOKEN_TYPE_OPERATOR_SLASH,
+	KSON_TOKEN_TYPE_OPERATOR_ASTERISK,
+	KSON_TOKEN_TYPE_OPERATOR_DOT,
+	KSON_TOKEN_TYPE_STRING_LITERAL,
+	KSON_TOKEN_TYPE_NUMERIC_LITERAL,
+	KSON_TOKEN_TYPE_BOOLEAN,
+	KSON_TOKEN_TYPE_CURLY_BRACE_OPEN,
+	KSON_TOKEN_TYPE_CURLY_BRACE_CLOSE,
+	KSON_TOKEN_TYPE_BRACKET_OPEN,
+	KSON_TOKEN_TYPE_BRACKET_CLOSE,
+	KSON_TOKEN_TYPE_NEWLINE,
+	KSON_TOKEN_TYPE_EOF
 } kson_token_type;
 
 typedef struct kson_token {
-    kson_token_type type;
-    u32 start;
-    u32 end;
+	kson_token_type type;
+	u32 start;
+	u32 end;
 #ifdef KOHI_DEBUG
-    const char* content;
+	const char* content;
 #endif
 } kson_token;
 
 typedef struct kson_parser {
-    const char* file_content;
-    u32 position;
+	const char* file_content;
+	u32 position;
 
-    // darray
-    kson_token* tokens;
+	// darray
+	kson_token* tokens;
 } kson_parser;
 
 typedef enum kson_property_type {
-    // TODO: Do we want to support undefined/null types. If so, pick one and just use that, no defining both.
-    KSON_PROPERTY_TYPE_UNKNOWN,
-    KSON_PROPERTY_TYPE_INT,
-    KSON_PROPERTY_TYPE_FLOAT,
-    KSON_PROPERTY_TYPE_STRING,
-    KSON_PROPERTY_TYPE_OBJECT,
-    KSON_PROPERTY_TYPE_ARRAY,
-    KSON_PROPERTY_TYPE_BOOLEAN,
+	// TODO: Do we want to support undefined/null types. If so, pick one and just use that, no defining both.
+	KSON_PROPERTY_TYPE_UNKNOWN,
+	KSON_PROPERTY_TYPE_INT,
+	KSON_PROPERTY_TYPE_FLOAT,
+	KSON_PROPERTY_TYPE_STRING,
+	KSON_PROPERTY_TYPE_OBJECT,
+	KSON_PROPERTY_TYPE_ARRAY,
+	KSON_PROPERTY_TYPE_BOOLEAN,
 } kson_property_type;
 
 struct kson_property;
 
 typedef enum kson_object_type {
-    KSON_OBJECT_TYPE_OBJECT,
-    KSON_OBJECT_TYPE_ARRAY
+	KSON_OBJECT_TYPE_OBJECT,
+	KSON_OBJECT_TYPE_ARRAY
 } kson_object_type;
 
 // An object which can contain properties. Objects
@@ -80,9 +80,9 @@ typedef enum kson_object_type {
 // difference: An object's properties are required to
 // be named, whereas array properties are unnamed.
 typedef struct kson_object {
-    kson_object_type type;
-    // darray
-    struct kson_property* properties;
+	kson_object_type type;
+	// darray
+	struct kson_property* properties;
 } kson_object;
 
 // An alias to represent kson arrays, which are really just
@@ -91,36 +91,36 @@ typedef kson_object kson_array;
 
 // Represents a property value for a kson property.
 typedef union kson_property_value {
-    // Signed 64-bit int value.
-    i64 i;
-    // 32-bit float value.
-    f32 f;
-    // String value.
-    const char* s;
-    // Array or object value.
-    kson_object o;
-    // Boolean value.
-    b8 b;
+	// Signed 64-bit int value.
+	i64 i;
+	// 32-bit float value.
+	f32 f;
+	// String value.
+	const char* s;
+	// Array or object value.
+	kson_object o;
+	// Boolean value.
+	b8 b;
 } kson_property_value;
 
 // Represents a singe property for a kson object or array.
 typedef struct kson_property {
-    // The type of property.
-    kson_property_type type;
-    // The name of the property. If this belongs to an array, it should be INVALID_KSTRING_ID.
-    kstring_id name;
+	// The type of property.
+	kson_property_type type;
+	// The name of the property. If this belongs to an array, it should be INVALID_KSTRING_ID.
+	kstring_id name;
 #ifdef KOHI_DEBUG
-    // The original named string. Only used in debug builds.
-    const char* name_str;
+	// The original named string. Only used in debug builds.
+	const char* name_str;
 #endif
-    // The property value.
-    kson_property_value value;
+	// The property value.
+	kson_property_value value;
 } kson_property;
 
 // Represents a hierarchy of kson objects.
 typedef struct kson_tree {
-    // The root object, which always must exist.
-    kson_object root;
+	// The root object, which always must exist.
+	kson_object root;
 } kson_tree;
 
 /**

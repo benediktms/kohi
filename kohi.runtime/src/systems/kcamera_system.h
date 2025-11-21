@@ -17,21 +17,21 @@
 
 /** @brief The camera system configuration. */
 typedef struct kcamera_system_config {
-    /**
-     * @brief NOTE: The maximum number of cameras that can be managed by
-     * the system.
-     */
-    u8 max_camera_count;
+	/**
+	 * @brief NOTE: The maximum number of cameras that can be managed by
+	 * the system.
+	 */
+	u8 max_camera_count;
 
 } kcamera_system_config;
 
 typedef u8 kcamera;
 
 typedef enum kcamera_type {
-    // Will use orthographic projection
-    KCAMERA_TYPE_2D,
-    // Will use perspective projection.
-    KCAMERA_TYPE_3D
+	// Will use orthographic projection
+	KCAMERA_TYPE_2D,
+	// Will use perspective projection.
+	KCAMERA_TYPE_3D
 } kcamera_type;
 
 #define DEFAULT_KCAMERA 0

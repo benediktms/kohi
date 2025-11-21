@@ -3,7 +3,7 @@
 #include "defines.h"
 
 typedef struct timeline_system_config {
-    u32 dummy;
+	u32 dummy;
 } timeline_system_config;
 
 typedef u16 ktimeline;

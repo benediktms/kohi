@@ -765,12 +765,12 @@ KAPI void string_to_upper(char* str);
  * internal operations.
  */
 typedef struct kstring {
-    /** @brief The current length of the string in bytes. */
-    u32 length;
-    /** @brief The amount of currently allocated memory. Always accounts for a null terminator. */
-    u32 allocated;
-    /** @brief The raw string data. */
-    char* data;
+	/** @brief The current length of the string in bytes. */
+	u32 length;
+	/** @brief The amount of currently allocated memory. Always accounts for a null terminator. */
+	u32 allocated;
+	/** @brief The raw string data. */
+	char* data;
 } kstring;
 
 KAPI void kstring_create(kstring* out_string);

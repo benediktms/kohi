@@ -11,26 +11,26 @@
  * vertex and index sizes.
  */
 typedef enum kgeometry_type {
-    /** @brief Unknown and invalid type of geometry. This being set generally indicates an error in code. */
-    KGEOMETRY_TYPE_UNKNOWN = 0x00,
-    /** @brief Used for 2d geometry that doesn't change. */
-    KGEOMETRY_TYPE_2D_STATIC = 0x01,
-    /** @brief Used for 2d geometry that changes often. */
-    KGEOMETRY_TYPE_2D_DYNAMIC = 0x02,
-    /** @brief Used for 3d geometry that doesn't change. */
-    KGEOMETRY_TYPE_3D_STATIC = 0x03,
-    /** @brief Used for 3d geometry that doesn't change, and only contains position and colour data. */
-    KGEOMETRY_TYPE_3D_STATIC_COLOUR = 0x04,
-    /** @brief Used for 3d geometry that doesn't change, and only contains position data. */
-    KGEOMETRY_TYPE_3D_STATIC_POSITION_ONLY = 0x05,
-    /** @brief Used for 3d geometry that changes often. */
-    KGEOMETRY_TYPE_3D_DYNAMIC = 0x06,
-    /** @brief Used for skinned 3d geometry doesn't change often, and includes bone/weight data. */
-    KGEOMETRY_TYPE_3D_SKINNED = 0x07,
-    /** @brief Used for heightmap terrain-specific geometry that rarely (if ever) changes - includes material index/weight data. */
-    KGEOMETRY_TYPE_3D_HEIGHTMAP_TERRAIN = 0x08,
-    /** @brief User-defined geometry type. Vertex/index size will only be looked at for this type. */
-    KGEOMETRY_TYPE_CUSTOM = 0xFF,
+	/** @brief Unknown and invalid type of geometry. This being set generally indicates an error in code. */
+	KGEOMETRY_TYPE_UNKNOWN = 0x00,
+	/** @brief Used for 2d geometry that doesn't change. */
+	KGEOMETRY_TYPE_2D_STATIC = 0x01,
+	/** @brief Used for 2d geometry that changes often. */
+	KGEOMETRY_TYPE_2D_DYNAMIC = 0x02,
+	/** @brief Used for 3d geometry that doesn't change. */
+	KGEOMETRY_TYPE_3D_STATIC = 0x03,
+	/** @brief Used for 3d geometry that doesn't change, and only contains position and colour data. */
+	KGEOMETRY_TYPE_3D_STATIC_COLOUR = 0x04,
+	/** @brief Used for 3d geometry that doesn't change, and only contains position data. */
+	KGEOMETRY_TYPE_3D_STATIC_POSITION_ONLY = 0x05,
+	/** @brief Used for 3d geometry that changes often. */
+	KGEOMETRY_TYPE_3D_DYNAMIC = 0x06,
+	/** @brief Used for skinned 3d geometry doesn't change often, and includes bone/weight data. */
+	KGEOMETRY_TYPE_3D_SKINNED = 0x07,
+	/** @brief Used for heightmap terrain-specific geometry that rarely (if ever) changes - includes material index/weight data. */
+	KGEOMETRY_TYPE_3D_HEIGHTMAP_TERRAIN = 0x08,
+	/** @brief User-defined geometry type. Vertex/index size will only be looked at for this type. */
+	KGEOMETRY_TYPE_CUSTOM = 0xFF,
 } kgeometry_type;
 
 /**
@@ -38,59 +38,59 @@ typedef enum kgeometry_type {
  * world, physics/collision, etc.).
  */
 typedef struct kgeometry {
-    /** @brief The geometry name. */
-    kname name;
+	/** @brief The geometry name. */
+	kname name;
 
-    /** @brief The geometry type. */
-    kgeometry_type type;
-    /** @brief The geometry generation. Incremented every time the geometry
-     * changes. */
-    u16 generation;
-    /** @brief The center of the geometry in local coordinates. */
-    vec3 center;
-    /** @brief The extents of the geometry in local coordinates. */
-    extents_3d extents;
+	/** @brief The geometry type. */
+	kgeometry_type type;
+	/** @brief The geometry generation. Incremented every time the geometry
+	 * changes. */
+	u16 generation;
+	/** @brief The center of the geometry in local coordinates. */
+	vec3 center;
+	/** @brief The extents of the geometry in local coordinates. */
+	extents_3d extents;
 
-    /** @brief The vertex count. */
-    u32 vertex_count;
-    /** @brief The size of each vertex's standard data. Ignored unless type is KGEOMETRY_TYPE_CUSTOM. */
-    u32 vertex_element_size;
-    /** @brief The standard vertex data. */
-    void* vertices;
-    /** @brief The offset from the beginning of the standard  vertex buffer. */
-    u64 vertex_buffer_offset;
+	/** @brief The vertex count. */
+	u32 vertex_count;
+	/** @brief The size of each vertex's standard data. Ignored unless type is KGEOMETRY_TYPE_CUSTOM. */
+	u32 vertex_element_size;
+	/** @brief The standard vertex data. */
+	void* vertices;
+	/** @brief The offset from the beginning of the standard  vertex buffer. */
+	u64 vertex_buffer_offset;
 
-    /** @brief The size of each vertex's extended data. Ignored if 0. */
-    u32 extended_vertex_element_size;
-    /** @brief The extended vertex data. Uses the same vertex_count as standard vertex data. */
-    void* extended_vertices;
-    /** @brief The offset from the beginning of the extended vertex buffer. */
-    u64 extended_vertex_buffer_offset;
+	/** @brief The size of each vertex's extended data. Ignored if 0. */
+	u32 extended_vertex_element_size;
+	/** @brief The extended vertex data. Uses the same vertex_count as standard vertex data. */
+	void* extended_vertices;
+	/** @brief The offset from the beginning of the extended vertex buffer. */
+	u64 extended_vertex_buffer_offset;
 
-    /** @brief The index count. */
-    u32 index_count;
-    /** @brief The size of each index. Ignored unless type is KGEOMETRY_TYPE_CUSTOM. */
-    u32 index_element_size;
-    /** @brief The index data. */
-    void* indices;
-    /** @brief The offset from the beginning of the index buffer. */
-    u64 index_buffer_offset;
+	/** @brief The index count. */
+	u32 index_count;
+	/** @brief The size of each index. Ignored unless type is KGEOMETRY_TYPE_CUSTOM. */
+	u32 index_element_size;
+	/** @brief The index data. */
+	void* indices;
+	/** @brief The offset from the beginning of the index buffer. */
+	u64 index_buffer_offset;
 } kgeometry;
 
 typedef enum grid_orientation {
-    /**
-     * @brief A grid that lies "flat" in the world along the ground plane (y-plane).
-     * This is the default configuration.
-     */
-    GRID_ORIENTATION_XZ = 0,
-    /**
-     * @brief A grid that lies on the z-plane (facing the screen by default, orthogonal to the ground plane).
-     */
-    GRID_ORIENTATION_XY = 1,
-    /**
-     * @brief A grid that lies on the x-plane (orthogonal to the default screen plane and the ground plane).
-     */
-    GRID_ORIENTATION_YZ = 2
+	/**
+	 * @brief A grid that lies "flat" in the world along the ground plane (y-plane).
+	 * This is the default configuration.
+	 */
+	GRID_ORIENTATION_XZ = 0,
+	/**
+	 * @brief A grid that lies on the z-plane (facing the screen by default, orthogonal to the ground plane).
+	 */
+	GRID_ORIENTATION_XY = 1,
+	/**
+	 * @brief A grid that lies on the x-plane (orthogonal to the default screen plane and the ground plane).
+	 */
+	GRID_ORIENTATION_YZ = 2
 } grid_orientation;
 
 /**

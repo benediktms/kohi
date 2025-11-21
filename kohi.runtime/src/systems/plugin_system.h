@@ -15,18 +15,18 @@
 struct plugin_system_state;
 
 typedef struct plugin_system_plugin_config {
-    // Name of the plugin.
-    const char* name;
-    // To be deserialized by the plugin itself since it knows how this should be laid out.
-    const char* config_str;
+	// Name of the plugin.
+	const char* name;
+	// To be deserialized by the plugin itself since it knows how this should be laid out.
+	const char* config_str;
 } plugin_system_plugin_config;
 
 /**
  * The overall configuration for the plugin system.
  */
 typedef struct plugin_system_config {
-    // darray The collection of plugin configs.
-    plugin_system_plugin_config* plugins;
+	// darray The collection of plugin configs.
+	plugin_system_plugin_config* plugins;
 } plugin_system_config;
 
 struct frame_data;

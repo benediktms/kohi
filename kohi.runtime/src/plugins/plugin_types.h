@@ -31,50 +31,50 @@ typedef void (*PFN_kruntime_plugin_on_window_resized)(void* plugin_state, struct
  * linking by name, and thus the names must match to facilitate automatic linking.
  */
 typedef struct kruntime_plugin {
-    /** @brief The plugin's name. Just for display, really. Serves no purpose. */
-    const char* name;
+	/** @brief The plugin's name. Just for display, really. Serves no purpose. */
+	const char* name;
 
-    /** @brief The plugin's configuration in string format. */
-    const char* config_str;
+	/** @brief The plugin's configuration in string format. */
+	const char* config_str;
 
-    /** @brief The dynamically loaded library for the plugin. */
-    dynamic_library library;
+	/** @brief The dynamically loaded library for the plugin. */
+	dynamic_library library;
 
-    /**
-     * @brief A pointer to the plugin's `kplugin_boot` function. Optional.
-     * This function is for plugins which require boot-time setup (i.e the renderer).
-     * If exists, this is invoked at boot time.
-     */
-    PFN_kruntime_plugin_boot kplugin_boot;
+	/**
+	 * @brief A pointer to the plugin's `kplugin_boot` function. Optional.
+	 * This function is for plugins which require boot-time setup (i.e the renderer).
+	 * If exists, this is invoked at boot time.
+	 */
+	PFN_kruntime_plugin_boot kplugin_boot;
 
-    /**
-     * @brief A pointer to the plugin's `kplugin_initialize` function. Optional.
-     * If exists, this is invoked post-boot-time.
-     */
-    PFN_kruntime_plugin_initialize kplugin_initialize;
+	/**
+	 * @brief A pointer to the plugin's `kplugin_initialize` function. Optional.
+	 * If exists, this is invoked post-boot-time.
+	 */
+	PFN_kruntime_plugin_initialize kplugin_initialize;
 
-    /**
-     * @brief A pointer to the plugin's `kplugin_destroy` function. Required.
-     */
-    PFN_kruntime_plugin_destroy kplugin_destroy;
+	/**
+	 * @brief A pointer to the plugin's `kplugin_destroy` function. Required.
+	 */
+	PFN_kruntime_plugin_destroy kplugin_destroy;
 
-    /** @brief A function pointer for the plugin's hook into the update loop. Optional. */
-    PFN_kruntime_plugin_update kplugin_update;
+	/** @brief A function pointer for the plugin's hook into the update loop. Optional. */
+	PFN_kruntime_plugin_update kplugin_update;
 
-    /** @brief A function pointer for the plugin's hook into the frame_prepare stage. Optional. */
-    PFN_kruntime_plugin_frame_prepare kplugin_frame_prepare;
+	/** @brief A function pointer for the plugin's hook into the frame_prepare stage. Optional. */
+	PFN_kruntime_plugin_frame_prepare kplugin_frame_prepare;
 
-    /** @brief A function pointer for the plugin's hook into the render loop. Optional. */
-    PFN_kruntime_plugin_render kplugin_render;
+	/** @brief A function pointer for the plugin's hook into the render loop. Optional. */
+	PFN_kruntime_plugin_render kplugin_render;
 
-    /** @brief A function pointer for the plugin's hook into the window resize event. Optional. */
-    PFN_kruntime_plugin_on_window_resized kplugin_on_window_resized;
+	/** @brief A function pointer for the plugin's hook into the window resize event. Optional. */
+	PFN_kruntime_plugin_on_window_resized kplugin_on_window_resized;
 
-    /** @brief The size of the plugin's internal state. */
-    u64 plugin_state_size;
+	/** @brief The size of the plugin's internal state. */
+	u64 plugin_state_size;
 
-    /** @brief The block of memory holding the plugin's internal state. */
-    void* plugin_state;
+	/** @brief The block of memory holding the plugin's internal state. */
+	void* plugin_state;
 } kruntime_plugin;
 
 #endif

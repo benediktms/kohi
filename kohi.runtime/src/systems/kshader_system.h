@@ -19,10 +19,10 @@
 
 /** @brief Configuration for the shader system. */
 typedef struct kshader_system_config {
-    /** @brief The maximum number of shaders held in the system. NOTE: Should be at least 512. */
-    u16 max_shader_count;
-    /** @brief The maximum number of uniforms allowed in a single shader. */
-    u8 max_uniform_count;
+	/** @brief The maximum number of shaders held in the system. NOTE: Should be at least 512. */
+	u16 max_shader_count;
+	/** @brief The maximum number of uniforms allowed in a single shader. */
+	u8 max_uniform_count;
 } kshader_system_config;
 
 /**

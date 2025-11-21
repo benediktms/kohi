@@ -7,22 +7,22 @@ typedef u32 bvh_id;
 typedef u64 bvh_userdata;
 
 typedef struct bvh_node {
-    aabb aabb;         // padded AABB for leaves, tight AABB for internal.
-    bvh_userdata user; // user payload for leaves
-    u32 parent;        // index
-    u32 left;          // index
-    u32 right;         // index
-    i32 height;        // -1 means free, 0 = leaf, >0 = internal
-    u32 next;
-    b8 moved; // hint for incremental queries
+	aabb aabb;		   // padded AABB for leaves, tight AABB for internal.
+	bvh_userdata user; // user payload for leaves
+	u32 parent;		   // index
+	u32 left;		   // index
+	u32 right;		   // index
+	i32 height;		   // -1 means free, 0 = leaf, >0 = internal
+	u32 next;
+	b8 moved; // hint for incremental queries
 } bvh_node;
 
 typedef struct bvh {
-    u32 root;        // index of root node
-    bvh_node* nodes; // pool of nodes
-    u32 capacity;
-    u32 count;
-    u32 free_list;
+	u32 root;		 // index of root node
+	bvh_node* nodes; // pool of nodes
+	u32 capacity;
+	u32 count;
+	u32 free_list;
 } bvh;
 
 KAPI b8 bvh_create(u32 inital_capacity, bvh* out_bvh);

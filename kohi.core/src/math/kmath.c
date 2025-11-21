@@ -46,344 +46,344 @@ f32 kpow(f32 x, f32 y) { return powf(x, y); }
 f32 kmod(f32 x, f32 y) { return fmodf(x, y); }
 
 i32 krandom(void) {
-    if (!rand_seeded) {
-        seed_randoms();
-    }
-    return rand();
+	if (!rand_seeded) {
+		seed_randoms();
+	}
+	return rand();
 }
 
 i32 krandom_in_range(i32 min, i32 max) {
-    if (!rand_seeded) {
-        seed_randoms();
-    }
-    return (rand() % (max - min + 1)) + min;
+	if (!rand_seeded) {
+		seed_randoms();
+	}
+	return (rand() % (max - min + 1)) + min;
 }
 
 u64 krandom_u64(void) {
-    if (!rand_seeded) {
-        seed_randoms();
-    }
-    return mtrand_generate(&rng_u64);
+	if (!rand_seeded) {
+		seed_randoms();
+	}
+	return mtrand_generate(&rng_u64);
 }
 
 f32 kfrandom(void) { return (float)krandom() / (f32)RAND_MAX; }
 
 f32 kfrandom_in_range(f32 min, f32 max) {
-    return min + ((float)krandom() / ((f32)RAND_MAX / (max - min)));
+	return min + ((float)krandom() / ((f32)RAND_MAX / (max - min)));
 }
 
 f32 kattenuation_min_max(f32 min, f32 max, f32 x) {
-    // TODO: Maybe a good function here would be one with a min/max and falloff value...
-    // so if the range was 0.4 to 0.8 with a falloff of 1.0, weight for x between
-    // 0.5 and 0.7 would be 1.0, with it dwindling to 0 as it approaches 0.4 or 0.8.
-    f32 half_range = kabs(max - min) * 0.5;
-    f32 mid = min + half_range;   // midpoint
-    f32 distance = kabs(x - mid); // dist from mid
-    // scale dist from midpoint to halfrange
-    f32 att = KCLAMP((half_range - distance) / half_range, 0, 1);
-    return att;
+	// TODO: Maybe a good function here would be one with a min/max and falloff value...
+	// so if the range was 0.4 to 0.8 with a falloff of 1.0, weight for x between
+	// 0.5 and 0.7 would be 1.0, with it dwindling to 0 as it approaches 0.4 or 0.8.
+	f32 half_range = kabs(max - min) * 0.5;
+	f32 mid = min + half_range;	  // midpoint
+	f32 distance = kabs(x - mid); // dist from mid
+	// scale dist from midpoint to halfrange
+	f32 att = KCLAMP((half_range - distance) / half_range, 0, 1);
+	return att;
 }
 
 plane_3d plane_3d_create(vec3 p1, vec3 norm) {
-    plane_3d p;
-    p.normal = vec3_normalized(norm);
-    p.distance = vec3_dot(p.normal, p1);
-    return p;
+	plane_3d p;
+	p.normal = vec3_normalized(norm);
+	p.distance = vec3_dot(p.normal, p1);
+	return p;
 }
 
 kfrustum kfrustum_from_view_projection(mat4 view_projection) {
-    kfrustum f;
+	kfrustum f;
 
-    // Get the inverse of the view_projection matrix.
-    mat4 inv = mat4_inverse(view_projection);
-    f32* md = inv.data;
+	// Get the inverse of the view_projection matrix.
+	mat4 inv = mat4_inverse(view_projection);
+	f32* md = inv.data;
 
-    // Extract the rows.
-    vec4 mat0 = {md[0], md[1], md[2], md[3]};
-    vec4 mat1 = {md[4], md[5], md[6], md[7]};
-    vec4 mat2 = {md[8], md[9], md[10], md[11]};
-    vec4 mat3 = {md[12], md[13], md[14], md[15]};
+	// Extract the rows.
+	vec4 mat0 = {md[0], md[1], md[2], md[3]};
+	vec4 mat1 = {md[4], md[5], md[6], md[7]};
+	vec4 mat2 = {md[8], md[9], md[10], md[11]};
+	vec4 mat3 = {md[12], md[13], md[14], md[15]};
 
-    // Calculate the projection planes and normalize them, including distances.
-    vec4 sides[6];
-    sides[KFRUSTUM_SIDE_LEFT] = vec4_normalized(vec4_add(mat3, mat0));
-    sides[KFRUSTUM_SIDE_RIGHT] = vec4_normalized(vec4_sub(mat3, mat0));
-    sides[KFRUSTUM_SIDE_TOP] = vec4_normalized(vec4_sub(mat3, mat1));
-    sides[KFRUSTUM_SIDE_BOTTOM] = vec4_normalized(vec4_add(mat3, mat1));
-    sides[KFRUSTUM_SIDE_NEAR] = vec4_normalized(vec4_add(mat3, mat2));
-    sides[KFRUSTUM_SIDE_FAR] = vec4_normalized(vec4_sub(mat3, mat2));
+	// Calculate the projection planes and normalize them, including distances.
+	vec4 sides[6];
+	sides[KFRUSTUM_SIDE_LEFT] = vec4_normalized(vec4_add(mat3, mat0));
+	sides[KFRUSTUM_SIDE_RIGHT] = vec4_normalized(vec4_sub(mat3, mat0));
+	sides[KFRUSTUM_SIDE_TOP] = vec4_normalized(vec4_sub(mat3, mat1));
+	sides[KFRUSTUM_SIDE_BOTTOM] = vec4_normalized(vec4_add(mat3, mat1));
+	sides[KFRUSTUM_SIDE_NEAR] = vec4_normalized(vec4_add(mat3, mat2));
+	sides[KFRUSTUM_SIDE_FAR] = vec4_normalized(vec4_sub(mat3, mat2));
 
-    // Extract normals and distances to planes.
-    for (u32 i = 0; i < 6; ++i) {
-        f.sides[i].normal = vec3_from_vec4(sides[i]);
-        f.sides[i].distance = sides[i].w;
-    }
+	// Extract normals and distances to planes.
+	for (u32 i = 0; i < 6; ++i) {
+		f.sides[i].normal = vec3_from_vec4(sides[i]);
+		f.sides[i].distance = sides[i].w;
+	}
 
-    return f;
+	return f;
 }
 
 kfrustum kfrustum_create(vec3 position, vec3 target, vec3 up, f32 aspect, f32 fov, f32 near, f32 far) {
-    kfrustum f;
+	kfrustum f;
 
-    // Calculate the forward vector (negative Z direction for right-handed systems)
-    vec3 forward = vec3_normalized(vec3_sub(target, position));
+	// Calculate the forward vector (negative Z direction for right-handed systems)
+	vec3 forward = vec3_normalized(vec3_sub(target, position));
 
-    // Calculate the right vector (X-axis), ensuring a right-handed system
-    vec3 right = vec3_normalized(vec3_cross(forward, up));
+	// Calculate the right vector (X-axis), ensuring a right-handed system
+	vec3 right = vec3_normalized(vec3_cross(forward, up));
 
-    // Recalculate the true up vector (Y-axis) to ensure orthogonality
-    vec3 adjusted_up = vec3_cross(right, forward);
+	// Recalculate the true up vector (Y-axis) to ensure orthogonality
+	vec3 adjusted_up = vec3_cross(right, forward);
 
-    // Half dimensions at the far plane
-    f32 half_v = far * tanf(fov * 0.5f); // Vertical half
-    f32 half_h = half_v * aspect;        // Horizontal half
+	// Half dimensions at the far plane
+	f32 half_v = far * tanf(fov * 0.5f); // Vertical half
+	f32 half_h = half_v * aspect;		 // Horizontal half
 
-    vec3 forward_far = vec3_mul_scalar(forward, far);
-    vec3 forward_near = vec3_mul_scalar(forward, near);
-    vec3 right_half_h = vec3_mul_scalar(right, half_h);
-    vec3 up_half_v = vec3_mul_scalar(adjusted_up, half_v);
+	vec3 forward_far = vec3_mul_scalar(forward, far);
+	vec3 forward_near = vec3_mul_scalar(forward, near);
+	vec3 right_half_h = vec3_mul_scalar(right, half_h);
+	vec3 up_half_v = vec3_mul_scalar(adjusted_up, half_v);
 
-    // Top plane
-    f.sides[KFRUSTUM_SIDE_TOP] = plane_3d_create(
-        vec3_add(position, forward_far),
-        vec3_cross(right, vec3_sub(forward_far, up_half_v)));
+	// Top plane
+	f.sides[KFRUSTUM_SIDE_TOP] = plane_3d_create(
+		vec3_add(position, forward_far),
+		vec3_cross(right, vec3_sub(forward_far, up_half_v)));
 
-    // Bottom plane
-    f.sides[KFRUSTUM_SIDE_BOTTOM] = plane_3d_create(
-        vec3_add(position, forward_far),
-        vec3_cross(vec3_add(forward_far, up_half_v), right));
+	// Bottom plane
+	f.sides[KFRUSTUM_SIDE_BOTTOM] = plane_3d_create(
+		vec3_add(position, forward_far),
+		vec3_cross(vec3_add(forward_far, up_half_v), right));
 
-    // Right plane
-    f.sides[KFRUSTUM_SIDE_RIGHT] = plane_3d_create(
-        vec3_add(position, forward_far),
-        vec3_cross(adjusted_up, vec3_sub(forward_far, right_half_h)));
+	// Right plane
+	f.sides[KFRUSTUM_SIDE_RIGHT] = plane_3d_create(
+		vec3_add(position, forward_far),
+		vec3_cross(adjusted_up, vec3_sub(forward_far, right_half_h)));
 
-    // Left plane
-    f.sides[KFRUSTUM_SIDE_LEFT] = plane_3d_create(
-        vec3_add(position, forward_far),
-        vec3_cross(vec3_add(forward_far, right_half_h), adjusted_up));
+	// Left plane
+	f.sides[KFRUSTUM_SIDE_LEFT] = plane_3d_create(
+		vec3_add(position, forward_far),
+		vec3_cross(vec3_add(forward_far, right_half_h), adjusted_up));
 
-    // Far plane
-    f.sides[KFRUSTUM_SIDE_FAR] = plane_3d_create(
-        vec3_add(position, forward_far),
-        vec3_mul_scalar(forward, -1.0f) // Normal points back toward the camera
-    );
+	// Far plane
+	f.sides[KFRUSTUM_SIDE_FAR] = plane_3d_create(
+		vec3_add(position, forward_far),
+		vec3_mul_scalar(forward, -1.0f) // Normal points back toward the camera
+	);
 
-    // Near plane
-    f.sides[KFRUSTUM_SIDE_NEAR] = plane_3d_create(
-        vec3_add(position, forward_near),
-        forward // Normal points away from the camera
-    );
+	// Near plane
+	f.sides[KFRUSTUM_SIDE_NEAR] = plane_3d_create(
+		vec3_add(position, forward_near),
+		forward // Normal points away from the camera
+	);
 
-    return f;
+	return f;
 }
 
 f32 plane_signed_distance(const plane_3d* p, const vec3* position) {
-    return vec3_dot(p->normal, *position) - p->distance;
+	return vec3_dot(p->normal, *position) - p->distance;
 }
 
 b8 plane_intersects_sphere(const plane_3d* p, const vec3* center, f32 radius) {
-    return plane_signed_distance(p, center) > -radius;
+	return plane_signed_distance(p, center) > -radius;
 }
 
 b8 kfrustum_intersects_sphere(const kfrustum* f, const vec3* center, f32 radius) {
-    for (u8 i = 0; i < 6; ++i) {
-        if (!plane_intersects_sphere(&f->sides[i], center, radius)) {
-            return false;
-        }
-    }
-    return true;
+	for (u8 i = 0; i < 6; ++i) {
+		if (!plane_intersects_sphere(&f->sides[i], center, radius)) {
+			return false;
+		}
+	}
+	return true;
 }
 
 b8 kfrustum_intersects_ksphere(const kfrustum* f, const ksphere* sphere) {
-    for (u8 i = 0; i < 6; ++i) {
-        if (!plane_intersects_sphere(&f->sides[i], &sphere->position, sphere->radius)) {
-            return false;
-        }
-    }
-    return true;
+	for (u8 i = 0; i < 6; ++i) {
+		if (!plane_intersects_sphere(&f->sides[i], &sphere->position, sphere->radius)) {
+			return false;
+		}
+	}
+	return true;
 }
 
 b8 plane_intersects_aabb(const plane_3d* p, const vec3* center, const vec3* extents) {
-    f32 r = extents->x * kabs(p->normal.x) +
-            extents->y * kabs(p->normal.y) +
-            extents->z * kabs(p->normal.z);
+	f32 r = extents->x * kabs(p->normal.x) +
+			extents->y * kabs(p->normal.y) +
+			extents->z * kabs(p->normal.z);
 
-    f32 distance = plane_signed_distance(p, center);
+	f32 distance = plane_signed_distance(p, center);
 
-    if (distance <= -r) {
-        return false;
-    }
+	if (distance <= -r) {
+		return false;
+	}
 
-    return true;
+	return true;
 }
 
 b8 kfrustum_intersects_aabb(const kfrustum* f, const vec3* center, const vec3* extents) {
-    for (u8 i = 0; i < 6; ++i) {
-        if (!plane_intersects_aabb(&f->sides[i], center, extents)) {
-            return false;
-        }
-    }
-    return true;
+	for (u8 i = 0; i < 6; ++i) {
+		if (!plane_intersects_aabb(&f->sides[i], center, extents)) {
+			return false;
+		}
+	}
+	return true;
 }
 
 void frustum_corner_points_world_space(mat4 projection_view, vec4* corners) {
-    mat4 inverse_view_proj = mat4_inverse(projection_view);
+	mat4 inverse_view_proj = mat4_inverse(projection_view);
 
-    corners[0] = (vec4){-1.0f, -1.0f, 0.0f, 1.0f};
-    corners[1] = (vec4){1.0f, -1.0f, 0.0f, 1.0f};
-    corners[2] = (vec4){1.0f, 1.0f, 0.0f, 1.0f};
-    corners[3] = (vec4){-1.0f, 1.0f, 0.0f, 1.0f};
+	corners[0] = (vec4){-1.0f, -1.0f, 0.0f, 1.0f};
+	corners[1] = (vec4){1.0f, -1.0f, 0.0f, 1.0f};
+	corners[2] = (vec4){1.0f, 1.0f, 0.0f, 1.0f};
+	corners[3] = (vec4){-1.0f, 1.0f, 0.0f, 1.0f};
 
-    corners[4] = (vec4){-1.0f, -1.0f, 1.0f, 1.0f};
-    corners[5] = (vec4){1.0f, -1.0f, 1.0f, 1.0f};
-    corners[6] = (vec4){1.0f, 1.0f, 1.0f, 1.0f};
-    corners[7] = (vec4){-1.0f, 1.0f, 1.0f, 1.0f};
+	corners[4] = (vec4){-1.0f, -1.0f, 1.0f, 1.0f};
+	corners[5] = (vec4){1.0f, -1.0f, 1.0f, 1.0f};
+	corners[6] = (vec4){1.0f, 1.0f, 1.0f, 1.0f};
+	corners[7] = (vec4){-1.0f, 1.0f, 1.0f, 1.0f};
 
-    for (u32 i = 0; i < 8; ++i) {
-        vec4 point = mat4_mul_vec4(inverse_view_proj, corners[i]);
-        corners[i] = vec4_div_scalar(point, point.w);
-    }
+	for (u32 i = 0; i < 8; ++i) {
+		vec4 point = mat4_mul_vec4(inverse_view_proj, corners[i]);
+		corners[i] = vec4_div_scalar(point, point.w);
+	}
 }
 
 f32 vec3_distance_to_line(vec3 point, vec3 line_start, vec3 line_direction) {
-    f32 magnitude = vec3_length(vec3_cross(vec3_sub(point, line_start), line_direction));
-    return magnitude / vec3_length(line_direction);
+	f32 magnitude = vec3_length(vec3_cross(vec3_sub(point, line_start), line_direction));
+	return magnitude / vec3_length(line_direction);
 }
 
 static void seed_randoms(void) {
-    u32 ptime_u32;
-    u32 ptime_u64;
+	u32 ptime_u32;
+	u32 ptime_u64;
 #ifdef KOHI_DEBUG
-    // NOTE: Use a predetermined seed for debug builds for testing purposes.
-    ptime_u32 = 42;
-    ptime_u64 = 42;
+	// NOTE: Use a predetermined seed for debug builds for testing purposes.
+	ptime_u32 = 42;
+	ptime_u64 = 42;
 #else
-    // TODO: Might need to use current date/time for this in case this
-    // as using the absolute time is the application _run_ time, which
-    // might not be random _enough_ for this to be truly useful.
-    ptime_u32 = (u32)platform_get_absolute_time();
-    ptime_u64 = (u64)platform_get_absolute_time();
+	// TODO: Might need to use current date/time for this in case this
+	// as using the absolute time is the application _run_ time, which
+	// might not be random _enough_ for this to be truly useful.
+	ptime_u32 = (u32)platform_get_absolute_time();
+	ptime_u64 = (u64)platform_get_absolute_time();
 #endif
 
-    // Seed standard random number generator.
-    srand(ptime_u32);
-    // 64-bit RNG
-    rng_u64 = mtrand_create(ptime_u64);
+	// Seed standard random number generator.
+	srand(ptime_u32);
+	// 64-bit RNG
+	rng_u64 = mtrand_create(ptime_u64);
 
-    rand_seeded = true;
+	rand_seeded = true;
 }
 
 ray ray_from_screen(vec2i screen_pos, rect_2di viewport_rect, vec3 origin, mat4 view, mat4 projection) {
-    ray r = {0};
-    r.origin = origin;
+	ray r = {0};
+	r.origin = origin;
 
-    // Get normalized device coordinates (i.e. -1:1 range).
-    vec3 ray_ndc;
-    ray_ndc.x = (2.0f * (screen_pos.x - viewport_rect.x)) / viewport_rect.width - 1.0f;
-    ray_ndc.y = 1.0f - (2.0f * (screen_pos.y - viewport_rect.y)) / viewport_rect.height;
-    ray_ndc.z = 1.0f;
+	// Get normalized device coordinates (i.e. -1:1 range).
+	vec3 ray_ndc;
+	ray_ndc.x = (2.0f * (screen_pos.x - viewport_rect.x)) / viewport_rect.width - 1.0f;
+	ray_ndc.y = 1.0f - (2.0f * (screen_pos.y - viewport_rect.y)) / viewport_rect.height;
+	ray_ndc.z = 1.0f;
 
-    // Clip space
-    vec4 ray_clip = vec4_create(ray_ndc.x, ray_ndc.y, -1.0f, 1.0f);
+	// Clip space
+	vec4 ray_clip = vec4_create(ray_ndc.x, ray_ndc.y, -1.0f, 1.0f);
 
-    // Eye/Camera
-    vec4 ray_eye = mat4_mul_vec4(mat4_inverse(projection), ray_clip);
+	// Eye/Camera
+	vec4 ray_eye = mat4_mul_vec4(mat4_inverse(projection), ray_clip);
 
-    // Unproject xy, change wz to "forward".
-    ray_eye = vec4_create(ray_eye.x, ray_eye.y, -1.0f, 0.0f);
+	// Unproject xy, change wz to "forward".
+	ray_eye = vec4_create(ray_eye.x, ray_eye.y, -1.0f, 0.0f);
 
-    // Convert to world coordinates;
-    r.direction = vec3_from_vec4(mat4_mul_vec4(view, ray_eye));
-    vec3_normalize(&r.direction);
+	// Convert to world coordinates;
+	r.direction = vec3_from_vec4(mat4_mul_vec4(view, ray_eye));
+	vec3_normalize(&r.direction);
 
-    r.max_distance = 1000.0f;
+	r.max_distance = 1000.0f;
 
-    return r;
+	return r;
 }
 
 b8 ray_intersects_aabb(aabb box, vec3 origin, vec3 direction, f32 max, f32* out_min, f32* out_max) {
-    // Slab method with divide by zero handling.
-    f32 min = 0.0f;
-    f32 maxi = max;
-    for (u32 a = 0; a < 3; ++a) {
-        f32 origin_a = origin.elements[a];
-        f32 direction_a = direction.elements[a];
-        f32 min_a = box.min.elements[a];
-        f32 max_a = box.max.elements[a];
-        if (kabs(direction_a) < K_FLOAT_EPSILON) {
-            if (origin_a < min_a || origin_a > max_a) {
-                return false;
-            }
-        } else {
-            f32 inv = 1.0f / direction_a;
-            f32 t1 = (min_a - origin_a) * inv;
-            f32 t2 = (max_a - origin_a) * inv;
-            if (t1 > t2) {
-                KSWAP(f32, t1, t2);
-            }
-            if (t1 > min) {
-                min = t1;
-            }
-            if (t2 < maxi) {
-                maxi = t2;
-            }
-            if (min > maxi) {
-                return false;
-            }
-        }
-    }
-    if (out_min) {
-        *out_min = min;
-    }
-    if (out_max) {
-        *out_max = maxi;
-    }
-    return true;
+	// Slab method with divide by zero handling.
+	f32 min = 0.0f;
+	f32 maxi = max;
+	for (u32 a = 0; a < 3; ++a) {
+		f32 origin_a = origin.elements[a];
+		f32 direction_a = direction.elements[a];
+		f32 min_a = box.min.elements[a];
+		f32 max_a = box.max.elements[a];
+		if (kabs(direction_a) < K_FLOAT_EPSILON) {
+			if (origin_a < min_a || origin_a > max_a) {
+				return false;
+			}
+		} else {
+			f32 inv = 1.0f / direction_a;
+			f32 t1 = (min_a - origin_a) * inv;
+			f32 t2 = (max_a - origin_a) * inv;
+			if (t1 > t2) {
+				KSWAP(f32, t1, t2);
+			}
+			if (t1 > min) {
+				min = t1;
+			}
+			if (t2 < maxi) {
+				maxi = t2;
+			}
+			if (min > maxi) {
+				return false;
+			}
+		}
+	}
+	if (out_min) {
+		*out_min = min;
+	}
+	if (out_max) {
+		*out_max = maxi;
+	}
+	return true;
 }
 
 b8 raycast_plane_3d(const ray* r, const plane_3d* p, vec3* out_point, f32* out_distance) {
-    f32 normal_dir = vec3_dot(r->direction, p->normal);
-    f32 point_normal = vec3_dot(r->origin, p->normal);
+	f32 normal_dir = vec3_dot(r->direction, p->normal);
+	f32 point_normal = vec3_dot(r->origin, p->normal);
 
-    // If the ray and plane normal point in the same direction, there can't be a hit.
-    if (normal_dir >= 0.0f) {
-        return false;
-    }
+	// If the ray and plane normal point in the same direction, there can't be a hit.
+	if (normal_dir >= 0.0f) {
+		return false;
+	}
 
-    // Calculate the distance.
-    f32 t = (p->distance - point_normal) / normal_dir;
+	// Calculate the distance.
+	f32 t = (p->distance - point_normal) / normal_dir;
 
-    // Distance must be positive or 0, otherwise the ray hits behind the plane,
-    // which technically isn't a hit at all.
-    if (t >= 0.0f) {
-        *out_distance = t;
-        *out_point = vec3_add(r->origin, vec3_mul_scalar(r->direction, t));
-        return true;
-    }
+	// Distance must be positive or 0, otherwise the ray hits behind the plane,
+	// which technically isn't a hit at all.
+	if (t >= 0.0f) {
+		*out_distance = t;
+		*out_point = vec3_add(r->origin, vec3_mul_scalar(r->direction, t));
+		return true;
+	}
 
-    return false;
+	return false;
 }
 
 b8 raycast_disc_3d(const ray* r, vec3 center, vec3 normal, f32 outer_radius, f32 inner_radius, vec3* out_point, f32* out_distance) {
-    if (!r) {
-        return false;
-    }
+	if (!r) {
+		return false;
+	}
 
-    plane_3d p = plane_3d_create(center, normal);
-    if (raycast_plane_3d(r, &p, out_point, out_distance)) {
-        // Square the radii and compare against squared distance
-        f32 orad_sq = outer_radius * outer_radius;
-        f32 irad_sq = inner_radius * inner_radius;
-        f32 dist_sq = vec3_distance_squared(center, *out_point);
-        if (dist_sq > orad_sq) {
-            return false;
-        }
-        if (inner_radius > 0 && dist_sq < irad_sq) {
-            return false;
-        }
-        return true;
-    }
+	plane_3d p = plane_3d_create(center, normal);
+	if (raycast_plane_3d(r, &p, out_point, out_distance)) {
+		// Square the radii and compare against squared distance
+		f32 orad_sq = outer_radius * outer_radius;
+		f32 irad_sq = inner_radius * inner_radius;
+		f32 dist_sq = vec3_distance_squared(center, *out_point);
+		if (dist_sq > orad_sq) {
+			return false;
+		}
+		if (inner_radius > 0 && dist_sq < irad_sq) {
+			return false;
+		}
+		return true;
+	}
 
-    return false;
+	return false;
 }

@@ -4,10 +4,10 @@
 #include "renderer/nine_slice.h"
 
 typedef struct sui_button_internal_data {
-    vec2i size;
-    vec4 colour;
-    nine_slice nslice;
-    u32 binding_instance_id;
+	vec2i size;
+	vec4 colour;
+	nine_slice nslice;
+	u32 binding_instance_id;
 } sui_button_internal_data;
 
 KAPI b8 sui_button_control_create(standard_ui_state* state, const char* name, struct sui_control* out_control);

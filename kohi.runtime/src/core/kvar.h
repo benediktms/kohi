@@ -17,22 +17,22 @@
 struct kvar_state;
 
 typedef enum kvar_types {
-    KVAR_TYPE_INT,
-    KVAR_TYPE_FLOAT,
-    KVAR_TYPE_STRING
+	KVAR_TYPE_INT,
+	KVAR_TYPE_FLOAT,
+	KVAR_TYPE_STRING
 } kvar_types;
 
 typedef union kvar_value {
-    i32 i;
-    f32 f;
-    char* s;
+	i32 i;
+	f32 f;
+	char* s;
 } kvar_value;
 
 typedef struct kvar_change {
-    const char* name;
-    kvar_types old_type;
-    kvar_types new_type;
-    kvar_value new_value;
+	const char* name;
+	kvar_types old_type;
+	kvar_types new_type;
+	kvar_value new_value;
 } kvar_change;
 
 /**

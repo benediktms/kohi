@@ -23,19 +23,19 @@
 #include "defines.h"
 
 typedef struct stackarray_base {
-    u32 length;
-    u32 stride;
-    void* p_data;
+	u32 length;
+	u32 stride;
+	void* p_data;
 } stackarray_base;
 
 typedef struct stackarray_iterator {
-    stackarray_base* arr;
-    i32 pos;
-    i32 dir;
-    b8 (*end)(const struct stackarray_iterator* it);
-    void* (*value)(const struct stackarray_iterator* it);
-    void (*next)(struct stackarray_iterator* it);
-    void (*prev)(struct stackarray_iterator* it);
+	stackarray_base* arr;
+	i32 pos;
+	i32 dir;
+	b8 (*end)(const struct stackarray_iterator* it);
+	void* (*value)(const struct stackarray_iterator* it);
+	void (*next)(struct stackarray_iterator* it);
+	void (*prev)(struct stackarray_iterator* it);
 } stackarray_iterator;
 
 KAPI stackarray_iterator stackarray_iterator_begin(stackarray_base* arr);
@@ -46,29 +46,29 @@ KAPI void stackarray_iterator_next(stackarray_iterator* it);
 KAPI void stackarray_iterator_prev(stackarray_iterator* it);
 
 #define STACKARRAY_TYPE_NAMED(type, name, len)                                         \
-    typedef struct stackarray_##name##_##len {                                         \
-        stackarray_base base;                                                          \
-        type data[len];                                                                \
-        stackarray_iterator (*begin)(stackarray_base * arr);                           \
-        stackarray_iterator (*rbegin)(stackarray_base * arr);                          \
-    } stackarray_##name##_##len;                                                       \
+	typedef struct stackarray_##name##_##len {                                         \
+		stackarray_base base;                                                          \
+		type data[len];                                                                \
+		stackarray_iterator (*begin)(stackarray_base * arr);                           \
+		stackarray_iterator (*rbegin)(stackarray_base * arr);                          \
+	} stackarray_##name##_##len;                                                       \
                                                                                        \
-    KINLINE stackarray_##name##_##len stackarray_##name##_##len##_create(void) {       \
-        stackarray_##name##_##len arr;                                                 \
-        kzero_memory(&arr, sizeof(stackarray_##name##_##len));                         \
-        arr.base.p_data = arr.data;                                                    \
-        arr.base.length = len;                                                         \
-        arr.base.stride = sizeof(type);                                                \
-        arr.begin = stackarray_iterator_begin;                                         \
-        arr.rbegin = stackarray_iterator_rbegin;                                       \
-        return arr;                                                                    \
-    }                                                                                  \
+	KINLINE stackarray_##name##_##len stackarray_##name##_##len##_create(void) {       \
+		stackarray_##name##_##len arr;                                                 \
+		kzero_memory(&arr, sizeof(stackarray_##name##_##len));                         \
+		arr.base.p_data = arr.data;                                                    \
+		arr.base.length = len;                                                         \
+		arr.base.stride = sizeof(type);                                                \
+		arr.begin = stackarray_iterator_begin;                                         \
+		arr.rbegin = stackarray_iterator_rbegin;                                       \
+		return arr;                                                                    \
+	}                                                                                  \
                                                                                        \
-    KINLINE void stackarray_##name##_##len##_destroy(stackarray_##name##_##len* arr) { \
-        kzero_memory(arr, sizeof(stackarray_##name##_##len));                          \
-        arr->begin = 0;                                                                \
-        arr->rbegin = 0;                                                               \
-    }
+	KINLINE void stackarray_##name##_##len##_destroy(stackarray_##name##_##len* arr) { \
+		kzero_memory(arr, sizeof(stackarray_##name##_##len));                          \
+		arr->begin = 0;                                                                \
+		arr->rbegin = 0;                                                               \
+	}
 
 // Create an array type of the given type. For advanced types or pointers, use ARRAY_TYPE_NAMED directly.
 #define STACKARRAY_TYPE(type, length) STACKARRAY_TYPE_NAMED(type, type, length)

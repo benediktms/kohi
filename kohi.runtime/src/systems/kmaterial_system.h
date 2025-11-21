@@ -49,145 +49,145 @@ struct frame_data;
 
 /** @brief The configuration for the material system. */
 typedef struct kmaterial_system_config {
-    /** @brief The maximum number of loaded materials. */
-    u32 max_material_count;
+	/** @brief The maximum number of loaded materials. */
+	u32 max_material_count;
 
-    /** @brief The maximum number of material instances. */
-    u32 max_instance_count;
+	/** @brief The maximum number of material instances. */
+	u32 max_instance_count;
 } kmaterial_system_config;
 
 typedef enum kmaterial_texture_input {
-    // Forms the base colour of a material. Albedo for PBR, sometimes known as a "diffuse" colour. Specifies per-pixel colour.
-    KMATERIAL_TEXTURE_INPUT_BASE_COLOUR,
-    // Texture specifying per-pixel normal vector.
-    KMATERIAL_TEXTURE_INPUT_NORMAL,
-    // Texture specifying per-pixel metallic value.
-    KMATERIAL_TEXTURE_INPUT_METALLIC,
-    // Texture specifying per-pixel roughness value.
-    KMATERIAL_TEXTURE_INPUT_ROUGHNESS,
-    // Texture specifying per-pixel ambient occlusion value.
-    KMATERIAL_TEXTURE_INPUT_AMBIENT_OCCLUSION,
-    // Texture specifying per-pixel emissive value.
-    KMATERIAL_TEXTURE_INPUT_EMISSIVE,
-    // Texture specifying the reflection (only used for water materials)
-    KMATERIAL_TEXTURE_INPUT_REFLECTION,
-    // Texture specifying per-pixel refraction strength.
-    KMATERIAL_TEXTURE_INPUT_REFRACTION,
-    // Texture specifying the reflection depth (only used for water materials)
-    KMATERIAL_TEXTURE_INPUT_REFLECTION_DEPTH,
-    // Texture specifying the refraction depth.
-    KMATERIAL_TEXTURE_INPUT_REFRACTION_DEPTH,
-    KMATERIAL_TEXTURE_INPUT_DUDV,
-    // Texture holding per-pixel metallic (r), roughness (g) and ambient occlusion (b) value.
-    KMATERIAL_TEXTURE_INPUT_MRA,
-    // The size of the material_texture_input enumeration.
-    KMATERIAL_TEXTURE_INPUT_COUNT
+	// Forms the base colour of a material. Albedo for PBR, sometimes known as a "diffuse" colour. Specifies per-pixel colour.
+	KMATERIAL_TEXTURE_INPUT_BASE_COLOUR,
+	// Texture specifying per-pixel normal vector.
+	KMATERIAL_TEXTURE_INPUT_NORMAL,
+	// Texture specifying per-pixel metallic value.
+	KMATERIAL_TEXTURE_INPUT_METALLIC,
+	// Texture specifying per-pixel roughness value.
+	KMATERIAL_TEXTURE_INPUT_ROUGHNESS,
+	// Texture specifying per-pixel ambient occlusion value.
+	KMATERIAL_TEXTURE_INPUT_AMBIENT_OCCLUSION,
+	// Texture specifying per-pixel emissive value.
+	KMATERIAL_TEXTURE_INPUT_EMISSIVE,
+	// Texture specifying the reflection (only used for water materials)
+	KMATERIAL_TEXTURE_INPUT_REFLECTION,
+	// Texture specifying per-pixel refraction strength.
+	KMATERIAL_TEXTURE_INPUT_REFRACTION,
+	// Texture specifying the reflection depth (only used for water materials)
+	KMATERIAL_TEXTURE_INPUT_REFLECTION_DEPTH,
+	// Texture specifying the refraction depth.
+	KMATERIAL_TEXTURE_INPUT_REFRACTION_DEPTH,
+	KMATERIAL_TEXTURE_INPUT_DUDV,
+	// Texture holding per-pixel metallic (r), roughness (g) and ambient occlusion (b) value.
+	KMATERIAL_TEXTURE_INPUT_MRA,
+	// The size of the material_texture_input enumeration.
+	KMATERIAL_TEXTURE_INPUT_COUNT
 } kmaterial_texture_input;
 
 typedef enum kmaterial_state {
-    KMATERIAL_STATE_UNINITIALIZED = 0,
-    KMATERIAL_STATE_LOADING,
-    KMATERIAL_STATE_LOADED,
+	KMATERIAL_STATE_UNINITIALIZED = 0,
+	KMATERIAL_STATE_LOADING,
+	KMATERIAL_STATE_LOADED,
 } kmaterial_state;
 
 typedef enum kmaterial_instance_state {
-    // Instance is available
-    KMATERIAL_INSTANCE_STATE_UNINITIALIZED = 0,
-    // Instance was issued while base material was loading, and needs initialization.
-    KMATERIAL_INSTANCE_STATE_LOADING,
-    // Instance is ready to be used.
-    KMATERIAL_INSTANCE_STATE_LOADED,
+	// Instance is available
+	KMATERIAL_INSTANCE_STATE_UNINITIALIZED = 0,
+	// Instance was issued while base material was loading, and needs initialization.
+	KMATERIAL_INSTANCE_STATE_LOADING,
+	// Instance is ready to be used.
+	KMATERIAL_INSTANCE_STATE_LOADED,
 } kmaterial_instance_state;
 
 // Represents the data for a single instance of a material.
 // This can be thought of as "per-draw" data.
 typedef struct kmaterial_instance_data {
-    kmaterial_instance_state state;
+	kmaterial_instance_state state;
 
-    // A handle to the material to which this instance references.
-    kmaterial material;
+	// A handle to the material to which this instance references.
+	kmaterial material;
 
-    // Multiplied by albedo/diffuse texture. Overrides the value set in the base material.
-    vec4 base_colour;
+	// Multiplied by albedo/diffuse texture. Overrides the value set in the base material.
+	vec4 base_colour;
 
-    // Overrides the flags set in the base material.
-    kmaterial_flags flags;
+	// Overrides the flags set in the base material.
+	kmaterial_flags flags;
 
-    // Added to UV coords of vertex data.
-    vec3 uv_offset;
-    // Multiplied against uv coords of vertex data.
-    vec3 uv_scale;
+	// Added to UV coords of vertex data.
+	vec3 uv_offset;
+	// Multiplied against uv coords of vertex data.
+	vec3 uv_scale;
 
 } kmaterial_instance_data;
 
 // Represents a base material.
 // This can be thought of as "per-group" data.
 typedef struct kmaterial_data {
-    u16 index;
+	u16 index;
 
-    kname name;
-    // The state of the material (loaded vs not, etc.)
-    kmaterial_state state;
-    /** @brief The material type. Ultimately determines what shader the material is rendered with. */
-    kmaterial_type type;
-    /** @brief The material lighting model. */
-    kmaterial_model model;
+	kname name;
+	// The state of the material (loaded vs not, etc.)
+	kmaterial_state state;
+	/** @brief The material type. Ultimately determines what shader the material is rendered with. */
+	kmaterial_type type;
+	/** @brief The material lighting model. */
+	kmaterial_model model;
 
-    vec4 base_colour;
-    ktexture base_colour_texture;
+	vec4 base_colour;
+	ktexture base_colour_texture;
 
-    vec3 normal;
-    ktexture normal_texture;
+	vec3 normal;
+	ktexture normal_texture;
 
-    f32 metallic;
-    ktexture metallic_texture;
-    texture_channel metallic_texture_channel;
+	f32 metallic;
+	ktexture metallic_texture;
+	texture_channel metallic_texture_channel;
 
-    f32 roughness;
-    ktexture roughness_texture;
-    texture_channel roughness_texture_channel;
+	f32 roughness;
+	ktexture roughness_texture;
+	texture_channel roughness_texture_channel;
 
-    f32 ao;
-    ktexture ao_texture;
-    texture_channel ao_texture_channel;
+	f32 ao;
+	ktexture ao_texture;
+	texture_channel ao_texture_channel;
 
-    vec4 emissive;
-    ktexture emissive_texture;
-    f32 emissive_texture_intensity;
+	vec4 emissive;
+	ktexture emissive_texture;
+	f32 emissive_texture_intensity;
 
-    ktexture refraction_texture;
-    f32 refraction_scale;
+	ktexture refraction_texture;
+	f32 refraction_scale;
 
-    ktexture reflection_texture;
-    ktexture reflection_depth_texture;
-    ktexture dudv_texture;
-    ktexture refraction_depth_texture;
+	ktexture reflection_texture;
+	ktexture reflection_depth_texture;
+	ktexture dudv_texture;
+	ktexture refraction_depth_texture;
 
-    vec3 mra;
-    /**
-     * @brief This is a combined texture holding metallic/roughness/ambient occlusion all in one texture.
-     * This is a more efficient replacement for using those textures individually. Metallic is sampled
-     * from the Red channel, roughness from the Green channel, and ambient occlusion from the Blue channel.
-     * Alpha is ignored.
-     */
-    ktexture mra_texture;
+	vec3 mra;
+	/**
+	 * @brief This is a combined texture holding metallic/roughness/ambient occlusion all in one texture.
+	 * This is a more efficient replacement for using those textures individually. Metallic is sampled
+	 * from the Red channel, roughness from the Green channel, and ambient occlusion from the Blue channel.
+	 * Alpha is ignored.
+	 */
+	ktexture mra_texture;
 
-    // Base set of flags for the material. Copied to the material instance when created.
-    kmaterial_flags flags;
+	// Base set of flags for the material. Copied to the material instance when created.
+	kmaterial_flags flags;
 
-    // Added to UV coords of vertex data. Overridden by instance data.
-    vec3 uv_offset;
-    // Multiplied against uv coords of vertex data. Overridden by instance data.
-    vec3 uv_scale;
+	// Added to UV coords of vertex data. Overridden by instance data.
+	vec3 uv_offset;
+	// Multiplied against uv coords of vertex data. Overridden by instance data.
+	vec3 uv_scale;
 
-    // Affects the strength of waves for a water type material.
-    f32 wave_strength;
-    // Affects wave movement speed for a water material.
-    f32 wave_speed;
-    f32 tiling;
+	// Affects the strength of waves for a water type material.
+	f32 wave_strength;
+	// Affects wave movement speed for a water material.
+	f32 wave_speed;
+	f32 tiling;
 
-    // Shader binding set id for base material data.
-    u32 binding_set_id;
+	// Shader binding set id for base material data.
+	u32 binding_set_id;
 
 } kmaterial_data;
 

@@ -21,44 +21,44 @@
 
 /** @brief Pre-defined resource types. */
 typedef enum resource_type {
-    /** @brief Text resource type. */
-    RESOURCE_TYPE_TEXT,
-    /** @brief Binary resource type. */
-    RESOURCE_TYPE_BINARY,
-    /** @brief Image resource type. */
-    RESOURCE_TYPE_IMAGE,
-    /** @brief Material resource type. */
-    RESOURCE_TYPE_MATERIAL,
-    /** @brief Shader resource type (or more accurately shader config). */
-    RESOURCE_TYPE_SHADER,
-    /** @brief Mesh resource type (collection of geometry configs). */
-    RESOURCE_TYPE_MESH,
-    /** @brief Bitmap font resource type. */
-    RESOURCE_TYPE_BITMAP_FONT,
-    /** @brief System font resource type. */
-    RESOURCE_TYPE_SYSTEM_FONT,
-    /** @brief Simple scene resource type. */
-    RESOURCE_TYPE_scene,
-    /** @brief Terrain resource type. */
-    RESOURCE_TYPE_TERRAIN,
-    /** @brief Audio resource type. */
-    RESOURCE_TYPE_AUDIO,
-    /** @brief Custom resource type. Used by loaders outside the core engine. */
-    RESOURCE_TYPE_CUSTOM
+	/** @brief Text resource type. */
+	RESOURCE_TYPE_TEXT,
+	/** @brief Binary resource type. */
+	RESOURCE_TYPE_BINARY,
+	/** @brief Image resource type. */
+	RESOURCE_TYPE_IMAGE,
+	/** @brief Material resource type. */
+	RESOURCE_TYPE_MATERIAL,
+	/** @brief Shader resource type (or more accurately shader config). */
+	RESOURCE_TYPE_SHADER,
+	/** @brief Mesh resource type (collection of geometry configs). */
+	RESOURCE_TYPE_MESH,
+	/** @brief Bitmap font resource type. */
+	RESOURCE_TYPE_BITMAP_FONT,
+	/** @brief System font resource type. */
+	RESOURCE_TYPE_SYSTEM_FONT,
+	/** @brief Simple scene resource type. */
+	RESOURCE_TYPE_scene,
+	/** @brief Terrain resource type. */
+	RESOURCE_TYPE_TERRAIN,
+	/** @brief Audio resource type. */
+	RESOURCE_TYPE_AUDIO,
+	/** @brief Custom resource type. Used by loaders outside the core engine. */
+	RESOURCE_TYPE_CUSTOM
 } resource_type;
 
 /**
  * @brief The header data for binary resource types.
  */
 typedef struct resource_header {
-    /** @brief A magic number indicating the file as a kohi binary file. */
-    u32 magic_number;
-    /** @brief The resource type. Maps to the enum resource_type. */
-    u8 resource_type;
-    /** @brief The format version this resource uses. */
-    u8 version;
-    /** @brief Reserved for future header data.. */
-    u16 reserved;
+	/** @brief A magic number indicating the file as a kohi binary file. */
+	u32 magic_number;
+	/** @brief The resource type. Maps to the enum resource_type. */
+	u8 resource_type;
+	/** @brief The format version this resource uses. */
+	u8 version;
+	/** @brief Reserved for future header data.. */
+	u16 reserved;
 } resource_header;
 
 /**
@@ -66,14 +66,14 @@ typedef struct resource_header {
  * load data into these.
  */
 typedef struct resource {
-    /** @brief The identifier of the loader which handles this resource. */
-    u32 loader_id;
-    /** @brief The name of the resource. */
-    const char* name;
-    /** @brief The full file path of the resource. */
-    char* full_path;
-    /** @brief The size of the resource data in bytes. */
-    u64 data_size;
-    /** @brief The resource data. */
-    void* data;
+	/** @brief The identifier of the loader which handles this resource. */
+	u32 loader_id;
+	/** @brief The name of the resource. */
+	const char* name;
+	/** @brief The full file path of the resource. */
+	char* full_path;
+	/** @brief The size of the resource data in bytes. */
+	u64 data_size;
+	/** @brief The resource data. */
+	void* data;
 } resource;

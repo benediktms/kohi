@@ -15,8 +15,8 @@
 
 /** @brief The dynamic allocator structure. */
 typedef struct dynamic_allocator {
-    /** @brief The allocated memory block for this allocator to use. */
-    void* memory;
+	/** @brief The allocated memory block for this allocator to use. */
+	void* memory;
 } dynamic_allocator;
 
 /**

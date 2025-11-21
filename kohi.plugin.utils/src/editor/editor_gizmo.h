@@ -9,84 +9,84 @@
 #include "core_resource_types.h"
 
 #if KOHI_DEBUG
-#    include <resources/debug/debug_line3d.h>
+#	include <resources/debug/debug_line3d.h>
 #endif
 
 struct ray;
 struct frame_data;
 
 typedef enum editor_gizmo_mode {
-    EDITOR_GIZMO_MODE_NONE = 0,
-    EDITOR_GIZMO_MODE_MOVE = 1,
-    EDITOR_GIZMO_MODE_ROTATE = 2,
-    EDITOR_GIZMO_MODE_SCALE = 3,
-    EDITOR_GIZMO_MODE_MAX = EDITOR_GIZMO_MODE_SCALE,
+	EDITOR_GIZMO_MODE_NONE = 0,
+	EDITOR_GIZMO_MODE_MOVE = 1,
+	EDITOR_GIZMO_MODE_ROTATE = 2,
+	EDITOR_GIZMO_MODE_SCALE = 3,
+	EDITOR_GIZMO_MODE_MAX = EDITOR_GIZMO_MODE_SCALE,
 } editor_gizmo_mode;
 
 typedef enum editor_gizmo_interaction_type {
-    EDITOR_GIZMO_INTERACTION_TYPE_NONE,
-    EDITOR_GIZMO_INTERACTION_TYPE_MOUSE_HOVER,
-    EDITOR_GIZMO_INTERACTION_TYPE_MOUSE_DOWN,
-    EDITOR_GIZMO_INTERACTION_TYPE_MOUSE_DRAG,
-    EDITOR_GIZMO_INTERACTION_TYPE_MOUSE_UP,
-    EDITOR_GIZMO_INTERACTION_TYPE_CANCEL
+	EDITOR_GIZMO_INTERACTION_TYPE_NONE,
+	EDITOR_GIZMO_INTERACTION_TYPE_MOUSE_HOVER,
+	EDITOR_GIZMO_INTERACTION_TYPE_MOUSE_DOWN,
+	EDITOR_GIZMO_INTERACTION_TYPE_MOUSE_DRAG,
+	EDITOR_GIZMO_INTERACTION_TYPE_MOUSE_UP,
+	EDITOR_GIZMO_INTERACTION_TYPE_CANCEL
 } editor_gizmo_interaction_type;
 
 typedef struct editor_gizmo_mode_data {
-    u32 vertex_count;
-    colour_vertex_3d* vertices;
+	u32 vertex_count;
+	colour_vertex_3d* vertices;
 
-    u32 index_count;
-    u32* indices;
+	u32 index_count;
+	u32* indices;
 
-    kgeometry geo;
+	kgeometry geo;
 
-    u32 extents_count;
-    extents_3d* mode_extents;
+	u32 extents_count;
+	extents_3d* mode_extents;
 
-    u8 current_axis_index;
-    plane_3d interaction_plane;
-    plane_3d interaction_plane_back;
+	u8 current_axis_index;
+	plane_3d interaction_plane;
+	plane_3d interaction_plane_back;
 
-    vec3 interaction_start_pos;
-    vec3 last_interaction_pos;
+	vec3 interaction_start_pos;
+	vec3 last_interaction_pos;
 } editor_gizmo_mode_data;
 
 typedef enum editor_gizmo_orientation {
-    /** @brief The gizmo's transform operations are relative to global transform. */
-    EDITOR_GIZMO_ORIENTATION_GLOBAL = 0,
-    /** @brief The gizmo's transform operations are relative to local transform. */
-    EDITOR_GIZMO_ORIENTATION_LOCAL = 1,
-    /** @brief The gizmo's transform operations are relative to the current view. */
-    // EDITOR_GIZMO_ORIENTATION_VIEW = 2,
-    EDITOR_GIZMO_ORIENTATION_MAX = EDITOR_GIZMO_ORIENTATION_LOCAL
+	/** @brief The gizmo's transform operations are relative to global transform. */
+	EDITOR_GIZMO_ORIENTATION_GLOBAL = 0,
+	/** @brief The gizmo's transform operations are relative to local transform. */
+	EDITOR_GIZMO_ORIENTATION_LOCAL = 1,
+	/** @brief The gizmo's transform operations are relative to the current view. */
+	// EDITOR_GIZMO_ORIENTATION_VIEW = 2,
+	EDITOR_GIZMO_ORIENTATION_MAX = EDITOR_GIZMO_ORIENTATION_LOCAL
 } editor_gizmo_orientation;
 
 typedef struct editor_gizmo {
-    /** @brief The transform of the gizmo. */
-    ktransform ktransform_handle;
-    /** @brief A handle to the currently selected object's transform. Invalid handle if nothing is selected. */
-    ktransform selected_ktransform_handle;
-    /** @brief A handle to the parent of the currently selected object's transform, if one exists. Otherwise invalid handle. */
-    ktransform selected_ktransform_parent_handle;
-    /** @brief The current mode of the gizmo. */
-    editor_gizmo_mode mode;
+	/** @brief The transform of the gizmo. */
+	ktransform ktransform_handle;
+	/** @brief A handle to the currently selected object's transform. Invalid handle if nothing is selected. */
+	ktransform selected_ktransform_handle;
+	/** @brief A handle to the parent of the currently selected object's transform, if one exists. Otherwise invalid handle. */
+	ktransform selected_ktransform_parent_handle;
+	/** @brief The current mode of the gizmo. */
+	editor_gizmo_mode mode;
 
-    /** @brief Used to keep the gizmo a consistent size on the screen despite camera distance. */
-    f32 scale_scalar;
+	/** @brief Used to keep the gizmo a consistent size on the screen despite camera distance. */
+	f32 scale_scalar;
 
-    /** @brief Indicates the editor transform operaton orientation. */
-    editor_gizmo_orientation orientation;
+	/** @brief Indicates the editor transform operaton orientation. */
+	editor_gizmo_orientation orientation;
 
-    /** @brief The data for each mode of the gizmo. */
-    editor_gizmo_mode_data mode_data[EDITOR_GIZMO_MODE_MAX + 1];
+	/** @brief The data for each mode of the gizmo. */
+	editor_gizmo_mode_data mode_data[EDITOR_GIZMO_MODE_MAX + 1];
 
-    editor_gizmo_interaction_type interaction;
+	editor_gizmo_interaction_type interaction;
 
-    b8 is_dirty;
+	b8 is_dirty;
 
 #if KOHI_DEBUG
-    debug_line3d plane_normal_line;
+	debug_line3d plane_normal_line;
 #endif
 } editor_gizmo;
 
