@@ -639,9 +639,10 @@ KAPI void renderer_renderbuffer_destroy(struct renderer_system_state* state, kre
  * @param state A pointer to the renderer state.
  * @param buffer A handle to the buffer to bind.
  * @param offset The offset in bytes from the beginning of the buffer.
+ * @param binding_index The index of which to bind the buffer. Unless using multiple buffers of the same time, pass 0 here.
  * @returns True on success; otherwise false.
  */
-KAPI b8 renderer_renderbuffer_bind(struct renderer_system_state* state, krenderbuffer buffer, u64 offset);
+KAPI b8 renderer_renderbuffer_bind(struct renderer_system_state* state, krenderbuffer buffer, u64 offset, u32 binding_index);
 
 /**
  * @brief Unbinds the given buffer.
@@ -781,10 +782,11 @@ KAPI b8 renderer_renderbuffer_copy_range(struct renderer_system_state* state, kr
  * @param buffer A handle to the buffer to be drawn.
  * @param offset The offset in bytes from the beginning of the buffer.
  * @param element_count The number of elements to be drawn.
+ * @param binding_index The index of which to bind the buffer. Unless using multiple buffers of the same time, pass 0 here.
  * @param bind_only Only bind the buffer, but don't draw.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_renderbuffer_draw(struct renderer_system_state* state, krenderbuffer buffer, u64 offset, u32 element_count, b8 bind_only);
+KAPI b8 renderer_renderbuffer_draw(struct renderer_system_state* state, krenderbuffer buffer, u64 offset, u32 element_count, u32 binding_index, b8 bind_only);
 
 /**
  * @brief Attempts retrieve the renderer's internal buffer of the given name.

@@ -182,7 +182,8 @@ layout(push_constant) uniform immediate_data {
 
     // bytes 64-79
     uint transform_index;
-    vec3 padding;
+    uint geo_type; // 0=static, 1=animated
+    vec2 padding;
     // 80-128 available
 } immediate;
 
@@ -194,9 +195,7 @@ layout(location = 0) in dto {
     vec4 vertex_colour;
 	vec4 tangent;
 	vec3 normal;
-    uint geo_type; // 0 = static, 1 = animated
     vec3 world_to_camera;
-    float padding2;
 	vec2 tex_coord;
 } in_dto;
 
@@ -544,9 +543,9 @@ void main() {
     } else if(global_settings.render_mode == 4) {
         // LEFTOFF: Why this no worky?
         // wireframe, just render a solid colour.
-        if(in_dto.geo_type == 0) {
+        if(immediate.geo_type == 0) {
             out_colour = vec4(0.0, 1.0, 1.0, 1.0); // cyan
-        } else if(in_dto.geo_type == 1) {
+        } else if(immediate.geo_type == 1) {
             out_colour = vec4(1.0, 0.0, 1.0, 1.0); // magenta
         } else {
             out_colour = vec4(1.0, 0.0, 0.0, 1.0); // red - what are you doing, you dingus?

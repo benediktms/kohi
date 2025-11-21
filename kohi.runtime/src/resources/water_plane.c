@@ -2,11 +2,11 @@
 
 #include "core/engine.h"
 #include "logger.h"
-#include "math/geometry.h"
 #include "math/kmath.h"
 #include "math/math_types.h"
 #include "memory/kmemory.h"
 #include "renderer/renderer_frontend.h"
+#include "renderer/renderer_types.h"
 #include "strings/kname.h"
 #include "systems/kmaterial_system.h"
 
@@ -68,8 +68,8 @@ b8 water_plane_load(water_plane* plane) {
 
         struct renderer_system_state* renderer_system = engine_systems_get()->renderer_system;
 
-        krenderbuffer vertex_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_GLOBAL_VERTEX));
-        krenderbuffer index_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_GLOBAL_INDEX));
+        krenderbuffer vertex_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_VERTEX_STANDARD));
+        krenderbuffer index_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_INDEX_STANDARD));
         // Allocate space
         if (!renderer_renderbuffer_allocate(renderer_system, vertex_buffer, sizeof(vertex_3d) * 4, &plane->vertex_buffer_offset)) {
             KERROR("Failed to allocate space in vertex buffer.");
@@ -100,8 +100,8 @@ b8 water_plane_unload(water_plane* plane) {
 
         struct renderer_system_state* renderer_system = engine_systems_get()->renderer_system;
 
-        krenderbuffer vertex_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_GLOBAL_VERTEX));
-        krenderbuffer index_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_GLOBAL_INDEX));
+        krenderbuffer vertex_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_VERTEX_STANDARD));
+        krenderbuffer index_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_INDEX_STANDARD));
         // Free space
         if (!renderer_renderbuffer_free(renderer_system, vertex_buffer, sizeof(vertex_3d) * 4, plane->vertex_buffer_offset)) {
             KERROR("Failed to free space in vertex buffer.");

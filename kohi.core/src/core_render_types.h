@@ -196,6 +196,8 @@ typedef struct shader_attribute {
     shader_attribute_type type;
     /** @brief The attribute size in bytes. */
     u32 size;
+    /** @brief The vertex binding index of this attribute. */
+    u32 binding_index;
 } shader_attribute;
 
 /**
@@ -259,6 +261,8 @@ typedef struct shader_attribute_config {
     u8 size;
     /** @brief The type of the attribute. */
     shader_attribute_type type;
+    /** @brief The vertex binding index for this attribute. */
+    u32 binding_index;
 } shader_attribute_config;
 
 typedef enum shader_binding_type {

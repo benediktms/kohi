@@ -302,18 +302,25 @@ typedef enum vulkan_topology_class {
     VULKAN_TOPOLOGY_CLASS_MAX = VULKAN_TOPOLOGY_CLASS_TRIANGLE + 1
 } vulkan_topology_class;
 
-/**
- * @brief A configuration structure for Vulkan pipelines.
- */
-typedef struct vulkan_pipeline_config {
-    /** @brief The name of the pipeline. Used primarily for debugging purposes. */
-    char* name;
+typedef struct vulkan_vertex_binding_attrib_config {
     /** @brief The stride of the vertex data to be used (ex: sizeof(vertex_3d)) */
     u32 stride;
     /** @brief The number of attributes. */
     u32 attribute_count;
     /** @brief An array of attributes. */
     VkVertexInputAttributeDescription* attributes;
+} vulkan_vertex_binding_attrib_config;
+
+/**
+ * @brief A configuration structure for Vulkan pipelines.
+ */
+typedef struct vulkan_pipeline_config {
+    /** @brief The name of the pipeline. Used primarily for debugging purposes. */
+    char* name;
+    /** @brief The number of vertex bidings. */
+    u32 vertex_binding_count;
+    /** @brief The vertex biding configs. */
+    vulkan_vertex_binding_attrib_config* vertex_bindings;
     /** @brief The number of descriptor set layouts. */
     u32 descriptor_set_layout_count;
     /** @brief An array of descriptor set layouts. */
@@ -524,13 +531,9 @@ typedef struct vulkan_shader {
     /** @brief Binding set states, matches binding set count. */
     vulkan_shader_binding_set_state* binding_set_states;
 
-    /** @brief The number of vertex attributes in the shader. */
-    u8 attribute_count;
-    /** @brief An array of attribute descriptions for this shader. */
-    VkVertexInputAttributeDescription attributes[VULKAN_SHADER_MAX_ATTRIBUTES];
-
-    /** @brief The size of all attributes combined, a.k.a. the size of a vertex. */
-    u32 attribute_stride;
+    /** @brief The number of vertex bindings in the shader. */
+    u32 vertex_binding_count;
+    vulkan_vertex_binding_attrib_config* vertex_bindings;
 
     /** @brief The topology types for the shader pipeline. See primitive_topology_type. Defaults to "triangle list" if unspecified. */
     u32 topology_types;

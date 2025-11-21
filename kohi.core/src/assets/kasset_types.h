@@ -317,6 +317,8 @@ typedef struct kasset_shader_stage {
 typedef struct kasset_shader_attribute {
     const char* name;
     shader_attribute_type type;
+    // The vertex binding index. Can leave 0 unless using extended data/vertex buffer.
+    u32 binding_index;
 } kasset_shader_attribute;
 
 /**
@@ -486,6 +488,27 @@ typedef struct kasset_model_submesh_data {
     vec3 center;
     extents_3d extents;
 } kasset_model_submesh_data;
+
+/**
+ * @brief Represents a single skinned vertex in 3D space within a kasset.
+ * Meant to be used alongside a standard vertex_3d
+ */
+typedef struct kasset_skinned_vertex_3d {
+    /** @brief The position of the vertex */
+    vec3 position;
+    /** @brief The normal of the vertex. */
+    vec3 normal;
+    /** @brief The texture coordinate of the vertex. */
+    vec2 texcoord;
+    /** @brief The colour of the vertex. */
+    vec4 colour;
+    /** @brief The tangent of the vertex. */
+    vec4 tangent;
+    /** @brief Bone indices that will influence this index. -1 means no bone. */
+    ivec4 bone_ids;
+    /** @brief Weights from each bone that will influence this index. */
+    vec4 weights;
+} kasset_skinned_vertex_3d;
 
 /**
  * Represents a Kohi Model asset. A model can contain

@@ -1,5 +1,6 @@
 #include "sui_label.h"
 #include "kresources/kresource_types.h"
+#include "renderer/renderer_types.h"
 #include "standard_ui_defines.h"
 #include "standard_ui_system.h"
 
@@ -122,7 +123,7 @@ void sui_label_control_unload(standard_ui_state* state, struct sui_control* self
     }
 
     // Free from the vertex buffer.
-    krenderbuffer vertex_buffer = renderer_renderbuffer_get(state->renderer, kname_create(KRENDERBUFFER_NAME_GLOBAL_VERTEX));
+    krenderbuffer vertex_buffer = renderer_renderbuffer_get(state->renderer, kname_create(KRENDERBUFFER_NAME_VERTEX_STANDARD));
     if (typed_data->vertex_buffer_offset != INVALID_ID_U64) {
         if (typed_data->max_text_length > 0) {
             renderer_renderbuffer_free(state->renderer, vertex_buffer, sizeof(vertex_2d) * 4 * typed_data->max_quad_count, typed_data->vertex_buffer_offset);
@@ -132,7 +133,7 @@ void sui_label_control_unload(standard_ui_state* state, struct sui_control* self
 
     // Free from the index buffer.
     if (typed_data->index_buffer_offset != INVALID_ID_U64) {
-        krenderbuffer index_buffer = renderer_renderbuffer_get(state->renderer, kname_create(KRENDERBUFFER_NAME_GLOBAL_INDEX));
+        krenderbuffer index_buffer = renderer_renderbuffer_get(state->renderer, kname_create(KRENDERBUFFER_NAME_INDEX_STANDARD));
         static const u64 quad_index_size = (sizeof(u32) * 6);
         if (typed_data->max_text_length > 0 || typed_data->index_buffer_offset != INVALID_ID_U64) {
             renderer_renderbuffer_free(state->renderer, index_buffer, quad_index_size * typed_data->max_quad_count, typed_data->index_buffer_offset);
@@ -279,8 +280,8 @@ static void sui_label_control_render_frame_prepare(standard_ui_state* state, str
                 goto sui_label_frame_prepare_cleanup;
             }
 
-            krenderbuffer vertex_buffer = renderer_renderbuffer_get(state->renderer, kname_create(KRENDERBUFFER_NAME_GLOBAL_VERTEX));
-            krenderbuffer index_buffer = renderer_renderbuffer_get(state->renderer, kname_create(KRENDERBUFFER_NAME_GLOBAL_INDEX));
+            krenderbuffer vertex_buffer = renderer_renderbuffer_get(state->renderer, kname_create(KRENDERBUFFER_NAME_VERTEX_STANDARD));
+            krenderbuffer index_buffer = renderer_renderbuffer_get(state->renderer, kname_create(KRENDERBUFFER_NAME_INDEX_STANDARD));
 
             u64 old_vertex_size = typed_data->vertex_buffer_size;
             u64 old_vertex_offset = typed_data->vertex_buffer_offset;

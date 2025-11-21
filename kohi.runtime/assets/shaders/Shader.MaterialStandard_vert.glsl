@@ -59,6 +59,8 @@ struct animation_skin_data {
 // =========================================================
 
 // Vertex inputs
+
+// Standard vertex data
 layout(location = 0) in vec3 in_position;
 layout(location = 1) in vec3 in_normal;
 layout(location = 2) in vec2 in_texcoord;
@@ -94,17 +96,17 @@ layout(std430, set = 0, binding = 1) readonly buffer global_transforms_ssbo {
 
 // All lighting
 layout(std430, set = 0, binding = 2) readonly buffer global_lighting_ssbo {
-    light_data lights[]; // indexed by out_dto.packed_point_light_indices (needs unpacking to 16x u8s)
+    light_data lights[]; // indexed by immediate.packed_point_light_indices (needs unpacking to 16x u8s)
 } global_lighting;
 
 // All materials
 layout(std430, set = 0, binding = 3) readonly buffer global_materials_ssbo {
-    base_material_data base_materials[]; // indexed by out_dto.transform_index
+    base_material_data base_materials[]; // indexed by immediate.transform_index
 } global_materials;
 
 // All animation data
 layout(std430, set = 0, binding = 4) readonly buffer global_animations_ssbo {
-    animation_skin_data animations[]; // indexed by out_dto.animation_index;
+    animation_skin_data animations[]; // indexed by immediate.animation_index;
 } global_animations;
 
 
@@ -150,10 +152,10 @@ layout(location = 0) out dto {
     vec4 vertex_colour;
 	vec4 tangent;
 	vec3 normal;
-    uint geo_type; // 0 = static, 1 = animated
     vec3 world_to_camera;
-    float padding2;
 	vec2 tex_coord;
+    uint geo_type; // 0 = static, 1 = animated
+    float padding2;
 } out_dto;
 
 /** 

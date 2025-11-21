@@ -115,7 +115,8 @@ typedef struct kmaterial_render_immediate_data {
 
     // bytes 64-79
     u32 transform_index;
-    vec3 padding;
+    u32 geo_type;
+    vec2 padding;
     // 80-128 available
 } kmaterial_render_immediate_data;
 
@@ -139,12 +140,8 @@ typedef struct kmaterial_renderer {
     ktexture default_water_normal_texture;
     ktexture default_water_dudv_texture;
 
-    kshader material_standard_shader;
-    u32 material_standard_shader_bs_0_instance_id;
     kshader material_standard_skinned_shader;
     u32 material_standard_skinned_shader_bs_0_instance_id;
-    /* kshader material_water_shader; */
-    /* u32 material_water_shader_bs_0_instance_id; */
     // FIXME: implement this
     kshader material_blended_shader;
 
@@ -179,4 +176,4 @@ KAPI void kmaterial_renderer_apply_globals(kmaterial_renderer* state);
 KAPI void kmaterial_renderer_bind_base(kmaterial_renderer* state, kmaterial base);
 
 // Updates material instance immediates using the provided data.
-KAPI void kmaterial_renderer_apply_immediates(kmaterial_renderer* state, kmaterial_instance instance, const kmaterial_render_immediate_data* immediates, b8 is_animated);
+KAPI void kmaterial_renderer_apply_immediates(kmaterial_renderer* state, kmaterial_instance instance, const kmaterial_render_immediate_data* immediates);

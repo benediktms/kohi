@@ -176,8 +176,13 @@ typedef u32 renderbuffer_flags;
 typedef u16 krenderbuffer;
 #define KRENDERBUFFER_INVALID INVALID_ID_U16
 
-#define KRENDERBUFFER_NAME_GLOBAL_VERTEX "vertex_globalgeometry"
-#define KRENDERBUFFER_NAME_GLOBAL_INDEX "index_globalgeometry"
+#define KRENDERBUFFER_NAME_VERTEX_STANDARD "Kohi.RenderBuffer.VertexStandard"
+#define KRENDERBUFFER_NAME_VERTEX_EXTENDED "Kohi.RenderBuffer.VertexExtended"
+#define KRENDERBUFFER_NAME_INDEX_STANDARD "Kohi.RenderBuffer.IndexStandard"
+
+#define KRENDERBUFFER_BIND_INDEX_VERTEX_STANDARD 0
+#define KRENDERBUFFER_BIND_INDEX_VERTEX_EXTENDED 1
+#define KRENDERBUFFER_BIND_INDEX_INDEX_STANDARD 0
 
 typedef enum renderer_config_flag_bits {
     /** @brief Indicates that vsync should be enabled. */
@@ -686,9 +691,10 @@ typedef struct renderer_backend_interface {
      * @param backend A pointer to the renderer backend interface.
      * @param buffer A handle to the buffer to bind.
      * @param offset The offset in bytes from the beginning of the buffer.
+     * @param binding_index The index of which to bind the buffer. Unless using multiple buffers of the same time, pass 0 here.
      * @returns True on success; otherwise false.
      */
-    b8 (*renderbuffer_bind)(struct renderer_backend_interface* backend, krenderbuffer buffer, u64 offset);
+    b8 (*renderbuffer_bind)(struct renderer_backend_interface* backend, krenderbuffer buffer, u64 offset, u32 binding_index);
     /**
      * @brief Unbinds the given buffer.
      *
@@ -797,10 +803,11 @@ typedef struct renderer_backend_interface {
      * @param buffer A handle to the buffer to be drawn.
      * @param offset The offset in bytes from the beginning of the buffer.
      * @param element_count The number of elements to be drawn.
+     * @param binding_index The index of which to bind the buffer. Unless using multiple buffers of the same time, pass 0 here.
      * @param bind_only Only binds the buffer, but does not call draw.
      * @return True on success; otherwise false.
      */
-    b8 (*renderbuffer_draw)(struct renderer_backend_interface* backend, krenderbuffer buffer, u64 offset, u32 element_count, b8 bind_only);
+    b8 (*renderbuffer_draw)(struct renderer_backend_interface* backend, krenderbuffer buffer, u64 offset, u32 element_count, u32 binding_index, b8 bind_only);
 
     /**
      * Waits for the renderer backend to be completely idle of work before returning.

@@ -56,11 +56,14 @@ struct animation_skin_data {
 // =========================================================
 
 // Vertex inputs
+
+// Standard vertex data
 layout(location = 0) in vec3 in_position;
 layout(location = 1) in vec3 in_normal;
 layout(location = 2) in vec2 in_texcoord;
 layout(location = 3) in vec4 in_colour;
 layout(location = 4) in vec4 in_tangent;
+// Extended vertex data
 layout(location = 5) in ivec4 in_bone_ids;
 layout(location = 6) in vec4 in_weights;
 
@@ -133,7 +136,8 @@ layout(push_constant) uniform immediate_data {
 
     // bytes 64-79
     uint transform_index;
-    vec3 padding;
+    uint geo_type; // 0=static, 1=animated
+    vec2 padding;
     // 80-128 available
 } immediate;
 
@@ -149,9 +153,7 @@ layout(location = 0) out dto {
     vec4 vertex_colour;
 	vec4 tangent;
 	vec3 normal;
-    uint geo_type; // 0 = static, 1 = animated
     vec3 world_to_camera;
-    float padding2;
 	vec2 tex_coord;
 } out_dto;
 
@@ -168,7 +170,6 @@ const mat4 ndc_to_uvw = mat4(
 );
 
 void main() {
-    out_dto.geo_type = 1;
     mat4 model = global_transforms.transforms[immediate.transform_index];
     mat4 view = global_settings.views[immediate.view_index];
     mat4 projection = global_settings.projections[immediate.projection_index];
@@ -184,10 +185,11 @@ void main() {
     out_dto.vertex_colour = in_colour;
 
     // Accumulate bone transform.
-    mat4 bone_transform = (bones[in_bone_ids[0]] * in_weights[0]);
-    bone_transform += (bones[in_bone_ids[1]] * in_weights[1]);
-    bone_transform += (bones[in_bone_ids[2]] * in_weights[2]);
-    bone_transform += (bones[in_bone_ids[3]] * in_weights[3]);
+    mat4 bone_transform = mat4(1.0);
+    bone_transform += (bones[in_bone_ids[0]] * in_weights[0]) * immediate.geo_type;
+    bone_transform += (bones[in_bone_ids[1]] * in_weights[1]) * immediate.geo_type;
+    bone_transform += (bones[in_bone_ids[2]] * in_weights[2]) * immediate.geo_type;
+    bone_transform += (bones[in_bone_ids[3]] * in_weights[3]) * immediate.geo_type;
 	// Fragment position in world space.
 	out_dto.frag_position = model * bone_transform * vec4(in_position, 1.0);
 	// Copy the normal over.
@@ -196,7 +198,7 @@ void main() {
 	out_dto.normal = normalize(m3_model * normal4.xyz);
 	out_dto.tangent.xyz = normalize(m3_model * vec3(in_tangent));
     out_dto.tangent.w = in_tangent.w;
-    out_dto.clip_space = projection * view * out_dto.frag_position;// model * vec4(in_position, 1.0);
+    out_dto.clip_space = projection * view * out_dto.frag_position;
     gl_Position = out_dto.clip_space;
 
 	// Apply clipping plane

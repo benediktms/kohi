@@ -53,12 +53,19 @@ typedef struct kgeometry {
 
     /** @brief The vertex count. */
     u32 vertex_count;
-    /** @brief The size of each vertex. Ignored unless type is KGEOMETRY_TYPE_CUSTOM. */
+    /** @brief The size of each vertex's standard data. Ignored unless type is KGEOMETRY_TYPE_CUSTOM. */
     u32 vertex_element_size;
-    /** @brief The vertex data. */
+    /** @brief The standard vertex data. */
     void* vertices;
-    /** @brief The offset from the beginning of the vertex buffer. */
+    /** @brief The offset from the beginning of the standard  vertex buffer. */
     u64 vertex_buffer_offset;
+
+    /** @brief The size of each vertex's extended data. Ignored if 0. */
+    u32 extended_vertex_element_size;
+    /** @brief The extended vertex data. Uses the same vertex_count as standard vertex data. */
+    void* extended_vertices;
+    /** @brief The offset from the beginning of the extended vertex buffer. */
+    u64 extended_vertex_buffer_offset;
 
     /** @brief The index count. */
     u32 index_count;

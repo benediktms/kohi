@@ -285,8 +285,8 @@ b8 vulkan_renderer_backend_initialize(renderer_backend_interface* backend, const
         debug_create_info.messageType =
             VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
             VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT |
-            VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT; // |
-        /* VK_DEBUG_UTILS_MESSAGE_TYPE_DEVICE_ADDRESS_BINDING_BIT_EXT; */
+            VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
+            VK_DEBUG_UTILS_MESSAGE_TYPE_DEVICE_ADDRESS_BINDING_BIT_EXT;
         debug_create_info.pfnUserCallback = vk_debug_callback;
 
         PFN_vkCreateDebugUtilsMessengerEXT func = (PFN_vkCreateDebugUtilsMessengerEXT)rhi->kvkGetInstanceProcAddr(context->instance, "vkCreateDebugUtilsMessengerEXT");
@@ -717,7 +717,7 @@ b8 vulkan_renderer_frame_command_list_begin(renderer_backend_interface* backend,
     // Setup a pipeline barrier to ensure all vertex updates have happened
     // on the previous frame before trying to read it.
     {
-        krenderbuffer vertex_buffer = renderer_renderbuffer_get(backend->frontend_state, kname_create(KRENDERBUFFER_NAME_GLOBAL_VERTEX));
+        krenderbuffer vertex_buffer = renderer_renderbuffer_get(backend->frontend_state, kname_create(KRENDERBUFFER_NAME_VERTEX_STANDARD));
         vulkan_buffer* internal_vertex_buffer = &context->renderbuffers[vertex_buffer];
         u8 index = internal_vertex_buffer->handle_count == 1 ? 0 : get_current_image_index(context);
         VkBufferMemoryBarrier vertex_buffer_barrier = {
@@ -882,7 +882,7 @@ b8 vulkan_renderer_frame_command_list_end(renderer_backend_interface* backend, s
 
     // Barrier for vertex buffer
     {
-        krenderbuffer vertex_buffer = renderer_renderbuffer_get(backend->frontend_state, kname_create(KRENDERBUFFER_NAME_GLOBAL_VERTEX));
+        krenderbuffer vertex_buffer = renderer_renderbuffer_get(backend->frontend_state, kname_create(KRENDERBUFFER_NAME_VERTEX_STANDARD));
         vulkan_buffer* internal_vertex_buffer = &context->renderbuffers[vertex_buffer];
         u8 index = internal_vertex_buffer->handle_count == 1 ? 0 : get_current_image_index(context);
         VkBufferMemoryBarrier barrier = {0};
@@ -908,7 +908,7 @@ b8 vulkan_renderer_frame_command_list_end(renderer_backend_interface* backend, s
 
     // Barrier for index buffer
     {
-        krenderbuffer index_buffer = renderer_renderbuffer_get(backend->frontend_state, kname_create(KRENDERBUFFER_NAME_GLOBAL_INDEX));
+        krenderbuffer index_buffer = renderer_renderbuffer_get(backend->frontend_state, kname_create(KRENDERBUFFER_NAME_INDEX_STANDARD));
         vulkan_buffer* internal_index_buffer = &context->renderbuffers[index_buffer];
         u8 index = internal_index_buffer->handle_count == 1 ? 0 : get_current_image_index(context);
         VkBufferMemoryBarrier barrier = {0};
@@ -1333,7 +1333,7 @@ void vulkan_renderer_end_rendering(struct renderer_backend_interface* backend, f
 
     // Barrier for vertex buffer
     {
-        krenderbuffer vertex_buffer = renderer_renderbuffer_get(backend->frontend_state, kname_create(KRENDERBUFFER_NAME_GLOBAL_VERTEX));
+        krenderbuffer vertex_buffer = renderer_renderbuffer_get(backend->frontend_state, kname_create(KRENDERBUFFER_NAME_VERTEX_STANDARD));
         vulkan_buffer* internal_vertex_buffer = &context->renderbuffers[vertex_buffer];
         u8 index = internal_vertex_buffer->handle_count == 1 ? 0 : get_current_image_index(context);
         VkBufferMemoryBarrier barrier = {0};
@@ -1359,7 +1359,7 @@ void vulkan_renderer_end_rendering(struct renderer_backend_interface* backend, f
 
     // Barrier for index buffer
     {
-        krenderbuffer index_buffer = renderer_renderbuffer_get(backend->frontend_state, kname_create(KRENDERBUFFER_NAME_GLOBAL_INDEX));
+        krenderbuffer index_buffer = renderer_renderbuffer_get(backend->frontend_state, kname_create(KRENDERBUFFER_NAME_INDEX_STANDARD));
         vulkan_buffer* internal_index_buffer = &context->renderbuffers[index_buffer];
         u8 index = internal_index_buffer->handle_count == 1 ? 0 : get_current_image_index(context);
         VkBufferMemoryBarrier barrier = {0};
@@ -2385,7 +2385,46 @@ b8 vulkan_renderer_shader_create(
             types = t;
         }
 
-        // Attributes array.
+        // Iterate the passed-in attributes (which must be passed in order) and figure out how many
+        // bindings there are (examine attrib.binding and organize that way).
+        u32 high_binding = 0;
+        for (u8 i = 0; i < attribute_count; ++i) {
+            if (attributes[i].binding_index > high_binding) {
+                high_binding = attributes[i].binding_index;
+            }
+        }
+        u32 binding_count = high_binding + 1;
+        internal_shader->vertex_binding_count = binding_count;
+        internal_shader->vertex_bindings = KALLOC_TYPE_CARRAY(vulkan_vertex_binding_attrib_config, binding_count);
+        // Figure out how many attributes are in each binding and allocate the arrays.
+        for (u8 i = 0; i < attribute_count; ++i) {
+            internal_shader->vertex_bindings[attributes[i].binding_index].attribute_count++;
+        }
+
+        u32 location = 0;
+        for (u32 b = 0; b < binding_count; ++b) {
+            vulkan_vertex_binding_attrib_config* binding = &internal_shader->vertex_bindings[b];
+            binding->attributes = KALLOC_TYPE_CARRAY(VkVertexInputAttributeDescription, binding->attribute_count);
+            u32 added = 0;
+            u32 offset = 0;
+            for (u8 i = 0; i < attribute_count; ++i) {
+                if (attributes[i].binding_index == b) {
+                    VkVertexInputAttributeDescription* attribute = &binding->attributes[added];
+                    attribute->location = location;
+                    attribute->binding = b;
+                    attribute->offset = offset;
+                    attribute->format = types[attributes[i].type];
+
+                    offset += attributes[i].size;
+                    binding->stride += attributes[i].size;
+                    location++;
+                    added++;
+                }
+            }
+        }
+
+        // FIXME: remove this
+        /* // Attributes array.
         kzero_memory(internal_shader->attributes, sizeof(VkVertexInputAttributeDescription) * VULKAN_SHADER_MAX_ATTRIBUTES);
 
         // Process attributes
@@ -2404,7 +2443,7 @@ b8 vulkan_renderer_shader_create(
 
             offset += attributes[i].size;
             internal_shader->attribute_stride += attributes[i].size;
-        }
+        } */
     }
 
     // Only dynamic topology is supported. Create one pipeline per topology class.
@@ -3417,7 +3456,7 @@ b8 vulkan_buffer_resize(renderer_backend_interface* backend, krenderbuffer handl
     return true;
 }
 
-b8 vulkan_buffer_bind(renderer_backend_interface* backend, krenderbuffer handle, u64 offset) {
+b8 vulkan_buffer_bind(renderer_backend_interface* backend, krenderbuffer handle, u64 offset, u32 binding_index) {
     vulkan_context* context = (vulkan_context*)backend->internal_context;
     krhi_vulkan* rhi = &context->rhi;
 
@@ -3433,7 +3472,7 @@ b8 vulkan_buffer_bind(renderer_backend_interface* backend, krenderbuffer handle,
     if (internal_buffer->type == RENDERBUFFER_TYPE_VERTEX) {
         // Bind vertex buffer at offset.
         VkDeviceSize offsets[1] = {offset};
-        rhi->kvkCmdBindVertexBuffers(command_buffer->handle, 0, 1, &internal_buffer->infos[index].handle, offsets);
+        rhi->kvkCmdBindVertexBuffers(command_buffer->handle, binding_index, 1, &internal_buffer->infos[index].handle, offsets);
         return true;
     } else if (internal_buffer->type == RENDERBUFFER_TYPE_INDEX) {
         // Bind index buffer at offset.
@@ -3690,8 +3729,8 @@ b8 vulkan_buffer_copy_range(
     return true;
 }
 
-b8 vulkan_buffer_draw(renderer_backend_interface* backend, krenderbuffer handle, u64 offset, u32 element_count, b8 bind_only) {
-    if (!vulkan_buffer_bind(backend, handle, offset)) {
+b8 vulkan_buffer_draw(renderer_backend_interface* backend, krenderbuffer handle, u64 offset, u32 element_count, u32 binding_index, b8 bind_only) {
+    if (!vulkan_buffer_bind(backend, handle, offset, binding_index)) {
         KERROR("Failed to bind renderbuffer. See logs for details.");
         return false;
     }
@@ -3896,17 +3935,35 @@ static b8 vulkan_graphics_pipeline_create(vulkan_context* context, const vulkan_
     dynamic_state_create_info.pDynamicStates = dynamic_states;
 
     // Vertex input
-    VkVertexInputBindingDescription binding_description;
-    binding_description.binding = 0; // Binding index
-    binding_description.stride = config->stride;
-    binding_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX; // Move to next data entry for each vertex.
-
-    // Attributes
     VkPipelineVertexInputStateCreateInfo vertex_input_info = {VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
-    vertex_input_info.vertexBindingDescriptionCount = 1;
-    vertex_input_info.pVertexBindingDescriptions = &binding_description;
-    vertex_input_info.vertexAttributeDescriptionCount = config->attribute_count;
-    vertex_input_info.pVertexAttributeDescriptions = config->attributes;
+    vertex_input_info.vertexBindingDescriptionCount = config->vertex_binding_count;
+    if (config->vertex_binding_count) {
+        u32 loc_count = 0;
+        VkVertexInputBindingDescription* bindings = KALLOC_TYPE_CARRAY(VkVertexInputBindingDescription, config->vertex_binding_count);
+        for (u32 b = 0; b < config->vertex_binding_count; ++b) {
+            VkVertexInputBindingDescription* binding_description = &bindings[b];
+            binding_description->binding = b;
+            binding_description->stride = config->vertex_bindings[b].stride;
+            binding_description->inputRate = VK_VERTEX_INPUT_RATE_VERTEX; // Move to next data entry for each vertex.
+            loc_count += config->vertex_bindings[b].attribute_count;
+        }
+
+        u32 loc_index = 0;
+        vertex_input_info.vertexAttributeDescriptionCount = loc_count;
+        VkVertexInputAttributeDescription* out_attribs = KALLOC_TYPE_CARRAY(VkVertexInputAttributeDescription, loc_count);
+        for (u32 b = 0; b < config->vertex_binding_count; ++b) {
+            vulkan_vertex_binding_attrib_config* binding_config = &config->vertex_bindings[b];
+            for (u32 a = 0; a < binding_config->attribute_count; ++a) {
+                out_attribs[loc_index] = binding_config->attributes[a];
+                out_attribs[loc_index].binding = b;
+                out_attribs[loc_index].location = loc_index;
+                loc_index++;
+            }
+        }
+
+        vertex_input_info.pVertexBindingDescriptions = bindings;
+        vertex_input_info.pVertexAttributeDescriptions = out_attribs;
+    }
 
     // Input assembly
     VkPipelineInputAssemblyStateCreateInfo input_assembly = {VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO};
@@ -4126,9 +4183,8 @@ static b8 shader_create_modules_and_pipelines(renderer_backend_interface* backen
         }
 
         vulkan_pipeline_config pipeline_config = {0};
-        pipeline_config.stride = internal_shader->attribute_stride;
-        pipeline_config.attribute_count = internal_shader->attribute_count;
-        pipeline_config.attributes = internal_shader->attributes;
+        pipeline_config.vertex_binding_count = internal_shader->vertex_binding_count;
+        pipeline_config.vertex_bindings = internal_shader->vertex_bindings;
         pipeline_config.descriptor_set_layout_count = internal_shader->descriptor_set_count;
         pipeline_config.descriptor_set_layouts = internal_shader->descriptor_set_layouts;
         pipeline_config.stage_count = internal_shader->stage_count;

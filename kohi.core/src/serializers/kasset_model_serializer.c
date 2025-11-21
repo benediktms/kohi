@@ -168,7 +168,7 @@ KAPI b8 kasset_model_deserialize(u64 size, const void* in_block, kasset_model* o
                 total_vert_buffer_size += (sizeof(vertex_3d) * submeshes.vertex_counts[i]);
                 break;
             case K3D_MESH_TYPE_SKINNED:
-                total_vert_buffer_size += (sizeof(skinned_vertex_3d) * submeshes.vertex_counts[i]);
+                total_vert_buffer_size += (sizeof(kasset_skinned_vertex_3d) * submeshes.vertex_counts[i]);
                 break;
             }
 
@@ -318,7 +318,7 @@ KAPI b8 kasset_model_deserialize(u64 size, const void* in_block, kasset_model* o
                 submesh->type = KASSET_MODEL_MESH_TYPE_STATIC;
                 break;
             case K3D_MESH_TYPE_SKINNED:
-                vert_size = sizeof(skinned_vertex_3d);
+                vert_size = sizeof(kasset_skinned_vertex_3d);
                 submesh->type = KASSET_MODEL_MESH_TYPE_SKINNED;
                 break;
             }
@@ -538,7 +538,7 @@ KAPI void* kasset_model_serialize(const kasset_model* asset, u32 exporter_type, 
                 vert_size = sizeof(vertex_3d);
                 break;
             case KASSET_MODEL_MESH_TYPE_SKINNED:
-                vert_size = sizeof(skinned_vertex_3d);
+                vert_size = sizeof(kasset_skinned_vertex_3d);
                 break;
             }
             total_submesh_vertex_buffer_size += (vert_size * submesh->vertex_count);
@@ -564,7 +564,7 @@ KAPI void* kasset_model_serialize(const kasset_model* asset, u32 exporter_type, 
                 mesh_type = 0;
                 break;
             case KASSET_MODEL_MESH_TYPE_SKINNED:
-                vert_size = sizeof(skinned_vertex_3d);
+                vert_size = sizeof(kasset_skinned_vertex_3d);
                 mesh_type = 1;
                 break;
             }

@@ -229,7 +229,7 @@ void vulkan_command_buffer_end_single_use(
     VK_CHECK(rhi->kvkQueueSubmit(queue, 1, &submit_info, 0));
 
     // Wait for it to finish
-    VK_CHECK(rhi->kvkQueueWaitIdle(queue));
+    VK_CHECK_DETAILED(rhi->kvkQueueWaitIdle(queue));
 
     // Free the command buffer.
     vulkan_command_buffer_free(context, pool, command_buffer);

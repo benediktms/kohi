@@ -122,6 +122,7 @@ const char* kasset_shader_serialize(const kasset_shader* asset) {
 
             kson_object_value_add_string(&attribute_obj, "type", shader_attribute_type_to_string(attribute->type));
             kson_object_value_add_string(&attribute_obj, "name", attribute->name);
+            kson_object_value_add_int(&attribute_obj, "binding_index", attribute->binding_index);
 
             kson_array_value_add_object(&attributes_array, attribute_obj);
         }
@@ -334,6 +335,10 @@ b8 kasset_shader_deserialize(const char* file_text, kasset_shader* out_asset) {
                 string_free(temp);
 
                 kson_object_property_value_get_string(&attribute_obj, "name", &attribute->name);
+
+                i64 ibinding_idx = 0;
+                kson_object_property_value_get_int(&attribute_obj, "binding_index", &ibinding_idx);
+                attribute->binding_index = (u32)ibinding_idx;
             }
         }
 

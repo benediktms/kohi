@@ -81,8 +81,10 @@ typedef struct renderer_system_state {
      */
     u8 render_target_count;
 
-    /** @brief The object vertex buffer, used to hold geometry vertices. */
-    krenderbuffer geometry_vertex_buffer;
+    /** @brief The standard data vertex buffer, used to hold vertex_3d data. */
+    krenderbuffer standard_vertex_buffer;
+    /** @brief The extended data vertex buffer, used to hold additional vertex data (i.e. bone weights, etc). */
+    krenderbuffer extended_vertex_buffer;
     /** @brief The object index buffer, used to hold geometry indices. */
     krenderbuffer geometry_index_buffer;
 
@@ -257,19 +259,28 @@ b8 renderer_system_initialize(u64* memory_requirement, renderer_system_state* st
     // Renderbuffer setup.
     state->renderbuffers = darray_create(krenderbuffer_data);
 
-    // Geometry vertex buffer
+    // Standard vertex buffer
     // TODO: make this configurable.
-    const u64 vertex_buffer_size = sizeof(vertex_3d) * 20 * 1024 * 1024;
-    state->geometry_vertex_buffer = renderer_renderbuffer_create(state, kname_create(KRENDERBUFFER_NAME_GLOBAL_VERTEX), RENDERBUFFER_TYPE_VERTEX, vertex_buffer_size, RENDERBUFFER_TRACK_TYPE_FREELIST, RENDERBUFFER_FLAG_NONE);
-    if (state->geometry_vertex_buffer == KRENDERBUFFER_INVALID) {
-        KERROR("Error creating vertex buffer.");
+    const u64 standard_vertex_buffer_size = sizeof(vertex_3d) * 20 * 1024 * 1024;
+    state->standard_vertex_buffer = renderer_renderbuffer_create(state, kname_create(KRENDERBUFFER_NAME_VERTEX_STANDARD), RENDERBUFFER_TYPE_VERTEX, standard_vertex_buffer_size, RENDERBUFFER_TRACK_TYPE_FREELIST, RENDERBUFFER_FLAG_NONE);
+    if (state->standard_vertex_buffer == KRENDERBUFFER_INVALID) {
+        KERROR("Error creating standard vertex buffer.");
+        return false;
+    }
+
+    // Extended vertex buffer
+    // TODO: make this configurable.
+    const u64 extended_vertex_buffer_size = sizeof(skinned_extended_vertex_3d) * 20 * 1024 * 1024;
+    state->extended_vertex_buffer = renderer_renderbuffer_create(state, kname_create(KRENDERBUFFER_NAME_VERTEX_EXTENDED), RENDERBUFFER_TYPE_VERTEX, extended_vertex_buffer_size, RENDERBUFFER_TRACK_TYPE_FREELIST, RENDERBUFFER_FLAG_NONE);
+    if (state->extended_vertex_buffer == KRENDERBUFFER_INVALID) {
+        KERROR("Error creating extended vertex buffer.");
         return false;
     }
 
     // Geometry index buffer
     // TODO: Make this configurable.
     const u64 index_buffer_size = sizeof(u32) * 100 * 1024 * 1024;
-    state->geometry_index_buffer = renderer_renderbuffer_create(state, kname_create(KRENDERBUFFER_NAME_GLOBAL_INDEX), RENDERBUFFER_TYPE_INDEX, index_buffer_size, RENDERBUFFER_TRACK_TYPE_FREELIST, RENDERBUFFER_FLAG_NONE);
+    state->geometry_index_buffer = renderer_renderbuffer_create(state, kname_create(KRENDERBUFFER_NAME_INDEX_STANDARD), RENDERBUFFER_TYPE_INDEX, index_buffer_size, RENDERBUFFER_TRACK_TYPE_FREELIST, RENDERBUFFER_FLAG_NONE);
     if (state->geometry_index_buffer == KRENDERBUFFER_INVALID) {
         KERROR("Error creating index buffer.");
         return false;
@@ -284,7 +295,8 @@ void renderer_system_shutdown(renderer_system_state* state) {
         // renderer_wait_for_idle();
 
         // Destroy buffers.
-        renderer_renderbuffer_destroy(state, state->geometry_vertex_buffer);
+        renderer_renderbuffer_destroy(state, state->standard_vertex_buffer);
+        renderer_renderbuffer_destroy(state, state->extended_vertex_buffer);
         renderer_renderbuffer_destroy(state, state->geometry_index_buffer);
 
         // Destroy generic samplers.
@@ -664,7 +676,7 @@ b8 renderer_geometry_upload(kgeometry* g) {
     // Vertex data.
     if (!is_reupload) {
         // Allocate space in the buffer.
-        if (!renderer_renderbuffer_allocate(state_ptr, state_ptr->geometry_vertex_buffer, vertex_size, &g->vertex_buffer_offset)) {
+        if (!renderer_renderbuffer_allocate(state_ptr, state_ptr->standard_vertex_buffer, vertex_size, &g->vertex_buffer_offset)) {
             KERROR("vulkan_renderer_geometry_upload failed to allocate from the vertex buffer!");
             return false;
         }
@@ -672,7 +684,7 @@ b8 renderer_geometry_upload(kgeometry* g) {
 
     // Load the data.
     // TODO: Passing false here produces a queue wait and should be offloaded to another queue.
-    if (!renderer_renderbuffer_load_range(state_ptr, state_ptr->geometry_vertex_buffer, g->vertex_buffer_offset + vertex_offset, vertex_size, g->vertices + vertex_offset, false)) {
+    if (!renderer_renderbuffer_load_range(state_ptr, state_ptr->standard_vertex_buffer, g->vertex_buffer_offset + vertex_offset, vertex_size, g->vertices + vertex_offset, false)) {
         KERROR("vulkan_renderer_geometry_upload failed to upload to the vertex buffer!");
         return false;
     }
@@ -704,7 +716,7 @@ void renderer_geometry_vertex_update(kgeometry* g, u32 offset, u32 vertex_count,
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
     // Load the data.
     u32 size = g->vertex_element_size * vertex_count;
-    if (!renderer_renderbuffer_load_range(state_ptr, state_ptr->geometry_vertex_buffer, g->vertex_buffer_offset + offset, size, vertices + offset, include_in_frame_workload)) {
+    if (!renderer_renderbuffer_load_range(state_ptr, state_ptr->standard_vertex_buffer, g->vertex_buffer_offset + offset, size, vertices + offset, include_in_frame_workload)) {
         KERROR("vulkan_renderer_geometry_vertex_update failed to upload to the vertex buffer!");
     }
 }
@@ -716,7 +728,7 @@ void renderer_geometry_destroy(kgeometry* g) {
         // Free vertex data
         u64 vertex_data_size = g->vertex_element_size * g->vertex_count;
         if (vertex_data_size) {
-            if (!renderer_renderbuffer_free(state_ptr, state_ptr->geometry_vertex_buffer, vertex_data_size, g->vertex_buffer_offset)) {
+            if (!renderer_renderbuffer_free(state_ptr, state_ptr->standard_vertex_buffer, vertex_data_size, g->vertex_buffer_offset)) {
                 KERROR("vulkan_renderer_destroy_geometry failed to free vertex buffer range.");
             }
         }
@@ -739,13 +751,13 @@ void renderer_geometry_destroy(kgeometry* g) {
 void renderer_geometry_draw(geometry_render_data* data) {
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
     b8 includes_index_data = data->index_count > 0;
-    if (!renderer_renderbuffer_draw(state_ptr, state_ptr->geometry_vertex_buffer, data->vertex_buffer_offset, data->vertex_count, includes_index_data)) {
+    if (!renderer_renderbuffer_draw(state_ptr, state_ptr->standard_vertex_buffer, data->vertex_buffer_offset, data->vertex_count, 0, includes_index_data)) {
         KERROR("vulkan_renderer_draw_geometry failed to draw vertex buffer;");
         return;
     }
 
     if (includes_index_data) {
-        if (!renderer_renderbuffer_draw(state_ptr, state_ptr->geometry_index_buffer, data->index_buffer_offset, data->index_count, !includes_index_data)) {
+        if (!renderer_renderbuffer_draw(state_ptr, state_ptr->geometry_index_buffer, data->index_buffer_offset, data->index_count, 0, !includes_index_data)) {
             KERROR("vulkan_renderer_draw_geometry failed to draw index buffer;");
             return;
         }
@@ -1036,13 +1048,13 @@ void renderer_renderbuffer_destroy(struct renderer_system_state* state, krenderb
     state->backend->renderbuffer_destroy(state->backend, handle);
 }
 
-b8 renderer_renderbuffer_bind(struct renderer_system_state* state, krenderbuffer buffer, u64 offset) {
+b8 renderer_renderbuffer_bind(struct renderer_system_state* state, krenderbuffer buffer, u64 offset, u32 binding_index) {
     if (buffer == KRENDERBUFFER_INVALID) {
         KERROR("renderer_renderbuffer_bind requires a valid buffer.");
         return false;
     }
 
-    return state->backend->renderbuffer_bind(state->backend, buffer, offset);
+    return state->backend->renderbuffer_bind(state->backend, buffer, offset, binding_index);
 }
 
 b8 renderer_renderbuffer_unbind(struct renderer_system_state* state, krenderbuffer buffer) {
@@ -1201,8 +1213,8 @@ b8 renderer_renderbuffer_copy_range(struct renderer_system_state* state, krender
     return state->backend->renderbuffer_copy_range(state->backend, source, source_offset, dest, dest_offset, size, include_in_frame_workload);
 }
 
-b8 renderer_renderbuffer_draw(struct renderer_system_state* state, krenderbuffer buffer, u64 offset, u32 element_count, b8 bind_only) {
-    return state->backend->renderbuffer_draw(state->backend, buffer, offset, element_count, bind_only);
+b8 renderer_renderbuffer_draw(struct renderer_system_state* state, krenderbuffer buffer, u64 offset, u32 element_count, u32 binding_index, b8 bind_only) {
+    return state->backend->renderbuffer_draw(state->backend, buffer, offset, element_count, binding_index, bind_only);
 }
 
 krenderbuffer renderer_renderbuffer_get(struct renderer_system_state* state, kname name) {

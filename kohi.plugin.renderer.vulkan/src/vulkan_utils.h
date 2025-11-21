@@ -28,6 +28,14 @@ const char* vulkan_result_string(VkResult result, b8 get_extended);
  */
 b8 vulkan_result_is_success(VkResult result);
 
+#define VK_CHECK_DETAILED(expr)                                                                                         \
+    {                                                                                                                   \
+        VkResult result = expr;                                                                                         \
+        if (!vulkan_result_is_success(result)) {                                                                        \
+            KFATAL("%s:%u - %s Failed with error:'%s'", __FILE__, __LINE__, #expr, vulkan_result_string(result, true)); \
+        }                                                                                                               \
+    }
+
 #if KOHI_DEBUG
 void vulkan_set_debug_object_name(vulkan_context* context, VkObjectType object_type, void* object_handle, const char* object_name);
 void vulkan_set_debug_object_name_indexed(vulkan_context* context, VkObjectType object_type, void* object_handle, const char* object_name, u32 index);

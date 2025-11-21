@@ -258,7 +258,7 @@ void nine_slice_render_frame_prepare(nine_slice* nslice, const struct frame_data
     if (nslice->is_dirty) {
         // Upload the new vertex data.
         struct renderer_system_state* renderer_system = engine_systems_get()->renderer_system;
-        krenderbuffer vertex_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_GLOBAL_VERTEX));
+        krenderbuffer vertex_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_VERTEX_STANDARD));
         u32 size = nslice->vertex_data.element_size * nslice->vertex_data.element_count;
         if (!renderer_renderbuffer_load_range(renderer_system, vertex_buffer, nslice->vertex_data.buffer_offset, size, nslice->vertex_data.elements, true)) {
             KERROR("vulkan_renderer_geometry_vertex_update failed to upload to the vertex buffer!");
@@ -317,7 +317,7 @@ b8 nine_slice_create(const char* name, vec2i size, vec2i atlas_px_size, vec2i at
     struct renderer_system_state* renderer_system = engine_systems_get()->renderer_system;
 
     // Vertex data.
-    krenderbuffer vertex_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_GLOBAL_VERTEX));
+    krenderbuffer vertex_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_VERTEX_STANDARD));
     // Allocate space in the buffer.
     if (!renderer_renderbuffer_allocate(renderer_system, vertex_buffer, vert_size * vert_count, &out_nine_slice->vertex_data.buffer_offset)) {
         KERROR("Failed to allocate from the vertex buffer!");
@@ -332,7 +332,7 @@ b8 nine_slice_create(const char* name, vec2i size, vec2i atlas_px_size, vec2i at
     }
 
     // Index data
-    krenderbuffer index_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_GLOBAL_INDEX));
+    krenderbuffer index_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_INDEX_STANDARD));
     // Allocate space in the buffer.
     if (!renderer_renderbuffer_allocate(renderer_system, index_buffer, idx_size * idx_count, &out_nine_slice->index_data.buffer_offset)) {
         KERROR("Failed to allocate from the index buffer!");

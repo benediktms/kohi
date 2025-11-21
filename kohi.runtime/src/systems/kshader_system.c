@@ -354,6 +354,7 @@ static b8 internal_attribute_add(kshader_data* shader, const shader_attribute_co
     attrib.name = config->name;
     attrib.size = size;
     attrib.type = config->type;
+    attrib.binding_index = config->binding_index;
     darray_push(shader->attributes, attrib);
 
     return true;
@@ -444,7 +445,8 @@ static kshader shader_create(const kasset_shader* asset) {
         shader_attribute_config ac = {
             .type = a->type,
             .name = kname_create(a->name),
-            .size = size_from_shader_attribute_type(a->type)};
+            .size = size_from_shader_attribute_type(a->type),
+            .binding_index = a->binding_index};
         if (!internal_attribute_add(out_shader, &ac)) {
             KERROR("Failed to add attribute '%s' to shader '%s'.", ac.name, out_shader->name);
             return KSHADER_INVALID;
