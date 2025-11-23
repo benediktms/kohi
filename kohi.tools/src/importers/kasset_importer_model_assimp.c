@@ -333,7 +333,7 @@ static b8 materials_from_assimp(const struct aiScene* scene, kname package_name,
 }
 
 static const struct aiScene* assimp_open_file(const char* source_path) {
-	const struct aiScene* scene = aiImportFile(source_path, aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_CalcTangentSpace | aiProcess_LimitBoneWeights);
+	const struct aiScene* scene = aiImportFile(source_path, aiProcess_Triangulate | aiProcess_GenUVCoords | aiProcess_GenSmoothNormals | aiProcess_CalcTangentSpace | aiProcess_LimitBoneWeights);
 	if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
 		KERROR("Error importing via assimp: %s", aiGetErrorString());
 		return 0;

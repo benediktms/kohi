@@ -256,7 +256,7 @@ void main() {
             normal_colour = texture(sampler2D(material_textures[MAT_STANDARD_IDX_NORMAL], material_samplers[MAT_STANDARD_IDX_NORMAL]), tex_coord);
             local_normal = normal_colour.rgb * 2.0 - 1.0;
         } else {
-            local_normal = base_material.normal;
+            local_normal = base_material.normal * 2.0 - 1.0;
         }
     } 
 
