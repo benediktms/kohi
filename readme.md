@@ -71,6 +71,7 @@ Install these via package manager:
 - `sudo apt install llvm` or `sudo pacman -S llvm`
 - `sudo apt install git` or `sudo pacman -S git`
 - `sudo apt install make`
+- Assimp (for tooling/model imports): `sudo apt install assimp` or `sudo pacman -S assimp`
 
 Required for X11:
 
