@@ -89,6 +89,7 @@ Install these via homebrew (brew) or other package manager:
 
 - Git: `brew install git`
 - Make: `brew install make`
+- Assimp (for tooling/model imports): `brew install assimp`
 
 The Vulkan SDK
 
