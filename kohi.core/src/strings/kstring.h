@@ -14,6 +14,8 @@
 #include "defines.h"
 #include "math/math_types.h"
 
+#include <stdio.h>
+
 /**
  * @brief Gets the number of bytes of the given string, minus the null terminator.
  *
@@ -152,10 +154,10 @@ KAPI char* string_format(const char* format, ...);
  * NOTE: that this performs a dynamic allocation and should be freed by the caller.
  *
  * @param format The string to be formatted.
- * @param va_list The variadic argument list.
+ * @param va_listp The variadic argument list.
  * @returns The newly-formatted string (dynamically allocated).
  */
-KAPI char* string_format_v(const char* format, void* va_list);
+KAPI char* string_format_v(const char* format, va_list va_listp);
 
 /**
  * @brief Performs string formatting to dest given format string and parameters.

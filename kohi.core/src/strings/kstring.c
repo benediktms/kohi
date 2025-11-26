@@ -3,7 +3,8 @@
 
 #include <ctype.h>
 #include <stdarg.h> // For variadic functions
-#include <stdio.h>	// vsnprintf, sscanf, sprintf
+#include <stdint.h>
+#include <stdio.h> // vsnprintf, sscanf, sprintf
 
 #define USE_STD_STR 1
 #if USE_STD_STR
@@ -333,169 +334,292 @@ static i32 appendf(char* buf, u32 size, u32* pos, const char* fmt, ...) {
 	return len;
 }
 
+static const char* parse_standard_printf_format(const char* p, char* out, u32 out_size) {
+	if (*p != '%') {
+		return KNULL;
+	}
+
+	char* s = out;
+	const char* end = out + out_size - 1;
+
+	*s++ = *p++;
+
+	// Flags
+	while (strchr("#0-+ ", *p)) {
+		if (s < end) {
+			*s++ = *p;
+			p++;
+		}
+	}
+
+	// Width
+	if (*p == '*') {
+		if (s < end) {
+			*s++ = *p++;
+		}
+	} else {
+		while (isdigit((u8)*p)) {
+			if (s < end) {
+				*s++ = *p;
+				p++;
+			}
+		}
+	}
+
+	// Precision
+	if (*p == '.') {
+		if (s < end) {
+			*s++ = *p++;
+		}
+		if (*p == '*') {
+			if (s < end) {
+				*s++ = *p++;
+			}
+		} else {
+			while (isdigit((u8)*p)) {
+				if (s < end) {
+					*s++ = *p;
+					p++;
+				}
+			}
+		}
+	}
+
+	// Length modifiers
+	if (strchr("hljztL", *p)) {
+		if (s < end) {
+			*s++ = *p++;
+		}
+		if ((p[-1] == 'h' && *p == 'h') || (p[-1] == 'l' && *p == 'l')) {
+			if (s < end) {
+				*s++ = *p++;
+			}
+		}
+	}
+
+	// Conversion specifier
+	if (isalpha((u8)*p) || *p == '%') {
+		if (s < end) {
+			*s++ = *p++;
+		}
+	} else {
+		return KNULL;
+	}
+
+	*s = 0;
+	return p;
+}
+
+static void va_advance_one(va_list* ap, const char* spec) {
+	u32 len = string_length(spec);
+	if (!len) {
+		return;
+	}
+
+	char conv = spec[len - 1];
+
+	// Does it have a length modifier?
+	b8 h = strstr(spec, "h") != KNULL;
+	b8 hh = strstr(spec, "hh") != KNULL;
+	b8 l = strstr(spec, "l") != KNULL;
+	b8 ll = strstr(spec, "ll") != KNULL;
+	b8 L = strstr(spec, "L") != KNULL;
+	b8 z = strstr(spec, "z") != KNULL;
+	b8 t = strstr(spec, "t") != KNULL;
+	b8 j = strstr(spec, "j") != KNULL;
+
+	switch (conv) {
+	case 'd':
+	case 'i':
+		if (hh) {
+			(void)va_arg(*ap, i32);
+		} else if (h) {
+			(void)va_arg(*ap, i32);
+		} else if (l) {
+			(void)va_arg(*ap, i64);
+		} else if (ll) {
+			(void)va_arg(*ap, i64);
+		} else if (j) {
+			(void)va_arg(*ap, intmax_t);
+		} else if (z) {
+			(void)va_arg(*ap, u64);
+		} else if (t) {
+			(void)va_arg(*ap, u64);
+		} else {
+			(void)va_arg(*ap, i32);
+		}
+		break;
+
+	case 'u':
+	case 'o':
+	case 'x':
+	case 'X':
+		if (hh) {
+			(void)va_arg(*ap, i32);
+		} else if (h) {
+			(void)va_arg(*ap, i32);
+		} else if (l) {
+			(void)va_arg(*ap, i64);
+		} else if (ll) {
+			(void)va_arg(*ap, i64);
+		} else if (j) {
+			(void)va_arg(*ap, intmax_t);
+		} else if (z) {
+			(void)va_arg(*ap, u64);
+		} else {
+			(void)va_arg(*ap, i32);
+		}
+		break;
+
+	case 'f':
+	case 'F':
+	case 'e':
+	case 'E':
+	case 'g':
+	case 'G':
+	case 'a':
+	case 'A':
+		if (L) {
+			(void)va_arg(*ap, f64);
+		} else {
+			(void)va_arg(*ap, f64);
+		}
+		break;
+
+	case 'c':
+		(void)va_arg(*ap, i32);
+		break;
+	case 's':
+		(void)va_arg(*ap, const char*);
+		break;
+	case 'p':
+		(void)va_arg(*ap, void*);
+		break;
+	case 'n':
+		(void)va_arg(*ap, i32*);
+		break;
+	case '%':
+		// No arguments here
+		break;
+
+	default:
+		break;
+	}
+}
+
 i32 vsnprintf_extended(char* buf, u32 size, const char* fmt, va_list ap_input) {
 	u32 pos = 0;
-	const char* p = fmt;
-
-	va_list ap;
-	va_copy(ap, ap_input);
 
 	if (buf && size > 0) {
 		buf[0] = 0;
 	}
 
+	va_list ap;
+	va_copy(ap, ap_input);
+
+	const char* p = fmt;
+
 	while (*p) {
+		// Regular characters
 		if (*p != '%') {
-			// normal character, treat as-is
 			char tmp[2] = {*p++, 0};
 			append(buf, size, &pos, tmp);
 			continue;
 		}
 
-		// Handle %% literal
+		// '%' literal
 		if (p[1] == '%') {
 			append(buf, size, &pos, "%");
 			p += 2;
 			continue;
 		}
 
-		// Custom specifiers.
+		// Custom vector formats (%V2, %V3, %V4 with .precision D)
 		if (p[1] == 'V') {
-			u8 precision = 6;
-			u8 point_index = 3;
-			b8 rad_2_deg = false;
-			b8 includes_d = false;
-			if (p[2] == '2') {
-				const vec2* v = va_arg(ap, const vec2*);
-				if (p[point_index] == 'D') {
-					// This means we want degrees, and the input is radians.
-					point_index++;
-					rad_2_deg = true;
-					includes_d = true;
+			i32 dims = p[2] - '0'; // Should be either 2, 3 or 4
+			if (dims >= 2 && dims <= 4) {
+				const char* t = p + 3;
+
+				b8 convert_deg = false;
+				u8 precision = 6;
+
+				// Check for optional 'D', specifying to convert radians to degrees.
+				if (*t == 'D') {
+					convert_deg = true;
+					t++;
 				}
-				f32 x = rad_2_deg ? rad_to_deg(v->x) : v->x;
-				f32 y = rad_2_deg ? rad_to_deg(v->y) : v->y;
-				if (p[point_index] == '.' && codepoint_is_numeric(p[point_index + 1]) && string_to_u8((const char[2]){p[point_index + 1], 0}, &precision)) {
-					char fmt[] = "[%.0f, %.0f]";
-					precision = KCLAMP(precision, 0, 8);
-					char prec_char = '0' + precision;
-					fmt[3] = prec_char;
-					fmt[9] = prec_char;
-					appendf(buf, size, &pos, fmt, x, y);
-					p++; // Skip the '.'
-					p++; // Skip the number
-					if (includes_d) {
-						p++;
+
+				// Check for .N (precision)
+				if (*t == '.' && t[1] >= '0' && t[1] <= '9') {
+					precision = (u8)(t[1] - '0');
+					t += 2;
+				}
+
+				if (precision > 8) {
+					precision = 8;
+				}
+
+				const f32* v = va_arg(ap, const f32*);
+
+				f32 vals[4] = {0, 0, 0, 0};
+				for (u8 i = 0; i < dims; ++i) {
+					f32 x = v[i];
+					if (convert_deg) {
+						x = rad_to_deg(x);
 					}
-				} else {
-					appendf(buf, size, &pos, "[%f, %f]", x, y);
+					vals[i] = x;
 				}
-				p += 3;
-				continue;
-			} else if (p[2] == '3') {
-				const vec3* v = va_arg(ap, const vec3*);
-				if (p[point_index] == 'D') {
-					// This means we want degrees, and the input is radians.
-					point_index++;
-					rad_2_deg = true;
-					includes_d = true;
+
+				// Build a format string.
+				char fbuf[64];
+				if (dims == 2) {
+					snprintf(fbuf, sizeof(fbuf), "[%%.%df, %%.%df]", precision, precision);
+				} else if (dims == 3) {
+					snprintf(fbuf, sizeof(fbuf), "[%%.%df, %%.%df, %%.%df]", precision, precision, precision);
+				} else if (dims == 4) {
+					snprintf(fbuf, sizeof(fbuf), "[%%.%df, %%.%df, %%.%df, %%.%df]", precision, precision, precision, precision);
 				}
-				f32 x = rad_2_deg ? rad_to_deg(v->x) : v->x;
-				f32 y = rad_2_deg ? rad_to_deg(v->y) : v->y;
-				f32 z = rad_2_deg ? rad_to_deg(v->z) : v->z;
-				if (p[point_index] == '.' && codepoint_is_numeric(p[point_index + 1]) && string_to_u8((const char[2]){p[point_index + 1], 0}, &precision)) {
-					char fmt[] = "[%.0f, %.0f, %.0f]";
-					precision = KCLAMP(precision, 0, 8);
-					char prec_char = '0' + precision;
-					fmt[3] = prec_char;
-					fmt[9] = prec_char;
-					fmt[15] = prec_char;
-					appendf(buf, size, &pos, fmt, x, y, v);
-					p++; // Skip the '.'
-					p++; // Skip the numbe
-					if (includes_d) {
-						p++;
-					}
-				} else {
-					appendf(buf, size, &pos, "[%f, %f, %f]", x, y, z);
+
+				// Append
+				if (dims == 2) {
+					appendf(buf, size, &pos, fbuf, vals[0], vals[1]);
+				} else if (dims == 3) {
+					appendf(buf, size, &pos, fbuf, vals[0], vals[1], vals[2]);
+				} else if (dims == 4) {
+					appendf(buf, size, &pos, fbuf, vals[0], vals[1], vals[2], vals[3]);
 				}
-				p += 3;
-				continue;
-			} else if (p[2] == '4') {
-				const vec4* v = va_arg(ap, const vec4*);
-				if (p[point_index] == 'D') {
-					// This means we want degrees, and the input is radians.
-					point_index++;
-					includes_d = true;
-					rad_2_deg = true;
-				}
-				f32 x = rad_2_deg ? rad_to_deg(v->x) : v->x;
-				f32 y = rad_2_deg ? rad_to_deg(v->y) : v->y;
-				f32 z = rad_2_deg ? rad_to_deg(v->z) : v->z;
-				f32 w = rad_2_deg ? rad_to_deg(v->w) : v->w;
-				if (p[point_index] == '.' && codepoint_is_numeric(p[point_index + 1]) && string_to_u8((const char[2]){p[point_index + 1], 0}, &precision)) {
-					char fmt[] = "[%.0f, %.0f, %.0f, %.0f]";
-					precision = KCLAMP(precision, 0, 8);
-					char prec_char = '0' + precision;
-					fmt[3] = prec_char;
-					fmt[9] = prec_char;
-					fmt[15] = prec_char;
-					fmt[21] = prec_char;
-					appendf(buf, size, &pos, fmt, x, y, z, w);
-					p++; // Skip the '.'
-					p++; // Skip the number
-					if (includes_d) {
-						p++;
-					}
-				} else {
-					appendf(buf, size, &pos, "[%f, %f, %f, %f]", x, y, z, w);
-				}
-				p += 3;
+
+				// Move the pointer forward.
+				p = t;
 				continue;
 			}
 		}
 
-		// Normal printf specifiers
-		{
-			// Extract the full specifier (%, flags, width, precision, length, type)
-			char spec[64];
-			char* s = spec;
-
-			*s++ = *p++; // Skip the '%'
-
-			while (*p && !isalpha((unsigned char)*p) && *p != '%') {
-				*s++ = *p++;
-			}
-
-			if (*p) {
-				// Final specifier char
-				*s++ = *p++;
-			}
-
-			*s = 0;
-
-			// Build format string, i.e. "%0.2f"
-			char tiny_fmt[64];
-			snprintf(tiny_fmt, sizeof(tiny_fmt), "%s", spec);
-
-			// Print into a temp buffer using the system formatter.
-			char tmp[256];
-			va_list ap_copy;
-			va_copy(ap_copy, ap);
-			vsnprintf(tmp, sizeof(tmp), tiny_fmt, ap_copy);
-			va_end(ap_copy);
-
-			// Append result.
-			append(buf, size, &pos, tmp);
-
-			// Continue argument from ap by actually performing the call.
-			{
-				char discard[1];
-				vsnprintf(discard, 1, tiny_fmt, ap);
-			}
-
+		// Standard printf formats
+		char spec[64];
+		const char* next = parse_standard_printf_format(p, spec, sizeof(spec));
+		if (!next) {
+			// This means input was malformed, just treat as a '%' literal.
+			append(buf, size, &pos, "%");
+			p++;
 			continue;
 		}
+
+		// Extract the formatted result using a copy of the arg list.
+		va_list tmp;
+		va_copy(tmp, ap);
+
+		char sm[256];
+		vsnprintf(sm, sizeof(sm), spec, tmp);
+		va_end(tmp);
+
+		append(buf, size, &pos, sm);
+
+		// Advance the real list.
+		va_advance_one(&ap, spec);
+
+		p = next;
+		continue;
 	}
 
 	va_end(ap);
@@ -509,11 +633,10 @@ i32 vsnprintf_extended(char* buf, u32 size, const char* fmt, va_list ap_input) {
 		}
 	}
 
-	// Total number of chars that would have been written.
 	return (i32)pos;
 }
 
-char* string_format_v(const char* format, void* va_listp) {
+char* string_format_v(const char* format, va_list va_listp) {
 	if (!format) {
 		return 0;
 	}
@@ -521,13 +644,8 @@ char* string_format_v(const char* format, void* va_listp) {
 	// Create a copy of the va_listp since vsnprintf can invalidate the elements of the list
 	// while finding the required buffer length.
 	va_list list_copy;
-#ifdef _MSC_VER
-	list_copy = va_listp;
-#elif defined(KPLATFORM_APPLE)
-	list_copy = va_listp;
-#else
 	va_copy(list_copy, va_listp);
-#endif
+
 	/* i32 length = vsnprintf(0, 0, format, list_copy);
 	va_end(list_copy);
 	char* buffer = kallocate(length + 1, MEMORY_TAG_STRING);
@@ -544,6 +662,9 @@ char* string_format_v(const char* format, void* va_listp) {
 		return 0;
 	}
 	length = vsnprintf_extended(buffer, length + 1, format, list_copy);
+
+	va_end(list_copy);
+
 	buffer[length] = 0;
 	return buffer;
 }
