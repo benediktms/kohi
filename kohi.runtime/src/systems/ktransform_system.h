@@ -89,12 +89,20 @@ KAPI ktransform ktransform_from_matrix(mat4 m, u64 user);
 KAPI void ktransform_destroy(ktransform* t);
 
 /**
- * @brief Returns the position of the given ktransform.
+ * @brief Returns the local position of the given ktransform.
  *
  * @param t A handle whose position to get.
  * @return A copy of the position.
  */
 KAPI vec3 ktransform_position_get(ktransform t);
+
+/**
+ * @brief Returns the world position of the given ktransform.
+ *
+ * @param t A handle whose position to get.
+ * @return A copy of the position.
+ */
+KAPI vec3 ktransform_world_position_get(ktransform t);
 
 /**
  * @brief Sets the position of the given ktransform.

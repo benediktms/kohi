@@ -2380,3 +2380,140 @@ KAPI b8 ray_intersects_aabb(aabb box, vec3 origin, vec3 direction, f32 max, f32*
 KAPI b8 raycast_plane_3d(const ray* r, const plane_3d* p, vec3* out_point, f32* out_distance);
 
 KAPI b8 raycast_disc_3d(const ray* r, vec3 center, vec3 normal, f32 outer_radius, f32 inner_radius, vec3* out_point, f32* out_distance);
+
+typedef struct kintersect_result {
+	vec3 normal;
+	vec3 closest_point_a;
+	vec3 closest_point_b;
+	f32 depth;
+} kintersect_result;
+
+KINLINE f32 obb_project_extents(const struct obb* o, vec3 axis) {
+	return kabs(vec3_dot(o->axis[0], axis)) * o->half_extents.x +
+		   kabs(vec3_dot(o->axis[1], axis)) * o->half_extents.y +
+		   kabs(vec3_dot(o->axis[2], axis)) * o->half_extents.z;
+}
+
+KINLINE vec3 obb_closest_point(const struct obb* o, vec3 p) {
+	vec3 d = vec3_sub(p, o->center);
+	vec3 out = o->center;
+
+	for (u8 i = 0; i < 3; ++i) {
+		f32 dist = vec3_dot(d, o->axis[i]);
+		f32 clamped = KCLAMP(dist, -o->half_extents.elements[i], o->half_extents.elements[i]);
+
+		out = vec3_add(out, vec3_mul_scalar(o->axis[i], clamped));
+	}
+
+	return out;
+}
+
+KINLINE b8 sat_overlap(vec3 axis, vec3 t, const struct obb* a, const struct obb* b, f32* min_overlap, vec3* best_axis) {
+	f32 dist = kabs(vec3_dot(t, axis));
+	f32 ra = obb_project_extents(a, axis);
+	f32 rb = obb_project_extents(b, axis);
+	f32 overlap = (ra + rb) - dist;
+
+	if (overlap < 0.0f) {
+		return false;
+	}
+
+	if (overlap < *min_overlap) {
+		*min_overlap = overlap;
+		*best_axis = axis;
+	}
+
+	return true;
+}
+
+KINLINE b8 obb_intersects_obb(const struct obb* a, const struct obb* b, kintersect_result* out_result) {
+	vec3 t = vec3_sub(b->center, a->center);
+
+	f32 min_overlap = K_FLOAT_MAX;
+	vec3 best_axis = vec3_zero();
+
+	for (u8 i = 0; i < 3; ++i) {
+		if (!sat_overlap(a->axis[i], t, a, b, &min_overlap, &best_axis)) {
+			return false;
+		}
+	}
+	for (u8 i = 0; i < 3; ++i) {
+		if (!sat_overlap(b->axis[i], t, a, b, &min_overlap, &best_axis)) {
+			return false;
+		}
+	}
+
+	for (u8 i = 0; i < 3; ++i) {
+		for (u8 j = 0; j < 3; ++j) {
+			vec3 axis = vec3_cross(a->axis[i], b->axis[j]);
+
+			f32 len = vec3_dot(axis, axis);
+			if (len < 1e-8f) {
+				continue;
+			}
+
+			axis = vec3_mul_scalar(axis, 1.0f / ksqrt(len));
+
+			if (!sat_overlap(axis, t, a, b, &min_overlap, &best_axis)) {
+				return false;
+			}
+		}
+	}
+
+	if (out_result) {
+		// If there's a collision, get the data.
+		vec3 n = best_axis;
+		if (vec3_dot(n, t) < 0.0f) {
+			n = vec3_mul_scalar(n, -1.0f); // Make sure the normal points from a -> b
+		}
+
+		out_result->normal = vec3_normalized(n);
+		out_result->depth = min_overlap;
+
+		// Get closts points.
+		out_result->closest_point_a = obb_closest_point(a, b->center);
+		out_result->closest_point_b = obb_closest_point(b, a->center);
+	}
+
+	return true;
+}
+
+KINLINE b8 obb_intersects_sphere(const struct obb* o, const struct ksphere* s) {
+	vec3 d = vec3_sub(s->position, o->center);
+
+	f32 dist_sq = 0.0f;
+
+	for (u8 i = 0; i < 3; ++i) {
+		f32 projected = vec3_dot(d, o->axis[i]);
+		f32 clamped = KCLAMP(projected, -o->half_extents.elements[i], o->half_extents.elements[i]);
+		f32 diff = projected - clamped;
+		dist_sq += (diff * diff);
+	}
+
+	return dist_sq <= (s->radius * s->radius);
+}
+
+KINLINE b8 sphere_intersects_sphere(const ksphere a, const ksphere b) {
+	f32 dist_sq = vec3_distance_squared(a.position, b.position);
+	f32 combined_radii_sq = (a.radius * a.radius) + (b.radius * b.radius);
+
+	return dist_sq < combined_radii_sq;
+}
+
+KINLINE obb aabb_to_obb(const aabb a, mat4 m) {
+	obb out;
+
+	// AABBs by default don't have half-extents and a center. Extract them.
+	vec3 half_extents = extents_3d_half(a);
+	out.center = extents_3d_center(a);
+
+	out.center = vec3_transform(out.center, 1.0f, m);
+
+	out.axis[0] = (vec3){m.data[0], m.data[4], m.data[8]};
+	out.axis[1] = (vec3){m.data[1], m.data[5], m.data[9]};
+	out.axis[2] = (vec3){m.data[2], m.data[6], m.data[10]};
+
+	out.half_extents = half_extents;
+
+	return out;
+}

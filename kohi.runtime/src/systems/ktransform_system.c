@@ -273,6 +273,15 @@ vec3 ktransform_position_get(ktransform t) {
 	return state->positions[t];
 }
 
+vec3 ktransform_world_position_get(ktransform t) {
+	ktransform_system_state* state = engine_systems_get()->ktransform_system;
+	if (!validate_handle(state, t)) {
+		KWARN("Invalid handle passed, returning zero vector as position.");
+		return vec3_zero();
+	}
+	return mat4_position(state->world_matrices[t]);
+}
+
 void ktransform_position_set(ktransform t, vec3 position) {
 	ktransform_system_state* state = engine_systems_get()->ktransform_system;
 	if (!validate_handle(state, t)) {

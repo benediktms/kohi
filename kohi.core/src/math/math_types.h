@@ -398,6 +398,13 @@ typedef struct extents_3d {
  */
 typedef extents_3d aabb;
 
+typedef struct obb {
+	vec3 center;
+	// Orthonormal basis vectors
+	vec3 axis[3];
+	vec3 half_extents;
+} obb;
+
 /**
  * @brief Represents a single vertex in 3D space.
  */
