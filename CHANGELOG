@@ -35,6 +35,7 @@ Changelog
   - Material system base material loads are now synchronous, eliminating the need to wait to check its properties. Its textures are still async, though.
   - Animation system added (part of the model system);
   - Created K3D universal model format, which can store either animated or static mesh data.
+  - Added custom 'printf' backing for string_format which can now take vector and kname arguments. See string_format comments for details.
 
 - 0.10.0
   - Combined asset_image_format and texture_format into a single kpixel_format which is used for both.

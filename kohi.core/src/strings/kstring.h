@@ -141,6 +141,12 @@ KAPI b8 strings_nequali(const char* str0, const char* str1, u32 max_len);
 
 /**
  * @brief Performs string formatting against the given format string and parameters.
+ *
+ * Accepts custom format options:
+ *   Vector types - %V#[D][.N], where # is number of elements, D optionally converts radians
+ *     to degrees before printing, and .N is the number of places after the decimal point, clamped to 8.
+ *     Ex: %V3D.4 displays a vec3, converts to degrees and uses 4 decimal places.
+ *   KNames - %k, pass a kname argument and kname_string_get is called automatically.
  * NOTE: that this performs a dynamic allocation and should be freed by the caller.
  *
  * @param format The format string to use for the operation

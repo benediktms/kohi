@@ -1,5 +1,6 @@
 #include "strings/kstring.h"
 #include "math/kmath.h"
+#include "strings/kname.h"
 
 #include <ctype.h>
 #include <stdarg.h> // For variadic functions
@@ -507,6 +508,9 @@ static void va_advance_one(va_list* ap, const char* spec) {
 	}
 }
 
+/**
+ * Custom extension of printf which includes logic to print some custom data types using new specifiers.
+ */
 i32 vsnprintf_extended(char* buf, u32 size, const char* fmt, va_list ap_input) {
 	u32 pos = 0;
 
@@ -595,6 +599,16 @@ i32 vsnprintf_extended(char* buf, u32 size, const char* fmt, va_list ap_input) {
 			}
 		}
 
+		// 'k' for kname.
+		if (p[1] == 'k') {
+			// knames are u64s, so take that as the arg.
+			u64 knraw = va_arg(ap, u64);
+			const char* str = kname_string_get(knraw);
+			append(buf, size, &pos, str);
+			p += 2;
+			continue;
+		}
+
 		// Standard printf formats
 		char spec[64];
 		const char* next = parse_standard_printf_format(p, spec, sizeof(spec));
@@ -645,16 +659,6 @@ char* string_format_v(const char* format, va_list va_listp) {
 	// while finding the required buffer length.
 	va_list list_copy;
 	va_copy(list_copy, va_listp);
-
-	/* i32 length = vsnprintf(0, 0, format, list_copy);
-	va_end(list_copy);
-	char* buffer = kallocate(length + 1, MEMORY_TAG_STRING);
-	if (!buffer) {
-		return 0;
-	}
-	vsnprintf(buffer, length + 1, format, va_listp);
-	buffer[length] = 0;
-	return buffer; */
 
 	i32 length = vsnprintf_extended(0, 0, format, list_copy);
 	char* buffer = kallocate(length + 1, MEMORY_TAG_STRING);
