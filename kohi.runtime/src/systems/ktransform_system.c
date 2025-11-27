@@ -663,7 +663,7 @@ static ktransform handle_create(ktransform_system_state* state) {
 static void handle_destroy(ktransform_system_state* state, ktransform* t) {
 	KASSERT_MSG(state, "ktransform_system state pointer accessed before initialized");
 
-	if (t != KTRANSFORM_INVALID) {
+	if (*t != KTRANSFORM_INVALID) {
 		FLAG_SET(state->flags[*t], KTRANSFORM_FLAG_FREE, false);
 	}
 

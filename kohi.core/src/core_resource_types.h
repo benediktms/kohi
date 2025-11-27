@@ -5,7 +5,7 @@
 
 typedef u32 ktransform;
 
-#define KTRANSFORM_INVALID 0
+#define KTRANSFORM_INVALID INVALID_ID_U32
 
 typedef u32 khierarchy_node;
 #define KHIERARCHY_NODE_INVALID 0
