@@ -437,7 +437,7 @@ static void create_gizmo_mode_scale(editor_gizmo* gizmo) {
 static void create_gizmo_mode_rotate(editor_gizmo* gizmo) {
 	editor_gizmo_mode_data* data = &gizmo->mode_data[EDITOR_GIZMO_MODE_ROTATE];
 
-	data->vertex_count = 12 + (segments * 2 * 3); // 2 per line, 3 lines + 3 lines
+	data->vertex_count = 6 + (segments * 2 * 3); // 2 per line, 3 lines in center + segments on each axis
 	data->vertices = kallocate(sizeof(colour_vertex_3d) * data->vertex_count, MEMORY_TAG_ARRAY);
 
 	vec4 r = (vec4){1.0f, 0.0f, 0.0f, 1.0f};

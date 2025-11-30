@@ -965,12 +965,12 @@ kgeometry geometry_generate_grid(grid_orientation orientation, u32 segment_count
 	// Always 0 since min/max of each axis are -/+ half of the size.
 	out_geometry.center = vec3_zero();
 	out_geometry.vertex_element_size = sizeof(colour_vertex_3d);
-	// 2 verts per line, 1 line per tile in each direction, plus one in the middle for each direction. Adding 2 more for third axis.
-	out_geometry.vertex_count = ((segment_count_dim_0 * 2 + 1) * 2) + ((segment_count_dim_1 * 2 + 1) * 2) + 2;
+	// Generated from the center out. Start with 2 or 3 axis lines. Then min/max lines in each direction for each cell.
+	out_geometry.vertex_count = (use_third_axis ? 6 : 4) + (segment_count_dim_0 * 4) + (segment_count_dim_1 * 4);
 	out_geometry.vertices = KALLOC_TYPE_CARRAY(colour_vertex_3d, out_geometry.vertex_count);
 	out_geometry.vertex_buffer_offset = INVALID_ID_U64;
-	out_geometry.index_element_size = sizeof(u32);
-	out_geometry.index_count = 0; // no indices
+	out_geometry.index_element_size = 0; // sizeof(u32);
+	out_geometry.index_count = 0;		 // no indices
 	out_geometry.indices = 0;
 	out_geometry.index_buffer_offset = INVALID_ID_U64;
 

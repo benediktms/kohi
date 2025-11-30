@@ -564,7 +564,7 @@ ktexture texture_acquire_with_options_sync(ktexture_load_options options) {
 		if (assets[0]) {
 			state_ptr->widths[t] = assets[0]->width;
 			state_ptr->heights[t] = assets[0]->height;
-			state_ptr->mip_level_counts[t] = assets[0]->mip_levels;
+			state_ptr->mip_level_counts[t] = 0; // assets[0]->mip_levels;
 			state_ptr->formats[t] = assets[0]->format;
 		} else {
 			KWARN("Asset sub 0 not found, using reasonable defaults.");
@@ -790,7 +790,10 @@ static b8 create_default_textures(texture_system_state* state) {
 
 		u8 diff_pixels[16 * 16 * 4] = {0};
 		// Default diffuse map is all white.
-		kset_memory(diff_pixels, 255, sizeof(u8) * 16 * 16 * 4);
+		/* kset_memory(diff_pixels, 255, sizeof(u8) * 16 * 16 * 4); */
+		for (u32 i = 0; i < 16 * 16 * 4; ++i) {
+			diff_pixels[i] = 255;
+		}
 		// Request new resource texture.
 
 		u32 pixel_array_size = sizeof(u8) * pixel_count * channels;
@@ -981,7 +984,7 @@ static void texture_kasset_image_loaded(void* listener, kasset_image* asset) {
 			state_ptr->widths[t] = context->assets[0]->width;
 			state_ptr->heights[t] = context->assets[0]->height;
 			// TODO: Should this use the calculated?
-			state_ptr->mip_level_counts[t] = context->assets[0]->mip_levels;
+			state_ptr->mip_level_counts[t] = calculate_mip_levels_from_dimension(state_ptr->widths[t], state_ptr->heights[t]); // context->assets[0]->mip_levels;
 		} else {
 			KWARN("Asset sub 0 not found, using reasonable defaults.");
 			// Provide reasonable defaults.

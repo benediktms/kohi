@@ -527,7 +527,7 @@ void kmaterial_renderer_bind_base(kmaterial_renderer* state, kmaterial base_mate
 		FLAG_SET(mapped_mat->tex_flags, MATERIAL_STANDARD_FLAG_USE_NORMAL_TEX, true);
 
 		// NOTE: Base colour and emissive textures are not used here, but must be bound.
-		kshader_set_binding_texture(shader, 1, base_material, 0, MAT_TEX_ARRAY_IDX_BASE_COLOUR, state->default_texture);
+		kshader_set_binding_texture(shader, 1, base_material, 0, MAT_TEX_ARRAY_IDX_BASE_COLOUR, state->default_base_colour_texture);
 		kshader_set_binding_texture(shader, 1, base_material, 0, MAT_TEX_ARRAY_IDX_NORMAL, normal_texture);
 		kshader_set_binding_texture(shader, 1, base_material, 0, MAT_WATER_TEX_ARRAY_IDX_REFLECTION, reflection_colour_tex);
 		kshader_set_binding_texture(shader, 1, base_material, 0, MAT_WATER_TEX_ARRAY_IDX_REFRACTION, refraction_colour_tex);
