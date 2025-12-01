@@ -45,7 +45,7 @@
 
 // NOTE: To disable the custom allocator, comment this out or set to 0.
 #ifndef KVULKAN_USE_CUSTOM_ALLOCATOR
-#	define KVULKAN_USE_CUSTOM_ALLOCATOR 1
+#	define KVULKAN_USE_CUSTOM_ALLOCATOR 0
 #endif
 
 VKAPI_ATTR VkBool32 VKAPI_CALL vk_debug_callback(
@@ -732,14 +732,32 @@ b8 vulkan_renderer_frame_command_list_begin(renderer_backend_interface* backend,
 			.size = VK_WHOLE_SIZE,
 		};
 
+		krenderbuffer vertex_buffer2 = renderer_renderbuffer_get(backend->frontend_state, kname_create(KRENDERBUFFER_NAME_VERTEX_EXTENDED));
+		vulkan_buffer* internal_vertex_buffer2 = &context->renderbuffers[vertex_buffer2];
+		u8 index2 = internal_vertex_buffer2->handle_count == 1 ? 0 : get_current_image_index(context);
+		VkBufferMemoryBarrier vertex_buffer_barrier2 = {
+			.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+			.pNext = NULL,
+			.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+			.dstAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT,
+			.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+			.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+			.buffer = internal_vertex_buffer2->infos[index2].handle,
+			.offset = 0,
+			.size = VK_WHOLE_SIZE,
+		};
+
+		VkBufferMemoryBarrier barriers[2] = {vertex_buffer_barrier, vertex_buffer_barrier2};
+
 		context->rhi.kvkCmdPipelineBarrier(
 			command_buffer->handle,
 			VK_PIPELINE_STAGE_TRANSFER_BIT,		// srcStageMask
 			VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, // dstStageMask
 			0,									// dependencyFlags
 			0, NULL,							// pMemoryBarriers
-			1, &vertex_buffer_barrier,			// pBufferMemoryBarriers
-			0, NULL								// pImageMemoryBarriers
+			/* 1, &vertex_buffer_barrier,			// pBufferMemoryBarriers */
+			2, barriers, // pBufferMemoryBarriers
+			0, NULL		 // pImageMemoryBarriers
 		);
 	}
 
@@ -896,13 +914,31 @@ b8 vulkan_renderer_frame_command_list_end(renderer_backend_interface* backend, s
 		barrier.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
 		barrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT;
 
+		krenderbuffer vertex_buffer2 = renderer_renderbuffer_get(backend->frontend_state, kname_create(KRENDERBUFFER_NAME_VERTEX_EXTENDED));
+		vulkan_buffer* internal_vertex_buffer2 = &context->renderbuffers[vertex_buffer2];
+		u8 index2 = internal_vertex_buffer2->handle_count == 1 ? 0 : get_current_image_index(context);
+		VkBufferMemoryBarrier vertex_buffer_barrier2 = {
+			.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+			.pNext = NULL,
+			.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+			.dstAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT,
+			.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+			.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+			.buffer = internal_vertex_buffer2->infos[index2].handle,
+			.offset = 0,
+			.size = VK_WHOLE_SIZE,
+		};
+
+		VkBufferMemoryBarrier barriers[2] = {barrier, vertex_buffer_barrier2};
+
 		rhi->kvkCmdPipelineBarrier(
 			command_buffer->handle,
 			VK_PIPELINE_STAGE_TRANSFER_BIT,
 			VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
 			0,
 			0, 0,
-			1, &barrier,
+			/* 1, &barrier, */
+			2, barriers,
 			0, 0);
 	}
 
@@ -1347,13 +1383,31 @@ void vulkan_renderer_end_rendering(struct renderer_backend_interface* backend, f
 		barrier.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT; //| VK_ACCESS_TRANSFER_WRITE_BIT | VK_ACCESS_TRANSFER_READ_BIT;
 		barrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;	// | (is_depth ? VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT : VK_ACCESS_COLOR_ATTACHMENT_READ_BIT);
 
+		krenderbuffer vertex_buffer2 = renderer_renderbuffer_get(backend->frontend_state, kname_create(KRENDERBUFFER_NAME_VERTEX_EXTENDED));
+		vulkan_buffer* internal_vertex_buffer2 = &context->renderbuffers[vertex_buffer2];
+		u8 index2 = internal_vertex_buffer2->handle_count == 1 ? 0 : get_current_image_index(context);
+		VkBufferMemoryBarrier vertex_buffer_barrier2 = {
+			.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+			.pNext = NULL,
+			.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+			.dstAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT,
+			.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+			.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+			.buffer = internal_vertex_buffer2->infos[index2].handle,
+			.offset = 0,
+			.size = VK_WHOLE_SIZE,
+		};
+
+		VkBufferMemoryBarrier barriers[2] = {barrier, vertex_buffer_barrier2};
+
 		rhi->kvkCmdPipelineBarrier(
 			secondary->parent->handle,
 			VK_PIPELINE_STAGE_TRANSFER_BIT,		// _LATE_FRAGMENT_TESTS_BIT, //  VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,    // VK_PIPELINE_STAGE_TRANSFER_BIT
 			VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, // _FRAGMENT_SHADER_BIT,     // VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
 			0,
 			0, 0,
-			1, &barrier,
+			/* 1, &barrier, */
+			2, barriers,
 			0, 0);
 	}
 

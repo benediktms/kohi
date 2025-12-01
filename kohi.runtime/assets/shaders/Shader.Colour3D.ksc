@@ -27,7 +27,7 @@ attributes = [
         type = "vec4"
     }
     {
-        name = "in_texcoord"
+        name = "in_colour"
         type = "vec4"
     }
 ]
