@@ -871,6 +871,10 @@ const engine_system_states* engine_systems_get(void) {
 	return &engine_state->systems;
 }
 
+struct application* engine_app_state_get(void) {
+	return engine_state->app;
+}
+
 khandle engine_external_system_register(u64 system_state_memory_requirement) {
 	// Don't pass a block of memory here since the system should call "get state" next for it.
 	// This keeps memory ownership inside the engine and its registry.
