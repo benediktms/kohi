@@ -802,6 +802,10 @@ KAPI krenderbuffer renderer_renderbuffer_get(struct renderer_system_state* state
  */
 KAPI void renderer_wait_for_idle(void);
 
+#if KOHI_DEBUG
+KAPI void renderer_debug_pump_brakes(void);
+#endif
+
 /**
  * Indicates if PCF filtering is enabled for shadow maps.
  */

@@ -341,6 +341,7 @@ b8 renderer_on_window_created(struct renderer_system_state* state, struct kwindo
 			.width = window->width,
 			.height = window->height,
 			.multiframe_buffering = true,
+			.mip_levels = 1,
 			.name = kname_create("__window_colourbuffer_texture__")};
 		window->renderer_state->colourbuffer = texture_acquire_with_options_sync(options);
 	}
@@ -354,6 +355,7 @@ b8 renderer_on_window_created(struct renderer_system_state* state, struct kwindo
 			.width = window->width,
 			.height = window->height,
 			.multiframe_buffering = true,
+			.mip_levels = 1,
 			.name = kname_create("__window_depthbuffer_texture__")};
 		window->renderer_state->depthbuffer = texture_acquire_with_options_sync(options);
 	}
@@ -1232,6 +1234,13 @@ void renderer_wait_for_idle(void) {
 	renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
 	state_ptr->backend->wait_for_idle(state_ptr->backend);
 }
+
+#if KOHI_DEBUG
+void renderer_debug_pump_brakes(void) {
+	renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
+	state_ptr->backend->debug_pump_brakes(state_ptr->backend);
+}
+#endif
 
 b8 renderer_pcf_enabled(struct renderer_system_state* state) {
 	if (!state) {

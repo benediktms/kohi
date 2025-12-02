@@ -83,7 +83,7 @@ KAPI b8 input_was_key_up(keys key);
  * @param key The key to be processed.
  * @param pressed Indicates whether the key is currently pressed.
  */
-void input_process_key(keys key, b8 pressed);
+void input_process_key(keys key, b8 pressed, b8 is_repeat);
 
 // mouse input
 

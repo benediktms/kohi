@@ -23,6 +23,7 @@
 #	include <sys/time.h>
 #	include <xcb/xcb.h>
 #	include <xcb/xproto.h>
+#	include <xcb/xkb.h>
 
 #	include "containers/darray.h"
 #	include "debug/kassert.h"
@@ -87,14 +88,49 @@ typedef struct platform_state {
 	platform_process_mouse_button process_mouse_button;
 	platform_process_mouse_move process_mouse_move;
 	platform_process_mouse_wheel process_mouse_wheel;
+
+	u8 last_keycode;
+	u32 last_key_time;
 } platform_state;
 
 static platform_state* state_ptr;
 
 static void platform_update_watches(void);
+static b8 key_is_repeat(platform_state* state, const xcb_key_press_event_t* ev);
 // Key translation
 static keys translate_keycode(u32 x_keycode);
 static kwindow* window_from_handle(xcb_window_t window);
+
+static b8 enable_detectable_autorepeat(xcb_connection_t* conn) {
+	// Initialize xkb extension
+	xcb_xkb_use_extension_cookie_t uc = xcb_xkb_use_extension(conn, XCB_XKB_MAJOR_VERSION, XCB_XKB_MINOR_VERSION);
+	xcb_xkb_use_extension_reply_t* ur = xcb_xkb_use_extension_reply(conn, uc, NULL);
+	if (!ur) {
+		return false;
+	}
+
+	b8 ok = (ur->supported);
+	free(ur);
+	if (!ok) {
+		return false;
+	}
+
+	// Attempt to set detectable auto repeat for this client
+	xcb_xkb_per_client_flags_cookie_t pcfc = xcb_xkb_per_client_flags(
+		conn,
+		XCB_XKB_ID_USE_CORE_KBD,
+		XCB_XKB_PER_CLIENT_FLAG_DETECTABLE_AUTO_REPEAT,
+		XCB_XKB_PER_CLIENT_FLAG_DETECTABLE_AUTO_REPEAT,
+		0, 0, 0);
+	xcb_xkb_per_client_flags_reply_t* pfr = xcb_xkb_per_client_flags_reply(conn, pcfc, NULL);
+	if (!pfr) {
+		return false;
+	}
+
+	b8 turned_on = (pfr->value & XCB_XKB_PER_CLIENT_FLAG_DETECTABLE_AUTO_REPEAT) != 0;
+	free(pfr);
+	return turned_on;
+}
 
 b8 platform_system_startup(u64* memory_requirement, struct platform_state* state, platform_system_config* config) {
 	*memory_requirement = sizeof(platform_state);
@@ -114,6 +150,9 @@ b8 platform_system_startup(u64* memory_requirement, struct platform_state* state
 		KFATAL("Failed to connect to X server via XCB.");
 		return false;
 	}
+
+	b8 detectable_repeat = enable_detectable_autorepeat(state_ptr->handle.connection);
+	KINFO("XCB: %s detectable auto-repeat.", detectable_repeat ? "Enabled " : "Could not enable ");
 
 	// Get data from the X server
 	const struct xcb_setup_t* setup = xcb_get_setup(state_ptr->handle.connection);
@@ -487,8 +526,10 @@ b8 platform_pump_messages(void) {
 
 				keys key = translate_keycode(key_sym);
 
+				b8 is_repeat = key_is_repeat(state_ptr, kb_event);
+
 				// Pass to the input subsystem for processing.
-				state_ptr->process_key(key, pressed);
+				state_ptr->process_key(key, pressed, is_repeat);
 			} break;
 			case XCB_BUTTON_PRESS:
 			case XCB_BUTTON_RELEASE: {
@@ -927,6 +968,15 @@ static kwindow* window_from_handle(xcb_window_t window) {
 		}
 	}
 	return 0;
+}
+
+static b8 key_is_repeat(platform_state* state, const xcb_key_press_event_t* ev) {
+	b8 repeat = (ev->detail == state->last_keycode) && (ev->time == state->last_key_time); // Some servers send identical timestamps for repeats
+
+	state->last_keycode = ev->detail;
+	state->last_key_time = ev->time;
+
+	return repeat;
 }
 
 // Key translation

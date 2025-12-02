@@ -103,6 +103,9 @@ b8 kplugin_create(kruntime_plugin* out_plugin) {
 	backend->renderbuffer_copy_range = vulkan_buffer_copy_range;
 	backend->renderbuffer_draw = vulkan_buffer_draw;
 	backend->wait_for_idle = vulkan_renderer_wait_for_idle;
+#if KOHI_DEBUG
+	backend->debug_pump_brakes = vulkan_renderer_debug_pump_brakes;
+#endif
 
 	KINFO("Vulkan Renderer Plugin Creation successful (%s).", KVERSION);
 

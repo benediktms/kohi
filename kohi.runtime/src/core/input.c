@@ -119,14 +119,14 @@ static b8 check_modifiers(keymap_modifier modifiers) {
 	return true;
 }
 
-void input_process_key(keys key, b8 pressed) {
+void input_process_key(keys key, b8 pressed, b8 is_repeat) {
 	if (!state_ptr) {
 		return;
 	}
 	// keymap_entry* map_entry = &state_ptr->active_keymap.entries[key];
 
 	// Only handle this if the state actually changed, or if repeats are allowed.
-	b8 is_repeat = pressed && state_ptr->keyboard_current.keys[key];
+	b8 is_repeat_state = is_repeat || (pressed && state_ptr->keyboard_current.keys[key]);
 	b8 changed = state_ptr->keyboard_current.keys[key] != pressed;
 	if (state_ptr->allow_key_repeats || changed) {
 		// Update internal state.
@@ -170,7 +170,7 @@ void input_process_key(keys key, b8 pressed) {
 						binding->callback(key, binding->type, binding->modifiers, binding->user_data);
 					}
 				}
-				if (!pressed && binding->type & KEYMAP_BIND_TYPE_RELEASE) {
+				if (!pressed && binding->type & KEYMAP_BIND_TYPE_RELEASE && !is_repeat_state) {
 					if (binding->callback && check_modifiers(binding->modifiers)) {
 						binding->callback(key, binding->type, binding->modifiers, binding->user_data);
 					}

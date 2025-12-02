@@ -102,6 +102,7 @@ typedef struct kmodel_animator {
 	kname name;
 	// Index of the base mesh
 	u16 base;
+	kname current_animation_name;
 	// Index into the animation array. INVALID_ID_U16 = no current animation.
 	u16 current_animation;
 	f32 time_in_ticks;

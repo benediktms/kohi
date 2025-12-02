@@ -78,7 +78,7 @@ KAPI b8 kasset_image_deserialize(u64 size, const void* block, kasset_image* out_
 
 	out_image->height = header->height;
 	out_image->width = header->width;
-	out_image->mip_levels = header->mip_levels;
+	out_image->mip_levels = 0; // FIXME: only use this if mips are baked in. header->mip_levels;
 	out_image->format = header->format;
 	// Default to RGBA8 if no format is included (legacy image format used 0 instead)
 	if (header->format == 0) {

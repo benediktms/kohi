@@ -281,6 +281,11 @@ typedef struct vulkan_command_buffer {
 
 	/** A pointer to the parent (primary) command buffer, if there is one. Only applies to secondary buffers. */
 	struct vulkan_command_buffer* parent;
+
+	// Current attachments.
+	u8 colour_attachment_count;
+	ktexture colour_attachments[16];
+	ktexture depth_attachment;
 } vulkan_command_buffer;
 
 /**
@@ -599,7 +604,7 @@ typedef struct kwindow_renderer_backend_state {
 	/** @brief Indicates if the swapchain is currently being recreated. */
 	b8 recreating_swapchain;
 
-	/** @brief The graphics command buffers, one per swapchain image. */
+	/** @brief The graphics command buffers, one per frame-in-flight. */
 	vulkan_command_buffer* graphics_command_buffers;
 
 	/** @brief The semaphores used to indicate image availability, one per frame in flight. */

@@ -132,3 +132,7 @@ b8 vulkan_buffer_copy_range(renderer_backend_interface* backend, krenderbuffer s
 b8 vulkan_buffer_draw(renderer_backend_interface* backend, krenderbuffer handle, u64 offset, u32 element_count, u32 binding_index, b8 bind_only);
 
 void vulkan_renderer_wait_for_idle(renderer_backend_interface* backend);
+
+#if KOHI_DEBUG
+void vulkan_renderer_debug_pump_brakes(renderer_backend_interface* backend);
+#endif

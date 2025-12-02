@@ -99,7 +99,7 @@ typedef void (*platform_filewatcher_file_deleted_callback)(u32 watcher_id, void*
 typedef void (*platform_filewatcher_file_written_callback)(u32 watcher_id, const char* file_path, b8 is_binary, void* context);
 typedef void (*platform_window_closed_callback)(const struct kwindow* window);
 typedef void (*platform_window_resized_callback)(const struct kwindow* window);
-typedef void (*platform_process_key)(keys key, b8 pressed);
+typedef void (*platform_process_key)(keys key, b8 pressed, b8 is_repeat);
 typedef void (*platform_process_mouse_button)(mouse_buttons button, b8 pressed);
 typedef void (*platform_process_mouse_move)(i16 x, i16 y);
 typedef void (*platform_process_mouse_wheel)(i8 z_delta);

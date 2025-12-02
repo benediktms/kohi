@@ -448,7 +448,7 @@ kpixel_format string_to_kpixel_format(const char* str) {
 	return KPIXEL_FORMAT_UNKNOWN;
 }
 
-b8 calculate_mip_levels_from_dimension(u32 width, u32 height) {
+u8 calculate_mip_levels_from_dimension(u32 width, u32 height) {
 	// The number of mip levels is calculated by first taking the largest dimension
 	// (either width or height), figuring out how many times that number can be divided
 	// by 2, taking the floor value (rounding down) and adding 1 to represent the

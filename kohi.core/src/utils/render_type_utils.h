@@ -82,7 +82,7 @@ KAPI kpixel_format string_to_kpixel_format(const char* str);
  * @param height The image height.
  * @returns The number of mip levels.
  */
-KAPI b8 calculate_mip_levels_from_dimension(u32 width, u32 height);
+KAPI u8 calculate_mip_levels_from_dimension(u32 width, u32 height);
 
 /** @brief Returns the string representation of the given material type. */
 KAPI const char* kmaterial_type_to_string(kmaterial_type type);

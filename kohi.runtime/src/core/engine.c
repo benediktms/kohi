@@ -112,7 +112,7 @@ static u64 frame_allocator_allocated(void) {
 static b8 engine_on_event(u16 code, void* sender, void* listener_inst, event_context context);
 static void engine_on_window_closed(const struct kwindow* window);
 static void engine_on_window_resized(const struct kwindow* window);
-static void engine_on_process_key(keys key, b8 pressed);
+static void engine_on_process_key(keys key, b8 pressed, b8 is_repeat);
 static void engine_on_process_mouse_button(mouse_buttons button, b8 pressed);
 static void engine_on_process_mouse_move(i16 x, i16 y);
 static void engine_on_process_mouse_wheel(i8 z_delta);
@@ -930,8 +930,8 @@ static void engine_on_window_resized(const struct kwindow* window) {
 	}
 }
 
-static void engine_on_process_key(keys key, b8 pressed) {
-	input_process_key(key, pressed);
+static void engine_on_process_key(keys key, b8 pressed, b8 is_repeat) {
+	input_process_key(key, pressed, is_repeat);
 }
 
 static void engine_on_process_mouse_button(mouse_buttons button, b8 pressed) {

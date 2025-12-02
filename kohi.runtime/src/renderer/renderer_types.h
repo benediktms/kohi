@@ -814,4 +814,8 @@ typedef struct renderer_backend_interface {
 	 * NOTE: This incurs a lot of overhead/waits, and should be used sparingly.
 	 */
 	void (*wait_for_idle)(struct renderer_backend_interface* backend);
+
+#if KOHI_DEBUG
+	void (*debug_pump_brakes)(struct renderer_backend_interface* backend);
+#endif
 } renderer_backend_interface;

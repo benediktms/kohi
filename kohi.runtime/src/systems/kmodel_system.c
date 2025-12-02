@@ -25,6 +25,8 @@ static b8 get_base_id(struct kmodel_system_state* state, kname asset_name, kname
 static u16 get_new_instance_id(struct kmodel_system_state* state, u16 base_id);
 static void acquire_material_instances(struct kmodel_system_state* state, u16 base_id, u16 instance_id);
 
+static void animator_set_animation(kmodel_system_state* state, kmodel_animator* animator, kname name);
+
 b8 kmodel_system_initialize(u64* memory_requirement, kmodel_system_state* memory, const kmodel_system_config* config) {
 	*memory_requirement = sizeof(kmodel_system_state);
 
@@ -653,19 +655,13 @@ void kmodel_instance_animation_set(struct kmodel_system_state* state, kmodel_ins
 	kmodel_instance_data* inst = &base->instances[instance.instance];
 	kmodel_animator* animator = &inst->animator;
 
-	u32 count = base->animation_count;
-	for (u32 i = 0; i < count; ++i) {
-		if (base->animations[i].name == animation_name) {
-			KTRACE("Animation '%s' now active on base mesh '%s'.", kname_string_get(base->animations[i].name), kname_string_get(base->asset_name));
-			animator->current_animation = i;
-			break;
-		}
-	}
+	animator_set_animation(state, animator, animation_name);
 
 	if (animator->current_animation == INVALID_ID_U16) {
 		KWARN("Animation '%s' not found on base mesh '%s'.", kname_string_get(animation_name), kname_string_get(base->asset_name));
 		if (base->animation_count > 0) {
 			animator->current_animation = 0;
+			animator->current_animation_name = base->animations[0].name;
 			KWARN("Set animation to default of the first entry, '%s'.", kname_string_get(base->animations[0].name));
 		} else {
 			KWARN("No animations exist, thus there is nothing to set.");
@@ -884,6 +880,7 @@ static void process_animator(
 static void animator_create(kmodel_base* asset, kmodel_animator* out_animator) {
 	out_animator->base = asset->id;
 	out_animator->current_animation = (asset->animation_count > 0) ? 0 : INVALID_ID_U16;
+	out_animator->current_animation_name = (asset->animation_count > 0) ? asset->animations[0].name : INVALID_KNAME;
 	out_animator->time_in_ticks = 0.0f;
 	out_animator->max_bones = asset->bone_count;
 	for (u32 i = 0; i < KANIMATION_MAX_BONES; ++i) {
@@ -891,14 +888,20 @@ static void animator_create(kmodel_base* asset, kmodel_animator* out_animator) {
 	}
 }
 
-static void animator_set_animation(kmodel_system_state* state, kmodel_animator* animator, u16 index) {
-	kmodel_base* base = &state->models[animator->base];
-	if (index >= base->animation_count) {
-		return;
+static void animator_set_animation(kmodel_system_state* state, kmodel_animator* animator, kname name) {
+	if (animator->current_animation_name != name) {
+		kmodel_base* base = &state->models[animator->base];
+		u32 count = base->animation_count;
+		for (u32 i = 0; i < count; ++i) {
+			if (base->animations[i].name == name) {
+				KTRACE("Animation '%s' now active on base mesh '%s'.", kname_string_get(base->animations[i].name), kname_string_get(base->asset_name));
+				animator->current_animation_name = name;
+				animator->current_animation = i;
+				animator->time_in_ticks = 0.0f;
+				break;
+			}
+		}
 	}
-
-	animator->current_animation = index;
-	animator->time_in_ticks = 0.0f;
 }
 
 static void animator_update(kmodel_system_state* state, kmodel_animator* animator, f32 delta_time) {

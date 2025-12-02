@@ -325,7 +325,7 @@ static i32 append(char* buf, u32 size, u32* pos, const char* text) {
 }
 
 static i32 appendf(char* buf, u32 size, u32* pos, const char* fmt, ...) {
-	char tmp[256];
+	char tmp[16384];
 	va_list ap;
 	va_start(ap, fmt);
 	i32 len = vsnprintf(tmp, sizeof(tmp), fmt, ap);
@@ -623,7 +623,7 @@ i32 vsnprintf_extended(char* buf, u32 size, const char* fmt, va_list ap_input) {
 		va_list tmp;
 		va_copy(tmp, ap);
 
-		char sm[256];
+		char sm[16384];
 		vsnprintf(sm, sizeof(sm), spec, tmp);
 		va_end(tmp);
 
