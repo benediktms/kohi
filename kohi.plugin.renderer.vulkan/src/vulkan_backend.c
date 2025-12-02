@@ -2604,28 +2604,6 @@ b8 vulkan_renderer_shader_create(
 				}
 			}
 		}
-
-		// FIXME: remove this
-		/* // Attributes array.
-		kzero_memory(internal_shader->attributes, sizeof(VkVertexInputAttributeDescription) * VULKAN_SHADER_MAX_ATTRIBUTES);
-
-		// Process attributes
-		internal_shader->attribute_count = attribute_count;
-		u32 offset = 0;
-		for (u32 i = 0; i < internal_shader->attribute_count; ++i) {
-			// Setup the new attribute.
-			VkVertexInputAttributeDescription attribute;
-			attribute.location = i;
-			attribute.binding = 0;
-			attribute.offset = offset;
-			attribute.format = types[attributes[i].type];
-
-			// Push into the config's attribute collection and add to the stride.
-			internal_shader->attributes[i] = attribute;
-
-			offset += attributes[i].size;
-			internal_shader->attribute_stride += attributes[i].size;
-		} */
 	}
 
 	// Only dynamic topology is supported. Create one pipeline per topology class.
@@ -4042,7 +4020,6 @@ static b8 vulkan_graphics_pipeline_create(vulkan_context* context, const vulkan_
 	rasterizer_create_info.depthBiasConstantFactor = 0.0f;
 	rasterizer_create_info.depthBiasClamp = 0.0f;
 	rasterizer_create_info.depthBiasSlopeFactor = 0.0f;
-
 
 	// Multisampling.
 	VkPipelineMultisampleStateCreateInfo multisampling_create_info = {VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO};

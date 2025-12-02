@@ -75,16 +75,16 @@ assets = [
         path = "assets/shaders/Shader.Pick_Terrain_vert.glsl"
     }
     {
-        name = "Shader.Shadow_StaticMesh"
-        path = "assets/shaders/Shader.Shadow_StaticMesh.ksc"
+        name = "Shader.Shadow_Model"
+        path = "assets/shaders/Shader.Shadow_Model.ksc"
     }
     {
-        name = "Shader.Shadow_StaticMesh_frag"
-        path = "assets/shaders/Shader.Shadow_StaticMesh_frag.glsl"
+        name = "Shader.Shadow_Model_frag"
+        path = "assets/shaders/Shader.Shadow_Model_frag.glsl"
     }
     {
-        name = "Shader.Shadow_StaticMesh_vert"
-        path = "assets/shaders/Shader.Shadow_StaticMesh_vert.glsl"
+        name = "Shader.Shadow_Model_vert"
+        path = "assets/shaders/Shader.Shadow_Model_vert.glsl"
     }
     {
         name = "Shader.Shadow_Terrain"

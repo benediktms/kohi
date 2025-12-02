@@ -10,7 +10,7 @@
 #define SHADER_NAME_RUNTIME_MATERIAL_WATER "Shader.MaterialWater"
 #define SHADER_NAME_RUNTIME_MATERIAL_BLENDED "Shader.MaterialBlended"
 
-#define SHADER_NAME_RUNTIME_SHADOW_STATICMESH "Shader.Shadow_StaticMesh"
+#define SHADER_NAME_RUNTIME_SHADOW_MODEL "Shader.Shadow_Model"
 #define SHADER_NAME_RUNTIME_SHADOW_TERRAIN "Shader.Shadow_Terrain"
 
 #define SHADER_NAME_RUNTIME_SKYBOX "Shader.Skybox"

@@ -2,6 +2,12 @@
 
 #define MAX_CASCADES 4
 
+const uint KANIMATION_SSBO_MAX_BONES_PER_MESH = 64;
+
+struct animation_skin_data {
+    mat4 bones[KANIMATION_SSBO_MAX_BONES_PER_MESH];
+};
+
 // =========================================================
 // Inputs
 // =========================================================
@@ -15,17 +21,24 @@ layout(std430, set = 0, binding = 1) readonly buffer global_transforms_ssbo {
     mat4 transforms[]; // indexed by immediate.transform_index
 } global_transforms;
 
+// All animation data
+layout(std430, set = 0, binding = 2) readonly buffer global_animations_ssbo {
+    animation_skin_data animations[]; // indexed by immediate.animation_index;
+} global_animations;
+
 layout (set = 1, binding = 0) uniform texture2D base_colour_texture;
 layout (set = 1, binding = 1) uniform sampler base_colour_sampler;
 
 layout(push_constant) uniform immediate_data {
-	uint transform_index;
+    uint transform_index;
     uint cascade_index;
+    uint animation_index;
+    uint geo_type; // 0=static, 1=animated
 } immediate;
 
 // Data Transfer Object from vertex shader
 layout(location = 1) in struct dto {
-	vec2 tex_coord;
+    vec2 tex_coord;
 } in_dto;
 
 // =========================================================

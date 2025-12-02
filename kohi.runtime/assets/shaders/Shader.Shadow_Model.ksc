@@ -10,12 +10,12 @@ max_draw_ids=1024
 stages = [
     {
         type = "vertex"
-        source_asset_name = "Shader.Shadow_StaticMesh_vert"
+        source_asset_name = "Shader.Shadow_Model_vert"
         package_name = "Kohi.Runtime"
     }
     {
         type = "fragment"
-        source_asset_name = "Shader.Shadow_StaticMesh_frag"
+        source_asset_name = "Shader.Shadow_Model_frag"
         package_name = "Kohi.Runtime"
     }
 ]
@@ -24,32 +24,47 @@ attributes = [
     {
         name = "in_position"
         type = "vec3"
+		binding_index = 0
     }
     {
         name = "in_normal"
         type = "vec3"
+		binding_index = 0
     }
     {
         name = "in_texcoord"
         type = "vec2"
+		binding_index = 0
     }
     {
         name = "in_colour"
         type = "vec4"
+		binding_index = 0
     }
     {
         name = "in_tangent"
         type = "vec4"
+		binding_index = 0
+    }
+    {
+        name = "in_bone_ids"
+        type = "ivec4"
+		binding_index = 1
+    }
+    {
+        name = "in_weights"
+        type = "vec4"
+		binding_index = 1
     }
 ]
 
 binding_sets = [
     {
-        name = "shadow static mesh global binding set"
+        name = "shadow model global binding set"
         max_instance_count = 1
         bindings = [
             {
-                name = "shadow static_mesh global UBO"
+                name = "shadow model global UBO"
                 type = "UBO"
                 data_size = 256
             }
@@ -57,10 +72,14 @@ binding_sets = [
                 name = "Kohi.StorageBuffer.TransformsGlobal"
                 type = "storage"
             }
+            {
+                name = "Kohi.StorageBuffer.AnimationsGlobal"
+                type = "SSBO"
+            }
         ]
     }
     {
-        name = "shadow static mesh material binding set"
+        name = "shadow model material binding set"
         max_instance_count = 256
         bindings = [
             {

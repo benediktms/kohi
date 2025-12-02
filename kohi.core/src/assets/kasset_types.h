@@ -296,16 +296,6 @@ typedef struct kasset_kson {
 	kson_tree tree;
 } kasset_kson;
 
-#define KASSET_TYPE_NAME_SCENE "Scene"
-
-typedef struct kasset_scene {
-	kname name;
-	u32 version;
-	const char* description;
-	u32 node_count;
-	scene_node_config* nodes;
-} kasset_scene;
-
 #define KASSET_TYPE_NAME_SHADER "Shader"
 
 typedef struct kasset_shader_stage {

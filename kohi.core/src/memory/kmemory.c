@@ -163,7 +163,7 @@ void* kallocate_aligned(u64 size, u16 alignment, memory_tag tag) {
 		KWARN("kallocate_aligned called using MEMORY_TAG_UNKNOWN. Re-class this allocation.");
 	}
 
-	/* size = get_aligned(size, alignment); */
+	u64 aligned_size = get_aligned(size, alignment);
 
 	// Either allocate from the system's allocator or the OS. The latter shouldn't ever
 	// really happen.
@@ -175,10 +175,10 @@ void* kallocate_aligned(u64 size, u16 alignment, memory_tag tag) {
 			return 0;
 		}
 
-		// FIXME: Track aligned alloc offset as part of size.
-		state_ptr->stats.total_allocated += size;
-		state_ptr->stats.tagged_allocations[tag] += size;
-		state_ptr->stats.new_tagged_allocations[tag] += size;
+		// Track aligned alloc offset as part of size.
+		state_ptr->stats.total_allocated += aligned_size;
+		state_ptr->stats.tagged_allocations[tag] += aligned_size;
+		state_ptr->stats.new_tagged_allocations[tag] += aligned_size;
 		state_ptr->alloc_count++;
 
 #if K_USE_CUSTOM_MEMORY_ALLOCATOR
@@ -266,10 +266,11 @@ void kfree_aligned(void* block, u64 size, u16 alignment, memory_tag tag) {
 			printf("Free alignment mismatch! (original=%hu, requested=%hu)\n", oalignment, alignment);
 		}
 #endif
+		u64 aligned_size = get_aligned(size, alignment);
 
-		state_ptr->stats.total_allocated -= size;
-		state_ptr->stats.tagged_allocations[tag] -= size;
-		state_ptr->stats.new_tagged_deallocations[tag] += size;
+		state_ptr->stats.total_allocated -= aligned_size;
+		state_ptr->stats.tagged_allocations[tag] -= aligned_size;
+		state_ptr->stats.new_tagged_deallocations[tag] += aligned_size;
 		state_ptr->alloc_count--;
 #if K_USE_CUSTOM_MEMORY_ALLOCATOR
 		b8 result = dynamic_allocator_free_aligned(&state_ptr->allocator, block);

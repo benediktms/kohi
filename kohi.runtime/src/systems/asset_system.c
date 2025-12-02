@@ -18,7 +18,6 @@
 #include <serializers/kasset_image_serializer.h>
 #include <serializers/kasset_material_serializer.h>
 #include <serializers/kasset_model_serializer.h>
-#include <serializers/kasset_scene_serializer.h>
 #include <serializers/kasset_shader_serializer.h>
 #include <serializers/kasset_system_font_serializer.h>
 #include <strings/kname.h>
@@ -948,96 +947,6 @@ void asset_system_release_audio(struct asset_system_state* state, kasset_audio* 
 		}
 
 		KFREE_TYPE(asset, kasset_audio, MEMORY_TAG_ASSET);
-	}
-}
-
-// ////////////////////////////////////
-// SCENE ASSETS
-// ////////////////////////////////////
-
-// sync load from game package.
-kasset_scene* asset_system_request_scene_sync(struct asset_system_state* state, const char* name) {
-	return asset_system_request_scene_from_package_sync(state, state->default_package_name_str, name);
-}
-// sync load from specific package.
-kasset_scene* asset_system_request_scene_from_package_sync(struct asset_system_state* state, const char* package_name, const char* name) {
-	if (!state || !name || !string_length(name)) {
-		KERROR("%s requires valid pointers to state and name.", __FUNCTION__);
-		return 0;
-	}
-
-	kasset_scene* out_asset = KALLOC_TYPE(kasset_scene, MEMORY_TAG_ASSET);
-	vfs_request_info info = {
-		.asset_name = kname_create(name),
-		.package_name = kname_create(package_name),
-		.is_binary = false,
-	};
-	vfs_asset_data data = vfs_request_asset_sync(state->vfs, info);
-
-	b8 result = kasset_scene_deserialize(data.text, out_asset);
-	if (!result) {
-		KERROR("Failed to deserialize scene asset. See logs for details.");
-		KFREE_TYPE(out_asset, kasset_scene, MEMORY_TAG_ASSET);
-		return 0;
-	}
-
-	out_asset->name = info.asset_name;
-
-	return out_asset;
-}
-
-static void kasset_scene_destroy_node(scene_node_config* node) {
-
-	// Descroy attachments by type
-	if (node->skybox_configs) {
-		darray_destroy(node->skybox_configs);
-		node->skybox_configs = 0;
-	}
-
-	if (node->dir_light_configs) {
-		darray_destroy(node->dir_light_configs);
-		node->dir_light_configs = 0;
-	}
-	if (node->point_light_configs) {
-		darray_destroy(node->point_light_configs);
-		node->point_light_configs = 0;
-	}
-	if (node->static_mesh_configs) {
-		darray_destroy(node->static_mesh_configs);
-		node->static_mesh_configs = 0;
-	}
-	if (node->heightmap_terrain_configs) {
-		darray_destroy(node->heightmap_terrain_configs);
-		node->heightmap_terrain_configs = 0;
-	}
-	if (node->water_plane_configs) {
-		darray_destroy(node->water_plane_configs);
-		node->water_plane_configs = 0;
-	}
-
-	// Destroy child nodes.
-	for (u32 i = 0; i < node->child_count; ++i) {
-		kasset_scene_destroy_node(&node->children[i]);
-	}
-	kfree(node->children, sizeof(scene_node_config) * node->child_count, MEMORY_TAG_ARRAY);
-	node->child_count = 0;
-	node->children = 0;
-}
-
-void asset_system_release_scene(struct asset_system_state* state, kasset_scene* asset) {
-	if (state && asset) {
-		// Asset type-specific data cleanup
-		if (asset->description) {
-			string_free(asset->description);
-		}
-		if (asset->node_count && asset->nodes) {
-			for (u32 i = 0; i < asset->node_count; ++i) {
-				kasset_scene_destroy_node(&asset->nodes[i]);
-			}
-			kfree(asset->nodes, sizeof(scene_node_config) * asset->node_count, MEMORY_TAG_ARRAY);
-		}
-
-		KFREE_TYPE(asset, kasset_scene, MEMORY_TAG_ASSET);
 	}
 }
 

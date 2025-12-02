@@ -41,7 +41,7 @@ void _log_output(log_level level, const char* message, ...) {
 
 	string_free(out_message);
 
-	// Trigger a "debug break" for fatal errors.
+	// Trigger a "debug break" flor fatal errors.
 	if (level == LOG_LEVEL_FATAL) {
 		kdebug_break();
 	}

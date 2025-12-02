@@ -55,6 +55,14 @@ binding_sets = [
                 type = "UBO"
                 data_size = 256
             }
+            {
+                name = "Kohi.StorageBuffer.TransformsGlobal"
+                type = "SSBO"
+            }
+            {
+                name = "Kohi.StorageBuffer.AnimationsGlobal"
+                type = "SSBO"
+            }
         ]
     }
 ]

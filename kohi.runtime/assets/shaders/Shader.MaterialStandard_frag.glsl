@@ -243,7 +243,7 @@ void main() {
     }
 
     tangent = (tangent - dot(tangent, normal) *  normal);
-    vec3 bitangent = normalize(cross(normal, tangent.xyz) * in_dto.tangent.w); // FIXME: Use updated tangent instead?
+    vec3 bitangent = normalize(cross(normal, tangent.xyz) * in_dto.tangent.w);
     tangent = normalize(cross(bitangent, normal));
     mat3 TBN = mat3(tangent, bitangent, normal);
 
