@@ -276,8 +276,8 @@ static void sui_label_control_render_frame_prepare(standard_ui_state* state, str
 				goto sui_label_frame_prepare_cleanup;
 			}
 
-			krenderbuffer vertex_buffer = renderer_renderbuffer_get(state->renderer, kname_create(KRENDERBUFFER_NAME_VERTEX_STANDARD));
-			krenderbuffer index_buffer = renderer_renderbuffer_get(state->renderer, kname_create(KRENDERBUFFER_NAME_INDEX_STANDARD));
+			krenderbuffer vertex_buffer = state->vertex_buffer;
+			krenderbuffer index_buffer = state->index_buffer;
 
 			u64 old_vertex_size = typed_data->vertex_buffer_size;
 			u64 old_vertex_offset = typed_data->vertex_buffer_offset;

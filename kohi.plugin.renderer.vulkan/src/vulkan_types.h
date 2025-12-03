@@ -745,6 +745,11 @@ typedef struct vulkan_context {
 	// Darray of vulkan buffers, which matches up to the frontend's krenderbuffers.
 	vulkan_buffer* renderbuffers;
 
+	// Cached handles to renderbuffers.
+	kname standard_vertex_buffer_name;
+	kname extended_vertex_buffer_name;
+	kname index_buffer_name;
+
 	/**
 	 * Used for dynamic compilation of vulkan shaders (using the shaderc lib.)
 	 */

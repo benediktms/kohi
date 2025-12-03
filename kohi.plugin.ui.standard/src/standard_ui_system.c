@@ -211,6 +211,9 @@ b8 standard_ui_system_initialize(u64* memory_requirement, standard_ui_state* sta
 
 	state->focused_id = INVALID_ID_U64;
 
+	state->vertex_buffer = renderer_renderbuffer_get(state->renderer, kname_create(KRENDERBUFFER_NAME_VERTEX_STANDARD));
+	state->index_buffer = renderer_renderbuffer_get(state->renderer, kname_create(KRENDERBUFFER_NAME_INDEX_STANDARD));
+
 	KTRACE("Initialized standard UI system (%s).", KVERSION);
 
 	return true;

@@ -339,6 +339,10 @@ b8 vulkan_renderer_backend_initialize(renderer_backend_interface* backend, const
 
 	context->renderbuffers = darray_create(vulkan_buffer);
 
+	context->standard_vertex_buffer_name = kname_create(KRENDERBUFFER_NAME_VERTEX_STANDARD);
+	context->extended_vertex_buffer_name = kname_create(KRENDERBUFFER_NAME_VERTEX_EXTENDED);
+	context->index_buffer_name = kname_create(KRENDERBUFFER_NAME_INDEX_STANDARD);
+
 	KINFO("Vulkan renderer initialized successfully.");
 	return true;
 }
@@ -719,7 +723,7 @@ b8 vulkan_renderer_frame_command_list_begin(renderer_backend_interface* backend,
 	// Setup a pipeline barrier to ensure all vertex updates have happened
 	// on the previous frame before trying to read it.
 	{
-		krenderbuffer vertex_buffer = renderer_renderbuffer_get(backend->frontend_state, kname_create(KRENDERBUFFER_NAME_VERTEX_STANDARD));
+		krenderbuffer vertex_buffer = renderer_renderbuffer_get(backend->frontend_state, context->standard_vertex_buffer_name);
 		vulkan_buffer* internal_vertex_buffer = &context->renderbuffers[vertex_buffer];
 		u8 index = internal_vertex_buffer->handle_count == 1 ? 0 : get_current_image_index(context);
 		VkBufferMemoryBarrier vertex_buffer_barrier = {
@@ -734,7 +738,7 @@ b8 vulkan_renderer_frame_command_list_begin(renderer_backend_interface* backend,
 			.size = VK_WHOLE_SIZE,
 		};
 
-		krenderbuffer vertex_buffer2 = renderer_renderbuffer_get(backend->frontend_state, kname_create(KRENDERBUFFER_NAME_VERTEX_EXTENDED));
+		krenderbuffer vertex_buffer2 = renderer_renderbuffer_get(backend->frontend_state, context->extended_vertex_buffer_name);
 		vulkan_buffer* internal_vertex_buffer2 = &context->renderbuffers[vertex_buffer2];
 		u8 index2 = internal_vertex_buffer2->handle_count == 1 ? 0 : get_current_image_index(context);
 		VkBufferMemoryBarrier vertex_buffer_barrier2 = {
@@ -931,7 +935,7 @@ b8 vulkan_renderer_frame_command_list_end(renderer_backend_interface* backend, s
 
 	// Barrier for vertex buffer
 	{
-		krenderbuffer vertex_buffer = renderer_renderbuffer_get(backend->frontend_state, kname_create(KRENDERBUFFER_NAME_VERTEX_STANDARD));
+		krenderbuffer vertex_buffer = renderer_renderbuffer_get(backend->frontend_state, context->standard_vertex_buffer_name);
 		vulkan_buffer* internal_vertex_buffer = &context->renderbuffers[vertex_buffer];
 		u8 index = internal_vertex_buffer->handle_count == 1 ? 0 : get_current_image_index(context);
 		VkBufferMemoryBarrier barrier = {0};
@@ -945,7 +949,7 @@ b8 vulkan_renderer_frame_command_list_end(renderer_backend_interface* backend, s
 		barrier.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
 		barrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT;
 
-		krenderbuffer vertex_buffer2 = renderer_renderbuffer_get(backend->frontend_state, kname_create(KRENDERBUFFER_NAME_VERTEX_EXTENDED));
+		krenderbuffer vertex_buffer2 = renderer_renderbuffer_get(backend->frontend_state, context->extended_vertex_buffer_name);
 		vulkan_buffer* internal_vertex_buffer2 = &context->renderbuffers[vertex_buffer2];
 		u8 index2 = internal_vertex_buffer2->handle_count == 1 ? 0 : get_current_image_index(context);
 		VkBufferMemoryBarrier vertex_buffer_barrier2 = {
@@ -975,7 +979,7 @@ b8 vulkan_renderer_frame_command_list_end(renderer_backend_interface* backend, s
 
 	// Barrier for index buffer
 	{
-		krenderbuffer index_buffer = renderer_renderbuffer_get(backend->frontend_state, kname_create(KRENDERBUFFER_NAME_INDEX_STANDARD));
+		krenderbuffer index_buffer = renderer_renderbuffer_get(backend->frontend_state, context->index_buffer_name);
 		vulkan_buffer* internal_index_buffer = &context->renderbuffers[index_buffer];
 		u8 index = internal_index_buffer->handle_count == 1 ? 0 : get_current_image_index(context);
 		VkBufferMemoryBarrier barrier = {0};
@@ -1454,7 +1458,7 @@ void vulkan_renderer_end_rendering(struct renderer_backend_interface* backend, f
 
 	// Barrier for vertex buffer
 	{
-		krenderbuffer vertex_buffer = renderer_renderbuffer_get(backend->frontend_state, kname_create(KRENDERBUFFER_NAME_VERTEX_STANDARD));
+		krenderbuffer vertex_buffer = renderer_renderbuffer_get(backend->frontend_state, context->standard_vertex_buffer_name);
 		vulkan_buffer* internal_vertex_buffer = &context->renderbuffers[vertex_buffer];
 		u8 index = internal_vertex_buffer->handle_count == 1 ? 0 : get_current_image_index(context);
 		VkBufferMemoryBarrier barrier = {0};
@@ -1468,7 +1472,7 @@ void vulkan_renderer_end_rendering(struct renderer_backend_interface* backend, f
 		barrier.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT; //| VK_ACCESS_TRANSFER_WRITE_BIT | VK_ACCESS_TRANSFER_READ_BIT;
 		barrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;	// | (is_depth ? VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT : VK_ACCESS_COLOR_ATTACHMENT_READ_BIT);
 
-		krenderbuffer vertex_buffer2 = renderer_renderbuffer_get(backend->frontend_state, kname_create(KRENDERBUFFER_NAME_VERTEX_EXTENDED));
+		krenderbuffer vertex_buffer2 = renderer_renderbuffer_get(backend->frontend_state, context->extended_vertex_buffer_name);
 		vulkan_buffer* internal_vertex_buffer2 = &context->renderbuffers[vertex_buffer2];
 		u8 index2 = internal_vertex_buffer2->handle_count == 1 ? 0 : get_current_image_index(context);
 		VkBufferMemoryBarrier vertex_buffer_barrier2 = {
@@ -1498,7 +1502,7 @@ void vulkan_renderer_end_rendering(struct renderer_backend_interface* backend, f
 
 	// Barrier for index buffer
 	{
-		krenderbuffer index_buffer = renderer_renderbuffer_get(backend->frontend_state, kname_create(KRENDERBUFFER_NAME_INDEX_STANDARD));
+		krenderbuffer index_buffer = renderer_renderbuffer_get(backend->frontend_state, context->index_buffer_name);
 		vulkan_buffer* internal_index_buffer = &context->renderbuffers[index_buffer];
 		u8 index = internal_index_buffer->handle_count == 1 ? 0 : get_current_image_index(context);
 		VkBufferMemoryBarrier barrier = {0};

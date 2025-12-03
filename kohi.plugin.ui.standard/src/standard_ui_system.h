@@ -152,6 +152,9 @@ typedef struct standard_ui_state {
 
 	ktexture atlas_texture;
 
+	krenderbuffer vertex_buffer;
+	krenderbuffer index_buffer;
+
 	u64 focused_id;
 
 } standard_ui_state;
