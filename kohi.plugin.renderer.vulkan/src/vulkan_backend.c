@@ -785,6 +785,7 @@ b8 vulkan_renderer_frame_command_list_end(renderer_backend_interface* backend, s
 	vulkan_image* target_image = &target_image_handle->images[window_backend->swapchain.image_index];
 
 	VkImageMemoryBarrier before_barriers[3];
+	kzero_memory(before_barriers, sizeof(VkImageMemoryBarrier) * 3);
 	// Need a barrier to ensure all previous writes are complete.
 	{
 		VkImageMemoryBarrier* barrier = &before_barriers[0];
@@ -878,7 +879,9 @@ b8 vulkan_renderer_frame_command_list_end(renderer_backend_interface* backend, s
 	}
 
 	VkImageMemoryBarrier after_image_barriers[2];
+	kzero_memory(after_image_barriers, sizeof(VkImageMemoryBarrier) * 2);
 	VkBufferMemoryBarrier after_buffer_barriers[3];
+	kzero_memory(after_buffer_barriers, sizeof(VkBufferMemoryBarrier) * 3);
 
 	// Transition source back to the correct layout for rendering to
 	{
@@ -1425,6 +1428,7 @@ void vulkan_renderer_end_rendering(struct renderer_backend_interface* backend, f
 	vulkan_command_buffer_end(context, secondary);
 
 	VkBufferMemoryBarrier buffer_barriers[3];
+	kzero_memory(buffer_barriers, sizeof(VkBufferMemoryBarrier) * 3);
 	// Barrier for standard vertex buffer
 	{
 		krenderbuffer vertex_buffer = renderer_renderbuffer_get(backend->frontend_state, context->standard_vertex_buffer_name);
