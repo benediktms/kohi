@@ -63,6 +63,8 @@ NOTE: This project _does not_ work under WSL, nor will it in the forseeable futu
 - Visual Studio Build Tools: `winget install Microsoft.VisualStudio.2022.BuildTools`
 - Git for Windows: `winget install git.git` OR https://gitforwindows.org/
 - Vulkan SDK: `winget install khronosgroup.vulkansdk` OR download from https://vulkan.lunarg.com/
+- Assimp: Go here to get an installer: `https://www.assimp.org/`, then downloads. Yes it takes you to an itch.io page, but it's legit.
+  - After the installer runs, reboot, then add the install dir to PATH (probably `C:\Program Files\Assimp`)
 
 ### Prerequisites for Linux
 

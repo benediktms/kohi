@@ -1038,6 +1038,9 @@ LRESULT CALLBACK win32_process_message(HWND hwnd, u32 msg, WPARAM w_param, LPARA
 			// Check for extended scan code.
 			b8 is_extended = (HIWORD(l_param) & KF_EXTENDED) == KF_EXTENDED;
 
+			// Key repeats can never be on release.
+			b8 is_repeat = pressed && ((l_param & (1 << 30)) != 0);
+
 			// Keypress only determines if _any_ alt/ctrl/shift key is pressed. Determine which one if so.
 			if (w_param == VK_MENU) {
 				key = is_extended ? KEY_RALT : KEY_LALT;
@@ -1056,7 +1059,7 @@ LRESULT CALLBACK win32_process_message(HWND hwnd, u32 msg, WPARAM w_param, LPARA
 			}
 
 			// Pass to the input subsystem for processing.
-			state_ptr->process_key(key, pressed);
+			state_ptr->process_key(key, pressed, is_repeat);
 
 			// Return 0 to prevent default window behaviour for some keypresses, such as alt.
 		}
