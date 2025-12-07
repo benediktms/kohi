@@ -291,6 +291,22 @@ typedef enum system_event_code {
 	 */
 	EVENT_CODE_MOUSE_DRAG_END = 0x32,
 
+	/**
+	 * @brief An event fired when an animation completes.
+	 *
+	 * Context usage:
+	 * kname animation_name = context.data.u64[0]
+	 */
+	EVENT_CODE_ANIMATION_STARTED = 0x33,
+
+	/**
+	 * @brief An event fired when an animation completes.
+	 *
+	 * Context usage:
+	 * kname animation_name = context.data.u64[0]
+	 */
+	EVENT_CODE_ANIMATION_COMPLETE = 0x34,
+
 	/** @brief The maximum event code that can be used internally. */
 	MAX_EVENT_CODE = 0xFF
 } system_event_code;

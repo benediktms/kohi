@@ -273,7 +273,8 @@ void vulkan_image_recreate(vulkan_context* context, vulkan_image* image) {
 	VkMemoryAllocateInfo memory_allocate_info = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
 	memory_allocate_info.allocationSize = image->memory_requirements.size;
 	memory_allocate_info.memoryTypeIndex = memory_type;
-	VK_CHECK(rhi->kvkAllocateMemory(context->device.logical_device, &memory_allocate_info, context->allocator, &image->memory));
+	VkResult img_create_result = rhi->kvkAllocateMemory(context->device.logical_device, &memory_allocate_info, context->allocator, &image->memory);
+	VK_CHECK(img_create_result);
 	if (image->name) {
 		VK_SET_DEBUG_OBJECT_NAME(context, VK_OBJECT_TYPE_DEVICE_MEMORY, image->memory, image->name);
 	}

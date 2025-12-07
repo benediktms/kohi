@@ -6,7 +6,7 @@
 #include "memory/kmemory.h"
 
 // The amount of padding around a tight AABB.
-#define BVH_PADDING 0.2f
+#define BVH_PADDING 0.002f
 
 static b8 ray_intersects_aabb_internal(aabb box, vec3 origin, vec3 direction, f32 max, f32* out_min, f32* out_max);
 static u32 bvh_alloc_node(bvh* t);

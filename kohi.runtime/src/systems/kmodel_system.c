@@ -3,6 +3,7 @@
 #include "assets/kasset_types.h"
 #include "containers/darray.h"
 #include "core/engine.h"
+#include "core/event.h"
 #include "core_render_types.h"
 #include "debug/kassert.h"
 #include "defines.h"
@@ -152,6 +153,8 @@ static void kasset_model_loaded(void* listener, kasset_model* asset) {
 
 	base->animation_count = asset->animation_count;
 	if (base->animation_count) {
+		KTRACE("This model has the following animations available:");
+
 		// NOTE: The presence of animations marks this as an animated model type.
 		base->type = KMODEL_TYPE_ANIMATED;
 
@@ -161,6 +164,8 @@ static void kasset_model_loaded(void* listener, kasset_model* asset) {
 			kmodel_animation* target = &base->animations[i];
 
 			target->name = source->name;
+			KTRACE(kname_string_get(target->name));
+
 			target->ticks_per_second = source->ticks_per_second;
 			target->duration = source->duration;
 			target->channel_count = source->channel_count;
@@ -379,6 +384,16 @@ static void kasset_model_loaded(void* listener, kasset_model* asset) {
 				animator->time_scale = 1.0f; // Always default time scale to 1.0f
 				animator->max_bones = asset->bone_count;
 				animator->time_in_ticks = 0.0f;
+
+				// Auto-set the first animation and simulate a frame being updated so it shows up
+				// properly.
+				animator->current_animation = 0;
+				animator->current_animation_name = base->animations[0].name;
+
+				kmodel_animator_state prev_state = animator->state;
+				animator->state = KMODEL_ANIMATOR_STATE_PLAYING;
+				animator_update(state, animator, 0.0f);
+				animator->state = prev_state;
 			}
 
 			if (entry->callback) {
@@ -917,14 +932,29 @@ static void animator_update(kmodel_system_state* state, kmodel_animator* animato
 	f32 ticks_per_second = current->ticks_per_second;
 	f32 time_scale = state->global_time_scale * animator->time_scale;
 	f32 delta_ticks = delta_time * time_scale * ticks_per_second;
+	f32 prev_time = animator->time_in_ticks;
 	animator->time_in_ticks += delta_ticks;
 
-	// Wrap around.
 	f32 duration = current->duration;
 	if (duration > 0.0f) {
-		animator->time_in_ticks = kmod(animator->time_in_ticks, duration);
-		if (animator->time_in_ticks < 0.0f) {
-			animator->time_in_ticks += duration;
+		// Wrap around.
+		if (animator->loop) {
+			animator->time_in_ticks = kmod(animator->time_in_ticks, duration);
+			if (animator->time_in_ticks < 0.0f) {
+				animator->time_in_ticks += duration;
+			}
+		} else {
+			if (animator->time_in_ticks > duration) {
+				animator->time_in_ticks = duration;
+
+				// If just hitting the end of the animation, signal it's completion.
+				if (!kfloat_compare(prev_time, duration)) {
+					KTRACE("Animation complete: %k", current->name);
+					event_context ctx = {
+						.data.u64[0] = current->name};
+					event_fire(EVENT_CODE_ANIMATION_COMPLETE, animator, ctx);
+				}
+			}
 		}
 	}
 

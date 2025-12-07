@@ -4,6 +4,7 @@
 #include "core/event.h"
 #include "core/keymap.h"
 #include "frame_data.h"
+#include "input_types.h"
 #include "logger.h"
 #include "memory/kmemory.h"
 
@@ -104,14 +105,27 @@ static b8 check_modifiers(keymap_modifier modifiers) {
 		if (!input_is_key_down(KEY_SHIFT) && !input_is_key_down(KEY_LSHIFT) && !input_is_key_down(KEY_RSHIFT)) {
 			return false;
 		}
+	} else {
+		if (input_is_key_down(KEY_SHIFT) || input_is_key_down(KEY_LSHIFT) || input_is_key_down(KEY_RSHIFT)) {
+			return false;
+		}
 	}
 	if (modifiers & KEYMAP_MODIFIER_CONTROL_BIT) {
 		if (!input_is_key_down(KEY_CONTROL) && !input_is_key_down(KEY_LCONTROL) && !input_is_key_down(KEY_RCONTROL)) {
 			return false;
 		}
+	} else {
+		if (input_is_key_down(KEY_CONTROL) || input_is_key_down(KEY_LCONTROL) || input_is_key_down(KEY_RCONTROL)) {
+			return false;
+		}
 	}
+
 	if (modifiers & KEYMAP_MODIFIER_ALT_BIT) {
 		if (!input_is_key_down(KEY_LALT) && !input_is_key_down(KEY_RALT)) {
+			return false;
+		}
+	} else {
+		if (input_is_key_down(KEY_LALT) || input_is_key_down(KEY_RALT)) {
 			return false;
 		}
 	}

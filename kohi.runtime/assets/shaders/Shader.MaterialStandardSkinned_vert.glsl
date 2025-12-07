@@ -187,10 +187,10 @@ void main() {
     // Accumulate bone transform.
     mat4 bone_transform = mat4(1.0);
 	float gt = clamp(immediate.geo_type, 0.0, 1.0);
-    bone_transform += (bones[in_bone_ids[0]] * in_weights[0]) * gt;
-    bone_transform += (bones[in_bone_ids[1]] * in_weights[1]) * gt;
-    bone_transform += (bones[in_bone_ids[2]] * in_weights[2]) * gt;
-    bone_transform += (bones[in_bone_ids[3]] * in_weights[3]) * gt;
+	bone_transform += (bones[in_bone_ids[0]] * in_weights[0]) * gt;
+	bone_transform += (bones[in_bone_ids[1]] * in_weights[1]) * gt;
+	bone_transform += (bones[in_bone_ids[2]] * in_weights[2]) * gt;
+	bone_transform += (bones[in_bone_ids[3]] * in_weights[3]) * gt;
 	// Fragment position in world space.
 	out_dto.frag_position = model * bone_transform * vec4(in_position, 1.0);
 	// Copy the normal over.
