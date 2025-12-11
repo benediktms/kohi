@@ -239,6 +239,8 @@ b8 sui_textbox_control_load(standard_ui_state* state, struct sui_control* self) 
 		return false;
 	}
 
+	typed_data->clip_mask.clip_geometry = quad;
+
 	typed_data->clip_mask.render_data.model = mat4_identity();
 	// FIXME: Convert this to generate just verts/indices, and upload via the new
 	// renderer api functions instead of deprecated geometry functions.

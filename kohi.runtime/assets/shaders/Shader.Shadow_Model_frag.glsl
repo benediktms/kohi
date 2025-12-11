@@ -33,7 +33,7 @@ layout(push_constant) uniform immediate_data {
     uint transform_index;
     uint cascade_index;
     uint animation_index;
-    uint geo_type; // 0=static, 1=animated
+    uint geo_type; // 0=static, 1=animaten
 } immediate;
 
 // Data Transfer Object from vertex shader

@@ -261,7 +261,7 @@ b8 renderer_system_initialize(u64* memory_requirement, renderer_system_state* st
 
 	// Standard vertex buffer
 	// TODO: make this configurable.
-	const u64 standard_vertex_buffer_size = sizeof(vertex_3d) * 20 * 1024 * 1024;
+	const u64 standard_vertex_buffer_size = MEBIBYTES(100);
 	state->standard_vertex_buffer = renderer_renderbuffer_create(state, kname_create(KRENDERBUFFER_NAME_VERTEX_STANDARD), RENDERBUFFER_TYPE_VERTEX, standard_vertex_buffer_size, RENDERBUFFER_TRACK_TYPE_FREELIST, RENDERBUFFER_FLAG_NONE);
 	if (state->standard_vertex_buffer == KRENDERBUFFER_INVALID) {
 		KERROR("Error creating standard vertex buffer.");
@@ -270,7 +270,7 @@ b8 renderer_system_initialize(u64* memory_requirement, renderer_system_state* st
 
 	// Extended vertex buffer
 	// TODO: make this configurable.
-	const u64 extended_vertex_buffer_size = sizeof(skinned_extended_vertex_3d) * 20 * 1024 * 1024;
+	const u64 extended_vertex_buffer_size = MEBIBYTES(50);
 	state->extended_vertex_buffer = renderer_renderbuffer_create(state, kname_create(KRENDERBUFFER_NAME_VERTEX_EXTENDED), RENDERBUFFER_TYPE_VERTEX, extended_vertex_buffer_size, RENDERBUFFER_TRACK_TYPE_FREELIST, RENDERBUFFER_FLAG_NONE);
 	if (state->extended_vertex_buffer == KRENDERBUFFER_INVALID) {
 		KERROR("Error creating extended vertex buffer.");
@@ -279,7 +279,7 @@ b8 renderer_system_initialize(u64* memory_requirement, renderer_system_state* st
 
 	// Geometry index buffer
 	// TODO: Make this configurable.
-	const u64 index_buffer_size = sizeof(u32) * 100 * 1024 * 1024;
+	const u64 index_buffer_size = MEBIBYTES(50);
 	state->geometry_index_buffer = renderer_renderbuffer_create(state, kname_create(KRENDERBUFFER_NAME_INDEX_STANDARD), RENDERBUFFER_TYPE_INDEX, index_buffer_size, RENDERBUFFER_TRACK_TYPE_FREELIST, RENDERBUFFER_FLAG_NONE);
 	if (state->geometry_index_buffer == KRENDERBUFFER_INVALID) {
 		KERROR("Error creating index buffer.");
