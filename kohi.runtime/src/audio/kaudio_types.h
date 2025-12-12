@@ -84,7 +84,7 @@ typedef struct kaudio_backend_interface {
 
 	// Play whatever is currently bound to the channel.
 	b8 (*channel_play)(struct kaudio_backend_interface* backend, u8 channel_id);
-	b8 (*channel_play_resource)(struct kaudio_backend_interface* backend, kaudio audio, kaudio_space audio_space, u8 channel_id);
+	b8 (*channel_play_resource)(struct kaudio_backend_interface* backend, kaudio audio, u16 instance_id, kaudio_space audio_space, u8 channel_id);
 
 	b8 (*channel_stop)(struct kaudio_backend_interface* backend, u8 channel_id);
 	b8 (*channel_pause)(struct kaudio_backend_interface* backend, u8 channel_id);

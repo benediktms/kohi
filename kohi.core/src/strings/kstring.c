@@ -604,6 +604,9 @@ i32 vsnprintf_extended(char* buf, u32 size, const char* fmt, va_list ap_input) {
 			// knames are u64s, so take that as the arg.
 			u64 knraw = va_arg(ap, u64);
 			const char* str = kname_string_get(knraw);
+			if (!str) {
+				str = "(null_kname)";
+			}
 			append(buf, size, &pos, str);
 			p += 2;
 			continue;

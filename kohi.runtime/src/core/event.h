@@ -292,7 +292,7 @@ typedef enum system_event_code {
 	EVENT_CODE_MOUSE_DRAG_END = 0x32,
 
 	/**
-	 * @brief An event fired when an animation completes.
+	 * @brief An event fired when an animation starts.
 	 *
 	 * Context usage:
 	 * kname animation_name = context.data.u64[0]
@@ -306,6 +306,23 @@ typedef enum system_event_code {
 	 * kname animation_name = context.data.u64[0]
 	 */
 	EVENT_CODE_ANIMATION_COMPLETE = 0x34,
+
+	/**
+	 * @brief An event fired when an audio starts playing.
+	 *
+	 * Context usage:
+	 * kname animation_name = context.data.u64[0]
+	 */
+	EVENT_CODE_AUDIO_STARTED = 0x35,
+
+	/**
+	 * @brief An event fired when an audio completes.
+	 *
+	 * Context usage:
+	 * kaudio base = context.data.u16[0]
+	 * instance_id = context.data.u16[1]
+	 */
+	EVENT_CODE_AUDIO_COMPLETE = 0x36,
 
 	/** @brief The maximum event code that can be used internally. */
 	MAX_EVENT_CODE = 0xFF

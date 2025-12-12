@@ -13,6 +13,7 @@
 #include "assets/kasset_types.h"
 #include "audio/kaudio_types.h"
 #include "core/engine.h"
+#include "core/event.h"
 #include "kresources/kresource_types.h"
 #include "plugins/plugin_types.h"
 #include "strings/kstring.h"
@@ -161,6 +162,8 @@ typedef struct kaudio_data {
 	// Indicates if the audio should be streamed in small bits (large files) or loaded all at once (small files). Indexed by kaudio.
 	b8* is_streamings;
 
+	b8* auto_releases;
+
 	// The number of audio channels, indexed by kaudio.
 	u8* channel_counts;
 
@@ -220,11 +223,11 @@ typedef struct kaudio_system_state {
 
 typedef struct audio_asset_request_listener {
 	kaudio_system_state* state;
-	kaudio_instance instance;
+	kaudio base;
 } audio_asset_request_listener;
 
 static b8 deserialize_config(const char* config_str, kaudio_system_config* out_config);
-static kaudio create_base_audio(kaudio_system_state* state, b8 is_streaming);
+static kaudio create_base_audio(kaudio_system_state* state, b8 is_streaming, b8 auto_release);
 static u16 issue_new_instance(kaudio_system_state* state, kaudio base);
 static void kasset_audio_loaded_callback(void* listener, kasset_audio* asset);
 static u16 get_active_instance_count(kaudio_system_state* state, kaudio base);
@@ -261,6 +264,7 @@ b8 kaudio_system_initialize(u64* memory_requirement, void* memory, const char* c
 
 	state->data.instances = KALLOC_TYPE_CARRAY(kaudio_instance_data*, state->max_count);
 	state->data.is_streamings = KALLOC_TYPE_CARRAY(b8, state->max_count);
+	state->data.auto_releases = KALLOC_TYPE_CARRAY(b8, state->max_count);
 	state->data.states = KALLOC_TYPE_CARRAY(kaudio_state, state->max_count);
 	state->data.names = KALLOC_TYPE_CARRAY(kname, state->max_count);
 	state->data.channel_counts = KALLOC_TYPE_CARRAY(u8, state->max_count);
@@ -275,6 +279,10 @@ b8 kaudio_system_initialize(u64* memory_requirement, void* memory, const char* c
 		channel->bound_audio = INVALID_KAUDIO;
 		channel->bound_instance = INVALID_ID_U16;
 	}
+
+	state->listener_position = vec3_zero();
+	state->listener_forward = vec3_forward();
+	state->listener_up = vec3_up();
 
 	// Categories.
 	state->category_count = config.category_count;
@@ -345,8 +353,15 @@ b8 kaudio_system_update(struct kaudio_system_state* state, struct frame_data* p_
 					b8 play_result = state->backend->channel_play_resource(
 						state->backend,
 						channel->bound_audio,
+						channel->bound_instance,
 						instance->audio_space,
 						channel->index);
+
+					// Fire off an event to any other systems that care.
+					event_context ctx = {0};
+					ctx.data.u16[0] = channel->bound_audio;
+					ctx.data.u16[1] = channel->bound_instance;
+					event_fire(EVENT_CODE_AUDIO_STARTED, state, ctx);
 
 					if (!play_result) {
 						KERROR("Failed to play resource on channel index %i", channel->index);
@@ -403,6 +418,16 @@ b8 kaudio_system_update(struct kaudio_system_state* state, struct frame_data* p_
 	return false;
 }
 
+void _kaudio_system_play_completed(struct kaudio_system_state* state, kaudio audio, u16 instance_id) {
+	KTRACE("Audio '%k', instance_id %u has completed playing.", state->data.names[audio], instance_id);
+
+	// Fire off an event to any other systems that care.
+	event_context ctx = {0};
+	ctx.data.u16[0] = audio;
+	ctx.data.u16[1] = instance_id;
+	event_fire(EVENT_CODE_AUDIO_COMPLETE, state, ctx);
+}
+
 void kaudio_system_listener_orientation_set(struct kaudio_system_state* state, vec3 position, vec3 forward, vec3 up) {
 	if (state) {
 		state->listener_up = up;
@@ -424,53 +449,65 @@ f32 kaudio_master_volume_get(struct kaudio_system_state* state) {
 	return 0.0f;
 }
 
-kaudio_instance kaudio_acquire(struct kaudio_system_state* state, kname asset_name, b8 is_streaming, kaudio_space audio_space) {
-	return kaudio_acquire_from_package(state, asset_name, INVALID_KNAME, is_streaming, audio_space);
-}
-
-kaudio_instance kaudio_acquire_from_package(struct kaudio_system_state* state, kname asset_name, kname package_name, b8 is_streaming, kaudio_space audio_space) {
-	kaudio_instance out_instance = {
-		.base = INVALID_KAUDIO,
-		.instance_id = INVALID_ID_U16};
-
-	if (!state) {
-		return out_instance;
-	}
-
+static kaudio internal_load_from_package(struct kaudio_system_state* state, kname asset_name, kname package_name, b8 is_streaming, b8 auto_release) {
 	// Search first for an existing kaudio with the asset_name as its name.
 	for (u16 i = 0; i < state->max_count; ++i) {
 		if (state->data.names[i] == asset_name) {
-			// Issue new instance and return.
-			out_instance.base = i;
-			out_instance.instance_id = issue_new_instance(state, out_instance.base);
-			state->data.instances[out_instance.base][out_instance.instance_id].audio_space = audio_space;
-			return out_instance;
+			KERROR("%s - Audio named '%k' already exists. Skipping.", __FUNCTION__, asset_name);
+			return INVALID_KAUDIO;
 		}
 	}
 
 	// No existing kaudio, so create a new one.
-	kaudio base = create_base_audio(state, is_streaming);
-	out_instance.base = base;
+	kaudio base = create_base_audio(state, is_streaming, auto_release);
 
 	// Listener for the request.
 	audio_asset_request_listener* listener = KALLOC_TYPE(audio_asset_request_listener, MEMORY_TAG_RESOURCE);
 	listener->state = state;
-	listener->instance = out_instance;
+	listener->base = base;
 
 	// Request the asset.
 	kasset_audio* asset = asset_system_request_audio_from_package(engine_systems_get()->asset_state, kname_string_get(package_name), kname_string_get(asset_name), listener, kasset_audio_loaded_callback);
 	if (!asset) {
 		KERROR("Failed to request kaudio asset. See logs for details.");
 		kfree(listener, sizeof(audio_asset_request_listener), MEMORY_TAG_RESOURCE);
-		return out_instance;
+		return INVALID_KAUDIO;
 	}
 
+	return base;
+}
+kaudio kaudio_preload(struct kaudio_system_state* state, kname asset_name, b8 is_streaming) {
+	return kaudio_preload_from_package(state, asset_name, INVALID_KNAME, is_streaming);
+}
+
+kaudio kaudio_preload_from_package(struct kaudio_system_state* state, kname asset_name, kname package_name, b8 is_streaming) {
+	return internal_load_from_package(state, asset_name, package_name, is_streaming, false);
+}
+
+kaudio_instance kaudio_acquire_from_base(struct kaudio_system_state* state, kaudio base, kaudio_space audio_space) {
 	// Issue new instance for it.
-	out_instance.instance_id = issue_new_instance(state, out_instance.base);
+	u16 instance_id = issue_new_instance(state, base);
 
 	// Set the instance's audio space accordingly.
-	state->data.instances[out_instance.base][out_instance.instance_id].audio_space = audio_space;
-	return out_instance;
+	state->data.instances[base][instance_id].audio_space = audio_space;
+	return (kaudio_instance){
+		.base = base,
+		.instance_id = instance_id};
+}
+
+kaudio_instance kaudio_acquire(struct kaudio_system_state* state, kname asset_name, b8 is_streaming, kaudio_space audio_space) {
+	return kaudio_acquire_from_package(state, asset_name, INVALID_KNAME, is_streaming, audio_space);
+}
+
+kaudio_instance kaudio_acquire_from_package(struct kaudio_system_state* state, kname asset_name, kname package_name, b8 is_streaming, kaudio_space audio_space) {
+	if (!state) {
+		return (kaudio_instance){
+			.base = INVALID_KAUDIO,
+			.instance_id = INVALID_ID_U16};
+	}
+
+	kaudio base = internal_load_from_package(state, asset_name, package_name, is_streaming, true);
+	return kaudio_acquire_from_base(state, base, audio_space);
 }
 
 void kaudio_release(struct kaudio_system_state* state, kaudio_instance* instance) {
@@ -481,7 +518,7 @@ void kaudio_release(struct kaudio_system_state* state, kaudio_instance* instance
 
 		// See how many active instances there are left. If none, release.
 		u16 active_instance_count = get_active_instance_count(state, instance->base);
-		if (!active_instance_count) {
+		if (!active_instance_count && state->data.auto_releases[instance->base]) {
 			KTRACE("KAudio '%s' has no more instances and will be released.", kname_string_get(state->data.names[instance->base]));
 
 			// Release from backend.
@@ -493,6 +530,7 @@ void kaudio_release(struct kaudio_system_state* state, kaudio_instance* instance
 			// Reset the slot data and make the slot available for use.
 			state->data.names[instance->base] = INVALID_KNAME;
 			state->data.is_streamings[instance->base] = false;
+			state->data.auto_releases[instance->base] = false;
 			state->data.states[instance->base] = KAUDIO_STATE_UNINITIALIZED;
 		}
 
@@ -1123,7 +1161,7 @@ static b8 deserialize_config(const char* config_str, kaudio_system_config* out_c
 	return true;
 }
 
-static kaudio create_base_audio(kaudio_system_state* state, b8 is_streaming) {
+static kaudio create_base_audio(kaudio_system_state* state, b8 is_streaming, b8 auto_release) {
 	// Look for a new free slot.
 	for (u16 i = 0; i < state->max_count; ++i) {
 		if (state->data.states[i] == KAUDIO_STATE_UNINITIALIZED) {
@@ -1131,6 +1169,7 @@ static kaudio create_base_audio(kaudio_system_state* state, b8 is_streaming) {
 			state->data.states[i] = KAUDIO_STATE_LOADING;
 			state->data.instances[i] = darray_create(kaudio_instance_data);
 			state->data.is_streamings[i] = is_streaming;
+			state->data.auto_releases[i] = auto_release;
 			state->data.channel_counts[i] = 0;
 
 			return i;
@@ -1179,7 +1218,7 @@ static void kasset_audio_loaded_callback(void* listener, kasset_audio* asset) {
 	audio_asset_request_listener* listener_inst = listener;
 	KTRACE("Audio asset loaded: '%s'.", kname_string_get(asset->name));
 	kaudio_system_state* state = listener_inst->state;
-	kaudio base = listener_inst->instance.base;
+	kaudio base = listener_inst->base;
 
 	// Send over to the backend to be loaded.
 	// b8 (*load)(struct kaudio_backend_interface* backend, i32 channels, u32 sample_rate, u32 total_sample_count, u64 pcm_data_size, i16* pcm_data, b8 is_stream, kaudio audio);
@@ -1190,6 +1229,7 @@ static void kasset_audio_loaded_callback(void* listener, kasset_audio* asset) {
 
 		// TODO: save off any asset info required before release.
 		state->data.channel_counts[base] = asset->channels;
+		state->data.names[base] = asset->name;
 	}
 
 	// Release the asset.

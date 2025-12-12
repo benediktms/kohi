@@ -1,4 +1,6 @@
 #include "openal_backend.h"
+#include "audio/audio_frontend.h"
+#include "core/engine.h"
 
 // OpenAL
 #ifdef KPLATFORM_WINDOWS
@@ -80,6 +82,14 @@ typedef struct kaudio_plugin_source {
 	kaudio current;
 	// The current audio space.
 	kaudio_space current_audio_space;
+
+	// The current instance id being played.
+	// For informational purposes only when completion
+	// event is fired.
+	u16 current_instance_id;
+
+	// The state of the source on the previous state.
+	ALint previous_state;
 
 	b8 trigger_play;
 	b8 trigger_exit;
@@ -264,6 +274,23 @@ b8 openal_backend_update(kaudio_backend_interface* backend, struct frame_data* p
 		return false;
 	}
 
+	kaudio_backend_state* state = backend->internal_state;
+	for (u32 i = 0; i < state->max_sources; ++i) {
+		kaudio_plugin_source* source = &state->sources[i];
+		// For non-looping sounds, notify audio system of sound completion.
+		ALint source_state;
+		alGetSourcei(source->id, AL_SOURCE_STATE, &source_state);
+		if (source_state == AL_STOPPED && source->previous_state == AL_PLAYING) {
+			KTRACE("Playing -> Stopped");
+			// Audio is newly stopped. Notify completion if not looping.
+			if (!state->datas[source->current].is_looping) {
+				_kaudio_system_play_completed(engine_systems_get()->audio_system, source->current, source->current_instance_id);
+			}
+		}
+
+		source->previous_state = source_state;
+	}
+
 	return true;
 }
 
@@ -320,7 +347,7 @@ b8 openal_backend_load(struct kaudio_backend_interface* backend, i32 channels, u
 
 		if (data->total_samples_left > 0) {
 			// Load the whole thing into the buffer.
-			alBufferData(data->buffer, data->format, (i16*)data->pcm_data, data->total_samples_left, data->sample_rate);
+			alBufferData(data->buffer, data->format, (i16*)data->pcm_data, data->total_samples_left * data->channels, data->sample_rate);
 			openal_backend_check_error();
 		}
 
@@ -333,7 +360,7 @@ b8 openal_backend_load(struct kaudio_backend_interface* backend, i32 channels, u
 		openal_backend_check_error();
 		if (data->total_samples_left > 0) {
 			// Load the whole thing into the buffer.
-			alBufferData(data->buffer, AL_FORMAT_MONO16, (i16*)data->mono_pcm_data, data->total_samples_left, data->sample_rate);
+			alBufferData(data->mono_buffer, AL_FORMAT_MONO16, (i16*)data->mono_pcm_data, data->downmixed_size ? data->downmixed_size : data->total_samples_left, data->sample_rate);
 			openal_backend_check_error();
 		}
 
@@ -456,7 +483,7 @@ b8 openal_backend_channel_play(kaudio_backend_interface* backend, u8 channel_id)
 	return true;
 }
 
-b8 openal_backend_channel_play_audio(kaudio_backend_interface* backend, kaudio audio, kaudio_space audio_space, u8 channel_id) {
+b8 openal_backend_channel_play_audio(kaudio_backend_interface* backend, kaudio audio, u16 instance_id, kaudio_space audio_space, u8 channel_id) {
 	if (!channel_id_valid(backend->internal_state, channel_id)) {
 		return false;
 	}
@@ -491,11 +518,15 @@ b8 openal_backend_channel_play_audio(kaudio_backend_interface* backend, kaudio a
 
 		// If a sound is currently playing here, clip it off by stopping first.
 		alSourceStop(source->id);
+		openal_backend_check_error();
+		alSourcei(source->id, AL_BUFFER, 0);
+		openal_backend_check_error();
 
 		// Unqueue any existing buffers that are queued.
 		// Processed buffers.
 		ALint processed_buffer_count = 0;
 		alGetSourcei(source->id, AL_BUFFERS_PROCESSED, &processed_buffer_count);
+		openal_backend_check_error();
 		for (i32 i = 0; i < processed_buffer_count; ++i) {
 			ALuint buffer_id = 0;
 			alSourceUnqueueBuffers(source->id, 1, &buffer_id);
@@ -506,6 +537,7 @@ b8 openal_backend_channel_play_audio(kaudio_backend_interface* backend, kaudio a
 		// Queued buffers.
 		ALint queued_buffer_count = 0;
 		alGetSourcei(source->id, AL_BUFFERS_QUEUED, &queued_buffer_count);
+		openal_backend_check_error();
 		for (i32 i = 0; i < queued_buffer_count; ++i) {
 			ALuint buffer_id = INVALID_ID;
 			alSourceUnqueueBuffers(source->id, 1, &buffer_id);
@@ -518,29 +550,40 @@ b8 openal_backend_channel_play_audio(kaudio_backend_interface* backend, kaudio a
 		if (data->channels == 2 && audio_space == KAUDIO_SPACE_3D) {
 			// If stereo sound but wanting to play 3d, use the mono buffer.
 			alSourcei(source->id, AL_SOURCE_RELATIVE, AL_FALSE);
+			openal_backend_check_error();
 			bids = &data->mono_buffer;
 		} else {
 			if (data->channels == 2) {
 				// stereo, but using 2d sound. Play as normal.
 				alSourcei(source->id, AL_SOURCE_RELATIVE, AL_FALSE);
+				openal_backend_check_error();
 				bids = &data->buffer;
 			} else if (audio_space == KAUDIO_SPACE_3D) {
 				// Mono sound, but want to play 3D. Play as normal.
 				alSourcei(source->id, AL_SOURCE_RELATIVE, AL_FALSE);
+				openal_backend_check_error();
 				bids = &data->buffer;
 			} else {
 				// Mono sound, but play 2D. Set source relative, making the source
 				// align with the listener, effectively making the sound 2d.
 				alSourcei(source->id, AL_SOURCE_RELATIVE, AL_TRUE);
+				openal_backend_check_error();
 				bids = &data->buffer;
 			}
 		}
+		alSourcei(source->id, AL_BUFFER, 0);
+		openal_backend_check_error();
+
+		ALint source_state;
+		alGetSourcei(source->id, AL_SOURCE_STATE, &source_state);
+
 		alSourceQueueBuffers(source->id, 1, bids);
 		openal_backend_check_error();
 	}
 
 	// Assign current, set flags, play, etc.
 	source->current = audio;
+	source->current_instance_id = instance_id;
 	alSourcePlay(source->id);
 	kmutex_unlock(&source->data_mutex);
 
@@ -933,13 +976,13 @@ static u32 openal_backend_find_free_buffer(kaudio_backend_interface* backend) {
 					openal_backend_check_error();
 
 					clear_buffer(backend, &buffers_freed, to_be_freed);
-					/* alSourcePlay(state->sources[i - 1].id); */
 				}
 			}
 
 			// Resume the paused sources.
 			for (u32 i = 0; i < playing_source_count; ++i) {
-				alSourcePlay(state->sources[i - 1].id);
+				kaudio_plugin_source* source = &state->sources[i - 1];
+				alSourcePlay(source->id);
 				openal_backend_check_error();
 			}
 			kfree(playing_sources, sizeof(u32) * state->max_sources, MEMORY_TAG_ARRAY);

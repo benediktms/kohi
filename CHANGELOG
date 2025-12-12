@@ -36,6 +36,9 @@ Changelog
   - Animation system added (part of the model system);
   - Created K3D universal model format, which can store either animated or static mesh data.
   - Added custom 'printf' backing for string_format which can now take vector and kname arguments. See string_format comments for details.
+  - Fixed issues in the audio system that were causing issues between 2/3D audio not loading correctly in certain scenarios.
+  - Added ability to preload kaudios without immediately issuing a new instance. These are not auto-released by default. 
+    - NOTE: kaudios obtained the "old" way are auto-released when the instance count reaches 0.
 
 - 0.10.0
   - Combined asset_image_format and texture_format into a single kpixel_format which is used for both.

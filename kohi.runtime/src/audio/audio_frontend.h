@@ -27,6 +27,10 @@ void kaudio_system_shutdown(struct kaudio_system_state* state);
  */
 b8 kaudio_system_update(struct kaudio_system_state* state, struct frame_data* p_frame_data);
 
+// To be invoked by the audio plugin when a non-looping audio has completed play.
+// Should not be called anywhere except by the plugin.
+KAPI void _kaudio_system_play_completed(struct kaudio_system_state* state, kaudio audio, u16 instance_id);
+
 /**
  * Sets the orientation of the listener. Typically linked to the current camera in the world.
  * @param position The position of the listener.
@@ -39,6 +43,10 @@ KAPI void kaudio_system_listener_orientation_set(struct kaudio_system_state* sta
 KAPI void kaudio_master_volume_set(struct kaudio_system_state* state, f32 volume);
 KAPI f32 kaudio_system_master_volume_get(struct kaudio_system_state* state);
 
+// Preloads audio only, does not create instance.
+KAPI kaudio kaudio_preload(struct kaudio_system_state* state, kname asset_name, b8 is_streaming);
+KAPI kaudio kaudio_preload_from_package(struct kaudio_system_state* state, kname asset_name, kname package_name, b8 is_streaming);
+KAPI kaudio_instance kaudio_acquire_from_base(struct kaudio_system_state* state, kaudio base, kaudio_space audio_space);
 KAPI kaudio_instance kaudio_acquire(struct kaudio_system_state* state, kname asset_name, b8 is_streaming, kaudio_space audio_space);
 KAPI kaudio_instance kaudio_acquire_from_package(struct kaudio_system_state* state, kname asset_name, kname package_name, b8 is_streaming, kaudio_space audio_space);
 KAPI void kaudio_release(struct kaudio_system_state* state, kaudio_instance* instance);

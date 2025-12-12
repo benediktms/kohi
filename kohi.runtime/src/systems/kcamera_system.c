@@ -40,6 +40,8 @@ typedef struct kcamera_system_state {
 
 static kcamera_system_state* state_ptr;
 
+static void regenerate_matrices(kcamera_data* data);
+
 static kcamera get_new_camera(kcamera_system_state* state) {
 	for (u8 i = 0; i < state->max_camera_count; ++i) {
 		if (FLAG_GET(state->cameras[i].flags, KCAMERA_FLAG_IS_FREE_BIT)) {
@@ -133,6 +135,8 @@ kcamera kcamera_create(kcamera_type type, rect_2di vp_rect, vec3 position, vec3 
 		data->flags = FLAG_SET(data->flags, KCAMERA_FLAG_TRANSFORM_DIRTY_BIT, true);
 		// Also mark projection as dirty so it gets recalculated as well.
 		data->flags = FLAG_SET(data->flags, KCAMERA_FLAG_PROJECTION_DIRTY_BIT, true);
+
+		regenerate_matrices(data);
 	}
 
 	return new_cam;
