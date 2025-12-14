@@ -13,6 +13,8 @@
 
 #include "defines.h"
 #include "math/math_types.h"
+#include "strings/kname.h"
+#include "strings/kstring_id.h"
 
 #include <stdio.h>
 
@@ -692,6 +694,10 @@ KAPI void string_append_char(char* dest, const char* source, char c);
  * @returns The joined string. Should be freed by the caller.
  */
 KAPI char* string_join(const char** strings, u32 count, char delimiter);
+
+KAPI char* kstring_id_join(const kstring_id* strings, u32 count, char delimiter);
+
+KAPI char* kname_join(const kname* strings, u32 count, char delimiter);
 
 /**
  * @brief Extracts the directory from a full file path.

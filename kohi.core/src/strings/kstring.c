@@ -1,6 +1,7 @@
 #include "strings/kstring.h"
 #include "math/kmath.h"
 #include "strings/kname.h"
+#include "strings/kstring_id.h"
 
 #include <ctype.h>
 #include <stdarg.h> // For variadic functions
@@ -1402,6 +1403,76 @@ char* string_join(const char** strings, u32 count, char delimiter) {
 	u32 offset = 0;
 	for (u32 i = 0; i < count; ++i) {
 		sprintf(out_str + offset, "%s%c", strings[i], delimiter);
+		offset += lengths[i] + 1;
+	}
+
+	// Overwrite the final delimiter character with null terminator.
+	out_str[total_length - 1] = 0;
+
+	KFREE_TYPE_CARRAY(lengths, u32, count);
+
+	return out_str;
+}
+
+char* kstring_id_join(const kstring_id* strings, u32 count, char delimiter) {
+	if (!strings || !count) {
+		return 0;
+	}
+	if (delimiter == 0) {
+		KERROR("string_join cannot be used with a null terminator character as the delimiter.");
+		return 0;
+	}
+
+	u32 total_length = 0;
+	u32* lengths = KALLOC_TYPE_CARRAY(u32, count);
+	for (u32 i = 0; i < count; ++i) {
+		const char* str = kstring_id_string_get(strings[i]);
+		lengths[i] = string_length(str);
+		total_length += lengths[i];
+	}
+
+	// Space for delimiters
+	total_length += (count - 1);
+
+	char* out_str = KALLOC_TYPE_CARRAY(char, total_length);
+	u32 offset = 0;
+	for (u32 i = 0; i < count; ++i) {
+		sprintf(out_str + offset, "%s%c", kstring_id_string_get(strings[i]), delimiter);
+		offset += lengths[i] + 1;
+	}
+
+	// Overwrite the final delimiter character with null terminator.
+	out_str[total_length - 1] = 0;
+
+	KFREE_TYPE_CARRAY(lengths, u32, count);
+
+	return out_str;
+}
+
+char* kname_join(const kname* strings, u32 count, char delimiter) {
+	if (!strings || !count) {
+		return 0;
+	}
+	if (delimiter == 0) {
+		KERROR("string_join cannot be used with a null terminator character as the delimiter.");
+		return 0;
+	}
+
+	u32 total_length = 0;
+	u32* lengths = KALLOC_TYPE_CARRAY(u32, count);
+	for (u32 i = 0; i < count; ++i) {
+		const char* str = kname_string_get(strings[i]);
+		lengths[i] = string_length(str);
+		total_length += lengths[i];
+	}
+
+	// Space for delimiters
+	total_length += (count - 1);
+
+	char* out_str = KALLOC_TYPE_CARRAY(char, total_length);
+	u32 offset = 0;
+	for (u32 i = 0; i < count; ++i) {
+		sprintf(out_str + offset, "%s%c", kname_string_get(strings[i]), delimiter);
 		offset += lengths[i] + 1;
 	}
 

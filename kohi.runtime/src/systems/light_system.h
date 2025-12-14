@@ -121,6 +121,7 @@ KAPI klight point_light_create(light_system_state* state, vec3 position, colour3
 KAPI klight directional_light_create(light_system_state* state, vec3 direction, colour3 colour);
 
 KAPI vec3 directional_light_get_direction(light_system_state* state, klight light);
+KAPI colour3 directional_light_get_colour(light_system_state* state, klight light);
 KAPI vec3 point_light_get_position(light_system_state* state, klight light);
 KAPI colour3 point_light_get_colour(light_system_state* state, klight light);
 

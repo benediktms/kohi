@@ -87,6 +87,13 @@ vec3 directional_light_get_direction(light_system_state* state, klight light) {
 	return l->direction;
 }
 
+colour3 directional_light_get_colour(light_system_state* state, klight light) {
+	KASSERT_DEBUG(light != KLIGHT_INVALID);
+	klight_data* l = &state->lights[light];
+	KASSERT_DEBUG(l->type == KLIGHT_TYPE_DIRECTIONAL);
+	return l->colour;
+}
+
 vec3 point_light_get_position(light_system_state* state, klight light) {
 	KASSERT_DEBUG(light != KLIGHT_INVALID);
 	klight_data* l = &state->lights[light];
