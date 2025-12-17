@@ -932,9 +932,6 @@ static void platform_update_watches(void) {
 					} else {
 						KWARN("Watcher file was deleted but no handler callback was set. Make sure to call platform_register_watcher_deleted_callback()");
 					}
-					/* event_context context = {0};
-					context.data.u32[0] = f->id;
-					event_fire(EVENT_CODE_WATCHED_FILE_DELETED, 0, context); */
 					KINFO("File watch id %d has been removed.", f->id);
 					unregister_watch(f->id);
 					continue;
@@ -957,6 +954,25 @@ static void platform_update_watches(void) {
 			}
 		}
 	}
+}
+
+static inline kunix_time_ns
+unix_time_from_stat(const struct stat* s) {
+#	if defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 200809L
+	return (kunix_time_ns)s->st_mtim.tv_sec * 1000000000ULL +
+		   (kunix_time_ns)s->st_mtim.tv_nsec;
+#	else
+	return (kunix_time_ns)s->st_mtime * 1000000000ULL;
+#	endif
+}
+
+kunix_time_ns platform_get_file_mtime(const char* path) {
+	struct stat s;
+	if (stat(path, &s) != 0) {
+		return 0;
+	}
+
+	return unix_time_from_stat(&s);
 }
 
 static kwindow* window_from_handle(xcb_window_t window) {

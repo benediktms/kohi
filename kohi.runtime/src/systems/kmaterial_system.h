@@ -18,7 +18,7 @@
 #include <defines.h>
 #include <strings/kname.h>
 
-#define KMATERIAL_STANDARD_NAME_DEFAULT "MaterialStandardDefault"
+#define KMATERIAL_STANDARD_NAME_DEFAULT "DefaultMaterial"
 #define KMATERIAL_WATER_NAME_DEFAULT "MaterialStandardWater"
 #define KMATERIAL_BLENDED_NAME_DEFAULT "MaterialStandardBlended"
 

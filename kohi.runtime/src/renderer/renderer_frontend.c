@@ -827,7 +827,8 @@ b8 renderer_shader_create(
 	kshader shader,
 	kname name,
 	shader_flags flags,
-	u32 topology_types,
+	primitive_topology_type_bits topology_types,
+	primitive_topology_type default_topology,
 	u32 stage_count,
 	shader_stage* stages,
 	kname* stage_names,
@@ -843,6 +844,7 @@ b8 renderer_shader_create(
 		name,
 		flags,
 		topology_types,
+		default_topology,
 		stage_count,
 		stages,
 		stage_names,
@@ -863,6 +865,10 @@ b8 renderer_shader_reload(struct renderer_system_state* state, kshader shader, u
 
 b8 renderer_shader_use(struct renderer_system_state* state, kshader shader) {
 	return state->backend->shader_use(state->backend, shader);
+}
+
+b8 renderer_shader_use_with_topology(struct renderer_system_state* state, kshader shader, primitive_topology_type type) {
+	return state->backend->shader_use_with_topology(state->backend, shader, type);
 }
 
 b8 renderer_shader_supports_wireframe(struct renderer_system_state* state, kshader shader) {

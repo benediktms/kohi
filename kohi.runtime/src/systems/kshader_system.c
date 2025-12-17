@@ -27,7 +27,8 @@ typedef struct kshader_data {
 	shader_flag_bits flags;
 
 	/** @brief The types of topologies used by the shader and its pipeline. See primitive_topology_type. */
-	u32 topology_types;
+	primitive_topology_type_bits topology_types;
+	primitive_topology_type default_topology;
 
 	/** @brief An array of attributes. Darray. */
 	shader_attribute* attributes;
@@ -311,6 +312,19 @@ b8 kshader_system_use(kshader shader) {
 	return true;
 }
 
+b8 kshader_system_use_with_topology(kshader shader, primitive_topology_type topology) {
+	if (shader == KSHADER_INVALID) {
+		KERROR("Invalid shader passed.");
+		return false;
+	}
+	kshader_data* next_shader = &state_ptr->shaders[shader];
+	if (!renderer_shader_use_with_topology(state_ptr->renderer, shader, topology)) {
+		KERROR("Failed to use shader '%s'.", next_shader->name);
+		return false;
+	}
+	return true;
+}
+
 void kshader_set_immediate_data(kshader shader, const void* data, u8 size) {
 	renderer_shader_set_immediate_data(engine_systems_get()->renderer_system, shader, data, size);
 }
@@ -435,6 +449,7 @@ static kshader shader_create(const kasset_shader* asset) {
 
 	// Keep a copy of the topology types.
 	out_shader->topology_types = asset->topology_types;
+	out_shader->default_topology = asset->default_topology;
 
 	// Ready to be initialized.
 	out_shader->state = SHADER_STATE_UNINITIALIZED;
@@ -460,6 +475,7 @@ static kshader shader_create(const kasset_shader* asset) {
 			out_shader->name,
 			out_shader->flags,
 			out_shader->topology_types,
+			out_shader->default_topology,
 			out_shader->shader_stage_count,
 			out_shader->stages,
 			out_shader->stage_names,

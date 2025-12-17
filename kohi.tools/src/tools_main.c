@@ -47,7 +47,17 @@ i32 main(i32 argc, char** argv) {
 			return -3;
 		}
 		const char* manifest_path = argv[2];
-		if (!import_all_from_manifest(manifest_path)) {
+
+		// Parse additional flags.
+		kimport_flag_bits flags = KIMPORT_FLAG_NONE;
+		for (i32 i = 3; i < argc; ++i) {
+			if (strings_equali(argv[i], "--updated-only") || strings_equali(argv[i], "--u")) {
+				FLAG_SET(flags, KIMPORT_FLAG_UPDATED_ONLY_BIT, true);
+				KINFO("Only processing updated assets.");
+			}
+		}
+
+		if (!import_all_from_manifest(manifest_path, flags)) {
 			KERROR("Manifest import error. See logs for details.");
 			return -4;
 		}

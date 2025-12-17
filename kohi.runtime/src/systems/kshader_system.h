@@ -82,12 +82,21 @@ KAPI void kshader_system_destroy(kshader* shader);
 KAPI b8 kshader_system_set_wireframe(kshader shader, b8 wireframe_enabled);
 
 /**
- * @brief Uses the shader with the given handle.
+ * @brief Uses the shader with the given handle and the shader's default topology.
  *
  * @param shader A handle to the shader to be used.
  * @return True on success; otherwise false.
  */
 KAPI b8 kshader_system_use(kshader shader);
+
+/**
+ * @brief Uses the shader with the given handle and the provided topology.
+ *
+ * @param shader A handle to the shader to be used.
+ * @param topology The topology type to use.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 kshader_system_use_with_topology(kshader shader, primitive_topology_type topology);
 
 KAPI void kshader_set_immediate_data(kshader shader, const void* data, u8 size);
 KAPI void kshader_set_binding_data(kshader shader, u8 binding_set, u32 instance_id, u8 binding_index, u64 offset, void* data, u64 size);

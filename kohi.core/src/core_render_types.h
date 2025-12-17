@@ -28,7 +28,7 @@ typedef enum face_cull_mode {
 /**
  * Various topology type flag bit fields.
  */
-typedef enum primitive_topology_type_bits {
+typedef enum primitive_topology_type {
 	/** Topology type not defined. Not valid for shader creation. */
 	PRIMITIVE_TOPOLOGY_TYPE_NONE_BIT = 0x00,
 	/** A list of triangles. The default if nothing is defined. */
@@ -39,10 +39,10 @@ typedef enum primitive_topology_type_bits {
 	PRIMITIVE_TOPOLOGY_TYPE_LINE_STRIP_BIT = 0x10,
 	PRIMITIVE_TOPOLOGY_TYPE_POINT_LIST_BIT = 0x20,
 	PRIMITIVE_TOPOLOGY_TYPE_MAX_BIT = PRIMITIVE_TOPOLOGY_TYPE_POINT_LIST_BIT << 1
-} primitive_topology_type_bits;
+} primitive_topology_type;
 
 /** @brief A combination of topology bit flags. */
-typedef u32 primitive_topology_types;
+typedef u32 primitive_topology_type_bits;
 
 /** @brief Represents the format of image (or texture) pixel data. */
 typedef enum kpixel_format {

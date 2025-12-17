@@ -79,7 +79,8 @@ b8 vulkan_renderer_shader_create(
 	kshader shader,
 	kname name,
 	shader_flags flags,
-	u32 topology_types,
+	primitive_topology_type_bits topology_types,
+	primitive_topology_type default_topology,
 	u32 stage_count,
 	shader_stage* stages,
 	kname* stage_names,
@@ -92,6 +93,7 @@ void vulkan_renderer_shader_destroy(renderer_backend_interface* backend, kshader
 
 b8 vulkan_renderer_shader_reload(renderer_backend_interface* backend, kshader shader, u32 stage_count, shader_stage* stages, kname* names, const char** sources);
 b8 vulkan_renderer_shader_use(renderer_backend_interface* backend, kshader shader);
+b8 vulkan_renderer_shader_use_with_topology(renderer_backend_interface* backend, kshader shader, primitive_topology_type type);
 b8 vulkan_renderer_shader_supports_wireframe(const renderer_backend_interface* backend, const kshader shader);
 b8 vulkan_renderer_shader_flag_get(const renderer_backend_interface* backend, kshader shader, shader_flags flag);
 void vulkan_renderer_shader_flag_set(renderer_backend_interface* backend, kshader shader, shader_flags flag, b8 enabled);

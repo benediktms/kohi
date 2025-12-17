@@ -1,7 +1,9 @@
 #include "vulkan_utils.h"
 
+#include "core_render_types.h"
 #include "memory/kmemory.h"
 #include "strings/kstring.h"
+#include <vulkan/vulkan_core.h>
 
 const char* vulkan_result_string(VkResult result, b8 get_extended) {
 	// From: https://www.khronos.org/registry/vulkan/specs/1.2-extensions/man/html/VkResult.html
@@ -207,4 +209,34 @@ i32 vulkan_find_memory_index(vulkan_context* context, u32 type_filter, u32 prope
 
 	KWARN("Unable to find suitable memory type!");
 	return -1;
+}
+
+void vulkan_get_vktopology_type_and_pipeline_index(primitive_topology_type type, VkPrimitiveTopology* out_type, u8* out_pipeline_index) {
+	switch (type) {
+	case PRIMITIVE_TOPOLOGY_TYPE_POINT_LIST_BIT:
+		*out_type = VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
+		*out_pipeline_index = (u8)VULKAN_TOPOLOGY_CLASS_POINT;
+		break;
+	case PRIMITIVE_TOPOLOGY_TYPE_LINE_LIST_BIT:
+		*out_type = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
+		*out_pipeline_index = (u8)VULKAN_TOPOLOGY_CLASS_LINE;
+		break;
+	case PRIMITIVE_TOPOLOGY_TYPE_LINE_STRIP_BIT:
+		*out_type = VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
+		*out_pipeline_index = (u8)VULKAN_TOPOLOGY_CLASS_LINE;
+		break;
+	default:
+	case PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_LIST_BIT:
+		*out_type = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+		*out_pipeline_index = (u8)VULKAN_TOPOLOGY_CLASS_TRIANGLE;
+		break;
+	case PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_STRIP_BIT:
+		*out_type = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
+		*out_pipeline_index = (u8)VULKAN_TOPOLOGY_CLASS_TRIANGLE;
+		break;
+	case PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_FAN_BIT:
+		*out_type = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN;
+		*out_pipeline_index = (u8)VULKAN_TOPOLOGY_CLASS_TRIANGLE;
+		break;
+	}
 }

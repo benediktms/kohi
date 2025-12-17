@@ -13,6 +13,18 @@
 
 #include "defines.h"
 
+typedef enum axis_3d {
+	AXIS_X = 0,
+	AXIS_Y = 1,
+	AXIS_Z = 2,
+	AXIS_XY,
+	AXIS_XZ,
+	AXIS_YX,
+	AXIS_YZ,
+	AXIS_ZX,
+	AXIS_ZY
+} axis_3d;
+
 /**
  * @brief A 2-element vector.
  */
@@ -631,6 +643,7 @@ typedef struct raycast_hit {
 	f32 distance;
 	u64 user;
 	vec3 position;
+	vec3 normal;
 } raycast_hit;
 
 typedef struct raycast_result {

@@ -912,7 +912,6 @@ static void platform_update_watches(void) {
 	for (u32 i = 0; i < count; ++i) {
 		macos_file_watch* f = &state_ptr->watches[i];
 		if (f->id != INVALID_ID) {
-
 			struct stat info;
 			int result = stat(f->file_path, &info);
 			if (result != 0) {
@@ -937,7 +936,6 @@ static void platform_update_watches(void) {
 			if (info.st_mtime - f->last_write_time != 0) {
 				KTRACE("File update found.");
 				f->last_write_time = info.st_mtime;
-				// Notify listeners.
 				if (f->watcher_written_callback) {
 					f->watcher_written_callback(f->id, f->file_path, f->is_binary, f->watcher_written_context);
 				} else {
@@ -946,6 +944,21 @@ static void platform_update_watches(void) {
 			}
 		}
 	}
+}
+
+static inline kunix_time_ns
+unix_time_from_stat(const struct stat* s) {
+	return (kunix_time_ns)s->st_mtimespec.tv_sec * 1000000000ULL +
+		   (kunix_time_ns)s->st_mtimespec.tv_nsec;
+}
+
+kunix_time_ns platform_get_file_mtime(const char* path) {
+	struct stat s;
+	if (stat(path, &s) != 0) {
+		return 0;
+	}
+
+	return unix_time_from_stat(&s);
 }
 
 static keys translate_keycode(u32 ns_keycode) {

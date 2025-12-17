@@ -17,6 +17,8 @@
 #include "input_types.h"
 #include "logger.h"
 
+typedef u64 kunix_time_ns;
+
 typedef struct platform_system_config {
 	/** @brief application_name The name of the application. */
 	const char* application_name;
@@ -395,3 +397,8 @@ KAPI b8 platform_watch_file(
  * @return True on success; otherwise false.
  */
 KAPI b8 platform_unwatch_file(u32 watch_id);
+
+/**
+ * @brief Returns the last-modified timestamp in unix time, or 0 if the file is not found.
+ */
+KAPI kunix_time_ns platform_get_file_mtime(const char* path);

@@ -85,6 +85,9 @@ typedef struct editor_gizmo {
 
 	b8 is_dirty;
 
+	// Gizmo world matrix (use for model matrix)
+	mat4 gizmo_world;
+
 #if KOHI_DEBUG
 	debug_line3d plane_normal_line;
 #endif

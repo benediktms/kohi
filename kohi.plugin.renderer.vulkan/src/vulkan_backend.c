@@ -2203,7 +2203,8 @@ b8 vulkan_renderer_shader_create(
 	kshader shader,
 	kname name,
 	shader_flags flags,
-	u32 topology_types,
+	primitive_topology_type_bits topology_types,
+	primitive_topology_type default_topology,
 	u32 stage_count,
 	shader_stage* stages,
 	kname* stage_names,
@@ -2647,56 +2648,9 @@ b8 vulkan_renderer_shader_create(
 		return false;
 	}
 
-	// TODO: Figure out what the default should be here.
-	internal_shader->bound_pipeline_index = 0;
-	b8 pipeline_found = false;
-	for (u32 i = 0; i < pipeline_count; ++i) {
-		if (internal_shader->pipelines[i]) {
-			internal_shader->bound_pipeline_index = i;
-
-			// Extract the first type from the pipeline
-			for (u32 j = 1; j < PRIMITIVE_TOPOLOGY_TYPE_MAX_BIT; j = j << 1) {
-				if (internal_shader->pipelines[i]->supported_topology_types & j) {
-					switch (j) {
-					case PRIMITIVE_TOPOLOGY_TYPE_POINT_LIST_BIT:
-						internal_shader->current_topology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
-						break;
-					case PRIMITIVE_TOPOLOGY_TYPE_LINE_LIST_BIT:
-						internal_shader->current_topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
-						break;
-					case PRIMITIVE_TOPOLOGY_TYPE_LINE_STRIP_BIT:
-						internal_shader->current_topology = VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
-						break;
-					case PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_LIST_BIT:
-						internal_shader->current_topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-						break;
-					case PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_STRIP_BIT:
-						internal_shader->current_topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
-						break;
-					case PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_FAN_BIT:
-						internal_shader->current_topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN;
-						break;
-					default:
-						KWARN("primitive topology '%u' not supported. Skipping.", j);
-						break;
-					}
-
-					// Break out here and just assume the first one for now. This can be overidden by
-					// whatever is using the shader if need be.
-					break;
-				}
-			}
-			pipeline_found = true;
-			break;
-		}
-	}
-
-	if (!pipeline_found) {
-		// Getting here means that all of the pipelines are null, which they definitely should not be.
-		// This is an extra failsafe to ensure configuration is at least somewhat sane.
-		KERROR("No available topology classes are available, so a pipeline cannot be bound. Check shader configuration.");
-		return false;
-	}
+	// Figure out what the default should be here.
+	vulkan_get_vktopology_type_and_pipeline_index(default_topology, &internal_shader->default_topology, &internal_shader->default_pipeline_index);
+	internal_shader->bound_pipeline_index = internal_shader->bound_pipeline_index;
 
 	// Uniform buffers, one per buffered image (i.e. triple-buffered = 3).
 	const char* buffer_name = string_format("renderbuffer_uniform_%s", kname_string_get(internal_shader->name));
@@ -2791,7 +2745,7 @@ b8 vulkan_renderer_shader_reload(renderer_backend_interface* backend, kshader sh
 	return shader_create_modules_and_pipelines(backend, &context->shaders[shader], stage_count, stages, names, sources);
 }
 
-b8 vulkan_renderer_shader_use(renderer_backend_interface* backend, kshader shader) {
+static b8 bind_shader_pipeline_index_topology(renderer_backend_interface* backend, kshader shader, VkPrimitiveTopology type, u8 pipeline_index) {
 	vulkan_context* context = (vulkan_context*)backend->internal_context;
 	krhi_vulkan* rhi = &context->rhi;
 	vulkan_shader* internal_shader = &context->shaders[shader];
@@ -2800,16 +2754,35 @@ b8 vulkan_renderer_shader_use(renderer_backend_interface* backend, kshader shade
 	// Pick the correct pipeline.
 	b8 wireframe_enabled = vulkan_renderer_shader_flag_get(backend, shader, SHADER_FLAG_WIREFRAME_BIT);
 	vulkan_pipeline** pipeline_array = wireframe_enabled ? internal_shader->wireframe_pipelines : internal_shader->pipelines;
+
+	internal_shader->bound_pipeline_index = pipeline_index;
+
+	// Get the current pipeline index/type for the topology type
 	vulkan_pipeline_bind(context, command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_array[internal_shader->bound_pipeline_index]);
 
 	context->bound_shader = internal_shader;
 	// Make sure to use the current bound type as well.
 	if (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_NATIVE_DYNAMIC_STATE_BIT) {
-		rhi->kvkCmdSetPrimitiveTopology(command_buffer->handle, internal_shader->current_topology);
+		rhi->kvkCmdSetPrimitiveTopology(command_buffer->handle, type);
 	} else if (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_DYNAMIC_STATE_BIT) {
-		context->vkCmdSetPrimitiveTopologyEXT(command_buffer->handle, internal_shader->current_topology);
+		context->vkCmdSetPrimitiveTopologyEXT(command_buffer->handle, type);
 	}
 	return true;
+}
+
+b8 vulkan_renderer_shader_use(renderer_backend_interface* backend, kshader shader) {
+	vulkan_context* context = (vulkan_context*)backend->internal_context;
+	vulkan_shader* internal_shader = &context->shaders[shader];
+	return bind_shader_pipeline_index_topology(backend, shader, internal_shader->default_topology, internal_shader->default_pipeline_index);
+}
+
+b8 vulkan_renderer_shader_use_with_topology(renderer_backend_interface* backend, kshader shader, primitive_topology_type type) {
+
+	// Get the current pipeline index/type for the topology type
+	VkPrimitiveTopology topology;
+	u8 pipeline_index;
+	vulkan_get_vktopology_type_and_pipeline_index(type, &topology, &pipeline_index);
+	return bind_shader_pipeline_index_topology(backend, shader, topology, pipeline_index);
 }
 
 b8 vulkan_renderer_shader_supports_wireframe(const renderer_backend_interface* backend, kshader shader) {

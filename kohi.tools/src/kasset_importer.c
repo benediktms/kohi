@@ -10,6 +10,7 @@
 #include "logger.h"
 #include "platform/filesystem.h"
 #include "platform/kpackage.h"
+#include "platform/platform.h"
 #include "strings/kname.h"
 #include "strings/kstring.h"
 #include "utils/render_type_utils.h"
@@ -128,7 +129,7 @@ import_from_path_cleanup:
 }
 
 // FIXME: unify this and the above function to use the same code path, ya dingus!
-b8 import_all_from_manifest(const char* manifest_path) {
+b8 import_all_from_manifest(const char* manifest_path, kimport_flag_bits flags) {
 	if (!manifest_path) {
 		return false;
 	}
@@ -161,6 +162,16 @@ b8 import_all_from_manifest(const char* manifest_path) {
 		if (!asset->source_path) {
 			KTRACE("Asset '%s' (%s) does NOT have a source_path. Nothing to import.", kname_string_get(asset->name), asset->path);
 		} else {
+			// If only processing updated assets, check timestamps first. An updated asset means that its source
+			// is newer than the target file.
+			if (FLAG_GET(flags, KIMPORT_FLAG_UPDATED_ONLY_BIT)) {
+				kunix_time_ns source_mtime = platform_get_file_mtime(asset->source_path);
+				kunix_time_ns target_mtime = platform_get_file_mtime(asset->path);
+				if (target_mtime && target_mtime >= source_mtime) {
+					KINFO("Target '%s' exists and is newer than source '%s' and will be skipped.", asset->path, asset->source_path);
+					continue;
+				}
+			}
 			KINFO("Asset '%s' (%s) DOES have a source_path of '%s'. Importing...", kname_string_get(asset->name), asset->path, asset->source_path);
 
 			// The source file extension dictates what importer is used.

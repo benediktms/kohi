@@ -60,3 +60,5 @@ void vulkan_end_label(vulkan_context* context, VkCommandBuffer buffer);
 #endif
 
 i32 vulkan_find_memory_index(vulkan_context* context, u32 type_filter, u32 property_flags);
+
+void vulkan_get_vktopology_type_and_pipeline_index(primitive_topology_type type, VkPrimitiveTopology* out_type, u8* out_pipeline_index);

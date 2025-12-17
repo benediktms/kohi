@@ -360,7 +360,7 @@ typedef struct vulkan_pipeline {
 	/** @brief The pipeline layout. */
 	VkPipelineLayout pipeline_layout;
 	/** @brief Indicates the topology types used by this pipeline. See primitive_topology_type.*/
-	u32 supported_topology_types;
+	primitive_topology_type_bits supported_topology_types;
 } vulkan_pipeline;
 
 /**
@@ -541,7 +541,7 @@ typedef struct vulkan_shader {
 	vulkan_vertex_binding_attrib_config* vertex_bindings;
 
 	/** @brief The topology types for the shader pipeline. See primitive_topology_type. Defaults to "triangle list" if unspecified. */
-	u32 topology_types;
+	primitive_topology_type topology_types;
 
 	// The size of the immediates block of memory
 	u8 immediate_size;
@@ -570,8 +570,10 @@ typedef struct vulkan_shader {
 
 	/** @brief The currently bound pipeline index. */
 	u8 bound_pipeline_index;
+
+	u8 default_pipeline_index;
 	/** @brief The currently-selected topology. */
-	VkPrimitiveTopology current_topology;
+	VkPrimitiveTopology default_topology;
 
 	// Shader flags
 	shader_flags flags;

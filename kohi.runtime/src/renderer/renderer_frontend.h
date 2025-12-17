@@ -457,7 +457,8 @@ KAPI b8 renderer_shader_create(
 	kshader shader,
 	kname name,
 	shader_flags flags,
-	u32 topology_types,
+	primitive_topology_type_bits topology_types,
+	primitive_topology_type default_topology,
 	u32 stage_count,
 	shader_stage* stages,
 	kname* stage_names,
@@ -488,13 +489,24 @@ KAPI b8 renderer_shader_reload(struct renderer_system_state* state, kshader shad
 
 /**
  * @brief Uses the given shader, activating it for updates to attributes, uniforms and such,
- * and for use in draw calls.
+ * and for use in draw calls. Uses the default topology configured by the shader.
  *
  * @param state A pointer to the renderer state.
  * @param shader A handle to the shader to be used.
  * @return True on success; otherwise false.
  */
 KAPI b8 renderer_shader_use(struct renderer_system_state* state, kshader shader);
+
+/**
+ * @brief Uses the given shader, activating it for updates to attributes, uniforms and such,
+ * and for use in draw calls using the provided topology.
+ *
+ * @param state A pointer to the renderer state.
+ * @param shader A handle to the shader to be used.
+ * @param type The primitive topology type to use.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 renderer_shader_use_with_topology(struct renderer_system_state* state, kshader shader, primitive_topology_type type);
 
 /**
  * @brief Determines if the given shader supports wireframe mode.

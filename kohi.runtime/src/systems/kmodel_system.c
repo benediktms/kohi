@@ -634,6 +634,41 @@ void kmodel_instance_release(struct kmodel_system_state* state, kmodel_instance*
 	}
 }
 
+b8 kmodel_ray_intersects(struct kmodel_system_state* state, kmodel_instance instance, const ray* r, mat4 world, raycast_hit* out_hit) {
+	if (!state || instance.base_mesh == INVALID_ID_U16) {
+		return false;
+	}
+	u32 count = state->models[instance.base_mesh].submesh_count;
+	if (!count) {
+		return false;
+	}
+
+	mat4 world_inv = mat4_inverse(world);
+
+	for (u32 i = 0; i < count; ++i) {
+		kmodel_submesh* mesh = &state->models[instance.base_mesh].meshes[i];
+		triangle picked;
+		vec3 pos;
+		vec3 normal;
+
+		// Transform ray by inverted world transform
+		ray rt = ray_transformed(r, world_inv);
+
+		if (ray_pick_triangle(&rt, true, mesh->geo.vertex_count, mesh->geo.vertex_element_size, mesh->geo.vertices, mesh->geo.index_count, mesh->geo.indices, &picked, &pos, &normal)) {
+			if (out_hit) {
+				out_hit->type = RAYCAST_HIT_TYPE_SURFACE;
+				out_hit->distance = vec3_distance(r->origin, pos);
+				out_hit->position = pos;
+				out_hit->normal = normal;
+			}
+
+			return true;
+		}
+	}
+
+	return false;
+}
+
 b8 kmodel_submesh_count_get(struct kmodel_system_state* state, u16 base_mesh_id, u16* out_count) {
 	if (!state || base_mesh_id == INVALID_ID_U16) {
 		return false;

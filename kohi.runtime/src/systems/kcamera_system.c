@@ -344,6 +344,16 @@ mat4 kcamera_get_projection(kcamera camera) {
 	return mat4_identity();
 }
 
+mat4 kcamera_get_projection_far_clipped(kcamera camera, f32 far) {
+	if (kcamera_is_valid(camera)) {
+		kcamera_data* data = &state_ptr->cameras[camera];
+		mat4 proj_near = generate_projection_matrix(data->vp_rect, data->fov, data->near_clip, far, PROJECTION_MATRIX_TYPE_PERSPECTIVE);
+		return proj_near;
+	}
+	KWARN("%s: invalid camera passed, returning default value", __FUNCTION__);
+	return mat4_identity();
+}
+
 vec3 kcamera_forward(kcamera camera) {
 	if (kcamera_is_valid(camera)) {
 		return mat4_forward(state_ptr->cameras[camera].transform);

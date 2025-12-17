@@ -513,7 +513,8 @@ typedef struct renderer_backend_interface {
 		kshader shader,
 		kname name,
 		shader_flags flags,
-		u32 topology_types,
+		primitive_topology_type_bits topology_types,
+		primitive_topology_type default_type,
 		u32 stage_count,
 		shader_stage* stages,
 		kname* stage_names,
@@ -544,13 +545,24 @@ typedef struct renderer_backend_interface {
 
 	/**
 	 * @brief Uses the given shader, activating it for updates to attributes, uniforms and such,
-	 * and for use in draw calls.
+	 * and for use in draw calls. Uses default topology specified by the shader.
 	 *
 	 * @param backend A pointer to the renderer backend interface.
 	 * @param shader A handle to the shader to be used.
 	 * @return True on success; otherwise false.
 	 */
 	b8 (*shader_use)(struct renderer_backend_interface* backend, kshader shader);
+
+	/**
+	 * @brief Uses the given shader, activating it for updates to attributes, uniforms and such,
+	 * and for use in draw calls using the provided topology.
+	 *
+	 * @param backend A pointer to the renderer backend interface.
+	 * @param shader A handle to the shader to be used.
+	 * @param type The primitive topology type to use.
+	 * @return True on success; otherwise false.
+	 */
+	b8 (*shader_use_with_topology)(struct renderer_backend_interface* backend, kshader shader, primitive_topology_type type);
 
 	/**
 	 * @brief Indicates if the supplied shader supports wireframe mode.

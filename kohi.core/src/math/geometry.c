@@ -8,6 +8,7 @@
 #include "math/math_types.h"
 #include "memory/kmemory.h"
 #include "strings/kname.h"
+#include "utils/kcolour.h"
 
 void geometry_generate_normals(u32 vertex_count, vertex_3d* vertices, u32 index_count, u32* indices) {
 	for (u32 i = 0; i < index_count; i += 3) {
@@ -1098,5 +1099,304 @@ void geometry_destroy(kgeometry* geometry) {
 		geometry->generation = INVALID_ID_U16;
 		geometry->vertex_buffer_offset = INVALID_ID_U64;
 		geometry->index_buffer_offset = INVALID_ID_U64;
+	}
+}
+
+static inline vec4 axis_remap(axis_3d axis, f32 radial_x, f32 radial_y, f32 axis_pos) {
+	switch (axis) {
+	case AXIS_X:
+		return (vec4){axis_pos, radial_x, radial_y, 1.0f};
+	case AXIS_Y:
+		return (vec4){radial_x, axis_pos, radial_y, 1.0f};
+	default:
+	case AXIS_Z:
+		return (vec4){radial_x, radial_y, axis_pos, 1.0f};
+	}
+}
+
+void generate_axis_geometry(
+	axis_3d axis,
+	f32 base_offset,
+	f32 length,
+	colour4 colour,
+	f32 shaft_radius,
+	f32 arrowhead_radius,
+	f32 arrowhead_length,
+	u32 segment_count,
+	b8 include_arrowhead,
+	u32* out_vertex_count,
+	u32* out_index_count,
+	colour_vertex_3d* vertices,
+	u32* indices,
+	u32 vertex_offset) {
+
+	const u32 segments = segment_count < 3 ? 3 : segment_count;
+
+	const f32 arrow_len = include_arrowhead ? arrowhead_length : 0.0f;
+	const f32 shaft_len = length - arrow_len;
+
+	// Vertex count
+	u32 vertex_count = 0;
+
+	// Shaft rings
+	const u32 shaft_bottom = vertex_count;
+	vertex_count += segments;
+	const u32 shaft_top = vertex_count;
+	vertex_count += segments;
+
+	// Arrowhead or cap
+	u32 cone_base = 0;
+	u32 cone_tip = 0;
+	u32 cap_center = 0;
+
+	if (include_arrowhead) {
+		cone_base = vertex_count;
+		vertex_count += segments;
+		cone_tip = vertex_count;
+		vertex_count += 1;
+	} else {
+		cap_center = vertex_count;
+		vertex_count += 1;
+	}
+
+	// Index count
+	u32 index_count = 0;
+
+	// Shaft sides
+	index_count += segments * 6;
+
+	if (include_arrowhead) {
+		// cone sides
+		index_count += segments * 3;
+	} else {
+		// cap disc
+		index_count += segments * 3;
+	}
+
+	if (out_vertex_count) {
+		*out_vertex_count = vertex_count;
+	}
+
+	if (out_index_count) {
+		*out_index_count = index_count;
+	}
+
+	if (!vertices || !indices) {
+		return;
+	}
+
+	// Vertex generation
+	u32 v = 0;
+
+	axis_3d base_axis = axis;
+	f32 offset = base_offset;
+	vec4 shift_vector = vec4_zero();
+	switch (axis) {
+	default:
+		break;
+	case AXIS_XY:
+		base_axis = AXIS_Y;
+		offset = 0.0f;
+		shift_vector = vec4_create(base_offset, 0, 0, 0);
+		break;
+	case AXIS_XZ:
+		base_axis = AXIS_Z;
+		offset = 0.0f;
+		shift_vector = vec4_create(base_offset, 0, 0, 0);
+		break;
+	case AXIS_YX:
+		base_axis = AXIS_X;
+		offset = 0.0f;
+		shift_vector = vec4_create(0, base_offset, 0, 0);
+		break;
+	case AXIS_YZ:
+		base_axis = AXIS_Z;
+		offset = 0.0f;
+		shift_vector = vec4_create(0, base_offset, 0, 0);
+		break;
+	case AXIS_ZX:
+		base_axis = AXIS_X;
+		offset = 0.0f;
+		shift_vector = vec4_create(0, 0, base_offset, 0);
+		break;
+	case AXIS_ZY:
+		base_axis = AXIS_Y;
+		offset = 0.0f;
+		shift_vector = vec4_create(0, 0, base_offset, 0);
+		break;
+	}
+
+	// Shaft bottom ring
+	for (u32 i = 0; i < segments; ++i) {
+		f32 a = (f32)i / (f32)segments * 2.0f * K_PI;
+		f32 x = kcos(a) * shaft_radius;
+		f32 y = ksin(a) * shaft_radius;
+
+		vertices[v] = (colour_vertex_3d){
+			.position = axis_remap(base_axis, x, y, offset),
+			.colour = colour};
+
+		v++;
+	}
+
+	// Shaft top ring
+	for (u32 i = 0; i < segments; ++i) {
+		f32 a = (f32)i / (f32)segments * 2.0f * K_PI;
+		f32 x = kcos(a) * shaft_radius;
+		f32 y = ksin(a) * shaft_radius;
+
+		vertices[v] = (colour_vertex_3d){
+			.position = axis_remap(base_axis, x, y, shaft_len),
+			.colour = colour};
+		v++;
+	}
+
+	// Arrowhead base or cap center
+	if (include_arrowhead) {
+		for (u32 i = 0; i < segments; ++i) {
+			f32 a = (f32)i / (f32)segments * 2.0f * K_PI;
+			f32 x = kcos(a) * arrowhead_radius;
+			f32 y = ksin(a) * arrowhead_radius;
+
+			vertices[v] = (colour_vertex_3d){
+				.position = axis_remap(base_axis, x, y, shaft_len),
+				.colour = colour};
+			v++;
+		}
+
+		vertices[v] = (colour_vertex_3d){
+			.position = axis_remap(base_axis, 0.0f, 0.0f, length),
+			.colour = colour};
+		v++;
+	} else {
+		vertices[v] = (colour_vertex_3d){
+			.position = axis_remap(base_axis, 0.0f, 0.0f, shaft_len),
+			.colour = colour};
+		v++;
+	}
+
+	// Shift the vertices if needed.
+	for (u32 i = 0; i < vertex_count; ++i) {
+		vertices[i].position = vec4_add(vertices[i].position, shift_vector);
+	}
+
+	// Index generation
+	u32 idx = 0;
+
+	// Shaft sides
+	for (u32 i = 0; i < segments; ++i) {
+		u32 i0 = shaft_bottom + i;
+		u32 i1 = shaft_bottom + (i + 1) % segments;
+		u32 i2 = shaft_top + i;
+		u32 i3 = shaft_top + (i + 1) % segments;
+
+		indices[idx++] = vertex_offset + i0;
+		indices[idx++] = vertex_offset + i2;
+		indices[idx++] = vertex_offset + i1;
+
+		indices[idx++] = vertex_offset + i1;
+		indices[idx++] = vertex_offset + i2;
+		indices[idx++] = vertex_offset + i3;
+	}
+	if (include_arrowhead) {
+		// Cone sides
+		for (u32 i = 0; i < segments; ++i) {
+			u32 i0 = cone_base + i;
+			u32 i1 = cone_base + (i + 1) % segments;
+
+			indices[idx++] = vertex_offset + i0;
+			indices[idx++] = vertex_offset + i1;
+			indices[idx++] = vertex_offset + cone_tip;
+		}
+	} else {
+		// flat cap
+		for (u32 i = 0; i < segments; ++i) {
+			u32 i0 = shaft_top + i;
+			u32 i1 = shaft_top + (i + 1) % segments;
+
+			indices[idx++] = vertex_offset + cap_center;
+			indices[idx++] = vertex_offset + i1;
+			indices[idx++] = vertex_offset + i0;
+		}
+	}
+}
+
+void generate_axis_ring_geometry(
+	axis_3d axis,
+	f32 radius,
+	f32 thickness,
+	colour4 colour,
+	u32 ring_segments,
+	u32 tube_segments,
+	u32* out_vertex_count,
+	u32* out_index_count,
+	colour_vertex_3d* vertices,
+	u32* indices,
+	u32 vertex_offset) {
+
+	const u32 rings = ring_segments < 3 ? 3 : ring_segments;
+	const u32 tubes = tube_segments < 3 ? 3 : tube_segments;
+
+	const f32 minor_r = thickness * 0.5f;
+
+	const u32 vertex_count = rings * tubes;
+	const u32 index_count = rings * tubes * 6;
+
+	if (out_vertex_count) {
+		*out_vertex_count = vertex_count;
+	}
+	if (out_index_count) {
+		*out_index_count = index_count;
+	}
+	if (!vertices || !indices) {
+		return;
+	}
+
+	// Vertex generation
+	u32 v = 0;
+
+	for (u32 i = 0; i < rings; ++i) {
+		f32 u = (f32)i / (f32)rings * 2.0f * K_PI;
+		f32 cu = kcos(u);
+		f32 su = ksin(u);
+
+		for (u32 j = 0; j < tubes; ++j) {
+			f32 v_ang = (f32)j / (f32)tubes * 2.0f * K_PI;
+			f32 cv = kcos(v_ang);
+			f32 sv = ksin(v_ang);
+
+			/* Torus parametric equation (Z axis) */
+			f32 x = (radius + minor_r * cv) * cu;
+			f32 y = (radius + minor_r * cv) * su;
+			f32 z = minor_r * sv;
+
+			vertices[v++] = (colour_vertex_3d){
+				.position = axis_remap(axis, x, y, z),
+				.colour = colour};
+		}
+	}
+
+	// Index generation
+	u32 idx = 0;
+
+	for (u32 i = 0; i < rings; ++i) {
+		u32 ni = (i + 1) % rings;
+
+		for (u32 j = 0; j < tubes; ++j) {
+			u32 nj = (j + 1) % tubes;
+
+			u32 i0 = i * tubes + j;
+			u32 i1 = ni * tubes + j;
+			u32 i2 = ni * tubes + nj;
+			u32 i3 = i * tubes + nj;
+
+			indices[idx++] = vertex_offset + i0;
+			indices[idx++] = vertex_offset + i1;
+			indices[idx++] = vertex_offset + i2;
+
+			indices[idx++] = vertex_offset + i0;
+			indices[idx++] = vertex_offset + i2;
+			indices[idx++] = vertex_offset + i3;
+		}
 	}
 }

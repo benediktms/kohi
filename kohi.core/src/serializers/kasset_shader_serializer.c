@@ -93,6 +93,8 @@ const char* kasset_shader_serialize(const kasset_shader* asset) {
 		kson_object_value_add_array(&tree.root, "topology_types", topology_types_array);
 	}
 
+	kson_object_value_add_string(&tree.root, "default_topology", topology_type_to_string(typed_asset->default_topology));
+
 	// Stages
 	{
 		kson_array stages_array = kson_array_create();
@@ -281,6 +283,15 @@ b8 kasset_shader_deserialize(const char* file_text, kasset_shader* out_asset) {
 		} else {
 			// If nothing exists, default to triangle list
 			typed_asset->topology_types = PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_LIST_BIT;
+		}
+
+		// Default topology type. Uses triangle list if not set.
+		typed_asset->default_topology = PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_LIST_BIT;
+		const char* default_topology_type_str = 0;
+		kson_object_property_value_get_string(&tree.root, "default_topology", &default_topology_type_str);
+		if (default_topology_type_str) {
+			typed_asset->default_topology = string_to_topology_type(default_topology_type_str);
+			string_free(default_topology_type_str);
 		}
 
 		// Stages

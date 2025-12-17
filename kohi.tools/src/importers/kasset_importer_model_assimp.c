@@ -14,6 +14,7 @@
 #include "assimp/anim.h"
 #include "assimp/matrix4x4.h"
 
+#include "config.h"
 #include "containers/darray.h"
 #include "core_render_types.h"
 #include "debug/kassert.h"
@@ -333,7 +334,18 @@ static b8 materials_from_assimp(const struct aiScene* scene, kname package_name,
 }
 
 static const struct aiScene* assimp_open_file(const char* source_path) {
-	const struct aiScene* scene = aiImportFile(source_path, aiProcess_Triangulate | aiProcess_GenUVCoords | aiProcess_GenSmoothNormals | aiProcess_CalcTangentSpace | aiProcess_LimitBoneWeights);
+	struct aiPropertyStore* store = aiCreatePropertyStore();
+	aiSetImportPropertyFloat(store, AI_CONFIG_PP_CT_MAX_SMOOTHING_ANGLE, 60.0f); // less is sharper, more is smoother, 0-180 degrees.
+	const struct aiScene* scene = aiImportFileExWithProperties(
+		source_path,
+		aiProcess_GenNormals |
+			aiProcess_Triangulate |
+			aiProcess_GenSmoothNormals |
+			aiProcess_JoinIdenticalVertices |
+			aiProcess_LimitBoneWeights |
+			aiProcess_CalcTangentSpace,
+		KNULL, // filesystem callbacks
+		store);
 	if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
 		KERROR("Error importing via assimp: %s", aiGetErrorString());
 		return 0;

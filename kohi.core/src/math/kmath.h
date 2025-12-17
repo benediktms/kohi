@@ -1722,6 +1722,16 @@ KINLINE vec3 mat4_position(mat4 matrix) {
 }
 
 /**
+ * @brief Returns the scale relative to the provided matrix.
+ *
+ * @param matrix The matrix from which to base the vector.
+ * @return A 3-component scale vector.
+ */
+KINLINE vec3 mat4_scale_get(mat4 matrix) {
+	return (vec3){matrix.data[0], matrix.data[5], matrix.data[10]};
+}
+
+/**
  * @brief Performs m * v
  *
  * @param m The matrix to be multiplied.
@@ -2373,6 +2383,8 @@ KINLINE ray ray_create(vec3 position, vec3 direction) {
 		.direction = direction};
 }
 
+KAPI ray ray_transformed(const ray* r, mat4 transform);
+
 KAPI ray ray_from_screen(vec2i screen_pos, rect_2di viewport_rect, vec3 origin, mat4 view, mat4 projection);
 
 KAPI b8 ray_intersects_aabb(aabb box, vec3 origin, vec3 direction, f32 max, f32* out_min, f32* out_max);
@@ -2380,6 +2392,10 @@ KAPI b8 ray_intersects_aabb(aabb box, vec3 origin, vec3 direction, f32 max, f32*
 KAPI b8 raycast_plane_3d(const ray* r, const plane_3d* p, vec3* out_point, f32* out_distance);
 
 KAPI b8 raycast_disc_3d(const ray* r, vec3 center, vec3 normal, f32 outer_radius, f32 inner_radius, vec3* out_point, f32* out_distance);
+
+KAPI b8 ray_intersects_triangle(const ray* r, const triangle* t);
+
+KAPI b8 ray_pick_triangle(const ray* r, b8 backface_cull, u32 vertex_count, u32 vertex_element_size, void* vertices, u32 index_count, u32* indices, triangle* out_triangle, vec3* out_hit_pos, vec3* out_hit_normal);
 
 typedef struct kintersect_result {
 	vec3 normal;

@@ -16,6 +16,7 @@
 #	include "threads/ksemaphore.h"
 #	include <dlfcn.h>
 #	include <fcntl.h> // For O_* constants
+#	include <sys/stat.h>
 
 // NOTE: Apple's include is on a different path.
 #	if defined(KPLATFORM_APPLE)

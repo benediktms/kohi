@@ -2,7 +2,9 @@
 #include "containers/darray.h"
 #include "debug/kassert.h"
 #include "defines.h"
+#include "logger.h"
 #include "math/kmath.h"
+#include "math/math_types.h"
 #include "memory/kmemory.h"
 
 // The amount of padding around a tight AABB.
@@ -142,7 +144,7 @@ u32 bvh_query_overlaps(const bvh* t, aabb query, bvh_query_callback callback, vo
 	return hits;
 }
 
-raycast_result bvh_raycast(const bvh* t, vec3 origin, vec3 direction, f32 max, b8 ignore_if_inside, bvh_raycast_callback callback, void* usr) {
+raycast_result bvh_raycast(const bvh* t, const ray* r, bvh_raycast_callback callback, void* usr) {
 	raycast_result result = {0};
 	if (t->root == KNULL) {
 		return result;
@@ -154,33 +156,48 @@ raycast_result bvh_raycast(const bvh* t, vec3 origin, vec3 direction, f32 max, b
 		return result;
 	}
 
+	b8 ignore_if_inside = FLAG_GET(r->flags, RAY_FLAG_IGNORE_IF_INSIDE_BIT);
+
 	u32 top = 0;
 	stack[top++] = t->root;
 	while (top) {
 		u32 id = stack[--top];
 		f32 tmin = 0.0f;
-		f32 tmaxi = max;
-		if (!ray_intersects_aabb_internal(t->nodes[id].aabb, origin, direction, max, &tmin, &tmaxi)) {
+		f32 tmaxi = r->max_distance;
+		if (!ray_intersects_aabb_internal(t->nodes[id].aabb, r->origin, r->direction, r->max_distance, &tmin, &tmaxi)) {
 			continue;
 		}
 		if (bvh_is_leaf(&t->nodes[id])) {
 			// Ignore if the origin is inside, depending on flags.
-			if (ignore_if_inside && point_inside_aabb(origin, t->nodes[id].aabb)) {
+			if (ignore_if_inside && point_inside_aabb(r->origin, t->nodes[id].aabb)) {
 				continue;
 			}
 
 			f32 distance = tmin;
-			vec3 pos = vec3_add(origin, vec3_mul_scalar(direction, distance));
+			vec3 pos = vec3_add(r->origin, vec3_mul_scalar(r->direction, distance));
+
+			raycast_hit specific_hit = {
+				.type = RAYCAST_HIT_TYPE_BVH_AABB};
 			// If no callback, assume every hit is counted.
-			if (!callback || callback(t->nodes[id].user, id, tmin, tmaxi, distance, pos, usr)) {
+			if (!callback || callback(t->nodes[id].user, id, r, tmin, tmaxi, distance, pos, usr, &specific_hit)) {
 				if (!result.hits) {
 					result.hits = darray_create(raycast_hit);
 				}
-				raycast_hit hit = {
-					.type = RAYCAST_HIT_TYPE_BVH_AABB,
-					.distance = distance,
-					.user = t->nodes[id].user,
-					.position = pos};
+
+				// TODO: always just use the specific_hit and make the callback supply it.
+				raycast_hit hit;
+				if (specific_hit.type == RAYCAST_HIT_TYPE_BVH_AABB) {
+					hit.type = RAYCAST_HIT_TYPE_BVH_AABB;
+					hit.distance = distance;
+					hit.user = t->nodes[id].user;
+					hit.position = pos;
+				} else {
+					KTRACE("SPECIFIC");
+					// If a more specific hit information was provided, use it instead.
+					hit = specific_hit;
+					// Add back the user data.
+					hit.user = t->nodes[id].user;
+				}
 				darray_push(result.hits, hit);
 			}
 		} else {

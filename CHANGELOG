@@ -39,6 +39,9 @@ Changelog
   - Fixed issues in the audio system that were causing issues between 2/3D audio not loading correctly in certain scenarios.
   - Added ability to preload kaudios without immediately issuing a new instance. These are not auto-released by default. 
     - NOTE: kaudios obtained the "old" way are auto-released when the instance count reaches 0.
+  - Added platform_get_file_mtime to platform layer, which get a file's modified time in unix timestamp format (u64).
+  - Added --updated-only option to asset importer so that only updated assets (i.e. source > target asset time) are re-imported.
+  - Added option to use shader with a given topology for greater control over how things are rendered.
 
 - 0.10.0
   - Combined asset_image_format and texture_format into a single kpixel_format which is used for both.

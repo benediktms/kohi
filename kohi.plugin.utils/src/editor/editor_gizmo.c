@@ -15,9 +15,11 @@
 #include <systems/ktransform_system.h>
 
 #include "core_resource_types.h"
+#include "debug/kassert.h"
 #include "math/geometry.h"
 #include "math/math_types.h"
 #include "memory/kmemory.h"
+#include "utils/kcolour.h"
 
 static void create_gizmo_mode_none(editor_gizmo* gizmo);
 static void create_gizmo_mode_move(editor_gizmo* gizmo);
@@ -26,6 +28,12 @@ static void create_gizmo_mode_rotate(editor_gizmo* gizmo);
 
 const static u8 segments = 32;
 const static f32 radius = 1.0f;
+const static f32 axis_thickness = 0.05f;
+const static f32 arrowhead_length = 0.25f;
+const static f32 arrowhead_size = 0.125f;
+const static u8 axis_sides = 6;
+const static f32 axis_length = 2.0f;
+const static f32 box_axis_length = 0.4f;
 
 b8 editor_gizmo_create(editor_gizmo* out_gizmo) {
 	if (!out_gizmo) {
@@ -81,13 +89,14 @@ b8 editor_gizmo_load(editor_gizmo* gizmo) {
 		kgeometry* g = &gizmo->mode_data[i].geo;
 		editor_gizmo_mode_data* mode = &gizmo->mode_data[i];
 
+		g->type = KGEOMETRY_TYPE_3D_STATIC_COLOUR;
 		g->vertex_count = mode->vertex_count;
 		g->vertex_element_size = sizeof(colour_vertex_3d);
 		g->vertex_buffer_offset = 0;
-		g->vertices = KALLOC_TYPE_CARRAY(colour_vertex_3d, g->vertex_count);
-		g->index_count = 0;
-		g->index_element_size = 0;
-		g->indices = 0;
+		g->vertices = mode->vertices;
+		g->index_count = mode->index_count;
+		g->index_element_size = sizeof(u32);
+		g->indices = mode->indices;
 		g->index_buffer_offset = 0;
 		g->generation = INVALID_ID_U16;
 
@@ -221,92 +230,93 @@ void editor_gizmo_mode_set(editor_gizmo* gizmo, editor_gizmo_mode mode) {
 static void create_gizmo_mode_none(editor_gizmo* gizmo) {
 	editor_gizmo_mode_data* data = &gizmo->mode_data[EDITOR_GIZMO_MODE_NONE];
 
-	data->vertex_count = 6; // 2 per line, 3 lines
-	data->vertices = kallocate(sizeof(colour_vertex_3d) * data->vertex_count, MEMORY_TAG_ARRAY);
 	vec4 grey = (vec4){0.5f, 0.5f, 0.5f, 1.0f};
 
-	// x
-	data->vertices[0].colour = grey; // First vert is at origin, no pos needed.
-	data->vertices[1].colour = grey;
-	data->vertices[1].position.x = 1.0f;
+	u32 axis_vert_count = 0;
+	u32 axis_index_count = 0;
+	f32 base_offset = 0;
+	generate_axis_geometry(AXIS_X, base_offset, axis_length, grey, axis_thickness, arrowhead_size, arrowhead_length, axis_sides, false, &axis_vert_count, &axis_index_count, KNULL, KNULL, 0);
 
-	// y
-	data->vertices[2].colour = grey; // First vert is at origin, no pos needed.
-	data->vertices[3].colour = grey;
-	data->vertices[3].position.y = 1.0f;
+	data->vertex_count = axis_vert_count * 3;
+	data->vertices = KALLOC_TYPE_CARRAY(colour_vertex_3d, data->vertex_count);
+	data->index_count = axis_index_count * 3;
+	data->indices = KALLOC_TYPE_CARRAY(u32, data->index_count);
 
-	// z
-	data->vertices[4].colour = grey; // First vert is at origin, no pos needed.
-	data->vertices[5].colour = grey;
-	data->vertices[5].position.z = 1.0f;
+	colour_vertex_3d* verts = data->vertices;
+	u32* inds = data->indices;
+	generate_axis_geometry(AXIS_X, base_offset, axis_length, grey, axis_thickness, arrowhead_size, arrowhead_length, axis_sides, false, KNULL, KNULL, verts, inds, (axis_vert_count * 0));
+	verts += axis_vert_count;
+	inds += axis_index_count;
+	generate_axis_geometry(AXIS_Y, base_offset, axis_length, grey, axis_thickness, arrowhead_size, arrowhead_length, axis_sides, false, KNULL, KNULL, verts, inds, (axis_vert_count * 1));
+	verts += axis_vert_count;
+	inds += axis_index_count;
+	generate_axis_geometry(AXIS_Z, base_offset, axis_length, grey, axis_thickness, arrowhead_size, arrowhead_length, axis_sides, false, KNULL, KNULL, verts, inds, (axis_vert_count * 2));
 }
 
 static void create_gizmo_mode_move(editor_gizmo* gizmo) {
 	editor_gizmo_mode_data* data = &gizmo->mode_data[EDITOR_GIZMO_MODE_MOVE];
 
 	data->current_axis_index = INVALID_ID_U8;
-	data->vertex_count = 18; // 2 per line, 3 lines + 6 lines
-	data->vertices = kallocate(sizeof(colour_vertex_3d) * data->vertex_count, MEMORY_TAG_ARRAY);
+	colour4 r = {1, 0, 0, 1};
+	colour4 g = {0, 1, 0, 1};
+	colour4 b = {0, 0, 1, 1};
+	f32 base_offset = 0.2f;
 
-	vec4 r = (vec4){1.0f, 0.0f, 0.0f, 1.0f};
-	vec4 g = (vec4){0.0f, 1.0f, 0.0f, 1.0f};
-	vec4 b = (vec4){0.0f, 0.0f, 1.0f, 1.0f};
-	// x
-	data->vertices[0].colour = r;
-	data->vertices[0].position.x = 0.2f;
-	data->vertices[1].colour = r;
-	data->vertices[1].position.x = 2.0f;
+	// Get vertex/index counts per axis.
+	// Base axis
+	u32 axis_vert_count = 0;
+	u32 axis_index_count = 0;
 
-	// y
-	data->vertices[2].colour = g;
-	data->vertices[2].position.y = 0.2f;
-	data->vertices[3].colour = g;
-	data->vertices[3].position.y = 2.0f;
+	generate_axis_geometry(AXIS_X, base_offset, axis_length, r, axis_thickness, arrowhead_size, arrowhead_length, axis_sides, true, &axis_vert_count, &axis_index_count, KNULL, KNULL, 0);
+	// Box along shared axes
+	u32 box_vert_count = 0;
+	u32 box_index_count = 0;
+	generate_axis_geometry(AXIS_XY, box_axis_length, box_axis_length, r, axis_thickness, arrowhead_size, arrowhead_length, axis_sides, false, &box_vert_count, &box_index_count, KNULL, KNULL, 0);
 
-	// z
-	data->vertices[4].colour = b;
-	data->vertices[4].position.z = 0.2f;
-	data->vertices[5].colour = b;
-	data->vertices[5].position.z = 2.0f;
+	// One main length and two short lengths for the center "box" per axis
+	u32 total_axis_vert_count = (axis_vert_count + (box_vert_count * 2));
+	u32 total_axis_index_count = (axis_index_count + (box_index_count * 2));
 
-	// x "box" lines
-	data->vertices[6].colour = r;
-	data->vertices[6].position.x = 0.4f;
-	data->vertices[7].colour = r;
-	data->vertices[7].position.x = 0.4f;
-	data->vertices[7].position.y = 0.4f;
+	data->vertex_count = total_axis_vert_count * 3;
+	data->vertices = KALLOC_TYPE_CARRAY(colour_vertex_3d, data->vertex_count);
+	data->index_count = total_axis_index_count * 3;
+	data->indices = KALLOC_TYPE_CARRAY(u32, data->index_count);
 
-	data->vertices[8].colour = r;
-	data->vertices[8].position.x = 0.4f;
-	data->vertices[9].colour = r;
-	data->vertices[9].position.x = 0.4f;
-	data->vertices[9].position.z = 0.4f;
+	u32 v_offset = 0;
+	u32* inds = data->indices;
 
-	// y "box" lines
-	data->vertices[10].colour = g;
-	data->vertices[10].position.y = 0.4f;
-	data->vertices[11].colour = g;
-	data->vertices[11].position.y = 0.4f;
-	data->vertices[11].position.z = 0.4f;
+	// X
+	generate_axis_geometry(AXIS_X, base_offset, axis_length, r, axis_thickness, arrowhead_size, arrowhead_length, axis_sides, true, KNULL, KNULL, data->vertices + v_offset, inds, v_offset);
+	v_offset += axis_vert_count;
+	inds += axis_index_count;
+	generate_axis_geometry(AXIS_XY, box_axis_length, box_axis_length, r, axis_thickness, axis_thickness, arrowhead_length, axis_sides, false, KNULL, KNULL, data->vertices + v_offset, inds, v_offset);
+	v_offset += box_vert_count;
+	inds += box_index_count;
+	generate_axis_geometry(AXIS_XZ, box_axis_length, box_axis_length, r, axis_thickness, axis_thickness, arrowhead_length, axis_sides, false, KNULL, KNULL, data->vertices + v_offset, inds, v_offset);
+	v_offset += box_vert_count;
+	inds += box_index_count;
 
-	data->vertices[12].colour = g;
-	data->vertices[12].position.y = 0.4f;
-	data->vertices[13].colour = g;
-	data->vertices[13].position.y = 0.4f;
-	data->vertices[13].position.x = 0.4f;
+	// Y
+	KASSERT(v_offset == total_axis_vert_count);
+	generate_axis_geometry(AXIS_Y, base_offset, axis_length, g, axis_thickness, arrowhead_size, arrowhead_length, axis_sides, true, KNULL, KNULL, data->vertices + v_offset, inds, v_offset);
+	v_offset += axis_vert_count;
+	inds += axis_index_count;
+	generate_axis_geometry(AXIS_YX, box_axis_length, box_axis_length, g, axis_thickness, axis_thickness, arrowhead_length, axis_sides, false, KNULL, KNULL, data->vertices + v_offset, inds, v_offset);
+	v_offset += box_vert_count;
+	inds += box_index_count;
+	generate_axis_geometry(AXIS_YZ, box_axis_length, box_axis_length, g, axis_thickness, axis_thickness, arrowhead_length, axis_sides, false, KNULL, KNULL, data->vertices + v_offset, inds, v_offset);
+	v_offset += box_vert_count;
+	inds += box_index_count;
 
-	// z "box" lines
-	data->vertices[14].colour = b;
-	data->vertices[14].position.z = 0.4f;
-	data->vertices[15].colour = b;
-	data->vertices[15].position.z = 0.4f;
-	data->vertices[15].position.y = 0.4f;
-
-	data->vertices[16].colour = b;
-	data->vertices[16].position.z = 0.4f;
-	data->vertices[17].colour = b;
-	data->vertices[17].position.z = 0.4f;
-	data->vertices[17].position.x = 0.4f;
+	// Z
+	KASSERT(v_offset == total_axis_vert_count * 2);
+	generate_axis_geometry(AXIS_Z, base_offset, axis_length, b, axis_thickness, arrowhead_size, arrowhead_length, axis_sides, true, KNULL, KNULL, data->vertices + v_offset, inds, v_offset);
+	v_offset += axis_vert_count;
+	inds += axis_index_count;
+	generate_axis_geometry(AXIS_ZX, box_axis_length, box_axis_length, b, axis_thickness, axis_thickness, arrowhead_length, axis_sides, false, KNULL, KNULL, data->vertices + v_offset, inds, v_offset);
+	v_offset += box_vert_count;
+	inds += box_index_count;
+	generate_axis_geometry(AXIS_ZY, box_axis_length, box_axis_length, b, axis_thickness, axis_thickness, arrowhead_length, axis_sides, false, KNULL, KNULL, data->vertices + v_offset, inds, v_offset);
 
 	data->extents_count = 7;
 	data->mode_extents = kallocate(sizeof(extents_3d) * data->extents_count, MEMORY_TAG_ARRAY);
@@ -353,45 +363,29 @@ static void create_gizmo_mode_scale(editor_gizmo* gizmo) {
 	editor_gizmo_mode_data* data = &gizmo->mode_data[EDITOR_GIZMO_MODE_SCALE];
 
 	data->current_axis_index = INVALID_ID_U8;
-	data->vertex_count = 12; // 2 per line, 3 lines + 3 lines
+
+	u32 axis_vert_count = 0;
+	u32 axis_index_count = 0;
+	colour4 r = {1, 0, 0, 1};
+	colour4 g = {0, 1, 0, 1};
+	colour4 b = {0, 0, 1, 1};
+	f32 base_offset = 0.2f;
+	generate_axis_geometry(AXIS_X, base_offset, axis_length, r, axis_thickness, arrowhead_length, arrowhead_size, axis_sides, true, &axis_vert_count, &axis_index_count, KNULL, KNULL, 0);
+
+	data->vertex_count = axis_vert_count * 3;
 	data->vertices = kallocate(sizeof(colour_vertex_3d) * data->vertex_count, MEMORY_TAG_ARRAY);
+	data->index_count = axis_index_count * 3;
+	data->indices = kallocate(sizeof(u32) * data->index_count, MEMORY_TAG_ARRAY);
 
-	vec4 r = (vec4){1.0f, 0.0f, 0.0f, 1.0f};
-	vec4 g = (vec4){0.0f, 1.0f, 0.0f, 1.0f};
-	vec4 b = (vec4){0.0f, 0.0f, 1.0f, 1.0f};
-
-	// x
-	data->vertices[0].colour = r; // First vert is at origin, no pos needed.
-	data->vertices[1].colour = r;
-	data->vertices[1].position.x = 2.0f;
-
-	// y
-	data->vertices[2].colour = g; // First vert is at origin, no pos needed.
-	data->vertices[3].colour = g;
-	data->vertices[3].position.y = 2.0f;
-
-	// z
-	data->vertices[4].colour = b; // First vert is at origin, no pos needed.
-	data->vertices[5].colour = b;
-	data->vertices[5].position.z = 2.0f;
-
-	// x/y outer line
-	data->vertices[6].position.x = 0.8f;
-	data->vertices[6].colour = r;
-	data->vertices[7].position.y = 0.8f;
-	data->vertices[7].colour = g;
-
-	// z/y outer line
-	data->vertices[8].position.z = 0.8f;
-	data->vertices[8].colour = b;
-	data->vertices[9].position.y = 0.8f;
-	data->vertices[9].colour = g;
-
-	// x/z outer line
-	data->vertices[10].position.x = 0.8f;
-	data->vertices[10].colour = r;
-	data->vertices[11].position.z = 0.8f;
-	data->vertices[11].colour = b;
+	colour_vertex_3d* verts = data->vertices;
+	u32* inds = data->indices;
+	generate_axis_geometry(AXIS_X, base_offset, axis_length, r, axis_thickness, arrowhead_length, arrowhead_size, axis_sides, true, KNULL, KNULL, verts, inds, (axis_vert_count * 0));
+	verts += axis_vert_count;
+	inds += axis_index_count;
+	generate_axis_geometry(AXIS_Y, base_offset, axis_length, g, axis_thickness, arrowhead_length, arrowhead_size, axis_sides, true, KNULL, KNULL, verts, inds, (axis_vert_count * 1));
+	verts += axis_vert_count;
+	inds += axis_index_count;
+	generate_axis_geometry(AXIS_Z, base_offset, axis_length, b, axis_thickness, arrowhead_length, arrowhead_size, axis_sides, true, KNULL, KNULL, verts, inds, (axis_vert_count * 2));
 
 	data->extents_count = 7;
 	data->mode_extents = kallocate(sizeof(extents_3d) * data->extents_count, MEMORY_TAG_ARRAY);
@@ -437,75 +431,86 @@ static void create_gizmo_mode_scale(editor_gizmo* gizmo) {
 static void create_gizmo_mode_rotate(editor_gizmo* gizmo) {
 	editor_gizmo_mode_data* data = &gizmo->mode_data[EDITOR_GIZMO_MODE_ROTATE];
 
-	data->vertex_count = 6 + (segments * 2 * 3); // 2 per line, 3 lines in center + segments on each axis
+	u32 axis_vert_count = 0;
+	u32 axis_index_count = 0;
+	colour4 xcol = {1, 0, 0, 1};
+	colour4 ycol = {0, 1, 0, 1};
+	colour4 zcol = {0, 0, 1, 1};
+	generate_axis_ring_geometry(AXIS_X, 1.0f, 0.1f, xcol, segments, 6, &axis_vert_count, &axis_index_count, KNULL, KNULL, 0);
+
+	data->vertex_count = axis_vert_count * 3;
 	data->vertices = kallocate(sizeof(colour_vertex_3d) * data->vertex_count, MEMORY_TAG_ARRAY);
+	data->index_count = axis_index_count * 3;
+	data->indices = kallocate(sizeof(u32) * data->index_count, MEMORY_TAG_ARRAY);
 
-	vec4 r = (vec4){1.0f, 0.0f, 0.0f, 1.0f};
-	vec4 g = (vec4){0.0f, 1.0f, 0.0f, 1.0f};
-	vec4 b = (vec4){0.0f, 0.0f, 1.0f, 1.0f};
-
-	// Start with the center, draw small axes.
-	// x
-	data->vertices[0].colour = r; // First vert is at origin, no pos needed.
-	data->vertices[1].colour = r;
-	data->vertices[1].position.x = 0.2f;
-
-	// y
-	data->vertices[2].colour = g; // First vert is at origin, no pos needed.
-	data->vertices[3].colour = g;
-	data->vertices[3].position.y = 0.2f;
-
-	// z
-	data->vertices[4].colour = b; // First vert is at origin, no pos needed.
-	data->vertices[5].colour = b;
-	data->vertices[5].position.z = 0.2f;
-
-	// For each axis, generate points in a circle.
-	u32 j = 6;
-
-	// x
-	for (u32 i = 0; i < segments; ++i, j += 2) {
-		// 2 at a time to form a line.
-		f32 theta = (f32)i / segments * K_2PI;
-		data->vertices[j].position.y = radius * kcos(theta);
-		data->vertices[j].position.z = radius * ksin(theta);
-		data->vertices[j].colour = r;
-
-		theta = (f32)((i + 1) % segments) / segments * K_2PI;
-		data->vertices[j + 1].position.y = radius * kcos(theta);
-		data->vertices[j + 1].position.z = radius * ksin(theta);
-		data->vertices[j + 1].colour = r;
-	}
-
-	// y
-	for (u32 i = 0; i < segments; ++i, j += 2) {
-		// 2 at a time to form a line.
-		f32 theta = (f32)i / segments * K_2PI;
-		data->vertices[j].position.x = radius * kcos(theta);
-		data->vertices[j].position.z = radius * ksin(theta);
-		data->vertices[j].colour = g;
-
-		theta = (f32)((i + 1) % segments) / segments * K_2PI;
-		data->vertices[j + 1].position.x = radius * kcos(theta);
-		data->vertices[j + 1].position.z = radius * ksin(theta);
-		data->vertices[j + 1].colour = g;
-	}
-
-	// z
-	for (u32 i = 0; i < segments; ++i, j += 2) {
-		// 2 at a time to form a line.
-		f32 theta = (f32)i / segments * K_2PI;
-		data->vertices[j].position.x = radius * kcos(theta);
-		data->vertices[j].position.y = radius * ksin(theta);
-		data->vertices[j].colour = b;
-
-		theta = (f32)((i + 1) % segments) / segments * K_2PI;
-		data->vertices[j + 1].position.x = radius * kcos(theta);
-		data->vertices[j + 1].position.y = radius * ksin(theta);
-		data->vertices[j + 1].colour = b;
-	}
+	colour_vertex_3d* verts = data->vertices;
+	u32* inds = data->indices;
+	generate_axis_ring_geometry(AXIS_X, 1.0f, 0.1f, xcol, segments, 6, KNULL, KNULL, verts, inds, (axis_vert_count * 0));
+	verts += axis_vert_count;
+	inds += axis_index_count;
+	generate_axis_ring_geometry(AXIS_Y, 1.0f, 0.1f, ycol, segments, 6, KNULL, KNULL, verts, inds, (axis_vert_count * 1));
+	verts += axis_vert_count;
+	inds += axis_index_count;
+	generate_axis_ring_geometry(AXIS_Z, 1.0f, 0.1f, zcol, segments, 6, KNULL, KNULL, verts, inds, (axis_vert_count * 2));
 
 	// NOTE: Rotation gizmo uses discs, not extents, so this mode doesn't need them.
+}
+
+static void handle_highlighting(editor_gizmo* gizmo, editor_gizmo_mode_data* data, u8 hit_axis) {
+	if (data->current_axis_index != hit_axis) {
+		data->current_axis_index = hit_axis;
+
+		u32 axis_vert_count = (data->vertex_count / 3);
+
+		b8 hits[3] = {false, false, false};
+		switch (hit_axis) {
+		case 0: // x axis
+			hits[AXIS_X] = true;
+			break;
+		case 3: // xy axes
+			hits[AXIS_X] = true;
+			hits[AXIS_Y] = true;
+			break;
+		case 1: // y axis
+			hits[AXIS_Y] = true;
+			break;
+		case 4: // xz axes
+			hits[AXIS_X] = true;
+			hits[AXIS_Z] = true;
+			break;
+		case 2: // z axis
+			hits[AXIS_Z] = true;
+			break;
+		case 5: // yz axes
+			hits[AXIS_Y] = true;
+			hits[AXIS_Z] = true;
+			break;
+		case 6: // xyz
+			hits[AXIS_X] = true;
+			hits[AXIS_Y] = true;
+			hits[AXIS_Z] = true;
+			break;
+		}
+
+		// Main axis colours
+		for (u32 i = 0; i < 3; ++i) {
+			vec4 set_colour = vec4_create(0.0f, 0.0f, 0.0f, 1.0f);
+			// Yellow for hit axis; otherwise original colour.
+			if (hits[i]) {
+				set_colour.r = 1.0f;
+				set_colour.g = 1.0f;
+			} else {
+				set_colour.elements[i] = 1.0f;
+			}
+
+			u32 offset = axis_vert_count * i;
+
+			for (u32 v = offset; v < offset + axis_vert_count; ++v) {
+				data->vertices[v].colour = set_colour;
+			}
+		}
+		gizmo->is_dirty = true;
+	}
 }
 
 void editor_gizmo_interaction_begin(editor_gizmo* gizmo, kcamera c, struct ray* r, editor_gizmo_interaction_type interaction_type) {
@@ -705,7 +710,7 @@ void editor_gizmo_handle_interaction(editor_gizmo* gizmo, kcamera camera, struct
 			ktransform_calculate_local(gizmo->ktransform_handle);
 			u8 hit_axis = INVALID_ID_U8;
 
-			mat4 inv = mat4_inverse(gizmo_world);
+			mat4 inv = mat4_inverse(gizmo->gizmo_world);
 
 			ray transformed_ray = {
 				.origin = vec3_transform(r->origin, 1.0f, inv),
@@ -724,80 +729,7 @@ void editor_gizmo_handle_interaction(editor_gizmo* gizmo, kcamera camera, struct
 				}
 			}
 
-			// Handle highlighting.
-			vec4 y = vec4_create(1.0f, 1.0f, 0.0f, 1.0f);
-			vec4 r = vec4_create(1.0f, 0.0f, 0.0f, 1.0f);
-			vec4 g = vec4_create(0.0f, 1.0f, 0.0f, 1.0f);
-			vec4 b = vec4_create(0.0f, 0.0f, 1.0f, 1.0f);
-
-			if (data->current_axis_index != hit_axis) {
-				data->current_axis_index = hit_axis;
-
-				// Main axis colours
-				for (u32 i = 0; i < 3; ++i) {
-					if (i == hit_axis) {
-						data->vertices[(i * 2) + 0].colour = y;
-						data->vertices[(i * 2) + 1].colour = y;
-					} else {
-						// Set non-hit axes back to their original colours.
-						data->vertices[(i * 2) + 0].colour = vec4_create(0.0f, 0.0f, 0.0f, 1.0f);
-						data->vertices[(i * 2) + 0].colour.elements[i] = 1.0f;
-						data->vertices[(i * 2) + 1].colour = vec4_create(0.0f, 0.0f, 0.0f, 1.0f);
-						data->vertices[(i * 2) + 1].colour.elements[i] = 1.0f;
-					}
-				}
-
-				// xyz
-				if (hit_axis == 6) {
-					// Turn them all yellow.
-					for (u32 i = 0; i < 18; ++i) {
-						data->vertices[i].colour = y;
-					}
-				} else {
-					if (hit_axis == 3) {
-						// x/y
-						// 6/7, 12/13
-						data->vertices[6].colour = y;
-						data->vertices[7].colour = y;
-						data->vertices[12].colour = y;
-						data->vertices[13].colour = y;
-					} else {
-						data->vertices[6].colour = r;
-						data->vertices[7].colour = r;
-						data->vertices[12].colour = g;
-						data->vertices[13].colour = g;
-					}
-
-					if (hit_axis == 4) {
-						// x/z
-						// 8/9, 16/17
-						data->vertices[8].colour = y;
-						data->vertices[9].colour = y;
-						data->vertices[16].colour = y;
-						data->vertices[17].colour = y;
-					} else {
-						data->vertices[8].colour = r;
-						data->vertices[9].colour = r;
-						data->vertices[16].colour = b;
-						data->vertices[17].colour = b;
-					}
-
-					if (hit_axis == 5) {
-						// y/z
-						// 10/11, 14/15
-						data->vertices[10].colour = y;
-						data->vertices[11].colour = y;
-						data->vertices[14].colour = y;
-						data->vertices[15].colour = y;
-					} else {
-						data->vertices[10].colour = g;
-						data->vertices[11].colour = g;
-						data->vertices[14].colour = b;
-						data->vertices[15].colour = b;
-					}
-				}
-				gizmo->is_dirty = true;
-			}
+			handle_highlighting(gizmo, data, hit_axis);
 		}
 	} else if (gizmo->mode == EDITOR_GIZMO_MODE_SCALE) {
 		if (interaction_type == EDITOR_GIZMO_INTERACTION_TYPE_MOUSE_DRAG) {
@@ -908,7 +840,7 @@ void editor_gizmo_handle_interaction(editor_gizmo* gizmo, kcamera camera, struct
 			ktransform_calculate_local(gizmo->ktransform_handle);
 			u8 hit_axis = INVALID_ID_U8;
 
-			mat4 inv = mat4_inverse(gizmo_world);
+			mat4 inv = mat4_inverse(gizmo->gizmo_world);
 
 			ray transformed_ray = {
 				.origin = vec3_transform(r->origin, 1.0f, inv),
@@ -926,65 +858,7 @@ void editor_gizmo_handle_interaction(editor_gizmo* gizmo, kcamera camera, struct
 				}
 			}
 
-			// Handle highlighting.
-			vec4 y = vec4_create(1.0f, 1.0f, 0.0f, 1.0f);
-			vec4 r = vec4_create(1.0f, 0.0f, 0.0f, 1.0f);
-			vec4 g = vec4_create(0.0f, 1.0f, 0.0f, 1.0f);
-			vec4 b = vec4_create(0.0f, 0.0f, 1.0f, 1.0f);
-
-			if (data->current_axis_index != hit_axis) {
-				data->current_axis_index = hit_axis;
-
-				// Main axis colours
-				for (u32 i = 0; i < 3; ++i) {
-					if (i == hit_axis) {
-						data->vertices[(i * 2) + 0].colour = y;
-						data->vertices[(i * 2) + 1].colour = y;
-					} else {
-						// Set non-hit axes back to their original colours.
-						data->vertices[(i * 2) + 0].colour = vec4_create(0.0f, 0.0f, 0.0f, 1.0f);
-						data->vertices[(i * 2) + 0].colour.elements[i] = 1.0f;
-						data->vertices[(i * 2) + 1].colour = vec4_create(0.0f, 0.0f, 0.0f, 1.0f);
-						data->vertices[(i * 2) + 1].colour.elements[i] = 1.0f;
-					}
-				}
-
-				// xyz
-				if (hit_axis == 6) {
-					// Turn them all yellow.
-					for (u32 i = 0; i < 12; ++i) {
-						data->vertices[i].colour = y;
-					}
-				} else {
-					// x/y is 6/7
-					if (hit_axis == 3) {
-						data->vertices[6].colour = y;
-						data->vertices[7].colour = y;
-					} else {
-						data->vertices[6].colour = r;
-						data->vertices[7].colour = g;
-					}
-
-					// x/z is 10/11
-					if (hit_axis == 4) {
-						data->vertices[10].colour = y;
-						data->vertices[11].colour = y;
-					} else {
-						data->vertices[10].colour = r;
-						data->vertices[11].colour = b;
-					}
-
-					// z/y is 8/9
-					if (hit_axis == 5) {
-						data->vertices[8].colour = y;
-						data->vertices[9].colour = y;
-					} else {
-						data->vertices[8].colour = b;
-						data->vertices[9].colour = g;
-					}
-				}
-				gizmo->is_dirty = true;
-			}
+			handle_highlighting(gizmo, data, hit_axis);
 		}
 	} else if (gizmo->mode == EDITOR_GIZMO_MODE_ROTATE) {
 		if (interaction_type == EDITOR_GIZMO_INTERACTION_TYPE_MOUSE_DRAG) {
@@ -1046,55 +920,32 @@ void editor_gizmo_handle_interaction(editor_gizmo* gizmo, kcamera camera, struct
 			vec3 point;
 			u8 hit_axis = INVALID_ID_U8;
 
+			mat4 inv = gizmo->gizmo_world;
+			vec3 rad_scale = mat4_scale_get(inv);
+
 			// Loop through each axis.
 			for (u32 i = 0; i < 3; ++i) {
 				// Oriented disc.
 				vec3 aa_normal = vec3_zero();
 				aa_normal.elements[i] = 1.0f;
-				aa_normal = vec3_transform(aa_normal, 0.0f, gizmo_world);
+				aa_normal = vec3_transform(aa_normal, 0.0f, inv);
 				vec3 center = ktransform_position_get(gizmo->ktransform_handle);
-				if (raycast_disc_3d(r, center, aa_normal, radius + 0.05f, radius - 0.05f, &point, &dist)) {
+				f32 inner = (radius + 0.05f) * rad_scale.elements[i];
+				f32 outer = (radius - 0.05f) * rad_scale.elements[i];
+				if (raycast_disc_3d(r, center, aa_normal, inner, outer, &point, &dist)) {
 					hit_axis = i;
 					break;
 				} else {
 					// If not, try from the other way.
 					aa_normal = vec3_mul_scalar(aa_normal, -1.0f);
-					if (raycast_disc_3d(r, center, aa_normal, radius + 0.05f, radius - 0.05f, &point, &dist)) {
+					if (raycast_disc_3d(r, center, aa_normal, inner, outer, &point, &dist)) {
 						hit_axis = i;
 						break;
 					}
 				}
 			}
 
-			u32 segments2 = segments * 2;
-			if (data->current_axis_index != hit_axis) {
-				data->current_axis_index = hit_axis;
-
-				// Main axis colours
-				for (u32 i = 0; i < 3; ++i) {
-					vec4 set_colour = vec4_create(0.0f, 0.0f, 0.0f, 1.0f);
-					// Yellow for hit axis; otherwise original colour.
-					if (i == hit_axis) {
-						set_colour.r = 1.0f;
-						set_colour.g = 1.0f;
-					} else {
-						set_colour.elements[i] = 1.0f;
-					}
-
-					// Main axis in center.
-					data->vertices[(i * 2) + 0].colour = set_colour;
-					data->vertices[(i * 2) + 1].colour = set_colour;
-
-					// Ring
-					u32 ring_offset = 6 + (segments2 * i);
-					for (u32 j = 0; j < segments; ++j) {
-						data->vertices[ring_offset + (j * 2) + 0].colour = set_colour;
-						data->vertices[ring_offset + (j * 2) + 1].colour = set_colour;
-					}
-				}
-			}
-
-			gizmo->is_dirty = true;
+			handle_highlighting(gizmo, data, hit_axis);
 		}
 	}
 

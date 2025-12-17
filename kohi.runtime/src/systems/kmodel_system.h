@@ -200,6 +200,7 @@ KAPI kmodel_instance kmodel_instance_acquire_from_package(struct kmodel_system_s
 // NOTE: Also releases held material instances.
 KAPI void kmodel_instance_release(struct kmodel_system_state* state, kmodel_instance* instance);
 
+KAPI b8 kmodel_ray_intersects(struct kmodel_system_state* state, kmodel_instance instance, const ray* r, mat4 world, raycast_hit* out_hit);
 KAPI b8 kmodel_submesh_count_get(struct kmodel_system_state* state, u16 base_mesh_id, u16* out_count);
 KAPI const kgeometry* kmodel_submesh_geometry_get_at(struct kmodel_system_state* state, u16 base_mesh_id, u16 index);
 KAPI const kmaterial_instance* kmodel_submesh_material_instance_get_at(struct kmodel_system_state* state, kmodel_instance instance, u16 index);

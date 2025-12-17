@@ -324,7 +324,8 @@ typedef struct kasset_shader {
 	b8 colour_read;
 	b8 colour_write;
 	b8 supports_wireframe;
-	primitive_topology_types topology_types;
+	primitive_topology_type_bits topology_types;
+	primitive_topology_type default_topology;
 
 	u8 stage_count;
 	kasset_shader_stage* stages;

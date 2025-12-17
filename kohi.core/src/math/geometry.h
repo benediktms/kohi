@@ -2,6 +2,7 @@
 
 #include "math/math_types.h"
 #include "strings/kname.h"
+#include "utils/kcolour.h"
 
 /** @brief The maximum length of a geometry name. */
 #define GEOMETRY_NAME_MAX_LENGTH 256
@@ -265,3 +266,32 @@ KAPI kgeometry geometry_generate_grid(grid_orientation orientation, u32 segment_
  * @param geometry A pointer to the geometry to be destroyed.
  */
 KAPI void geometry_destroy(kgeometry* geometry);
+
+KAPI void generate_axis_geometry(
+	axis_3d axis,
+	f32 base_offset,
+	f32 length,
+	colour4 colour,
+	f32 shaft_radius,
+	f32 arrowhead_radius,
+	f32 arrowhead_length,
+	u32 segment_count,
+	b8 include_arrowhead,
+	u32* out_vertex_count,
+	u32* out_index_count,
+	colour_vertex_3d* vertices,
+	u32* indices,
+	u32 vertex_offset);
+
+KAPI void generate_axis_ring_geometry(
+	axis_3d axis,
+	f32 radius,
+	f32 thickness,
+	colour4 colour,
+	u32 ring_segments,
+	u32 tube_segments,
+	u32* out_vertex_count,
+	u32* out_index_count,
+	colour_vertex_3d* vertices,
+	u32* indices,
+	u32 vertex_offset);

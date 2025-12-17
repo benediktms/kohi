@@ -274,6 +274,16 @@ static void seed_randoms(void) {
 	rand_seeded = true;
 }
 
+ray ray_transformed(const ray* r, mat4 transform) {
+	ray out = {
+		.origin = vec3_transform(r->origin, 1.0f, transform),
+		.direction = vec3_normalized(vec3_transform(r->direction, 0.0f, transform)),
+		.max_distance = r->max_distance,
+		.flags = r->flags};
+
+	return out;
+}
+
 ray ray_from_screen(vec2i screen_pos, rect_2di viewport_rect, vec3 origin, mat4 view, mat4 projection) {
 	ray r = {0};
 	r.origin = origin;
@@ -386,4 +396,95 @@ b8 raycast_disc_3d(const ray* r, vec3 center, vec3 normal, f32 outer_radius, f32
 	}
 
 	return false;
+}
+
+static b8 ray_intersects_triangle_internal(const ray* r, const triangle* t, b8 backface_cull, f32* out_t, vec3* out_pos, vec3* out_normal) {
+	vec3 edge_1 = vec3_sub(t->verts[1], t->verts[0]);
+	vec3 edge_2 = vec3_sub(t->verts[2], t->verts[0]);
+	vec3 p = vec3_cross(r->direction, edge_2);
+	f32 determinant = vec3_dot(edge_1, p);
+
+	if (backface_cull) {
+		if (determinant < K_FLOAT_EPSILON) {
+			return false;
+		}
+	} else {
+		if (determinant > -K_FLOAT_EPSILON && determinant < K_FLOAT_EPSILON) {
+			return false;
+		}
+	}
+
+	f32 inv_det = 1.0f / determinant;
+
+	vec3 s = vec3_sub(r->origin, t->verts[0]);
+	f32 u = inv_det * vec3_dot(s, p);
+	if (u < 0.0f || u > 1.0f) {
+		return false;
+	}
+
+	vec3 q = vec3_cross(s, edge_1);
+	f32 v = inv_det * vec3_dot(r->direction, q);
+	if (v < 0.0f || (u + v) > 1.0f) {
+		return false;
+	}
+
+	f32 t_hit = inv_det * vec3_dot(edge_2, q);
+	if (t_hit < 0.0f || t_hit > r->max_distance) {
+		return false;
+	}
+
+	if (out_t) {
+		*out_t = t_hit;
+	}
+	if (out_pos) {
+		*out_pos = vec3_add(r->origin, vec3_mul_scalar(r->direction, t_hit));
+	}
+	if (out_normal) {
+		*out_normal = vec3_normalized(vec3_cross(edge_1, edge_2));
+	}
+
+	return true;
+}
+
+b8 ray_intersects_triangle(const ray* r, const triangle* t) {
+	return ray_intersects_triangle_internal(r, t, false, KNULL, KNULL, KNULL);
+}
+
+vec3 get_pos_from_vector_at(u32 vertex_count, u32 vertex_element_size, void* vertices, u32 index) {
+	vec3* v = (vec3*)(((u8*)vertices) + (vertex_element_size * index));
+	return *v;
+}
+
+b8 ray_pick_triangle(const ray* r, b8 backface_cull, u32 vertex_count, u32 vertex_element_size, void* vertices, u32 index_count, u32* indices, triangle* out_triangle, vec3* out_hit_pos, vec3* out_hit_normal) {
+	b8 hit_any = false;
+	f32 closest_dist = r->max_distance;
+
+	for (u32 i = 0; i < index_count; i += 3) {
+		triangle t = {
+			get_pos_from_vector_at(vertex_count, vertex_element_size, vertices, indices[i + 0]),
+			get_pos_from_vector_at(vertex_count, vertex_element_size, vertices, indices[i + 1]),
+			get_pos_from_vector_at(vertex_count, vertex_element_size, vertices, indices[i + 2])};
+
+		f32 t_hit;
+		vec3 hit_pos, hit_normal;
+		if (ray_intersects_triangle_internal(r, &t, backface_cull, &t_hit, &hit_pos, &hit_normal)) {
+			if (t_hit < closest_dist) {
+				hit_any = true;
+
+				if (out_triangle) {
+					*out_triangle = t;
+				}
+
+				if (out_hit_pos) {
+					*out_hit_pos = hit_pos;
+				}
+
+				if (out_hit_normal) {
+					*out_hit_normal = hit_normal;
+				}
+			}
+		}
+	}
+
+	return hit_any;
 }

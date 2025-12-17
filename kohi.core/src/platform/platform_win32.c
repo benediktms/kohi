@@ -20,6 +20,9 @@
 #	include <stdlib.h>
 #	include <timeapi.h>
 
+#	define UNIX_EPOCH_TO_FILETIME_NS 116444736000000000ULL
+#	define FILETIME_TICK_NS 100ULL
+
 typedef struct win32_handle_info {
 	HINSTANCE h_instance;
 } win32_handle_info;
@@ -943,6 +946,42 @@ static void platform_update_watches(void) {
 			}
 		}
 	}
+}
+
+static inline kunix_time_ns
+unix_time_from_filetime(FILETIME ft) {
+	uint64_t ticks =
+		((uint64_t)ft.dwHighDateTime << 32) |
+		(uint64_t)ft.dwLowDateTime;
+
+	uint64_t ns = ticks * FILETIME_TICK_NS;
+	return ns - UNIX_EPOCH_TO_FILETIME_NS;
+}
+
+static inline FILETIME
+filetime_from_unix_time(kunix_time_ns t) {
+	uint64_t ns = t + UNIX_EPOCH_TO_FILETIME_NS;
+	uint64_t ticks = ns / FILETIME_TICK_NS;
+
+	FILETIME ft;
+	ft.dwLowDateTime = (DWORD)(ticks & 0xFFFFFFFF);
+	ft.dwHighDateTime = (DWORD)(ticks >> 32);
+	return ft;
+}
+
+kunix_time_ns platform_get_file_mtime(const char* path) {
+	WIN32_FILE_ATTRIBUTE_DATA data;
+
+	LPCWSTR wfile_path = cstr_to_wcstr(path);
+
+	kukunix_time_ns ret = 0;
+	if (GetFileAttributesExW(wfile_path, GetFileExInfoStandard, &data)) {
+		ret = unix_time_from_filetime(data.ftLastWriteTime);
+	}
+
+	wcstr_free(wfile_path);
+
+	return ret;
 }
 
 static kwindow* window_from_handle(HWND hwnd) {

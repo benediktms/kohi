@@ -102,6 +102,7 @@ KAPI kfrustum kcamera_get_frustum(kcamera camera);
 KAPI mat4 kcamera_get_view(kcamera camera);
 KAPI mat4 kcamera_get_transform(kcamera camera);
 KAPI mat4 kcamera_get_projection(kcamera camera);
+KAPI mat4 kcamera_get_projection_far_clipped(kcamera camera, f32 far);
 
 /**
  * @brief Returns a copy of the camera's forward vector.
