@@ -1432,7 +1432,7 @@ char* kstring_id_join(const kstring_id* strings, u32 count, char delimiter) {
 	}
 
 	// Space for delimiters
-	total_length += (count - 1);
+	total_length += count;
 
 	char* out_str = KALLOC_TYPE_CARRAY(char, total_length);
 	u32 offset = 0;
@@ -1441,7 +1441,7 @@ char* kstring_id_join(const kstring_id* strings, u32 count, char delimiter) {
 		offset += lengths[i] + 1;
 	}
 
-	// Overwrite the final delimiter character with null terminator.
+	// Null-terminate the string
 	out_str[total_length - 1] = 0;
 
 	KFREE_TYPE_CARRAY(lengths, u32, count);

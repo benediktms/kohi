@@ -92,6 +92,8 @@ KAPI kasset_text* asset_system_request_text_from_package_sync(struct asset_syste
 
 KAPI void asset_system_release_text(struct asset_system_state* state, kasset_text* asset);
 
+KAPI b8 asset_system_write_text(struct asset_system_state* state, kname package_name, kname asset_name, const char* content);
+
 // ////////////////////////////////////
 // IMAGE ASSETS
 // ////////////////////////////////////

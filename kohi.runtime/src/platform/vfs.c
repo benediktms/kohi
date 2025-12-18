@@ -342,7 +342,7 @@ b8 vfs_asset_write_text(vfs_state* state, kname asset_name, kname package_name, 
 	for (u32 i = 0; i < package_count; ++i) {
 		kpackage* package = &state->packages[i];
 		if (package->name == package_name) {
-			return kpackage_asset_text_write(package, asset_name, string_length(text) + 1, text);
+			return kpackage_asset_text_write(package, asset_name, string_length(text), text);
 		}
 	}
 

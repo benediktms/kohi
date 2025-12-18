@@ -264,6 +264,24 @@ void ktransform_destroy(ktransform* t) {
 	handle_destroy(engine_systems_get()->ktransform_system, t);
 }
 
+b8 ktransform_is_identity(ktransform t) {
+	ktransform_system_state* state = engine_systems_get()->ktransform_system;
+	if (!validate_handle(state, t)) {
+		return false;
+	}
+	if (!vec3_compare(vec3_zero(), state->positions[t], K_FLOAT_EPSILON)) {
+		return false;
+	}
+	if (!vec3_compare(vec3_one(), state->scales[t], K_FLOAT_EPSILON)) {
+		return false;
+	}
+	if (!quat_is_identity(state->rotations[t])) {
+		return false;
+	}
+
+	return true;
+}
+
 vec3 ktransform_position_get(ktransform t) {
 	ktransform_system_state* state = engine_systems_get()->ktransform_system;
 	if (!validate_handle(state, t)) {
@@ -305,7 +323,7 @@ void ktransform_translate(ktransform t, vec3 translation) {
 quat ktransform_rotation_get(ktransform t) {
 	ktransform_system_state* state = engine_systems_get()->ktransform_system;
 	if (!validate_handle(state, t)) {
-		KWARN("Invalid handle passed, returning identity vector as rotation.");
+		KWARN("Invalid handle passed, returning identity quaternion as rotation.");
 		return quat_identity();
 	}
 	return state->rotations[t];

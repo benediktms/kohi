@@ -1801,6 +1801,11 @@ KINLINE vec4 vec4_mul_mat4(vec4 v, mat4 m) {
 KINLINE quat quat_identity(void) { return (quat){0, 0, 0, 1.0f}; }
 
 /**
+ * @brief Indicates if the provided quaterion is identity. (0, 0, 0, 1)
+ */
+KAPI b8 quat_is_identity(quat q);
+
+/**
  * @brief Returns the normal of the provided quaternion.
  *
  * @param q The quaternion.

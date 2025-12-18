@@ -89,6 +89,14 @@ KAPI ktransform ktransform_from_matrix(mat4 m, u64 user);
 KAPI void ktransform_destroy(ktransform* t);
 
 /**
+ * @brief Indicates if the provided transform is an identity transform (i.e. zero position, identity rotation, one-scale).
+ * @param t A handle to the transform to be analyzed.
+ *
+ * @return True if the transform is identity; otherwise false.
+ */
+KAPI b8 ktransform_is_identity(ktransform t);
+
+/**
  * @brief Returns the local position of the given ktransform.
  *
  * @param t A handle whose position to get.

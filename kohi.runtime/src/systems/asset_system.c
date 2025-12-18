@@ -325,6 +325,12 @@ void asset_system_release_text(struct asset_system_state* state, kasset_text* as
 	}
 }
 
+b8 asset_system_write_text(struct asset_system_state* state, kname package_name, kname asset_name, const char* content) {
+	KASSERT(state && package_name && asset_name);
+
+	return vfs_asset_write_text(state->vfs, asset_name, package_name, content);
+}
+
 // ////////////////////////////////////
 // IMAGE ASSETS
 // ////////////////////////////////////

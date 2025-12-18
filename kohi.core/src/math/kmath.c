@@ -11,6 +11,15 @@ static mtrand_state rng_u64 = {0}; // State for unsigned 64-bit RNG
 
 static void seed_randoms(void);
 
+b8 quat_is_identity(quat q) {
+	for (u8 i = 0; i < 3; ++i) {
+		if (!kfloat_compare(q.elements[i], 0.0f)) {
+			return false;
+		}
+	}
+	return kfloat_compare(q.elements[3], 1.0f);
+}
+
 /**
  * Note that these are here in order to prevent having to import the
  * entire <math.h> everywhere.
