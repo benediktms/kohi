@@ -57,7 +57,7 @@ typedef struct event_context {
          * @brief Allows a pointer to arbitrary data to be passed. Also includes size info.
          * NOTE: If used, should be freed by the sender or listener.
          */
-        union {
+        struct {
             // The size of the data pointed to.
             u64 size;
             // A pointer to a memory block of data to be included with the event.
