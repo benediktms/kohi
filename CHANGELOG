@@ -42,6 +42,8 @@ Changelog
   - Added platform_get_file_mtime to platform layer, which get a file's modified time in unix timestamp format (u64).
   - Added --updated-only option to asset importer so that only updated assets (i.e. source > target asset time) are re-imported.
   - Added option to use shader with a given topology for greater control over how things are rendered.
+  - Added kson_tree_to_string_with_options to give formatting control over indent levels and tabs/spaces. kson_tree_to_string now pipes into this 
+    with new defaults of tabs instead of spaces, and 1 character per indent level.
 
 - 0.10.0
   - Combined asset_image_format and texture_format into a single kpixel_format which is used for both.

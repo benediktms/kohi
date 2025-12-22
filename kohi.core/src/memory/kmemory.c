@@ -153,11 +153,11 @@ void memory_system_shutdown(void) {
 	state_ptr = 0;
 }
 
-void* kallocate(u64 size, memory_tag tag) {
-	return kallocate_aligned(size, 1, tag);
+void* _kallocate(u64 size, memory_tag tag, const char* file, u32 line) {
+	return _kallocate_aligned(size, 1, tag, file, line);
 }
 
-void* kallocate_aligned(u64 size, u16 alignment, memory_tag tag) {
+void* _kallocate_aligned(u64 size, u16 alignment, memory_tag tag, const char* file, u32 line) {
 	KASSERT_MSG(size, "kallocate_aligned requires a nonzero size.");
 	if (tag == MEMORY_TAG_UNKNOWN) {
 		KWARN("kallocate_aligned called using MEMORY_TAG_UNKNOWN. Re-class this allocation.");
@@ -182,14 +182,14 @@ void* kallocate_aligned(u64 size, u16 alignment, memory_tag tag) {
 		state_ptr->alloc_count++;
 
 #if K_USE_CUSTOM_MEMORY_ALLOCATOR
-		block = dynamic_allocator_allocate_aligned(&state_ptr->allocator, size, alignment);
+		block = dynamic_allocator_allocate_aligned(&state_ptr->allocator, size, alignment, (u8)tag, file, line);
 #else
 		block = kaligned_alloc(size, alignment);
 #endif
 		kmutex_unlock(&state_ptr->allocation_mutex);
 	} else {
 		// If the system is not up yet, warn about it but give memory for now.
-		/* KTRACE("Warning: kallocate_aligned called before the memory system is initialized."); */
+		KTRACE("Warning: kallocate_aligned called before the memory system is initialized.");
 		// TODO: Memory alignment
 		block = platform_allocate(size, false);
 	}
@@ -216,12 +216,13 @@ void kallocate_report(u64 size, memory_tag tag) {
 	kmutex_unlock(&state_ptr->allocation_mutex);
 }
 
-void* kreallocate(void* block, u64 old_size, u64 new_size, memory_tag tag) {
+void* _kreallocate(void* block, u64 old_size, u64 new_size, memory_tag tag, const char* filename, u32 line) {
 	return kreallocate_aligned(block, old_size, new_size, 1, tag);
 }
 
-void* kreallocate_aligned(void* block, u64 old_size, u64 new_size, u16 alignment, memory_tag tag) {
-	void* new_block = kallocate_aligned(new_size, alignment, tag);
+void* _kreallocate_aligned(void* block, u64 old_size, u64 new_size, u16 alignment, memory_tag tag, const char* filename, u32 line) {
+	// TODO: keep the original allocation file/line too?
+	void* new_block = _kallocate_aligned(new_size, alignment, tag, filename, line);
 	if (block && new_block) {
 		kcopy_memory(new_block, block, old_size);
 		kfree_aligned(block, old_size, alignment, tag);
@@ -258,12 +259,24 @@ void kfree_aligned(void* block, u64 size, u16 alignment, memory_tag tag) {
 #if K_USE_CUSTOM_MEMORY_ALLOCATOR
 		u64 osize = 0;
 		u16 oalignment = 0;
-		dynamic_allocator_get_size_alignment(&state_ptr->allocator, block, &osize, &oalignment);
+		u8 otag;
+		dynamic_allocator_get_size_alignment(&state_ptr->allocator, block, &osize, &oalignment, &otag);
+		b8 print_debug = false;
 		if (osize != size) {
 			printf("Free size mismatch! (original=%llu, requested=%llu)\n", osize, size);
+			print_debug = true;
 		}
 		if (oalignment != alignment) {
 			printf("Free alignment mismatch! (original=%hu, requested=%hu)\n", oalignment, alignment);
+			print_debug = true;
+		}
+		if (otag != tag) {
+			printf("Free tag mismatch! (original=%s, requested=%s)\n", memory_tag_strings[KCLAMP(otag, MEMORY_TAG_UNKNOWN, MEMORY_TAG_MAX_TAGS - 1)], memory_tag_strings[tag]);
+			print_debug = true;
+		}
+
+		if (print_debug) {
+			printf("Original allocation made at %s:%u\n", dynamic_allocator_get_file(&state_ptr->allocator, block), dynamic_allocator_get_line(&state_ptr->allocator, block));
 		}
 #endif
 		u64 aligned_size = get_aligned(size, alignment);
@@ -273,7 +286,7 @@ void kfree_aligned(void* block, u64 size, u16 alignment, memory_tag tag) {
 		state_ptr->stats.new_tagged_deallocations[tag] += aligned_size;
 		state_ptr->alloc_count--;
 #if K_USE_CUSTOM_MEMORY_ALLOCATOR
-		b8 result = dynamic_allocator_free_aligned(&state_ptr->allocator, block);
+		b8 result = dynamic_allocator_free_aligned(&state_ptr->allocator, block, tag);
 #else
 		kaligned_free(block);
 		b8 result = true;
@@ -308,13 +321,13 @@ void kfree_report(u64 size, memory_tag tag) {
 	kmutex_unlock(&state_ptr->allocation_mutex);
 }
 
-b8 kmemory_get_size_alignment(void* block, u64* out_size, u16* out_alignment) {
+b8 kmemory_get_size_alignment(void* block, u64* out_size, u16* out_alignment, memory_tag* out_tag) {
 	if (!kmutex_lock(&state_ptr->allocation_mutex)) {
 		KFATAL("Error obtaining mutex lock during kmemory_get_size_alignment.");
 		return false;
 	}
 #if K_USE_CUSTOM_MEMORY_ALLOCATOR
-	b8 result = dynamic_allocator_get_size_alignment(&state_ptr->allocator, block, out_size, out_alignment);
+	b8 result = dynamic_allocator_get_size_alignment(&state_ptr->allocator, block, out_size, out_alignment, (u8*)out_tag);
 #else
 	*out_size = 0;
 	*out_alignment = 1;

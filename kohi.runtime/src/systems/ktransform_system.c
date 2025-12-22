@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 
+#include "core/console.h"
 #include "core/engine.h"
 #include "debug/kassert.h"
 #include "defines.h"
@@ -47,7 +48,10 @@ typedef struct ktransform_system_state {
 	ktransform* local_dirty_handles;
 	u32 local_dirty_count;
 
-	/** The number of currently-allocated slots available (NOT the allocated space in bytes!) */
+	/** The number of slots available (capacity) (NOT the allocated space in bytes!) */
+	u32 capacity;
+
+	/** The number of currently-used slots (NOT the allocated space in bytes!) */
 	u32 allocated;
 
 	/** globally-accessible renderbuffer that holds transforms. */
@@ -67,6 +71,12 @@ static ktransform handle_create(ktransform_system_state* state);
 static void handle_destroy(ktransform_system_state* state, ktransform* t);
 // Validates the handle itself, as well as compares it against the ktransform at the handle's index position.
 static b8 validate_handle(ktransform_system_state* state, ktransform handle);
+
+static void on_transform_dump(console_command_context context) {
+	ktransform_system_state* state = context.listener;
+
+	KINFO("Transform system - allocated/capacity = %u/%u", state->allocated, state->capacity);
+}
 
 b8 ktransform_system_initialize(u64* memory_requirement, void* state, void* config) {
 	*memory_requirement = sizeof(ktransform_system_state);
@@ -100,6 +110,8 @@ b8 ktransform_system_initialize(u64* memory_requirement, void* state, void* conf
 	KASSERT(typed_state->transform_global_ssbo != KRENDERBUFFER_INVALID);
 	KDEBUG("Created transforms global storage buffer.");
 
+	KASSERT(console_command_register("transform_system_dump", 0, typed_state, on_transform_dump));
+
 	return true;
 }
 
@@ -110,35 +122,35 @@ void ktransform_system_shutdown(void* state) {
 		renderer_renderbuffer_destroy(engine_systems_get()->renderer_system, typed_state->transform_global_ssbo);
 
 		if (typed_state->local_matrices) {
-			kfree_aligned(typed_state->local_matrices, sizeof(mat4) * typed_state->allocated, 16, MEMORY_TAG_TRANSFORM);
+			kfree_aligned(typed_state->local_matrices, sizeof(mat4) * typed_state->capacity, 16, MEMORY_TAG_TRANSFORM);
 			typed_state->local_matrices = 0;
 		}
 		if (typed_state->world_matrices) {
-			kfree_aligned(typed_state->world_matrices, sizeof(mat4) * typed_state->allocated, 16, MEMORY_TAG_TRANSFORM);
+			kfree_aligned(typed_state->world_matrices, sizeof(mat4) * typed_state->capacity, 16, MEMORY_TAG_TRANSFORM);
 			typed_state->world_matrices = 0;
 		}
 		if (typed_state->positions) {
-			kfree_aligned(typed_state->positions, sizeof(vec3) * typed_state->allocated, 16, MEMORY_TAG_TRANSFORM);
+			kfree_aligned(typed_state->positions, sizeof(vec3) * typed_state->capacity, 16, MEMORY_TAG_TRANSFORM);
 			typed_state->positions = 0;
 		}
 		if (typed_state->rotations) {
-			kfree_aligned(typed_state->rotations, sizeof(quat) * typed_state->allocated, 16, MEMORY_TAG_TRANSFORM);
+			kfree_aligned(typed_state->rotations, sizeof(quat) * typed_state->capacity, 16, MEMORY_TAG_TRANSFORM);
 			typed_state->rotations = 0;
 		}
 		if (typed_state->scales) {
-			kfree_aligned(typed_state->scales, sizeof(vec3) * typed_state->allocated, 16, MEMORY_TAG_TRANSFORM);
+			kfree_aligned(typed_state->scales, sizeof(vec3) * typed_state->capacity, 16, MEMORY_TAG_TRANSFORM);
 			typed_state->scales = 0;
 		}
 		if (typed_state->flags) {
-			kfree_aligned(typed_state->flags, sizeof(ktransform_flag_bits) * typed_state->allocated, 16, MEMORY_TAG_TRANSFORM);
+			kfree_aligned(typed_state->flags, sizeof(ktransform_flag_bits) * typed_state->capacity, 16, MEMORY_TAG_TRANSFORM);
 			typed_state->flags = 0;
 		}
 		if (typed_state->user) {
-			kfree_aligned(typed_state->user, sizeof(u64) * typed_state->allocated, 16, MEMORY_TAG_TRANSFORM);
+			kfree_aligned(typed_state->user, sizeof(u64) * typed_state->capacity, 16, MEMORY_TAG_TRANSFORM);
 			typed_state->user = 0;
 		}
 		if (typed_state->local_dirty_handles) {
-			kfree_aligned(typed_state->local_dirty_handles, sizeof(ktransform) * typed_state->allocated, 16, MEMORY_TAG_TRANSFORM);
+			kfree_aligned(typed_state->local_dirty_handles, sizeof(ktransform) * typed_state->capacity, 16, MEMORY_TAG_TRANSFORM);
 			typed_state->local_dirty_handles = 0;
 		}
 	}
@@ -150,7 +162,7 @@ b8 ktransform_system_update(ktransform_system_state* state, struct frame_data* p
 	void* mapped_memory = renderer_renderbuffer_get_mapped_memory(engine_systems_get()->renderer_system, state->transform_global_ssbo);
 	mat4* mapped_transforms = (mat4*)mapped_memory;
 
-	kcopy_memory(mapped_transforms, state->world_matrices, sizeof(mat4) * state->allocated);
+	kcopy_memory(mapped_transforms, state->world_matrices, sizeof(mat4) * state->capacity);
 
 	return true;
 }
@@ -169,6 +181,25 @@ ktransform ktransform_create(u64 user) {
 		// NOTE: This is not added to the dirty list because the defualts form an identity matrix.
 	} else {
 		KERROR("Attempted to create a transform before the system was initialized.");
+		handle = KTRANSFORM_INVALID;
+	}
+	return handle;
+}
+
+ktransform ktransform_clone(ktransform original, u64 user) {
+	ktransform handle = {0};
+	ktransform_system_state* state = engine_systems_get()->ktransform_system;
+	if (state) {
+		handle = handle_create(state);
+		state->positions[handle] = state->positions[original];
+		state->rotations[handle] = state->rotations[original];
+		state->scales[handle] = state->scales[original];
+		state->local_matrices[handle] = state->local_matrices[original];
+		state->world_matrices[handle] = state->world_matrices[original];
+		state->user[handle] = user;
+		// NOTE: This is not added to the dirty list because the defualts form an identity matrix.
+	} else {
+		KERROR("Attempted to clone a transform before the system was initialized.");
 		handle = KTRANSFORM_INVALID;
 	}
 	return handle;
@@ -572,71 +603,71 @@ b8 ktransform_from_string(const char* str, u64 user, ktransform* out_ktransform)
 static void ensure_allocated(ktransform_system_state* state, u32 slot_count) {
 	KASSERT_MSG(slot_count % 8 == 0, "ensure_allocated requires new slot_count to be a multiple of 8.");
 
-	if (state->allocated < slot_count) {
+	if (state->capacity < slot_count) {
 		// Setup the arrays of data, starting with the matrices. These should be 16-bit
 		// aligned so that SIMD is an easy addition later on.
 		mat4* new_local_matrices = kallocate_aligned(sizeof(mat4) * slot_count, 16, MEMORY_TAG_TRANSFORM);
 		if (state->local_matrices) {
-			kcopy_memory(new_local_matrices, state->local_matrices, sizeof(mat4) * state->allocated);
-			kfree_aligned(state->local_matrices, sizeof(mat4) * state->allocated, 16, MEMORY_TAG_TRANSFORM);
+			kcopy_memory(new_local_matrices, state->local_matrices, sizeof(mat4) * state->capacity);
+			kfree_aligned(state->local_matrices, sizeof(mat4) * state->capacity, 16, MEMORY_TAG_TRANSFORM);
 		}
 		state->local_matrices = new_local_matrices;
 
 		mat4* new_world_matrices = kallocate_aligned(sizeof(mat4) * slot_count, 16, MEMORY_TAG_TRANSFORM);
 		if (state->world_matrices) {
-			kcopy_memory(new_world_matrices, state->world_matrices, sizeof(mat4) * state->allocated);
-			kfree_aligned(state->world_matrices, sizeof(mat4) * state->allocated, 16, MEMORY_TAG_TRANSFORM);
+			kcopy_memory(new_world_matrices, state->world_matrices, sizeof(mat4) * state->capacity);
+			kfree_aligned(state->world_matrices, sizeof(mat4) * state->capacity, 16, MEMORY_TAG_TRANSFORM);
 		}
 		state->world_matrices = new_world_matrices;
 
 		// Also align positions, rotations and scales for future SIMD purposes.
 		vec3* new_positions = kallocate_aligned(sizeof(vec3) * slot_count, 16, MEMORY_TAG_TRANSFORM);
 		if (state->positions) {
-			kcopy_memory(new_positions, state->positions, sizeof(vec3) * state->allocated);
-			kfree_aligned(state->positions, sizeof(vec3) * state->allocated, 16, MEMORY_TAG_TRANSFORM);
+			kcopy_memory(new_positions, state->positions, sizeof(vec3) * state->capacity);
+			kfree_aligned(state->positions, sizeof(vec3) * state->capacity, 16, MEMORY_TAG_TRANSFORM);
 		}
 		state->positions = new_positions;
 
 		quat* new_rotations = kallocate_aligned(sizeof(quat) * slot_count, 16, MEMORY_TAG_TRANSFORM);
 		if (state->rotations) {
-			kcopy_memory(new_rotations, state->rotations, sizeof(quat) * state->allocated);
-			kfree_aligned(state->rotations, sizeof(quat) * state->allocated, 16, MEMORY_TAG_TRANSFORM);
+			kcopy_memory(new_rotations, state->rotations, sizeof(quat) * state->capacity);
+			kfree_aligned(state->rotations, sizeof(quat) * state->capacity, 16, MEMORY_TAG_TRANSFORM);
 		}
 		state->rotations = new_rotations;
 
 		vec3* new_scales = kallocate_aligned(sizeof(vec3) * slot_count, 16, MEMORY_TAG_TRANSFORM);
 		if (state->scales) {
-			kcopy_memory(new_scales, state->scales, sizeof(vec3) * state->allocated);
-			kfree_aligned(state->scales, sizeof(vec3) * state->allocated, 16, MEMORY_TAG_TRANSFORM);
+			kcopy_memory(new_scales, state->scales, sizeof(vec3) * state->capacity);
+			kfree_aligned(state->scales, sizeof(vec3) * state->capacity, 16, MEMORY_TAG_TRANSFORM);
 		}
 		state->scales = new_scales;
 
 		// Identifiers don't *need* to be aligned, but do it anyways since everything else is.
 		ktransform_flag_bits* new_flags = kallocate_aligned(sizeof(ktransform_flag_bits) * slot_count, 16, MEMORY_TAG_TRANSFORM);
 		if (state->flags) {
-			kcopy_memory(new_flags, state->flags, sizeof(ktransform_flag_bits) * state->allocated);
-			kfree_aligned(state->flags, sizeof(ktransform_flag_bits) * state->allocated, 16, MEMORY_TAG_TRANSFORM);
+			kcopy_memory(new_flags, state->flags, sizeof(ktransform_flag_bits) * state->capacity);
+			kfree_aligned(state->flags, sizeof(ktransform_flag_bits) * state->capacity, 16, MEMORY_TAG_TRANSFORM);
 		}
 		state->flags = new_flags;
 
 		// User data
 		u64* new_user = kallocate_aligned(sizeof(u64) * slot_count, 16, MEMORY_TAG_TRANSFORM);
 		if (state->user) {
-			kcopy_memory(new_user, state->user, sizeof(u64) * state->allocated);
-			kfree_aligned(state->user, sizeof(u64) * state->allocated, 16, MEMORY_TAG_TRANSFORM);
+			kcopy_memory(new_user, state->user, sizeof(u64) * state->capacity);
+			kfree_aligned(state->user, sizeof(u64) * state->capacity, 16, MEMORY_TAG_TRANSFORM);
 		}
 		state->user = new_user;
 
 		// Dirty handle list doesn't *need* to be aligned, but do it anyways since everything else is.
 		u32* new_dirty_handles = kallocate_aligned(sizeof(ktransform) * slot_count, 16, MEMORY_TAG_TRANSFORM);
 		if (state->local_dirty_handles) {
-			kcopy_memory(new_dirty_handles, state->local_dirty_handles, sizeof(ktransform) * state->allocated);
-			kfree_aligned(state->local_dirty_handles, sizeof(ktransform) * state->allocated, 16, MEMORY_TAG_TRANSFORM);
+			kcopy_memory(new_dirty_handles, state->local_dirty_handles, sizeof(ktransform) * state->capacity);
+			kfree_aligned(state->local_dirty_handles, sizeof(ktransform) * state->capacity, 16, MEMORY_TAG_TRANSFORM);
 		}
 		state->local_dirty_handles = new_dirty_handles;
 
 		// Make sure the allocated count is up to date.
-		state->allocated = slot_count;
+		state->capacity = slot_count;
 	}
 }
 
@@ -662,19 +693,21 @@ static ktransform handle_create(ktransform_system_state* state) {
 	KASSERT_MSG(state, "ktransform_system state pointer accessed before initialized");
 
 	ktransform handle = KTRANSFORM_INVALID;
-	u32 ktransform_count = state->allocated;
+	u32 ktransform_count = state->capacity;
 	for (u32 i = 1; i < ktransform_count; ++i) {
 		if (FLAG_GET(state->flags[i], KTRANSFORM_FLAG_FREE)) {
 			// Found an entry.
 			state->flags[i] = FLAG_SET(state->flags[i], KTRANSFORM_FLAG_FREE, false);
+			state->allocated++;
 			return i;
 		}
 	}
 
 	// No open slots, expand array and use the first slot of the new memory.
-	ensure_allocated(state, state->allocated * 2);
+	ensure_allocated(state, state->capacity * 2);
 	handle = ktransform_count;
 	state->flags[handle] = FLAG_SET(state->flags[handle], KTRANSFORM_FLAG_FREE, false);
+	state->allocated++;
 	return handle;
 }
 
@@ -682,10 +715,11 @@ static void handle_destroy(ktransform_system_state* state, ktransform* t) {
 	KASSERT_MSG(state, "ktransform_system state pointer accessed before initialized");
 
 	if (*t != KTRANSFORM_INVALID) {
-		FLAG_SET(state->flags[*t], KTRANSFORM_FLAG_FREE, false);
+		KTRACE("Destroying transform handle %u", *t);
+		FLAG_SET(state->flags[*t], KTRANSFORM_FLAG_FREE, true);
+		state->allocated--;
+		*t = KTRANSFORM_INVALID;
 	}
-
-	*t = KTRANSFORM_INVALID;
 }
 
 static b8 validate_handle(ktransform_system_state* state, ktransform handle) {
@@ -694,7 +728,7 @@ static b8 validate_handle(ktransform_system_state* state, ktransform handle) {
 		return false;
 	}
 
-	if (handle >= state->allocated) {
+	if (handle >= state->capacity) {
 		KTRACE("Provided handle index is out of bounds: %u", handle);
 		return false;
 	}

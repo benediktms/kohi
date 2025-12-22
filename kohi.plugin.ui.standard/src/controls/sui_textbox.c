@@ -29,6 +29,7 @@ static f32 sui_textbox_calculate_cursor_offset(standard_ui_state* state, u32 str
 	}
 
 	char* copy = string_duplicate(full_string);
+	u32 len = string_length(copy);
 	char* mid_target = copy;
 	string_mid(mid_target, full_string, 0, string_pos);
 
@@ -43,7 +44,8 @@ static f32 sui_textbox_calculate_cursor_offset(standard_ui_state* state, u32 str
 	}
 
 	// Make sure to cleanup the string.
-	string_free(copy);
+	// NOTE: Cannot just do a string_free because it will be shorter than the actual memory allocated.
+	kfree((char*)copy, len + 1, MEMORY_TAG_STRING);
 
 	// Use the x-axis of the mesurement to place the cursor.
 	return size.x;
@@ -64,11 +66,15 @@ static void sui_textbox_update_highlight_box(standard_ui_state* state, sui_contr
 	f32 offset_start = sui_textbox_calculate_cursor_offset(state, typed_data->highlight_range.offset, label_data->text, self->internal_data);
 	f32 offset_end = sui_textbox_calculate_cursor_offset(state, typed_data->highlight_range.offset + typed_data->highlight_range.size, label_data->text, self->internal_data);
 	f32 width = offset_end - offset_start;
-	/* f32 padding = typed_data->nslice.corner_size.x; */
+	f32 padding = typed_data->nslice.corner_size.x;
+	f32 padding_y = typed_data->nslice.corner_size.y;
 
 	vec3 initial_pos = ktransform_position_get(typed_data->highlight_box.ktransform);
-	initial_pos.y = -typed_data->label_line_height + 10.0f;
-	ktransform_position_set(typed_data->highlight_box.ktransform, (vec3){offset_start, initial_pos.y, initial_pos.z});
+	/* initial_pos.y = -typed_data->label_line_height + 10.0f; */
+	// positive line height is below
+	// negative should be above?
+	initial_pos.y = padding_y * 0.5f; //-typed_data->label_line_height; // * -0.5f;
+	ktransform_position_set(typed_data->highlight_box.ktransform, (vec3){padding + offset_start, initial_pos.y, initial_pos.z});
 	ktransform_scale_set(typed_data->highlight_box.ktransform, (vec3){width, 1.0f, 1.0f});
 }
 
@@ -522,7 +528,8 @@ static b8 sui_textbox_on_key(u16 code, void* sender, void* listener_inst, event_
 					typed_data->cursor_position--;
 				}
 				sui_label_text_set(state, &typed_data->content_label, str);
-				string_free(str);
+				// NOTE: Cannot just do a string_free because it will be shorter than the actual memory allocated.
+				kfree((char*)str, len + 1, MEMORY_TAG_STRING);
 				sui_textbox_update_cursor_position(state, self);
 			}
 		} else if (key_code == KEY_DELETE) {
@@ -537,7 +544,8 @@ static b8 sui_textbox_on_key(u16 code, void* sender, void* listener_inst, event_
 				typed_data->highlight_range.size = 0;
 				sui_textbox_update_highlight_box(state, self);
 				sui_label_text_set(state, &typed_data->content_label, str);
-				string_free(str);
+				// NOTE: Cannot just do a string_free because it will be shorter than the actual memory allocated.
+				kfree((char*)str, len + 1, MEMORY_TAG_STRING);
 				sui_textbox_update_cursor_position(state, self);
 			} else if (typed_data->cursor_position <= len) {
 				char* str = string_duplicate(entry_control_text);
@@ -552,7 +560,8 @@ static b8 sui_textbox_on_key(u16 code, void* sender, void* listener_inst, event_
 					string_remove_at(str, entry_control_text, typed_data->cursor_position, 1);
 				}
 				sui_label_text_set(state, &typed_data->content_label, str);
-				string_free(str);
+				// NOTE: Cannot just do a string_free because it will be shorter than the actual memory allocated.
+				kfree((char*)str, len + 1, MEMORY_TAG_STRING);
 				sui_textbox_update_cursor_position(state, self);
 			}
 		} else if (key_code == KEY_LEFT) {
@@ -711,6 +720,15 @@ static b8 sui_textbox_on_key(u16 code, void* sender, void* listener_inst, event_
 				case KEY_SEMICOLON:
 					char_code = shift_held ? ':' : ';';
 					break;
+				case KEY_LBRACKET:
+					char_code = shift_held ? '{' : '[';
+					break;
+				case KEY_RBRACKET:
+					char_code = shift_held ? '}' : ']';
+					break;
+				case KEY_BACKSLASH:
+					char_code = shift_held ? '|' : '\\';
+					break;
 
 				default:
 					// Not valid for entry, use 0
@@ -747,9 +765,9 @@ static b8 sui_textbox_on_key(u16 code, void* sender, void* listener_inst, event_
 					typed_data->highlight_range.offset = 0;
 					typed_data->highlight_range.size = 0;
 					sui_textbox_update_highlight_box(state, self);
-				} else {
-					typed_data->cursor_position++;
 				}
+
+				typed_data->cursor_position++;
 				sui_textbox_update_cursor_position(state, self);
 			}
 		}

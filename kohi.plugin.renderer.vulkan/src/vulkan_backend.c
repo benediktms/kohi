@@ -375,13 +375,13 @@ void vulkan_renderer_backend_shutdown(renderer_backend_interface* backend) {
 
 	// Destroy the allocator callbacks if set.
 	if (context->allocator) {
-		kfree(context->allocator, sizeof(VkAllocationCallbacks), MEMORY_TAG_RENDERER);
+		kfree_aligned(context->allocator, sizeof(VkAllocationCallbacks), 16, MEMORY_TAG_RENDERER);
 		context->allocator = 0;
 	}
 
 	// Free the context last.
 	if (backend->internal_context) {
-		kfree(backend->internal_context, backend->internal_context_size, MEMORY_TAG_RENDERER);
+		kfree_aligned(backend->internal_context, backend->internal_context_size, 16, MEMORY_TAG_RENDERER);
 		backend->internal_context_size = 0;
 		backend->internal_context = 0;
 	}
@@ -4638,7 +4638,8 @@ static void vulkan_alloc_free(void* user_data, void* memory) {
 #	endif
 	u64 size;
 	u16 alignment;
-	b8 result = kmemory_get_size_alignment(memory, &size, &alignment);
+	memory_tag tag;
+	b8 result = kmemory_get_size_alignment(memory, &size, &alignment, &tag);
 	if (result) {
 #	ifdef KVULKAN_ALLOCATOR_TRACE
 		KTRACE(
@@ -4691,7 +4692,8 @@ static void* vulkan_alloc_reallocation(
 	// allocation as original.
 	u64 original_alloc_size;
 	u16 original_alloc_alignment;
-	b8 is_aligned = kmemory_get_size_alignment(original, &original_alloc_size, &original_alloc_alignment);
+	memory_tag original_tag;
+	b8 is_aligned = kmemory_get_size_alignment(original, &original_alloc_size, &original_alloc_alignment, &original_tag);
 	if (!is_aligned) {
 		KERROR("vulkan_alloc_reallocation of unaligned block %p", original);
 		return 0;

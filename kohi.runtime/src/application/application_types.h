@@ -114,4 +114,6 @@ typedef struct application {
 	void* engine_state;
 
 	dynamic_library game_library;
+	const char* game_library_name;
+	const char* game_library_loaded_name;
 } application;

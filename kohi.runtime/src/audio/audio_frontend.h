@@ -109,8 +109,6 @@ KAPI b8 kaudio_channel_volume_set(struct kaudio_system_state* state, u8 channel_
 
 KAPI b8 kaudio_emitter_create(struct kaudio_system_state* state, f32 inner_radius, f32 outer_radius, f32 volume, f32 falloff, b8 is_looping, b8 is_streaming, kname audio_resource_name, kname package_name, kaudio_emitter* out_emitter);
 
-KAPI b8 kaudio_emitter_load(struct kaudio_system_state* state, kaudio_emitter emitter);
-
-KAPI b8 kaudio_emitter_unload(struct kaudio_system_state* state, kaudio_emitter emitter_handle);
+KAPI b8 kaudio_emitter_destroy(struct kaudio_system_state* state, kaudio_emitter* emitter);
 
 KAPI b8 kaudio_emitter_world_position_set(struct kaudio_system_state* state, kaudio_emitter emitter_handle, vec3 world_position);

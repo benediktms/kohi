@@ -624,7 +624,7 @@ ktexture texture_acquire_with_options_sync(ktexture_load_options options) {
 texture_acquire_with_options_sync_cleanup:
 
 	if (all_pixels && free_pixels) {
-		kfree(all_pixels, all_pixel_size, MEMORY_TAG_ARRAY);
+		kfree(all_pixels, all_pixel_size, MEMORY_TAG_TEXTURE);
 	}
 	if (t) {
 		if (assets) {
@@ -1095,6 +1095,9 @@ static void texture_cleanup(ktexture t, b8 clear_references) {
 			state_ptr->auto_releases[t] = false;
 		}
 
+		// remove name from the lookup.
+		u64_bst_delete(state_ptr->texture_name_lookup, state_ptr->names[t]);
+
 		state_ptr->types[t] = 0;
 		state_ptr->widths[t] = 0;
 		state_ptr->heights[t] = 0;
@@ -1291,7 +1294,7 @@ static b8 texture_apply_asset_data(ktexture t, kname name, const ktexture_load_o
 texture_apply_asset_data_cleanup:
 
 	if (all_pixels && free_pixels) {
-		kfree(all_pixels, all_pixel_size, MEMORY_TAG_ARRAY);
+		kfree(all_pixels, all_pixel_size, MEMORY_TAG_TEXTURE);
 	}
 
 	if (!success) {

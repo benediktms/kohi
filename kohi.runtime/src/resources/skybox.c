@@ -3,6 +3,7 @@
 #include "core/engine.h"
 #include "debug/kassert.h"
 #include "defines.h"
+#include "kresources/kresource_types.h"
 #include "logger.h"
 #include "math/geometry.h"
 #include "renderer/renderer_frontend.h"
@@ -78,9 +79,9 @@ b8 skybox_unload(skybox* sb) {
 	geometry_destroy(&sb->geometry);
 
 	if (sb->cubemap_name) {
-		if (sb->cubemap) {
+		if (sb->cubemap != INVALID_KTEXTURE) {
 			texture_release(sb->cubemap);
-			sb->cubemap = 0;
+			sb->cubemap = INVALID_KTEXTURE;
 		}
 
 		sb->cubemap_name = 0;

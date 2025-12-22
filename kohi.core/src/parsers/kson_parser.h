@@ -51,6 +51,8 @@ typedef struct kson_token {
 typedef struct kson_parser {
 	const char* file_content;
 	u32 position;
+	u32 current_line;
+	u32 current_col;
 
 	// darray
 	kson_token* tokens;
@@ -123,6 +125,13 @@ typedef struct kson_tree {
 	kson_object root;
 } kson_tree;
 
+typedef struct kson_tree_to_string_options {
+	// Use tabs instead of spaces?
+	b8 use_tabs;
+	// Number of tabs/space characters per indent level.
+	u8 indent_count;
+} kson_tree_to_string_options;
+
 /**
  * @brief Gets the given property type as a constant string. NOTE: Caller should *NOT* attempt to free this string.
  *
@@ -185,6 +194,15 @@ KAPI b8 kson_tree_from_string(const char* source, kson_tree* out_tree);
  * @returns A string on success; otherwise false.
  */
 KAPI const char* kson_tree_to_string(kson_tree* tree);
+
+/**
+ * Takes the provided kson_tree and writes it to a kson-formatted string using the provided options.
+ *
+ * @param tree A pointer to the kson_tree to use. Required.
+ * @param options Options to customize serialization.
+ * @returns A string on success; otherwise false.
+ */
+KAPI const char* kson_tree_to_string_with_options(kson_tree* tree, kson_tree_to_string_options options);
 
 /**
  * @brief Cleans up the given kson object and its properties recursively.

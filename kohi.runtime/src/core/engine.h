@@ -119,9 +119,11 @@ typedef struct engine_system_states {
  * @brief Creates the engine, standing up the platform layer and all
  * underlying subsystems.
  * @param app A pointer to the application instance associated with the engine
+ * @param app_config_path A string containing the relative or absolute path of the application config file.
+ * @param game_lib_name The name of the library containing the game's code.
  * @returns True on success; otherwise false.
  */
-KAPI b8 engine_create(struct application* app);
+KAPI b8 engine_create(struct application* app, const char* app_config_path, const char* game_lib_name);
 
 /**
  * @brief Starts the main engine loop.

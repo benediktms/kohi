@@ -1171,7 +1171,7 @@ static keys translate_keycode(u32 x_keycode) {
 
 	case XK_semicolon:
 		return KEY_SEMICOLON;
-	case XK_plus:
+	case XK_equal:
 		return KEY_EQUAL;
 	case XK_comma:
 		return KEY_COMMA;
@@ -1183,6 +1183,17 @@ static keys translate_keycode(u32 x_keycode) {
 		return KEY_SLASH;
 	case XK_grave:
 		return KEY_GRAVE;
+	case XK_bracketleft:
+		return KEY_LBRACKET;
+	case XK_bracketright:
+		return KEY_RBRACKET;
+	case XK_quotedbl:
+	case XK_quoteright:
+		// case XK_quoteleft: // NOTE: for some reason this code is the same as XK_grave???
+		// NOTE: Both of these are required since either can technically show up for this keypress,
+		return KEY_QUOTE;
+	case XK_backslash:
+		return KEY_BACKSLASH;
 
 	case XK_0:
 		return KEY_0;

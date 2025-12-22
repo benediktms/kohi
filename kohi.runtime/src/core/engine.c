@@ -118,8 +118,18 @@ static void engine_on_process_mouse_move(i16 x, i16 y);
 static void engine_on_process_mouse_wheel(i8 z_delta);
 static b8 engine_log_file_write(void* engine, log_level level, const char* message);
 static b8 engine_platform_console_write(void* platform, log_level level, const char* message);
+static b8 load_game_lib(application* app);
+static void watched_file_updated(u32 watcher_id, const char* file_path, b8 is_binary, void* context);
 
-b8 engine_create(application* app) {
+static void on_memory_dump(console_command_context context) {
+	char* mem_usage = get_memory_usage_str();
+	KINFO(mem_usage);
+	string_free(mem_usage);
+}
+
+b8 engine_create(application* app, const char* app_config_path, const char* game_lib_name) {
+	KASSERT(app_config_path);
+
 	if (app->engine_state) {
 		KERROR("engine_create called more than once.");
 		return false;
@@ -201,6 +211,8 @@ b8 engine_create(application* app) {
 		console_consumer_register(engine_state, engine_log_file_write, &engine_state->logfile_consumer_id);
 	}
 
+	KASSERT(console_command_register("memory_dump", 0, 0, on_memory_dump));
+
 	// Report runtime version
 #if KOHI_RELEASE
 	const char* build_type = "Release";
@@ -210,6 +222,72 @@ b8 engine_create(application* app) {
 	const char* build_type = "Unknown";
 #endif
 	KINFO("Kohi Runtime %s (%s)", KVERSION, build_type);
+
+	// Get/parse application config.
+	const char* app_file_content = filesystem_read_entire_text_file(app_config_path);
+	if (!app_file_content) {
+		KFATAL("Failed to read app_config.kson file text. Application cannot start.");
+		return false;
+	}
+
+	if (!application_config_parse_file_content(app_file_content, &app->app_config)) {
+		KFATAL("Failed to parse application config. Cannot start.");
+		return false;
+	}
+	string_free(app_file_content);
+
+	// Create application
+	{
+		app->game_library_name = string_duplicate(game_lib_name);
+		app->game_library_loaded_name = string_format("%s_loaded", app->game_library_name);
+
+		// Application configuration.
+		platform_error_code err_code = PLATFORM_ERROR_FILE_LOCKED;
+		while (err_code == PLATFORM_ERROR_FILE_LOCKED) {
+			const char* prefix = platform_dynamic_library_prefix();
+			const char* extension = platform_dynamic_library_extension();
+			char* source_file = string_format("%s%s%s", prefix, app->game_library_name, extension);
+			char* target_file = string_format("%s%s%s", prefix, app->game_library_loaded_name, extension);
+			err_code = platform_copy_file(source_file, target_file, true);
+			string_free(source_file);
+			string_free(target_file);
+			if (err_code == PLATFORM_ERROR_FILE_LOCKED) {
+				platform_sleep(100);
+			}
+		}
+		if (err_code != PLATFORM_ERROR_SUCCESS) {
+			KERROR("File copy failed!");
+			return false;
+		}
+
+		if (!load_game_lib(app)) {
+			KERROR("Initial game lib load failed!");
+			return false;
+		}
+
+		// Put a file watch on the game lib and hot-reload when it changes.
+		const char* prefix = platform_dynamic_library_prefix();
+		const char* extension = platform_dynamic_library_extension();
+		char* path = string_format("%s%s%s", prefix, app->game_library_name, extension);
+
+		if (!platform_watch_file(
+				path,
+				true,
+				watched_file_updated,
+				app,
+				0,
+				0,
+				&app->game_library.watch_id)) {
+			KERROR("Failed to watch the game library!");
+			string_free(path);
+			return false;
+		}
+
+		string_free(path);
+
+		app->engine_state = 0;
+		app->state = 0;
+	}
 
 	// Virtual File System
 	{
@@ -966,4 +1044,100 @@ static b8 engine_platform_console_write(void* platform, log_level level, const c
 	// Just pass it on to the platform layer.
 	platform_console_write(platform, level, message);
 	return true;
+}
+
+static b8 load_game_lib(application* app) {
+	// Dynamically load game library
+
+	if (!platform_dynamic_library_load(app->game_library_loaded_name, &app->game_library)) {
+		return false;
+	}
+	// Get pfns
+	app->boot = platform_dynamic_library_load_function("application_boot", &app->game_library);
+	if (!app->boot) {
+		return false;
+	}
+	app->initialize = platform_dynamic_library_load_function("application_initialize", &app->game_library);
+	if (!app->initialize) {
+		return false;
+	}
+	app->update = platform_dynamic_library_load_function("application_update", &app->game_library);
+	if (!app->update) {
+		return false;
+	}
+	app->prepare_frame = platform_dynamic_library_load_function("application_prepare_frame", &app->game_library);
+	if (!app->prepare_frame) {
+		return false;
+	}
+	app->render_frame = platform_dynamic_library_load_function("application_render_frame", &app->game_library);
+	if (!app->render_frame) {
+		return false;
+	}
+	app->on_window_resize = platform_dynamic_library_load_function("application_on_window_resize", &app->game_library);
+	if (!app->on_window_resize) {
+		return false;
+	}
+	app->shutdown = platform_dynamic_library_load_function("application_shutdown", &app->game_library);
+	if (!app->shutdown) {
+		return false;
+	}
+
+	app->lib_on_load = platform_dynamic_library_load_function("application_lib_on_load", &app->game_library);
+	if (!app->lib_on_load) {
+		return false;
+	}
+
+	app->lib_on_unload = platform_dynamic_library_load_function("application_lib_on_unload", &app->game_library);
+	if (!app->lib_on_unload) {
+		return false;
+	}
+
+	// Invoke the onload.
+	app->lib_on_load(app);
+
+	return true;
+}
+
+static void watched_file_updated(u32 watcher_id, const char* file_path, b8 is_binary, void* context) {
+	/* b8 watched_file_updated(u16 code, void* sender, void* listener_inst, event_context context) { */
+	application* app = (application*)context;
+	if (watcher_id == app->game_library.watch_id) {
+		KINFO("Hot-Reloading game library.");
+
+		// Tell the app it is about to be unloaded.
+		app->lib_on_unload(app);
+
+		// Actually unload the app's lib.
+		if (!platform_dynamic_library_unload(&app->game_library)) {
+			KERROR("Failed to unload game library");
+			return;
+		}
+
+		// Wait a bit before trying to copy the file.
+		platform_sleep(100);
+
+		const char* prefix = platform_dynamic_library_prefix();
+		const char* extension = platform_dynamic_library_extension();
+		char source_file[260];
+		char target_file[260];
+		string_format_unsafe(source_file, "%s%s%s", prefix, app->game_library_name, extension);
+		string_format_unsafe(target_file, "%s%s%s", prefix, app->game_library_loaded_name, extension);
+
+		platform_error_code err_code = PLATFORM_ERROR_FILE_LOCKED;
+		while (err_code == PLATFORM_ERROR_FILE_LOCKED) {
+			err_code = platform_copy_file(source_file, target_file, true);
+			if (err_code == PLATFORM_ERROR_FILE_LOCKED) {
+				platform_sleep(100);
+			}
+		}
+		if (err_code != PLATFORM_ERROR_SUCCESS) {
+			KERROR("File copy failed!");
+			return;
+		}
+
+		if (!load_game_lib(app)) {
+			KERROR("Game lib reload failed.");
+			return;
+		}
+	}
 }

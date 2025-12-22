@@ -49,7 +49,7 @@ u8 dynamic_allocator_single_allocation_all_space(void) {
 	expect_should_be(total_allocator_size, free_space);
 
 	// Allocate the whole thing.
-	void* block = dynamic_allocator_allocate(&alloc, 1024);
+	void* block = dynamic_allocator_allocate(&alloc, 1024, MEMORY_TAG_UNKNOWN, 0, 0);
 	expect_should_not_be(0, block);
 
 	// Verify free space
@@ -57,7 +57,7 @@ u8 dynamic_allocator_single_allocation_all_space(void) {
 	expect_should_be(0, free_space);
 
 	// Free the allocation
-	dynamic_allocator_free(&alloc, block, 1024);
+	dynamic_allocator_free(&alloc, block, 1024, MEMORY_TAG_UNKNOWN);
 
 	// Verify free space.
 	free_space = dynamic_allocator_free_space(&alloc);
@@ -93,7 +93,7 @@ u8 dynamic_allocator_multi_allocation_all_space(void) {
 	expect_should_be(total_allocator_size, free_space);
 
 	// Allocate part of the block.
-	void* block = dynamic_allocator_allocate(&alloc, 256);
+	void* block = dynamic_allocator_allocate(&alloc, 256, MEMORY_TAG_UNKNOWN, 0, 0);
 	expect_should_not_be(0, block);
 
 	// Verify free space
@@ -101,7 +101,7 @@ u8 dynamic_allocator_multi_allocation_all_space(void) {
 	expect_should_be(768 + (header_size * 2), free_space);
 
 	// Allocate another part of the block.
-	void* block2 = dynamic_allocator_allocate(&alloc, 512);
+	void* block2 = dynamic_allocator_allocate(&alloc, 512, MEMORY_TAG_UNKNOWN, 0, 0);
 	expect_should_not_be(0, block2);
 
 	// Verify free space
@@ -109,7 +109,7 @@ u8 dynamic_allocator_multi_allocation_all_space(void) {
 	expect_should_be(256 + (header_size * 1), free_space);
 
 	// Allocate the last part of the block.
-	void* block3 = dynamic_allocator_allocate(&alloc, 256);
+	void* block3 = dynamic_allocator_allocate(&alloc, 256, MEMORY_TAG_UNKNOWN, 0, 0);
 	expect_should_not_be(0, block3);
 
 	// Verify free space
@@ -117,21 +117,21 @@ u8 dynamic_allocator_multi_allocation_all_space(void) {
 	expect_should_be(0, free_space);
 
 	// Free the allocations, out of order, and verify free space
-	dynamic_allocator_free(&alloc, block3, 256);
+	dynamic_allocator_free(&alloc, block3, 256, MEMORY_TAG_UNKNOWN);
 
 	// Verify free space.
 	free_space = dynamic_allocator_free_space(&alloc);
 	expect_should_be(256 + (header_size * 1), free_space);
 
 	// Free the next allocation, out of order
-	dynamic_allocator_free(&alloc, block, 256);
+	dynamic_allocator_free(&alloc, block, 256, MEMORY_TAG_UNKNOWN);
 
 	// Verify free space.
 	free_space = dynamic_allocator_free_space(&alloc);
 	expect_should_be(512 + (header_size * 2), free_space);
 
 	// Free the final allocation, out of order
-	dynamic_allocator_free(&alloc, block2, 512);
+	dynamic_allocator_free(&alloc, block2, 512, MEMORY_TAG_UNKNOWN);
 
 	// Verify free space.
 	free_space = dynamic_allocator_free_space(&alloc);
@@ -167,7 +167,7 @@ u8 dynamic_allocator_multi_allocation_over_allocate(void) {
 	expect_should_be(total_allocator_size, free_space);
 
 	// Allocate part of the block.
-	void* block = dynamic_allocator_allocate(&alloc, 256);
+	void* block = dynamic_allocator_allocate(&alloc, 256, MEMORY_TAG_UNKNOWN, 0, 0);
 	expect_should_not_be(0, block);
 
 	// Verify free space
@@ -175,7 +175,7 @@ u8 dynamic_allocator_multi_allocation_over_allocate(void) {
 	expect_should_be(768 + (header_size * 2), free_space);
 
 	// Allocate another part of the block.
-	void* block2 = dynamic_allocator_allocate(&alloc, 512);
+	void* block2 = dynamic_allocator_allocate(&alloc, 512, MEMORY_TAG_UNKNOWN, 0, 0);
 	expect_should_not_be(0, block2);
 
 	// Verify free space
@@ -183,7 +183,7 @@ u8 dynamic_allocator_multi_allocation_over_allocate(void) {
 	expect_should_be(256 + (header_size * 1), free_space);
 
 	// Allocate the last part of the block.
-	void* block3 = dynamic_allocator_allocate(&alloc, 256);
+	void* block3 = dynamic_allocator_allocate(&alloc, 256, MEMORY_TAG_UNKNOWN, 0, 0);
 	expect_should_not_be(0, block3);
 
 	// Verify free space
@@ -192,7 +192,7 @@ u8 dynamic_allocator_multi_allocation_over_allocate(void) {
 
 	// Attempt one more allocation, deliberately trying to overflow
 	KDEBUG("Note: The following warning and errors are intentionally caused by this test.");
-	void* fail_block = dynamic_allocator_allocate(&alloc, 256);
+	void* fail_block = dynamic_allocator_allocate(&alloc, 256, MEMORY_TAG_UNKNOWN, 0, 0);
 	expect_should_be(0, fail_block);
 
 	// Verify free space.
@@ -229,7 +229,7 @@ u8 dynamic_allocator_multi_allocation_most_space_request_too_big(void) {
 	expect_should_be(total_allocator_size, free_space);
 
 	// Allocate part of the block.
-	void* block = dynamic_allocator_allocate(&alloc, 256);
+	void* block = dynamic_allocator_allocate(&alloc, 256, MEMORY_TAG_UNKNOWN, 0, 0);
 	expect_should_not_be(0, block);
 
 	// Verify free space
@@ -237,7 +237,7 @@ u8 dynamic_allocator_multi_allocation_most_space_request_too_big(void) {
 	expect_should_be(768 + (header_size * 2), free_space);
 
 	// Allocate another part of the block.
-	void* block2 = dynamic_allocator_allocate(&alloc, 512);
+	void* block2 = dynamic_allocator_allocate(&alloc, 512, MEMORY_TAG_UNKNOWN, 0, 0);
 	expect_should_not_be(0, block2);
 
 	// Verify free space
@@ -245,7 +245,7 @@ u8 dynamic_allocator_multi_allocation_most_space_request_too_big(void) {
 	expect_should_be(256 + (header_size * 1), free_space);
 
 	// Allocate the last part of the block.
-	void* block3 = dynamic_allocator_allocate(&alloc, 128);
+	void* block3 = dynamic_allocator_allocate(&alloc, 128, MEMORY_TAG_UNKNOWN, 0, 0);
 	expect_should_not_be(0, block3);
 
 	// Verify free space
@@ -254,7 +254,7 @@ u8 dynamic_allocator_multi_allocation_most_space_request_too_big(void) {
 
 	// Attempt one more allocation, deliberately trying to overflow
 	KDEBUG("Note: The following warning and errors are intentionally caused by this test.");
-	void* fail_block = dynamic_allocator_allocate(&alloc, 256);
+	void* fail_block = dynamic_allocator_allocate(&alloc, 256, MEMORY_TAG_UNKNOWN, 0, 0);
 	expect_should_be(0, fail_block);
 
 	// Verify free space. Should not have changed.
@@ -288,13 +288,14 @@ u8 dynamic_allocator_single_alloc_aligned(void) {
 	expect_should_be(total_allocator_size, free_space);
 
 	// Allocate the whole thing.
-	void* block = dynamic_allocator_allocate_aligned(&alloc, 1024, alignment);
+	void* block = dynamic_allocator_allocate_aligned(&alloc, 1024, alignment, MEMORY_TAG_UNKNOWN, 0, 0);
 	expect_should_not_be(0, block);
 
 	// Verify size and alignment
 	u64 block_size;
 	u16 block_alignment;
-	result = dynamic_allocator_get_size_alignment(&alloc, block, &block_size, &block_alignment);
+	u8 block_tag;
+	result = dynamic_allocator_get_size_alignment(&alloc, block, &block_size, &block_alignment, &block_tag);
 	expect_to_be_true(result);
 	expect_should_be(alignment, block_alignment);
 	expect_should_be(1024, block_size);
@@ -304,7 +305,7 @@ u8 dynamic_allocator_single_alloc_aligned(void) {
 	expect_should_be(0, free_space);
 
 	// Free the allocation
-	dynamic_allocator_free_aligned(&alloc, block);
+	dynamic_allocator_free_aligned(&alloc, block, MEMORY_TAG_UNKNOWN);
 
 	// Verify free space.
 	free_space = dynamic_allocator_free_space(&alloc);
@@ -356,13 +357,14 @@ u8 dynamic_allocator_multiple_alloc_aligned_different_alignments(void) {
 	// Allocate the first one.
 	{
 		u32 idx = 0;
-		alloc_datas[idx].block = dynamic_allocator_allocate_aligned(&alloc, alloc_datas[idx].size, alloc_datas[idx].alignment);
+		alloc_datas[idx].block = dynamic_allocator_allocate_aligned(&alloc, alloc_datas[idx].size, alloc_datas[idx].alignment, MEMORY_TAG_UNKNOWN, 0, 0);
 		expect_should_not_be(0, alloc_datas[idx].block);
 
 		// Verify size and alignment
 		u64 block_size;
 		u16 block_alignment;
-		result = dynamic_allocator_get_size_alignment(&alloc, alloc_datas[idx].block, &block_size, &block_alignment);
+		u8 block_tag;
+		result = dynamic_allocator_get_size_alignment(&alloc, alloc_datas[idx].block, &block_size, &block_alignment, &block_tag);
 		expect_to_be_true(result);
 		expect_should_be(alloc_datas[idx].alignment, block_alignment);
 		expect_should_be(alloc_datas[idx].size, block_size);
@@ -378,13 +380,14 @@ u8 dynamic_allocator_multiple_alloc_aligned_different_alignments(void) {
 	// Allocate the second one.
 	{
 		u32 idx = 1;
-		alloc_datas[idx].block = dynamic_allocator_allocate_aligned(&alloc, alloc_datas[idx].size, alloc_datas[idx].alignment);
+		alloc_datas[idx].block = dynamic_allocator_allocate_aligned(&alloc, alloc_datas[idx].size, alloc_datas[idx].alignment, MEMORY_TAG_UNKNOWN, 0, 0);
 		expect_should_not_be(0, alloc_datas[idx].block);
 
 		// Verify size and alignment
 		u64 block_size;
 		u16 block_alignment;
-		result = dynamic_allocator_get_size_alignment(&alloc, alloc_datas[idx].block, &block_size, &block_alignment);
+		u8 block_tag;
+		result = dynamic_allocator_get_size_alignment(&alloc, alloc_datas[idx].block, &block_size, &block_alignment, &block_tag);
 		expect_to_be_true(result);
 		expect_should_be(alloc_datas[idx].alignment, block_alignment);
 		expect_should_be(alloc_datas[idx].size, block_size);
@@ -400,13 +403,15 @@ u8 dynamic_allocator_multiple_alloc_aligned_different_alignments(void) {
 	// Allocate the third one.
 	{
 		u32 idx = 2;
-		alloc_datas[idx].block = dynamic_allocator_allocate_aligned(&alloc, alloc_datas[idx].size, alloc_datas[idx].alignment);
+		alloc_datas[idx].block = dynamic_allocator_allocate_aligned(&alloc, alloc_datas[idx].size, alloc_datas[idx].alignment, MEMORY_TAG_UNKNOWN, 0, 0);
 		expect_should_not_be(0, alloc_datas[idx].block);
 
 		// Verify size and alignment
 		u64 block_size;
 		u16 block_alignment;
-		result = dynamic_allocator_get_size_alignment(&alloc, alloc_datas[idx].block, &block_size, &block_alignment);
+		u8 block_tag;
+		result = dynamic_allocator_get_size_alignment(&alloc, alloc_datas[idx].block, &block_size, &block_alignment, &block_tag);
+
 		expect_to_be_true(result);
 		expect_should_be(alloc_datas[idx].alignment, block_alignment);
 		expect_should_be(alloc_datas[idx].size, block_size);
@@ -422,13 +427,14 @@ u8 dynamic_allocator_multiple_alloc_aligned_different_alignments(void) {
 	// Allocate the fourth one.
 	{
 		u32 idx = 3;
-		alloc_datas[idx].block = dynamic_allocator_allocate_aligned(&alloc, alloc_datas[idx].size, alloc_datas[idx].alignment);
+		alloc_datas[idx].block = dynamic_allocator_allocate_aligned(&alloc, alloc_datas[idx].size, alloc_datas[idx].alignment, MEMORY_TAG_UNKNOWN, 0, 0);
 		expect_should_not_be(0, alloc_datas[idx].block);
 
 		// Verify size and alignment
 		u64 block_size;
 		u16 block_alignment;
-		result = dynamic_allocator_get_size_alignment(&alloc, alloc_datas[idx].block, &block_size, &block_alignment);
+		u8 block_tag;
+		result = dynamic_allocator_get_size_alignment(&alloc, alloc_datas[idx].block, &block_size, &block_alignment, &block_tag);
 		expect_to_be_true(result);
 		expect_should_be(alloc_datas[idx].alignment, block_alignment);
 		expect_should_be(alloc_datas[idx].size, block_size);
@@ -446,7 +452,7 @@ u8 dynamic_allocator_multiple_alloc_aligned_different_alignments(void) {
 	// Free the second allocation
 	{
 		u32 idx = 1;
-		dynamic_allocator_free_aligned(&alloc, alloc_datas[idx].block);
+		dynamic_allocator_free_aligned(&alloc, alloc_datas[idx].block, MEMORY_TAG_UNKNOWN);
 		alloc_datas[idx].block = 0;
 		currently_allocated -= (alloc_datas[idx].size + header_size + alloc_datas[idx].alignment);
 
@@ -457,7 +463,7 @@ u8 dynamic_allocator_multiple_alloc_aligned_different_alignments(void) {
 	// Free the fourth allocation
 	{
 		u32 idx = 3;
-		dynamic_allocator_free_aligned(&alloc, alloc_datas[idx].block);
+		dynamic_allocator_free_aligned(&alloc, alloc_datas[idx].block, MEMORY_TAG_UNKNOWN);
 		alloc_datas[idx].block = 0;
 		currently_allocated -= (alloc_datas[idx].size + header_size + alloc_datas[idx].alignment);
 
@@ -469,7 +475,7 @@ u8 dynamic_allocator_multiple_alloc_aligned_different_alignments(void) {
 	// Free the third allocation
 	{
 		u32 idx = 2;
-		dynamic_allocator_free_aligned(&alloc, alloc_datas[idx].block);
+		dynamic_allocator_free_aligned(&alloc, alloc_datas[idx].block, MEMORY_TAG_UNKNOWN);
 		alloc_datas[idx].block = 0;
 		currently_allocated -= (alloc_datas[idx].size + header_size + alloc_datas[idx].alignment);
 
@@ -481,7 +487,7 @@ u8 dynamic_allocator_multiple_alloc_aligned_different_alignments(void) {
 	// Free the first allocation
 	{
 		u32 idx = 0;
-		dynamic_allocator_free_aligned(&alloc, alloc_datas[idx].block);
+		dynamic_allocator_free_aligned(&alloc, alloc_datas[idx].block, MEMORY_TAG_UNKNOWN);
 		alloc_datas[idx].block = 0;
 		currently_allocated -= (alloc_datas[idx].size + header_size + alloc_datas[idx].alignment);
 
@@ -498,13 +504,14 @@ u8 dynamic_allocator_multiple_alloc_aligned_different_alignments(void) {
 }
 
 u8 util_allocate(dynamic_allocator* allocator, alloc_data* data, u64* currently_allocated, u64 header_size, u64 total_allocator_size) {
-	data->block = dynamic_allocator_allocate_aligned(allocator, data->size, data->alignment);
+	data->block = dynamic_allocator_allocate_aligned(allocator, data->size, data->alignment, MEMORY_TAG_UNKNOWN, 0, 0);
 	expect_should_not_be(0, data->block);
 
 	// Verify size and alignment
 	u64 block_size;
 	u16 block_alignment;
-	b8 result = dynamic_allocator_get_size_alignment(allocator, data->block, &block_size, &block_alignment);
+	u8 block_tag;
+	b8 result = dynamic_allocator_get_size_alignment(allocator, data->block, &block_size, &block_alignment, &block_tag);
 	expect_to_be_true(result);
 	expect_should_be(data->alignment, block_alignment);
 	expect_should_be(data->size, block_size);
@@ -520,7 +527,7 @@ u8 util_allocate(dynamic_allocator* allocator, alloc_data* data, u64* currently_
 }
 
 u8 util_free(dynamic_allocator* allocator, alloc_data* data, u64* currently_allocated, u64 header_size, u64 total_allocator_size) {
-	if (!dynamic_allocator_free_aligned(allocator, data->block)) {
+	if (!dynamic_allocator_free_aligned(allocator, data->block, MEMORY_TAG_UNKNOWN)) {
 		KERROR("util_free, dynamic_allocator_free_aligned failed");
 		return false;
 	}

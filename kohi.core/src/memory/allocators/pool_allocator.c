@@ -16,11 +16,12 @@ pool_allocator pool_allocator_create(u64 element_size, u64 capacity) {
 	allocator.free_list_head = &allocator.free_list_nodes[0];
 
 	// Link each node to the next in the array as the default free list.
-	for (u32 i = 0; i < capacity; ++i) {
+	for (u32 i = 0; i < capacity - 1; ++i) {
 		allocator.free_list_nodes[i].next = &allocator.free_list_nodes[i + 1];
 		allocator.free_list_nodes[i].offset = (i * element_size);
 	}
 	allocator.free_list_nodes[capacity - 1].next = 0;
+	allocator.free_list_nodes[capacity - 1].offset = (capacity - 1) * element_size;
 
 	return allocator;
 }
@@ -40,23 +41,18 @@ void* pool_allocator_allocate(pool_allocator* allocator, u32* out_index) {
 void pool_allocator_free(pool_allocator* allocator, void* block) {
 	// Ensure the block is within range.
 	KASSERT_DEBUG(block >= allocator->memory);
-	KASSERT_DEBUG(block <= ((void*)((u8*)allocator->memory) + (allocator->element_size * allocator->capacity)));
+	KASSERT_DEBUG((u8*)block < (u8*)allocator->memory + allocator->element_size * allocator->capacity);
 
-	u64 offset = block - allocator->memory;
-	pool_allocator_free_node* node = allocator->free_list_head;
-	pool_allocator_free_node* prev = 0;
-	while (node) {
-		if (node->offset > offset) {
-			if (prev) {
-				pool_allocator_free_node* pn = prev->next;
-				prev->next = node;
-				node->next = pn;
-				break;
-			}
-		}
-		prev = node;
-		node = node->next;
+	u64 offset = (u8*)block - (u8*)allocator->memory;
+	u32 index = (u32)(offset / allocator->element_size);
+	pool_allocator_free_node* freed = &allocator->free_list_nodes[index];
+	pool_allocator_free_node** cur = &allocator->free_list_head;
+	while (*cur && (*cur)->offset < offset) {
+		cur = &(*cur)->next;
 	}
+
+	freed->next = *cur;
+	*cur = freed;
 }
 
 u32 pool_allocator_elements_free(const pool_allocator* allocator) {

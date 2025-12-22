@@ -4,6 +4,7 @@
 #include "debug/kassert.h"
 #include "logger.h"
 #include "memory/kmemory.h"
+#include "strings/kstring.h"
 
 typedef struct dynamic_allocator_state {
 	u64 total_size;
@@ -14,7 +15,13 @@ typedef struct dynamic_allocator_state {
 
 typedef struct alloc_header {
 	void* start;
+#if KOHI_DEBUG
+	char file[256];
+	u32 line;
+#endif
 	u16 alignment;
+	u8 tag;
+	u8 _pad;
 } alloc_header;
 
 // The storage size in bytes of a node's user memory block size
@@ -71,11 +78,11 @@ b8 dynamic_allocator_destroy(dynamic_allocator* allocator) {
 	return false;
 }
 
-void* dynamic_allocator_allocate(dynamic_allocator* allocator, u64 size) {
-	return dynamic_allocator_allocate_aligned(allocator, size, 1);
+void* dynamic_allocator_allocate(dynamic_allocator* allocator, u64 size, u8 tag, const char* file, u32 line) {
+	return dynamic_allocator_allocate_aligned(allocator, size, 1, tag, file, line);
 }
 
-void* dynamic_allocator_allocate_aligned(dynamic_allocator* allocator, u64 size, u16 alignment) {
+void* dynamic_allocator_allocate_aligned(dynamic_allocator* allocator, u64 size, u16 alignment, u8 tag, const char* file, u32 line) {
 	if (allocator && size && alignment) {
 		dynamic_allocator_state* state = allocator->memory;
 
@@ -112,6 +119,12 @@ void* dynamic_allocator_allocate_aligned(dynamic_allocator* allocator, u64 size,
 			KASSERT_MSG(header->start, "dynamic_allocator_allocate_aligned got a null pointer (0x0). Memory corruption likely as this should always be nonzero.");
 			header->alignment = alignment;
 			KASSERT_MSG(header->alignment, "dynamic_allocator_allocate_aligned got an alignment of 0. Memory corruption likely as this should always be nonzero.");
+			header->tag = tag;
+#if KOHI_DEBUG
+			string_ncopy(header->file, file, 255);
+			header->file[255] = 0;
+			header->line = line;
+#endif
 
 			return (void*)aligned_block_offset;
 		} else {
@@ -127,11 +140,11 @@ void* dynamic_allocator_allocate_aligned(dynamic_allocator* allocator, u64 size,
 	return 0;
 }
 
-b8 dynamic_allocator_free(dynamic_allocator* allocator, void* block, u64 size) {
-	return dynamic_allocator_free_aligned(allocator, block);
+b8 dynamic_allocator_free(dynamic_allocator* allocator, void* block, u64 size, u8 tag) {
+	return dynamic_allocator_free_aligned(allocator, block, tag);
 }
 
-b8 dynamic_allocator_free_aligned(dynamic_allocator* allocator, void* block) {
+b8 dynamic_allocator_free_aligned(dynamic_allocator* allocator, void* block, u8 tag) {
 	if (!allocator || !block) {
 		KERROR("dynamic_allocator_free_aligned requires both a valid allocator (0x%p) and a block (0x%p) to be freed.", allocator, block);
 		return false;
@@ -156,7 +169,7 @@ b8 dynamic_allocator_free_aligned(dynamic_allocator* allocator, void* block) {
 	return true;
 }
 
-b8 dynamic_allocator_get_size_alignment(dynamic_allocator* allocator, void* block, u64* out_size, u16* out_alignment) {
+b8 dynamic_allocator_get_size_alignment(dynamic_allocator* allocator, void* block, u64* out_size, u16* out_alignment, u8* out_tag) {
 	dynamic_allocator_state* state = allocator->memory;
 	if (block < state->memory_block || block >= ((void*)((u8*)state->memory_block) + state->total_size)) {
 		// Not owned by this block.
@@ -170,8 +183,38 @@ b8 dynamic_allocator_get_size_alignment(dynamic_allocator* allocator, void* bloc
 	*out_alignment = header->alignment;
 	KASSERT_MSG(header->start, "dynamic_allocator_get_size_alignment found a header->start of 0. Memory corruption likely as this should always be at least 1.");
 	KASSERT_MSG(header->alignment, "dynamic_allocator_get_size_alignment found a header->alignment of 0. Memory corruption likely as this should always be at least 1.");
+	*out_tag = header->tag;
 	return true;
 }
+
+#if KOHI_DEBUG
+const char* dynamic_allocator_get_file(dynamic_allocator* allocator, void* block) {
+	dynamic_allocator_state* state = allocator->memory;
+	if (block < state->memory_block || block >= ((void*)((u8*)state->memory_block) + state->total_size)) {
+		// Not owned by this block.
+		return false;
+	}
+
+	// Get the header.
+	u32 size = *(u32*)((u64)block - KSIZE_STORAGE);
+	alloc_header* header = (alloc_header*)((u64)block + size);
+
+	return header->file;
+}
+u32 dynamic_allocator_get_line(dynamic_allocator* allocator, void* block) {
+	dynamic_allocator_state* state = allocator->memory;
+	if (block < state->memory_block || block >= ((void*)((u8*)state->memory_block) + state->total_size)) {
+		// Not owned by this block.
+		return false;
+	}
+
+	// Get the header.
+	u32 size = *(u32*)((u64)block - KSIZE_STORAGE);
+	alloc_header* header = (alloc_header*)((u64)block + size);
+
+	return header->line;
+}
+#endif
 
 u64 dynamic_allocator_free_space(dynamic_allocator* allocator) {
 	dynamic_allocator_state* state = allocator->memory;

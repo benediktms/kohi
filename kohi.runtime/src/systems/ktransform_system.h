@@ -32,6 +32,17 @@ b8 ktransform_system_update(struct ktransform_system_state* state, struct frame_
 KAPI ktransform ktransform_create(u64 user);
 
 /**
+ * @brief Creates and returns a new ktransform, using the position,
+ * rotation and scale of the provided original transform.
+ * Not marked dirty by default.
+ *
+ * @param original The transform to be cloned.
+ * @param user User data, typically a handle or pointer to something for reverse lookups.
+ * @return A handle to the new ktransform.
+ */
+KAPI ktransform ktransform_clone(ktransform original, u64 user);
+
+/**
  * @brief Creates a ktransform from the given position.
  * Uses a zero rotation and a one scale.
  *

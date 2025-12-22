@@ -10,7 +10,7 @@
  * @version 1.0
  * @date 2022-01-10
  *
- * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2024
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2025
  *
  */
 
@@ -37,20 +37,9 @@
  */
 #pragma once
 
-#include "application/application_config.h"
 #include "application/application_types.h"
 #include "core/engine.h"
 #include "logger.h"
-#include "platform/filesystem.h"
-
-/** @brief Externally-defined function to create a application, provided by the consumer
- * of this library.
- * @param out_app A pointer which holds the created application object as provided by the consumer.
- * @returns True on successful creation; otherwise false.
- */
-extern b8 create_application(application* out_app);
-
-extern b8 initialize_application(application* app);
 
 /**
  * @brief Gets the application config path from the application.
@@ -65,41 +54,12 @@ extern const char* application_config_path_get(void);
  */
 int main(void) {
 
-	// TODO: load up application config file, get it parsed and ready to hand off.
-	// Request the application instance from the application.
 	application app_inst = {0};
 
-	const char* app_file_content = filesystem_read_entire_text_file(application_config_path_get());
-	if (!app_file_content) {
-		KFATAL("Failed to read app_config.kson file text. Application cannot start.");
-		return -68;
-	}
-
-	if (!application_config_parse_file_content(app_file_content, &app_inst.app_config)) {
-		KFATAL("Failed to parse application config. Cannot start.");
-		return -69;
-	}
-
-	if (!create_application(&app_inst)) {
-		KFATAL("Could not create application!");
-		return -1;
-	}
-
-	// Ensure the function pointers exist.
-	if (!app_inst.render_frame || !app_inst.prepare_frame || !app_inst.update || !app_inst.initialize) {
-		KFATAL("The application's function pointers must be assigned!");
-		return -2;
-	}
-
 	// Initialization.
-	if (!engine_create(&app_inst)) {
+	if (!engine_create(&app_inst, application_config_path_get(), "illumina.klib")) {
 		KFATAL("Engine failed to create!.");
 		return 1;
-	}
-
-	if (!initialize_application(&app_inst)) {
-		KFATAL("Could not initialize application!");
-		return -1;
 	}
 
 	// Begin the engine loop.

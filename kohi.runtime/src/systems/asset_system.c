@@ -25,6 +25,7 @@
 
 #include "core/engine.h"
 #include "core_render_types.h"
+#include "math/math_types.h"
 #include "platform/vfs.h"
 
 typedef struct asset_watch {
@@ -607,7 +608,7 @@ kasset_model* asset_system_request_model_from_package_sync(struct asset_system_s
 	if (!result) {
 		KERROR("Failed to deserialize model asset. See logs for details.");
 		KFREE_TYPE(out_asset, kasset_model, MEMORY_TAG_ASSET);
-		return 0;
+		return KNULL;
 	}
 
 	return out_asset;
@@ -618,12 +619,13 @@ void asset_system_release_model(struct asset_system_state* state, kasset_model* 
 		// Asset type-specific data cleanup
 		if (asset->submeshes && asset->submesh_count) {
 			for (u32 i = 0; i < asset->submesh_count; ++i) {
-				kasset_model_submesh_data* g = &asset->submeshes[i];
-				if (g->vertices && g->vertex_count) {
-					kfree(g->vertices, sizeof(g->vertices[0]) * g->vertex_count, MEMORY_TAG_ARRAY);
+				kasset_model_submesh_data* submesh = &asset->submeshes[i];
+				u64 vs = submesh->type == KASSET_MODEL_MESH_TYPE_STATIC ? sizeof(vertex_3d) : (sizeof(vertex_3d) + sizeof(skinned_extended_vertex_3d));
+				if (submesh->vertices && submesh->vertex_count) {
+					kfree(submesh->vertices, vs * submesh->vertex_count, MEMORY_TAG_BINARY_DATA);
 				}
-				if (g->indices && g->index_count) {
-					kfree(g->indices, sizeof(g->indices[0]) * g->index_count, MEMORY_TAG_ARRAY);
+				if (submesh->indices && submesh->index_count) {
+					kfree(submesh->indices, sizeof(u32) * submesh->index_count, MEMORY_TAG_BINARY_DATA);
 				}
 			}
 			kfree(asset->submeshes, sizeof(asset->submeshes[0]) * asset->submesh_count, MEMORY_TAG_ARRAY);

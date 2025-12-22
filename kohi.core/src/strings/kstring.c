@@ -752,7 +752,7 @@ char* string_ncopy(char* dest, const char* source, u32 max_len) {
 	if (max_len != U32_MAX) {
 		i64 diff = max_len - source_length;
 		if (diff > 0) {
-			kset_memory(dest + max_len, 0, diff);
+			kset_memory(dest + source_length, 0, diff);
 		}
 	}
 

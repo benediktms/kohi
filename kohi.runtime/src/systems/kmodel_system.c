@@ -454,6 +454,7 @@ kmodel_instance kmodel_instance_acquire_from_package(struct kmodel_system_state*
 
 	// If the base didn't exist, will need to kick off an asset load.
 	if (!exists) {
+		KTRACE("Base mesh for '%k' does NOT already exist. Loading...", asset_name);
 		animated_mesh_asset_request_listener* listener = KALLOC_TYPE(animated_mesh_asset_request_listener, MEMORY_TAG_ASSET);
 		listener->state = state;
 		listener->base_id = base_id;
@@ -475,6 +476,7 @@ kmodel_instance kmodel_instance_acquire_from_package(struct kmodel_system_state*
 			kasset_model_loaded);
 		KASSERT_DEBUG(asset);
 	} else {
+		KTRACE("Base mesh for '%k' already exists. Getting new instance.", asset_name);
 		// Base mesh already exists, just need to get material instances.
 		kmodel_base* base = &state->models[base_id];
 		kmodel_instance_data* instance = &state->models[base_id].instances[instance_id];
@@ -535,11 +537,17 @@ void kmodel_instance_release(struct kmodel_system_state* state, kmodel_instance*
 
 	if (animator->shader_data) {
 		pool_allocator_free(&state->shader_data_pool, animator->shader_data);
-		animator->shader_data = 0;
+		animator->shader_data = KNULL;
 	}
+
 	kzero_memory(animator, sizeof(kmodel_animator));
 	animator->base = INVALID_ID_U16;
 	animator->current_animation = INVALID_ID_U16;
+	animator->current_animation_name = INVALID_KNAME;
+
+	inst->state = KMODEL_INSTANCE_STATE_UNINITIALIZED;
+	KFREE_TYPE_CARRAY(inst->materials, kmaterial_instance, submesh_count);
+	inst->materials = KNULL;
 
 	u16 active_count = get_active_instance_count(state, instance->base_mesh);
 	if (!active_count) {
@@ -547,9 +555,14 @@ void kmodel_instance_release(struct kmodel_system_state* state, kmodel_instance*
 
 		// Clear the instance array for the particular base mesh
 		KFREE_TYPE_CARRAY(base->instances, kmodel_instance_data, base->instance_count);
+		base->instances = KNULL;
+		base->instance_count = 0;
 
-		KFREE_TYPE_CARRAY(inst->materials, kmaterial_instance, base->submesh_count);
-		inst->materials = 0;
+		base->asset_name = INVALID_KNAME;
+		base->package_name = INVALID_KNAME;
+
+		/* KFREE_TYPE_CARRAY(inst->materials, kmaterial_instance, base->submesh_count);
+		inst->materials = KNULL; */
 
 		struct renderer_system_state* renderer_system = engine_systems_get()->renderer_system;
 		krenderbuffer standard_vertex_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_VERTEX_STANDARD));
@@ -557,33 +570,39 @@ void kmodel_instance_release(struct kmodel_system_state* state, kmodel_instance*
 		krenderbuffer index_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_INDEX_STANDARD));
 
 		// Unload submeshes from GPU.
-		for (u32 i = 0; i < base->submesh_count; ++i) {
-			kmodel_submesh* m = &base->meshes[i];
+		if (base->meshes && base->submesh_count) {
+			for (u32 i = 0; i < base->submesh_count; ++i) {
+				kmodel_submesh* m = &base->meshes[i];
 
-			u64 standard_vert_buf_size = m->geo.vertex_element_size * m->geo.vertex_count;
-			if (!renderer_renderbuffer_free(renderer_system, standard_vertex_buffer, standard_vert_buf_size, m->geo.vertex_buffer_offset)) {
-				KWARN("Failed to release standard vertex data for animated mesh. See logs for details.");
-			}
-
-			if (m->geo.extended_vertex_element_size) {
-				u64 extended_vert_buf_size = m->geo.extended_vertex_element_size * m->geo.vertex_count;
-				if (!renderer_renderbuffer_free(renderer_system, extended_vertex_buffer, extended_vert_buf_size, m->geo.extended_vertex_buffer_offset)) {
-					KWARN("Failed to release extended vertex data for animated mesh. See logs for details.");
+				u64 standard_vert_buf_size = m->geo.vertex_element_size * m->geo.vertex_count;
+				if (!renderer_renderbuffer_free(renderer_system, standard_vertex_buffer, standard_vert_buf_size, m->geo.vertex_buffer_offset)) {
+					KWARN("Failed to release standard vertex data for animated mesh. See logs for details.");
 				}
+
+				u64 extended_vert_buf_size = 0;
+				if (m->geo.extended_vertex_element_size) {
+					extended_vert_buf_size = m->geo.extended_vertex_element_size * m->geo.vertex_count;
+					if (!renderer_renderbuffer_free(renderer_system, extended_vertex_buffer, extended_vert_buf_size, m->geo.extended_vertex_buffer_offset)) {
+						KWARN("Failed to release extended vertex data for animated mesh. See logs for details.");
+					}
+				}
+
+				u64 index_buf_size = m->geo.index_element_size * m->geo.index_count;
+				if (!renderer_renderbuffer_free(renderer_system, index_buffer, index_buf_size, m->geo.index_buffer_offset)) {
+					KWARN("Failed to release index data for animated mesh. See logs for details.");
+				}
+
+				kfree(m->geo.vertices, standard_vert_buf_size, MEMORY_TAG_ARRAY);
+				if (extended_vert_buf_size) {
+					kfree(m->geo.extended_vertices, extended_vert_buf_size, MEMORY_TAG_ARRAY);
+				}
+				kfree(m->geo.indices, index_buf_size, MEMORY_TAG_ARRAY);
 			}
 
-			u64 index_buf_size = m->geo.index_element_size * m->geo.index_count;
-			if (!renderer_renderbuffer_free(renderer_system, index_buffer, standard_vert_buf_size, m->geo.index_buffer_offset)) {
-				KWARN("Failed to release index data for animated mesh. See logs for details.");
-			}
-
-			kfree(m->geo.vertices, standard_vert_buf_size, MEMORY_TAG_ARRAY);
-			kfree(m->geo.indices, index_buf_size, MEMORY_TAG_ARRAY);
-
-			kzero_memory(&m->geo, sizeof(kgeometry));
+			KFREE_TYPE_CARRAY(base->meshes, kmodel_submesh, base->submesh_count);
+			base->meshes = KNULL;
+			base->submesh_count = 0;
 		}
-
-		KFREE_TYPE_CARRAY(base->meshes, kmodel_submesh, base->submesh_count);
 
 		// Cleanup animations.
 		if (base->animation_count && base->animations) {
@@ -612,6 +631,8 @@ void kmodel_instance_release(struct kmodel_system_state* state, kmodel_instance*
 			}
 
 			KFREE_TYPE_CARRAY(base->animations, kmodel_animation, base->animation_count);
+			base->animations = KNULL;
+			base->animation_count = 0;
 		}
 
 		if (base->node_count && base->nodes) {
@@ -624,13 +645,17 @@ void kmodel_instance_release(struct kmodel_system_state* state, kmodel_instance*
 			}
 
 			KFREE_TYPE_CARRAY(base->nodes, kmodel_node, base->node_count);
+			base->nodes = KNULL;
+			base->node_count = 0;
 		}
 
 		if (base->bone_count && base->bones) {
 			KFREE_TYPE_CARRAY(base->bones, kmodel_bone, base->bone_count);
+			base->bones = KNULL;
+			base->node_count = 0;
 		}
-
-		kzero_memory(base, sizeof(kmodel_base));
+	} else {
+		KDEBUG("Released instance, but there are %u remaining active instances of model '%s' active.", active_count, kname_string_get(state->models[instance->base_mesh].asset_name));
 	}
 }
 

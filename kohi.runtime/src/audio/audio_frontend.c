@@ -900,84 +900,75 @@ b8 kaudio_emitter_create(struct kaudio_system_state* state, f32 inner_radius, f3
 	*out_emitter = KAUDIO_EMITTER_INVALID;
 
 	// Look for a free slot, or push a new one if needed.
-	kaudio_emitter_handle_data* emitter = 0;
+	kaudio_emitter_handle_data* emitter_data = 0;
 	u16 length = darray_length(state->emitters);
 	for (u16 i = 0; i < length; ++i) {
 		if (kaudio_is_valid(state, state->emitters[i].instance)) {
-			emitter = &state->emitters[i];
+			emitter_data = &state->emitters[i];
 			*out_emitter = i;
 			break;
 		}
 	}
 
-	if (!emitter) {
+	if (!emitter_data) {
 		kaudio_emitter_handle_data new_emitter = {0};
 		darray_push(state->emitters, new_emitter);
-		emitter = &state->emitters[length];
+		emitter_data = &state->emitters[length];
 		*out_emitter = length;
 	}
 
-	emitter->volume = volume;
-	emitter->inner_radius = inner_radius;
-	emitter->outer_radius = outer_radius;
-	emitter->falloff = falloff;
-	emitter->is_looping = is_looping;
-	emitter->is_streaming = is_streaming;
-	emitter->resource_name = audio_resource_name;
-	emitter->package_name = package_name;
+	emitter_data->volume = volume;
+	emitter_data->inner_radius = inner_radius;
+	emitter_data->outer_radius = outer_radius;
+	emitter_data->falloff = falloff;
+	emitter_data->is_looping = is_looping;
+	emitter_data->is_streaming = is_streaming;
+	emitter_data->resource_name = audio_resource_name;
+	emitter_data->package_name = package_name;
+
+	// Load
+
+	// NOTE: always use 3d space for emitters.
+	emitter_data->instance = kaudio_acquire_from_package(state, emitter_data->resource_name, emitter_data->package_name, emitter_data->is_streaming, KAUDIO_SPACE_3D);
+	if (emitter_data->instance.base == INVALID_KAUDIO || emitter_data->instance.instance_id == INVALID_ID_U16) {
+		KWARN("Failed to acquire audio resource from audio system.");
+		return false;
+	}
+
+	// Apply properties to audio.
+	kaudio_looping_set(state, emitter_data->instance, emitter_data->is_looping);
+	kaudio_outer_radius_set(state, emitter_data->instance, emitter_data->outer_radius);
+	kaudio_inner_radius_set(state, emitter_data->instance, emitter_data->inner_radius);
+	kaudio_falloff_set(state, emitter_data->instance, emitter_data->falloff);
+	kaudio_position_set(state, emitter_data->instance, emitter_data->world_position);
+	kaudio_volume_set(state, emitter_data->instance, emitter_data->volume);
 
 	return true;
 }
 
-b8 kaudio_emitter_load(struct kaudio_system_state* state, kaudio_emitter emitter_handle) {
+b8 kaudio_emitter_destroy(struct kaudio_system_state* state, kaudio_emitter* emitter) {
 	if (!state) {
 		return false;
 	}
 
-	if (emitter_handle != KAUDIO_EMITTER_INVALID) {
-		kaudio_emitter_handle_data* emitter = &state->emitters[emitter_handle];
-		// NOTE: always use 3d space for emitters.
-		emitter->instance = kaudio_acquire_from_package(state, emitter->resource_name, emitter->package_name, emitter->is_streaming, KAUDIO_SPACE_3D);
-		if (emitter->instance.base == INVALID_KAUDIO || emitter->instance.instance_id == INVALID_ID_U16) {
-			KWARN("Failed to acquire audio resource from audio system.");
-			return false;
-		}
-
-		// Apply properties to audio.
-		kaudio_looping_set(state, emitter->instance, emitter->is_looping);
-		kaudio_outer_radius_set(state, emitter->instance, emitter->outer_radius);
-		kaudio_inner_radius_set(state, emitter->instance, emitter->inner_radius);
-		kaudio_falloff_set(state, emitter->instance, emitter->falloff);
-		kaudio_position_set(state, emitter->instance, emitter->world_position);
-		kaudio_volume_set(state, emitter->instance, emitter->volume);
-		return true;
-	}
-
-	return false;
-}
-
-b8 kaudio_emitter_unload(struct kaudio_system_state* state, kaudio_emitter emitter_handle) {
-	if (!state) {
-		return false;
-	}
-
-	if (emitter_handle != KAUDIO_EMITTER_INVALID) {
-		kaudio_emitter_handle_data* emitter = &state->emitters[emitter_handle];
-		if (emitter->playing_in_range) {
+	if (*emitter != KAUDIO_EMITTER_INVALID) {
+		kaudio_emitter_handle_data* emitter_data = &state->emitters[*emitter];
+		if (emitter_data->playing_in_range) {
 			// Stop playing
-			kaudio_stop(state, emitter->instance);
-			emitter->playing_in_range = false;
+			kaudio_stop(state, emitter_data->instance);
+			emitter_data->playing_in_range = false;
 		}
 
-		kaudio_release(state, &emitter->instance);
+		kaudio_release(state, &emitter_data->instance);
 
-		// Take a copy of the invalidated instance.
-		kaudio_instance invalid_inst = emitter->instance;
+		kzero_memory(&emitter_data->instance, sizeof(kaudio_emitter_handle_data));
 
-		kzero_memory(&emitter->instance, sizeof(kaudio_emitter_handle_data));
+		// Invalidate the internal data.
+		emitter_data->instance.base = INVALID_KAUDIO;
+		emitter_data->instance.instance_id = INVALID_ID_U16;
 
-		// Invalidate the handle data.
-		emitter->instance = invalid_inst;
+		// Invalidate the handle.
+		*emitter = KAUDIO_EMITTER_INVALID;
 
 		return true;
 	}
