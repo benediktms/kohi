@@ -19,6 +19,10 @@
 #	include <errno.h>
 #	include <sys/stat.h>
 #	include <sys/sysctl.h>
+#	include <CoreFoundation/CoreFoundation.h>
+#	include <DiskArbitration/DiskArbitration.h>
+#	include <IOKit/IOKitLib.h>
+#	include <sys/mount.h>
 
 #	import <Cocoa/Cocoa.h>
 #	import <Foundation/Foundation.h>
@@ -983,6 +987,195 @@ static void sysctl_u64(const char* key, u64* out) {
 	sysctlbyname(key, out, &sz, KNULL, 0);
 }
 
+static const char* macos_codename_from_version(i32 major, i32 minor) {
+	// macOS 11+
+	if (major >= 11) {
+		switch (major) {
+		case 11:
+			return "Big Sur";
+		case 12:
+			return "Monterey";
+		case 13:
+			return "Ventura";
+		case 14:
+			return "Sonoma";
+		case 15:
+			return "Sequoia";
+		case 26:
+			return "Tahoe"; // macOS 26 (WWDC 2025)
+		default:
+			return "Unknown";
+		}
+	}
+
+	// macOS 10.x
+	if (major == 10) {
+		switch (minor) {
+		case 15:
+			return "Catalina";
+		case 14:
+			return "Mojave";
+		case 13:
+			return "High Sierra";
+		case 12:
+			return "Sierra";
+		case 11:
+			return "El Capitan";
+		case 10:
+			return "Yosemite";
+		case 9:
+			return "Mavericks";
+		default:
+			return "Unknown";
+		}
+	}
+
+	return "Unknown";
+}
+
+static int cfstring_to_cstr(CFStringRef str, char* out, size_t out_size) {
+	if (!str)
+		return 0;
+	return CFStringGetCString(str, out, out_size, kCFStringEncodingUTF8);
+}
+
+b8 is_volume_relevant(const char* mount_point, u64 total_bytes, kdrive_type type) {
+	// Ignore tiny volumes
+	if (total_bytes < 1024 * 1024)
+		return false;
+
+	// Ignore raw device mounts
+	if (strcmp(mount_point, "/dev") == 0)
+		return false;
+
+	// Ignore known system helper volumes
+	if (strncmp(mount_point, "/System/Volumes/Preboot", 23) == 0)
+		return false;
+	if (strncmp(mount_point, "/System/Volumes/VM", 17) == 0)
+		return false;
+	if (strncmp(mount_point, "/System/Volumes/Update", 22) == 0)
+		return false;
+	if (strncmp(mount_point, "/System/Volumes/xarts", 22) == 0)
+		return false;
+	if (strncmp(mount_point, "/System/Volumes/iSCPreboot", 26) == 0)
+		return false;
+	if (strncmp(mount_point, "/System/Volumes/Hardware", 25) == 0)
+		return false;
+
+	// Keep everything else
+	return true;
+}
+
+static void macos_query_storage(ksystem_info* out, u32 max_devices) {
+	struct statfs* mounts = NULL;
+	int count = getfsstat(NULL, 0, MNT_NOWAIT);
+	if (count <= 0)
+		return;
+
+	mounts = (struct statfs*)malloc(sizeof(struct statfs) * count);
+	if (!mounts)
+		return;
+
+	count = getfsstat(mounts, sizeof(struct statfs) * count, MNT_NOWAIT);
+	if (count <= 0) {
+		free(mounts);
+		return;
+	}
+
+	DASessionRef session = DASessionCreate(kCFAllocatorDefault);
+	if (!session) {
+		free(mounts);
+		return;
+	}
+
+	out->storage_count = 0;
+
+	for (int i = 0; i < count && out->storage_count < max_devices; i++) {
+		struct statfs* s = &mounts[i];
+		kstorage_info* info = &out->storage[out->storage_count];
+
+		// Device (disk0s2)
+		const char* dev = strrchr(s->f_mntfromname, '/');
+		snprintf(info->name, sizeof(info->name), "%s", dev ? dev + 1 : s->f_mntfromname);
+
+		// Mount point
+		snprintf(info->mount_point, sizeof(info->mount_point), "%s", s->f_mntonname);
+
+		// Size
+		info->total_bytes = (u64)s->f_blocks * s->f_bsize;
+		info->free_bytes = (u64)s->f_bavail * s->f_bsize;
+
+		// Skip irrelevant volumes (i.e. helpers, etc.)
+		if (!is_volume_relevant(info->mount_point, info->total_bytes, info->type)) {
+			continue;
+		}
+
+		// Default
+		info->type = KDRIVE_TYPE_UNKNOWN;
+
+		// RAM disk
+		if (!strcmp(s->f_fstypename, "tmpfs") ||
+			!strcmp(s->f_fstypename, "ramfs")) {
+			info->type = KDRIVE_TYPE_RAMDISK;
+			out->storage_count++;
+			continue;
+		}
+
+		// Network FS
+		if (!(s->f_flags & MNT_LOCAL)) {
+			info->type = KDRIVE_TYPE_REMOTE;
+			out->storage_count++;
+			continue;
+		}
+
+		// Disk Arbitration refinement
+		DADiskRef disk = DADiskCreateFromBSDName(
+			kCFAllocatorDefault,
+			session,
+			info->name);
+
+		if (disk) {
+			CFDictionaryRef desc = DADiskCopyDescription(disk);
+			if (desc) {
+				// Optical
+				CFStringRef media = CFDictionaryGetValue(desc, kDADiskDescriptionMediaKindKey);
+				if (media &&
+					CFStringCompare(media, CFSTR("CD-ROM"), 0) == kCFCompareEqualTo) {
+					info->type = KDRIVE_TYPE_CDROM;
+				}
+
+				// Removable
+				CFBooleanRef removable = CFDictionaryGetValue(
+					desc, kDADiskDescriptionMediaRemovableKey);
+				if (removable && CFBooleanGetValue(removable)) {
+					info->type = KDRIVE_TYPE_REMOVABLE;
+				}
+
+				// Internal fixed
+				if (info->type == KDRIVE_TYPE_UNKNOWN) {
+					CFBooleanRef internal = CFDictionaryGetValue(
+						desc, kDADiskDescriptionDeviceInternalKey);
+					if (internal && CFBooleanGetValue(internal)) {
+						info->type = KDRIVE_TYPE_FIXED;
+					}
+				}
+
+				CFRelease(desc);
+			}
+			CFRelease(disk);
+		}
+
+		// Fallback
+		if (info->type == KDRIVE_TYPE_UNKNOWN)
+			info->type = KDRIVE_TYPE_FIXED;
+
+		out->storage_count++;
+	}
+
+	CFRelease(session);
+	free(mounts);
+}
+
 b8 platform_system_info_collect(ksystem_info* out_info) {
 	kzero_memory(out_info, sizeof(ksystem_info));
 
@@ -995,9 +1188,9 @@ b8 platform_system_info_collect(ksystem_info* out_info) {
 	sysctlbyname("hw.logicalcpu", &out_info->logical_cores, &(size_t){sizeof(u32)}, KNULL, 0);
 	sysctlbyname("hw.physicalcpu", &out_info->physical_cores, &(size_t){sizeof(u32)}, KNULL, 0);
 
-	u64 freq;
-	sysctl_u64("hw.cpufrequency", &freq);
-	out_info->cpu_ghz = freq / 1e9;
+	u64 cpu_freq;
+	sysctl_u64("hw.cpufrequency", &cpu_freq);
+	out_info->cpu_mhz = cpu_freq / 1000000;
 
 	sysctl_u64("hw.memsize", &out_info->ram_total_bytes);
 
@@ -1006,9 +1199,18 @@ b8 platform_system_info_collect(ksystem_info* out_info) {
 	sysctl_u64("hw.memfrequency", &memfreq);
 	out_info->ram_speed_mhz = (u32)(memfreq / 1000000);
 
-	sysctl_str("kern.osproductversion", out_info->os_version, sizeof(out_info->os_version));
+	char os_version[64];
+	sysctl_str("kern.osproductversion", os_version, sizeof(os_version));
 	sysctl_str("kern.version", out_info->kernel_version, sizeof(out_info->kernel_version));
 	sysctl_str("kern.osversion", out_info->os_build, sizeof(out_info->os_build));
+
+	i32 major = 0, minor = 0, patch = 0;
+	sscanf(os_version, "%d.%d.%d", &major, &minor, &patch);
+	const char* codename = macos_codename_from_version(major, minor);
+	char* ver_str = string_format("%s %d.%d.%d", codename, major, minor, patch);
+	strcpy(out_info->os_version, ver_str);
+	string_free(ver_str);
+
 	strcpy(out_info->os_name, "macOS");
 
 	// RAM available
@@ -1024,6 +1226,9 @@ b8 platform_system_info_collect(ksystem_info* out_info) {
 			out_info->ram_available_bytes = (vm->free_count + vm->inactive_count) * page_size;
 		}
 	}
+
+	// Storage
+	macos_query_storage(out_info, KMAX_STORAGE_DEVICES);
 
 #	if defined(__x86_64__)
 	strcpy(out_info->cpu_arch, "x86_64");
