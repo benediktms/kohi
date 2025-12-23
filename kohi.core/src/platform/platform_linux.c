@@ -1,3 +1,4 @@
+#include "defines.h"
 #include "platform.h"
 
 // Linux platform layer.
@@ -32,6 +33,9 @@
 #	include "memory/kmemory.h"
 #	include "strings/kstring.h"
 
+#	include "kfeatures_compile.h"
+#	include "kfeatures_runtime.h"
+
 #	if _POSIX_C_SOURCE >= 199309L
 #		include <time.h> // nanosleep
 #	endif
@@ -46,6 +50,7 @@
 #	include <sys/sendfile.h>
 #	include <sys/stat.h>
 #	include <sys/sysinfo.h> // Processor info
+#	include <sys/utsname.h>
 #	include <unistd.h>
 
 typedef struct linux_handle_info {
@@ -973,6 +978,164 @@ kunix_time_ns platform_get_file_mtime(const char* path) {
 	}
 
 	return unix_time_from_stat(&s);
+}
+
+typedef struct linux_core_id {
+	i32 physical_id;
+	i32 core_id;
+} linux_core_id;
+
+static u32 linux_physical_core_count(void) {
+	FILE* f = fopen("/proc/cpuinfo", "r");
+	if (!f) {
+		return 0;
+	}
+
+	linux_core_id cores[256];
+	u32 core_count = 0;
+
+	i32 physical_id = -1;
+	i32 core_id = -1;
+
+	char line[256];
+	while (fgets(line, sizeof(line), f)) {
+
+		if (strncmp(line, "physical id", 11) == 0) {
+			sscanf(line, "physical id : %d", &physical_id);
+		} else if (strncmp(line, "core id", 7) == 0) {
+			sscanf(line, "core id : %d", &core_id);
+		} else if (line[0] == '\n') {
+			/* end of one processor block */
+			if (physical_id >= 0 && core_id >= 0) {
+
+				b8 found = false;
+				for (u32 i = 0; i < core_count; ++i) {
+					if (cores[i].physical_id == physical_id &&
+						cores[i].core_id == core_id) {
+						found = true;
+						break;
+					}
+				}
+
+				if (!found && core_count < 256) {
+					cores[core_count].physical_id = physical_id;
+					cores[core_count].core_id = core_id;
+					core_count++;
+				}
+			}
+
+			physical_id = -1;
+			core_id = -1;
+		}
+	}
+
+	fclose(f);
+	return core_count;
+}
+
+static u32 linux_ram_speed_mhz(void) {
+	FILE* f;
+	char path[256];
+	char buf[64];
+	u32 speed = 0;
+	u32 count = 0;
+
+	/* Try memory device entries */
+	for (int i = 0; i < 32; ++i) {
+		snprintf(path, sizeof(path),
+				 "/sys/devices/system/memory/memory%d/dimm_speed", i);
+
+		f = fopen(path, "r");
+		if (!f)
+			continue;
+
+		if (fgets(buf, sizeof(buf), f)) {
+			u32 mhz = (u32)strtoul(buf, NULL, 10);
+			if (mhz > 0) {
+				speed += mhz;
+				count++;
+			}
+		}
+		fclose(f);
+	}
+
+	if (count > 0)
+		return speed / count;
+
+	return 0; /* unknown */
+}
+
+static void linux_cpu(ksystem_info* s) {
+	FILE* f = fopen("/proc/cpuinfo", "r");
+	if (!f) {
+		return;
+	}
+
+	char line[256];
+	while (fgets(line, sizeof(line), f)) {
+		if (strncmp(line, "model name", 10) == 0) {
+			sscanf(line, "model name : %[^\n]", s->cpu_name);
+		}
+	}
+	fclose(f);
+
+	s->logical_cores = sysconf(_SC_NPROCESSORS_ONLN);
+	s->physical_cores = linux_physical_core_count();
+	if (s->physical_cores == 0) {
+		// This can happen in docker, flatpak, snap
+		// derived/unreliable
+		s->physical_cores = s->logical_cores;
+	}
+
+	detect_x86_features(&s->features);
+	detect_arm_featurees(&s->features);
+}
+
+static void linux_ram(ksystem_info* s) {
+	struct sysinfo info;
+	sysinfo(&info);
+	s->ram_total_bytes = (u64)info.totalram * info.mem_unit;
+	s->ram_available_bytes = (u64)info.freeram * info.mem_unit;
+	s->ram_speed_mhz = linux_ram_speed_mhz();
+}
+
+static void linux_os(ksystem_info* s) {
+	struct utsname u;
+	uname(&u);
+
+	strcpy(s->os_name, "Linux");
+	strcpy(s->kernel_version, u.release);
+
+	FILE* f = fopen("/etc/os-release", "r");
+	if (!f) {
+		return;
+	}
+
+	char line[256];
+	while (fgets(line, sizeof(line), f)) {
+		if (strncmp(line, "PRETTY_NAME=", 12) == 0) {
+			sscanf(line, "PRETTY_NAME=\"%[^\"]\"", s->distro);
+		}
+	}
+	fclose(f);
+}
+
+b8 platform_system_info_collect(ksystem_info* out_info) {
+	kzero_memory(out_info, sizeof(*out_info));
+
+	linux_cpu(out_info);
+	linux_ram(out_info);
+	linux_os(out_info);
+
+#	if defined(__x86_64__)
+	strcpy(out_info->cpu_arch, "x86_64");
+#	elif defined(__aarch64__)
+	strcpy(out_info->cpu_arch, "arm_64");
+	detect_arm_features(&out_info->features);
+#	endif
+
+	FLAG_SET(out_info->flags, KSYSTEM_INFO_FLAGS_IS_64_BIT_BIT, true);
+	return true;
 }
 
 static kwindow* window_from_handle(xcb_window_t window) {

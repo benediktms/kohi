@@ -97,6 +97,52 @@ typedef struct kwindow {
 	struct kwindow_renderer_state* renderer_state;
 } kwindow;
 
+typedef enum ksystem_info_flags {
+	KSYSTEM_INFO_FLAGS_NONE = 0,
+	KSYSTEM_INFO_FLAGS_IS_64_BIT_BIT = 1 << 0,
+	KSYSTEM_INFO_FLAGS_IS_VITRUALIZED_BIT = 1 << 1,
+	KSYSTEM_INFO_FLAGS_DEBUGGER_ATTACHED_BIT = 1 << 2,
+} ksystem_info_flags;
+
+typedef u32 ksystem_info_flag_bits;
+
+typedef enum kcpu_feature_flags {
+	KCPU_FEATURE_FLAGS_NONE = 0,
+	KCPU_FEATURE_FLAG_SSE_BIT = 1 << 0,
+	KCPU_FEATURE_FLAG_SSE2_BIT = 1 << 1,
+	KCPU_FEATURE_FLAG_SSE3_BIT = 1 << 2,
+	KCPU_FEATURE_FLAG_SSSE3_BIT = 1 << 3,
+	KCPU_FEATURE_FLAG_SSE41_BIT = 1 << 4,
+	KCPU_FEATURE_FLAG_SSE42_BIT = 1 << 5,
+	KCPU_FEATURE_FLAG_AVX_BIT = 1 << 6,
+	KCPU_FEATURE_FLAG_AVX2_BIT = 1 << 7,
+	KCPU_FEATURE_FLAG_NEON_BIT = 1 << 8
+} kcpu_feature_flags;
+
+typedef u32 kcpu_feature_flag_bits;
+
+typedef struct ksystem_info {
+	char cpu_name[128];
+	f64 cpu_ghz;
+	u32 logical_cores;
+	u32 physical_cores;
+	char cpu_arch[10];
+
+	u64 ram_total_bytes;
+	u64 ram_available_bytes;
+	u32 ram_speed_mhz; // 0 if unknown
+
+	char os_name[64];
+	char os_version[64];
+	char os_build[64];
+	char kernel_version[64];
+	char distro[64]; // linux only
+
+	ksystem_info_flag_bits flags;
+
+	kcpu_feature_flag_bits features;
+} ksystem_info;
+
 typedef void (*platform_filewatcher_file_deleted_callback)(u32 watcher_id, void* context);
 typedef void (*platform_filewatcher_file_written_callback)(u32 watcher_id, const char* file_path, b8 is_binary, void* context);
 typedef void (*platform_window_closed_callback)(const struct kwindow* window);
@@ -402,3 +448,5 @@ KAPI b8 platform_unwatch_file(u32 watch_id);
  * @brief Returns the last-modified timestamp in unix time, or 0 if the file is not found.
  */
 KAPI kunix_time_ns platform_get_file_mtime(const char* path);
+
+KAPI b8 platform_system_info_collect(ksystem_info* out_info);
