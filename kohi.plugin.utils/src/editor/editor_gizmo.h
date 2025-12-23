@@ -15,6 +15,16 @@
 struct ray;
 struct frame_data;
 
+typedef enum editor_gizmo_axis {
+	EDITOR_GIZMO_AXIS_X = 0,
+	EDITOR_GIZMO_AXIS_Y = 1,
+	EDITOR_GIZMO_AXIS_Z = 2,
+	EDITOR_GIZMO_AXIS_XY = 3,
+	EDITOR_GIZMO_AXIS_XZ = 4,
+	EDITOR_GIZMO_AXIS_YZ = 5,
+	EDITOR_GIZMO_AXIS_XYZ = 6
+} editor_gizmo_axis;
+
 typedef enum editor_gizmo_mode {
 	EDITOR_GIZMO_MODE_NONE = 0,
 	EDITOR_GIZMO_MODE_MOVE = 1,
@@ -67,7 +77,7 @@ typedef struct editor_gizmo {
 	/** @brief The transform of the gizmo. */
 	ktransform ktransform_handle;
 	/** @brief A handle to the currently selected object's transform. Invalid handle if nothing is selected. */
-	ktransform selected_ktransform_handle;
+	ktransform selected_transform;
 	/** @brief The current mode of the gizmo. */
 	editor_gizmo_mode mode;
 

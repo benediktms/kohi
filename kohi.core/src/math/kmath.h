@@ -1886,6 +1886,7 @@ KINLINE f32 quat_dot(quat q_0, quat q_1) {
  * @return A rotation matrix.
  */
 KINLINE mat4 quat_to_mat4(quat q) {
+#if 0
 	mat4 out_matrix = mat4_identity();
 
 	// https://stackoverflow.com/questions/1556260/convert-quaternion-rotation-to-rotation-matrix
@@ -1905,6 +1906,102 @@ KINLINE mat4 quat_to_mat4(quat q) {
 	out_matrix.data[10] = 1.0f - 2.0f * n.x * n.x - 2.0f * n.y * n.y;
 
 	return out_matrix;
+#else
+	/*mat4 m;
+	float x = q.x, y = q.y, z = q.z, w = q.w;
+	float xx = x * x, yy = y * y, zz = z * z;
+	float xy = x * y, xz = x * z, yz = y * z;
+	float wx = w * x, wy = w * y, wz = w * z;
+
+	// Right (X)
+	m.data[0] = 1 - 2 * (yy + zz);
+	m.data[1] = 2 * (xy + wz);
+	m.data[2] = 2 * (xz - wy);
+	m.data[3] = 0;
+
+	// Up (Y)
+	m.data[4] = 2 * (xy - wz);
+	m.data[5] = 1 - 2 * (xx + zz);
+	m.data[6] = 2 * (yz + wx);
+	m.data[7] = 0;
+
+	// Forward (-Z)
+	m.data[8] = -(2 * (xz + wy));
+	m.data[9] = -(2 * (yz - wx));
+	m.data[10] = -(1 - 2 * (xx + yy));
+	m.data[11] = 0;
+
+	// translation = identity for now
+	m.data[12] = 0;
+	m.data[13] = 0;
+	m.data[14] = 0;
+	m.data[15] = 1;
+
+	return m;*/
+
+	/*
+	quat n = quat_normalize(q);
+
+	mat4 m = {0};
+
+	float x = n.x, y = n.y, z = n.z, w = n.w;
+
+	// Right (X)
+	m.data[0] = 1 - 2 * y * y - 2 * z * z;
+	m.data[1] = 2 * x * y + 2 * w * z;
+	m.data[2] = 2 * x * z - 2 * w * y;
+	m.data[3] = 0;
+
+	// Up (Y)
+	m.data[4] = 2 * x * y - 2 * w * z;
+	m.data[5] = 1 - 2 * x * x - 2 * z * z;
+	m.data[6] = 2 * y * z + 2 * w * x;
+	m.data[7] = 0;
+
+	// Forward (-Z)
+	m.data[8] = 2 * x * z + 2 * w * y;
+	m.data[9] = 2 * y * z - 2 * w * x;
+	m.data[10] = -(1 - 2 * x * x - 2 * y * y);
+	m.data[11] = 0;
+
+	m.data[12] = 0;
+	m.data[13] = 0;
+	m.data[14] = 0;
+	m.data[15] = 1;
+
+	return m;*/
+
+	quat n = quat_normalize(q);
+	float x = n.x, y = n.y, z = n.z, w = n.w;
+
+	mat4 m = {0};
+
+	// Right (X)
+	m.data[0] = 1 - 2 * y * y - 2 * z * z;
+	m.data[1] = 2 * x * y + 2 * w * z;
+	m.data[2] = 2 * x * z - 2 * w * y;
+	m.data[3] = 0;
+
+	// Up (Y)
+	m.data[4] = 2 * x * y - 2 * w * z;
+	m.data[5] = 1 - 2 * x * x - 2 * z * z;
+	m.data[6] = 2 * y * z + 2 * w * x;
+	m.data[7] = 0;
+
+	// Forward (-Z)
+	m.data[8] = -(2 * x * z + 2 * w * y);
+	m.data[9] = -(2 * y * z - 2 * w * x);
+	m.data[10] = -(1 - 2 * x * x - 2 * y * y);
+	m.data[11] = 0;
+
+	// Translation identity
+	m.data[12] = 0;
+	m.data[13] = 0;
+	m.data[14] = 0;
+	m.data[15] = 1;
+
+	return m;
+#endif
 }
 
 /**

@@ -470,6 +470,7 @@ quat ktransform_world_rotation_get(ktransform t) {
 	}
 
 	world = quat_mul(world, state->rotations[t]);
+	world = quat_normalize(world);
 
 	return world;
 }
@@ -485,6 +486,7 @@ void ktransform_rotation_set(ktransform t, quat rotation) {
 }
 
 void ktransform_rotate(ktransform t, quat rotation) {
+	rotation = quat_normalize(rotation);
 	ktransform_system_state* state = engine_systems_get()->ktransform_system;
 	if (!validate_handle(state, t)) {
 		KWARN("Invalid handle passed, nothing was done.");
@@ -588,9 +590,13 @@ void ktransform_calculate_local(ktransform t) {
 	ktransform_system_state* state = engine_systems_get()->ktransform_system;
 	if (t != KTRANSFORM_INVALID) {
 		u32 index = t;
-		// TODO: investigate mat4_from_translation_rotation_scale
+// TODO: investigate mat4_from_translation_rotation_scale
+#if 0
 		state->local_matrices[index] = mat4_mul(quat_to_mat4(state->rotations[index]), mat4_translation(state->positions[index]));
 		state->local_matrices[index] = mat4_mul(mat4_scale(state->scales[index]), state->local_matrices[index]);
+#else
+		state->local_matrices[index] = mat4_from_translation_rotation_scale(state->positions[index], state->rotations[index], state->scales[index]);
+#endif
 	}
 }
 
