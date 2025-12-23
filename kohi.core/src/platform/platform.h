@@ -159,6 +159,7 @@ typedef struct kstorage_info {
 	u64 total_bytes;
 	u64 free_bytes;
 	kdrive_type type;
+	b8 is_ssd;
 } kstorage_info;
 
 typedef struct ksystem_info {

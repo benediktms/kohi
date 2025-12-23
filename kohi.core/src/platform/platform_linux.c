@@ -26,6 +26,13 @@
 #	include <xcb/xproto.h>
 #	include <xcb/xkb.h>
 
+// For storage queries
+#	include <mntent.h>
+#	include <sys/statvfs.h>
+// For CPU queries
+#	include <dirent.h>
+#	include <ctype.h>
+
 #	include "containers/darray.h"
 #	include "debug/kassert.h"
 #	include "input_types.h"
@@ -1075,6 +1082,11 @@ static void linux_cpu(ksystem_info* s) {
 	while (fgets(line, sizeof(line), f)) {
 		if (strncmp(line, "model name", 10) == 0) {
 			sscanf(line, "model name : %[^\n]", s->cpu_name);
+		} else if (strncmp(line, "cpu MHz", 7) == 0) {
+			// Grab this first in case /sys/.../cpuinfo_max_freq isn't available.
+			f64 mhz = 0;
+			sscanf(line, "cpu MHz : %lf", &mhz);
+			s->cpu_mhz = (u32)mhz;
 		}
 	}
 	fclose(f);
@@ -1087,8 +1099,40 @@ static void linux_cpu(ksystem_info* s) {
 		s->physical_cores = s->logical_cores;
 	}
 
+	// Attempt to get the base CPU clock speed mhz.
+	{
+		DIR* dir = opendir("/sys/devices/system/cpu/");
+		if (dir) {
+
+			struct dirent* entry;
+			u32 freq_khz = 0;
+			while ((entry = readdir(dir)) != NULL) {
+				if (strncmp(entry->d_name, "cpu", 3) == 0 && isdigit(entry->d_name[3])) {
+					char path[256];
+					snprintf(path, sizeof(path),
+							 "/sys/devices/system/cpu/%s/cpufreq/cpuinfo_max_freq",
+							 entry->d_name);
+
+					FILE* f = fopen(path, "r");
+					if (!f)
+						continue;
+
+					unsigned long val = 0;
+					if (fscanf(f, "%lu", &val) == 1) {
+						if (val > freq_khz)
+							freq_khz = val;
+					}
+					fclose(f);
+					break; // just read first CPU
+				}
+			}
+			closedir(dir);
+			s->cpu_mhz = freq_khz / 1000; // MHz
+		}
+	}
+
 	detect_x86_features(&s->features);
-	detect_arm_featurees(&s->features);
+	detect_arm_features(&s->features);
 }
 
 static void linux_ram(ksystem_info* s) {
@@ -1119,6 +1163,173 @@ static void linux_os(ksystem_info* s) {
 	}
 	fclose(f);
 }
+static int file_read_string(const char* path, char* out, size_t out_size) {
+	FILE* f = fopen(path, "r");
+	if (!f)
+		return 0;
+	if (!fgets(out, (int)out_size, f)) {
+		fclose(f);
+		return 0;
+	}
+	// trim newline
+	out[strcspn(out, "\n")] = 0;
+	fclose(f);
+	return 1;
+}
+
+static int file_read_int(const char* path, int* out) {
+	FILE* f = fopen(path, "r");
+	if (!f)
+		return 0;
+	int v = 0;
+	int r = fscanf(f, "%d", &v);
+	fclose(f);
+	if (r != 1)
+		return 0;
+	*out = v;
+	return 1;
+}
+static kdrive_type linux_classify_drive(
+	const char* device,		 // /dev/sda1
+	const char* mount_point, // /
+	const char* fs_type		 // ext4, tmpfs, nfs, ...
+) {
+	// 1. No mount point
+	if (!mount_point || !mount_point[0])
+		return KDRIVE_TYPE_NO_ROOT_DIR;
+
+	// 2. RAM disk
+	if (!strcmp(fs_type, "tmpfs") || !strcmp(fs_type, "ramfs"))
+		return KDRIVE_TYPE_RAMDISK;
+
+	// 3. Network drive
+	if (!strcmp(fs_type, "nfs") ||
+		!strcmp(fs_type, "nfs4") ||
+		!strcmp(fs_type, "cifs") ||
+		!strcmp(fs_type, "smbfs") ||
+		!strcmp(fs_type, "sshfs") ||
+		!strcmp(fs_type, "fuse.sshfs") ||
+		!strcmp(fs_type, "davfs"))
+		return KDRIVE_TYPE_REMOTE;
+
+	// Only real block devices below this point
+	if (strncmp(device, "/dev/", 5) != 0)
+		return KDRIVE_TYPE_UNKNOWN;
+
+	// Extract parent disk: sda1 → sda, nvme0n1p2 → nvme0n1
+	char disk[128];
+	snprintf(disk, sizeof(disk), "%s", device + 5);
+
+	size_t len = strlen(disk);
+	while (len && isdigit(disk[len - 1]))
+		disk[--len] = 0;
+	if (len && disk[len - 1] == 'p')
+		disk[--len] = 0;
+
+	// 4. Optical drive
+	char path[256], media[64];
+	snprintf(path, sizeof(path), "/sys/block/%s/device/media", disk);
+	if (file_read_string(path, media, sizeof(media))) {
+		if (!strcmp(media, "cdrom"))
+			return KDRIVE_TYPE_CDROM;
+	}
+
+	// 5. Removable
+	int removable = 0;
+	snprintf(path, sizeof(path), "/sys/block/%s/removable", disk);
+	if (file_read_int(path, &removable) && removable == 1)
+		return KDRIVE_TYPE_REMOVABLE;
+
+	// 6. Fixed disk
+	snprintf(path, sizeof(path), "/sys/block/%s", disk);
+	if (access(path, F_OK) == 0)
+		return KDRIVE_TYPE_FIXED;
+
+	return KDRIVE_TYPE_UNKNOWN;
+}
+
+static void linux_query_storage(ksystem_info* s) {
+	s->storage_count = 0;
+
+	FILE* f = fopen("/proc/self/mounts", "r");
+	if (f) {
+
+		char line[1024];
+
+		while (fgets(line, sizeof(line), f) && s->storage_count < KMAX_STORAGE_DEVICES) {
+			char device[256];
+			char mount[256];
+			char fs[64];
+
+			// format: device mount fs options dump pass
+			if (sscanf(line, "%255s %255s %63s", device, mount, fs) != 3)
+				continue;
+
+			// Only real block devices
+			if (strncmp(device, "/dev/", 5) != 0)
+				continue;
+
+			// Skip pseudo FS
+			if (!strcmp(fs, "tmpfs") ||
+				!strcmp(fs, "proc") ||
+				!strcmp(fs, "sysfs") ||
+				!strcmp(fs, "devtmpfs"))
+				continue;
+
+			struct statvfs vfs;
+			if (statvfs(mount, &vfs) != 0)
+				continue;
+
+			kstorage_info* m = &s->storage[s->storage_count++];
+			strncpy(m->name, device, sizeof(m->name));
+			strncpy(m->mount_point, mount, sizeof(m->mount_point));
+			m->total_bytes = (u64)vfs.f_blocks * vfs.f_frsize;
+			m->free_bytes = (u64)vfs.f_bavail * vfs.f_frsize;
+			m->type = linux_classify_drive(device, mount, fs);
+		}
+
+		fclose(f);
+	}
+}
+static u32 linux_get_ram_speed_mhz(void) {
+	DIR* dir = opendir("/sys/firmware/dmi/entries");
+	if (!dir)
+		return 0;
+
+	struct dirent* ent;
+	u32 max_speed = 0;
+
+	while ((ent = readdir(dir)) != NULL) {
+		// Memory Device (Type 17)
+		if (strncmp(ent->d_name, "17-", 3) != 0)
+			continue;
+
+		char path[512];
+		snprintf(path, sizeof(path),
+				 "/sys/firmware/dmi/entries/%s/raw",
+				 ent->d_name);
+
+		FILE* f = fopen(path, "rb");
+		if (!f)
+			continue;
+
+		uint8_t raw[256];
+		size_t len = fread(raw, 1, sizeof(raw), f);
+		fclose(f);
+
+		if (len < 0x15)
+			continue;
+
+		// SMBIOS spec:
+		// Offset 0x15 = Configured Memory Speed (MHz), uint16
+		u16 speed = raw[0x15] | (raw[0x16] << 8);
+		if (speed > max_speed)
+			max_speed = speed;
+	}
+
+	closedir(dir);
+	return max_speed;
+}
 
 b8 platform_system_info_collect(ksystem_info* out_info) {
 	kzero_memory(out_info, sizeof(*out_info));
@@ -1126,6 +1337,8 @@ b8 platform_system_info_collect(ksystem_info* out_info) {
 	linux_cpu(out_info);
 	linux_ram(out_info);
 	linux_os(out_info);
+	linux_query_storage(out_info);
+	out_info->ram_speed_mhz = linux_get_ram_speed_mhz();
 
 #	if defined(__x86_64__)
 	strcpy(out_info->cpu_arch, "x86_64");
