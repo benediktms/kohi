@@ -212,13 +212,16 @@ b8 engine_create(application* app, const char* app_config_path, const char* game
 		console_consumer_register(engine_state, engine_log_file_write, &engine_state->logfile_consumer_id);
 	}
 
-	// Gatjer hardware info
+	// Gather and report hardware info
 	{
 		ksystem_info system_info = {0};
 		platform_system_info_collect(&system_info);
 
-		KINFO("CPU: %s (cores: %u physical, %u logical)", system_info.cpu_name, system_info.physical_cores, system_info.logical_cores);
-		KINFO("CPU Features:\n\tSSE:    %s\n\tSSE2:   %s\n\tSSE3:   %s\n\tSSSE3:  %s\n\tSSE4.1: %s\n\tSSE4.2: %s\n\tAVX:    %s\n\tAVX2:   %s",
+		KINFO("SYSTEM_OS\t%s %s (%s kernel: %s, build: %s)", system_info.os_name, system_info.os_version, system_info.distro, system_info.kernel_version, system_info.os_build);
+
+		KINFO("SYSTEM_CPU\t%s (%u CPUs) ~%.1fGHz", system_info.cpu_name, system_info.logical_cores, system_info.cpu_mhz / 1000.0f);
+		KINFO("SYSTEM_CPU_CORES\t%u Physical, %u Logical", system_info.physical_cores, system_info.logical_cores);
+		KINFO("SYSTEM_CPU_FEATURES\tSSE=%s SSE2=%s SSE3=%s SSSE3=%s SSE4.1=%s SSE4.2=%s AVX=%s AVX2=%s",
 			  FLAG_GET(system_info.features, KCPU_FEATURE_FLAG_SSE_BIT) ? "yes" : "no",
 			  FLAG_GET(system_info.features, KCPU_FEATURE_FLAG_SSE2_BIT) ? "yes" : "no",
 			  FLAG_GET(system_info.features, KCPU_FEATURE_FLAG_SSE3_BIT) ? "yes" : "no",
@@ -230,15 +233,32 @@ b8 engine_create(application* app, const char* app_config_path, const char* game
 
 		char* ram_speed = 0;
 		if (system_info.ram_speed_mhz) {
-			string_format("%u GHz", system_info.ram_speed_mhz);
+			ram_speed = string_format("%uMHz", system_info.ram_speed_mhz);
 		} else {
 			ram_speed = "Unknown";
 		}
-		KINFO("System Memory: %.2f GB (%.2f GiB available) Speed: %s", system_info.ram_total_bytes / (f64)GIBIBYTES(1), system_info.ram_available_bytes / (f64)GIBIBYTES(1), ram_speed);
+		KINFO("SYSTEM_MEMORY\t%.2f GB (%.2f GiB available) Speed: %s", system_info.ram_total_bytes / (f64)GIBIBYTES(1), system_info.ram_available_bytes / (f64)GIBIBYTES(1), ram_speed);
 		if (system_info.ram_speed_mhz) {
 			string_free(ram_speed);
 		}
-		KINFO("OS: %s %s (%s kernel: %s, build: %s)", system_info.os_name, system_info.os_version, system_info.distro, system_info.kernel_version, system_info.os_build);
+
+		// Storage
+		for (u32 i = 0; i < system_info.storage_count; ++i) {
+			kstorage_info* s = &system_info.storage[i];
+
+			f32 total_space = 0;
+			f32 free_space = 0;
+			const char* total_unit = get_unit_for_size(s->total_bytes, &total_space);
+			const char* free_unit = get_unit_for_size(s->free_bytes, &free_space);
+			KINFO(
+				"SYSTEM_STORAGE\t%s\t%s\tSYSTEM_TOTAL_DISC_SPACE\t%.3f%s\tSYSTEM_FREE_DISC_SPACE\t%.3f%s",
+				s->mount_point,
+				kdrive_type_to_string(s->type),
+				total_space,
+				total_unit,
+				free_space,
+				free_unit);
+		}
 	}
 
 	KASSERT(console_command_register("memory_dump", 0, 0, on_memory_dump));

@@ -133,7 +133,10 @@ b8 memory_system_initialize(memory_system_configuration config) {
 		return false;
 	}
 
-	KDEBUG("Memory system successfully allocated %llu bytes.", config.total_alloc_size);
+	f32 amount = 0;
+	const char* unit = get_unit_for_size(config.total_alloc_size, &amount);
+
+	KDEBUG("Memory system successfully allocated %.2f%s of memory.", amount, unit);
 	return true;
 }
 

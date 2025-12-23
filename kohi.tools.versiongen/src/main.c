@@ -14,7 +14,7 @@ void print_use(void) {
 }
 
 // NOTE: This is intentionally kept to a small number to prevent injection of any kind.
-#define MAX_VERSION_FILE_READ_SIZE 10
+#define MAX_VERSION_FILE_READ_SIZE 20
 
 int main(int argc, const char** argv) {
 	int b_numeric_mode = 0;
@@ -42,7 +42,7 @@ int main(int argc, const char** argv) {
 				}
 				fseek(f, 0, SEEK_SET);
 
-				size_t result = fread(read_version, fsize, 1, f);
+				size_t result = fread(read_version, 1, fsize, f);
 				if (!result) {
 					printf("Error reading version file. Cannot proceed.");
 					return 1;

@@ -10,7 +10,7 @@
 #		include <cpuid.h>
 #	endif
 
-void detect_x86_features(kcpu_feature_flags* flags) {
+void detect_x86_features(kcpu_feature_flag_bits* flags) {
 	u32 eax, ebx, ecx, edx;
 
 #	if defined(_MSC_VER)
@@ -33,6 +33,10 @@ void detect_x86_features(kcpu_feature_flags* flags) {
 #	if defined(_MSC_VER)
 	__cpuid(regs, 7);
 	ebx = regs[1];
+	eax = ebx;
+	if (eax) {
+		// Intentional no-op
+	}
 #	else
 	__cpuid_count(7, 0, eax, ebx, ecx, edx);
 #	endif
@@ -48,6 +52,6 @@ void detect_arm_featurees(kcpu_feature_flags* flags) {
 	FLAG_SET(*flags, KCPU_FEATURE_FLAG_NEON_BIT, true); // Mandatory on AArch64
 }
 #else
-void detect_arm_featurees(kcpu_feature_flags* flags) {
+void detect_arm_features(kcpu_feature_flag_bits* flags) {
 }
 #endif

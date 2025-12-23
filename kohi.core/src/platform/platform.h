@@ -121,9 +121,49 @@ typedef enum kcpu_feature_flags {
 
 typedef u32 kcpu_feature_flag_bits;
 
+#define KMAX_STORAGE_DEVICES 32
+#define KMAX_PATH_LEN 256
+
+typedef enum kdrive_type {
+	KDRIVE_TYPE_UNKNOWN = 0,
+	KDRIVE_TYPE_NO_ROOT_DIR = 1,
+	KDRIVE_TYPE_REMOVABLE = 2,
+	KDRIVE_TYPE_FIXED = 3,
+	KDRIVE_TYPE_REMOTE = 4,
+	KDRIVE_TYPE_CDROM = 5,
+	KDRIVE_TYPE_RAMDISK = 6
+} kdrive_type;
+
+KINLINE const char* kdrive_type_to_string(kdrive_type type) {
+	switch (type) {
+	default:
+	case KDRIVE_TYPE_UNKNOWN:
+	case KDRIVE_TYPE_NO_ROOT_DIR:
+		return "KDRIVE_TYPE_UNKNOWN";
+	case KDRIVE_TYPE_REMOVABLE:
+		return "KDRIVE_TYPE_REMOVABLE";
+	case KDRIVE_TYPE_FIXED:
+		return "KDRIVE_TYPE_FIXED";
+	case KDRIVE_TYPE_REMOTE:
+		return "KDRIVE_TYPE_REMOTE";
+	case KDRIVE_TYPE_CDROM:
+		return "KDRIVE_TYPE_CDROM";
+	case KDRIVE_TYPE_RAMDISK:
+		return "KDRIVE_TYPE_RAMDISK";
+	}
+}
+
+typedef struct kstorage_info {
+	char name[KMAX_PATH_LEN];
+	char mount_point[KMAX_PATH_LEN];
+	u64 total_bytes;
+	u64 free_bytes;
+	kdrive_type type;
+} kstorage_info;
+
 typedef struct ksystem_info {
 	char cpu_name[128];
-	f64 cpu_ghz;
+	u32 cpu_mhz;
 	u32 logical_cores;
 	u32 physical_cores;
 	char cpu_arch[10];
@@ -141,6 +181,9 @@ typedef struct ksystem_info {
 	ksystem_info_flag_bits flags;
 
 	kcpu_feature_flag_bits features;
+
+	kstorage_info storage[KMAX_STORAGE_DEVICES];
+	u32 storage_count;
 } ksystem_info;
 
 typedef void (*platform_filewatcher_file_deleted_callback)(u32 watcher_id, void* context);

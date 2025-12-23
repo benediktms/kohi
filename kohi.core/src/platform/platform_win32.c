@@ -11,6 +11,8 @@
 #	include "threads/ksemaphore.h"
 #	include "threads/kthread.h"
 #	include "time/kclock.h"
+#	include "platform/kfeatures_compile.h"
+#	include "platform/kfeatures_runtime.h"
 #	include <input_types.h>
 
 #	define WIN32_LEAN_AND_MEAN
@@ -19,9 +21,35 @@
 // NOTE: These must be included after above windows includes.
 #	include <stdlib.h>
 #	include <timeapi.h>
+#	include <intrin.h>
+#	include <debugapi.h>
+#	include <minwindef.h>
+#	include <sysinfoapi.h>
+#	include <winnt.h>
+#	include <winreg.h>
+#	include <stdint.h>
 
 #	define UNIX_EPOCH_TO_FILETIME_NS 116444736000000000ULL
 #	define FILETIME_TICK_NS 100ULL
+
+#	pragma comment(lib, "advapi32.lib")
+#	pragma comment(lib, "kernel32.lib")
+#	pragma comment(lib, "ntdll.lib")
+
+typedef LONG NTSTATUS;
+
+/* typedef struct _RTL_OSVERSIONINFOW {
+  ULONG dwOSVersionInfoSize;
+  ULONG dwMajorVersion;
+  ULONG dwMinorVersion;
+  ULONG dwBuildNumber;
+  ULONG dwPlatformId;
+  WCHAR szCSDVersion[128];
+} RTL_OSVERSIONINFOW; */
+
+__declspec(dllimport)
+NTSTATUS NTAPI
+RtlGetVersion(RTL_OSVERSIONINFOW* lpVersionInformation);
 
 typedef struct win32_handle_info {
 	HINSTANCE h_instance;
@@ -974,7 +1002,7 @@ kunix_time_ns platform_get_file_mtime(const char* path) {
 
 	LPCWSTR wfile_path = cstr_to_wcstr(path);
 
-	kukunix_time_ns ret = 0;
+	kunix_time_ns ret = 0;
 	if (GetFileAttributesExW(wfile_path, GetFileExInfoStandard, &data)) {
 		ret = unix_time_from_filetime(data.ftLastWriteTime);
 	}
@@ -982,6 +1010,241 @@ kunix_time_ns platform_get_file_mtime(const char* path) {
 	wcstr_free(wfile_path);
 
 	return ret;
+}
+
+static const char* windows_product_to_string(DWORD p) {
+	switch (p) {
+	case PRODUCT_PROFESSIONAL:
+		return "Pro";
+	case PRODUCT_ENTERPRISE:
+		return "Enterprise";
+	case PRODUCT_EDUCATION:
+		return "Education";
+	case PRODUCT_CORE:
+		return "Home";
+	case PRODUCT_CORE_SINGLELANGUAGE:
+		return "Home Single Language";
+	case PRODUCT_CORE_COUNTRYSPECIFIC:
+		return "Home China";
+	case PRODUCT_PRO_WORKSTATION:
+		return "Pro for Workstations";
+
+	default:
+		return "Unknown";
+	}
+}
+
+static u32 windows_get_physical_core_count(void) {
+	PSYSTEM_LOGICAL_PROCESSOR_INFORMATION buffer = NULL;
+	DWORD returnLength = 0;
+	BOOL done = FALSE;
+	DWORD coreCount = 0;
+
+	while (!done) {
+		// First call to get the buffer size
+		DWORD rc = GetLogicalProcessorInformation(buffer, &returnLength);
+
+		if (rc == FALSE) {
+			if (GetLastError() == ERROR_INSUFFICIENT_BUFFER) {
+				// Allocate memory for the buffer
+				if (buffer)
+					free(buffer);
+				buffer = (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION)malloc(returnLength);
+				if (buffer == NULL) {
+					// Handle error
+					break;
+				}
+			} else {
+				// Handle other errors
+				break;
+			}
+		} else {
+			done = TRUE;
+		}
+	}
+
+	if (buffer != NULL) {
+		PSYSTEM_LOGICAL_PROCESSOR_INFORMATION ptr = buffer;
+		DWORD byteOffset = 0;
+
+		while (byteOffset < returnLength) {
+			if (ptr->Relationship == RelationProcessorCore) {
+				// Count the number of physical cores
+				coreCount++;
+			}
+			byteOffset += sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION);
+			ptr++;
+		}
+
+		free(buffer);
+	}
+
+	return coreCount;
+}
+
+static u32 windows_get_ram_speed_mhz(void) {
+	DWORD size = GetSystemFirmwareTable('RSMB', 0, NULL, 0);
+	if (!size) {
+		return 0;
+	}
+
+	BYTE* buf = (BYTE*)kallocate(size, MEMORY_TAG_PLATFORM);
+	if (!buf) {
+		return 0;
+	}
+
+	if (!GetSystemFirmwareTable('RSMB', 0, buf, size)) {
+		kfree(buf, size, MEMORY_TAG_PLATFORM);
+		return 0;
+	}
+
+	BYTE* p = buf;
+	BYTE* end = buf + size;
+
+	while (p + 4 <= end) {
+		BYTE type = p[0];
+		BYTE len = p[1];
+
+		if (type == 17 && len >= 0x15) { // Memory Device
+			u16 speed = *(u16*)(p + 0x15);
+			if (speed != 0 && speed != 0xFFFF) {
+				kfree(buf, size, MEMORY_TAG_PLATFORM);
+				return speed;
+			}
+		}
+
+		// Skip structure + string-set
+		p += len;
+		while (p + 1 < end && (p[0] || p[1])) {
+			p++;
+		}
+		p += 2;
+	}
+
+	kfree(buf, size, MEMORY_TAG_PLATFORM);
+	return 0;
+}
+static u32 windows_get_cpu_base_clock_mhz(void) {
+	HKEY key;
+	DWORD mhz = 0;
+	DWORD size = sizeof(DWORD);
+
+	if (RegOpenKeyExA(
+			HKEY_LOCAL_MACHINE,
+			"HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0",
+			0,
+			KEY_READ,
+			&key) != ERROR_SUCCESS) {
+		return 0;
+	}
+
+	RegQueryValueExA(
+		key,
+		"~MHz",
+		NULL,
+		NULL,
+		(LPBYTE)&mhz,
+		&size);
+
+	RegCloseKey(key);
+	return mhz;
+}
+
+static void windows_query_storage(ksystem_info* s) {
+	s->storage_count = 0;
+
+	DWORD drives = GetLogicalDrives();
+	if (drives == 0) {
+		return;
+	}
+
+	for (char letter = 'A'; letter <= 'Z'; ++letter) {
+		if (!(drives & (1 << (letter - 'A')))) {
+			continue;
+		}
+
+		char root[] = "A:\\";
+		root[0] = letter;
+
+		UINT type = GetDriveTypeA(root);
+		if (type == DRIVE_NO_ROOT_DIR || type == DRIVE_UNKNOWN) {
+			continue;
+		}
+
+		ULARGE_INTEGER free_bytes, total_bytes, total_free;
+		if (!GetDiskFreeSpaceExA(root, &free_bytes, &total_bytes, &total_free)) {
+			continue;
+		}
+
+		if (s->storage_count >= KMAX_STORAGE_DEVICES) {
+			break;
+		}
+		kstorage_info* info = &s->storage[s->storage_count++];
+
+		info->name[0] = letter;
+		info->name[1] = '\0';
+		strcpy(info->mount_point, root);
+		info->total_bytes = total_bytes.QuadPart;
+		info->free_bytes = free_bytes.QuadPart;
+		info->type = type;
+	}
+}
+
+b8 platform_system_info_collect(ksystem_info* out_info) {
+	// CPU
+	HKEY key;
+	RegOpenKeyExA(
+		HKEY_LOCAL_MACHINE,
+		"HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0",
+		0, KEY_READ, &key);
+
+	DWORD size = sizeof(out_info->cpu_name);
+	RegQueryValueExA(key, "ProcessorNameString", KNULL, KNULL, (LPBYTE)out_info->cpu_name, &size);
+	RegCloseKey(key);
+
+	SYSTEM_INFO info;
+	GetSystemInfo(&info);
+	out_info->logical_cores = info.dwNumberOfProcessors;
+	out_info->physical_cores = windows_get_physical_core_count();
+	out_info->cpu_mhz = windows_get_cpu_base_clock_mhz();
+
+	// RAM
+	MEMORYSTATUSEX m;
+	kzero_memory(&m, sizeof(m));
+	m.dwLength = sizeof(m);
+
+	if (GlobalMemoryStatusEx(&m)) {
+		out_info->ram_total_bytes = m.ullTotalPhys;
+		out_info->ram_available_bytes = m.ullAvailPhys;
+	}
+	out_info->ram_speed_mhz = windows_get_ram_speed_mhz();
+
+	// OS info
+	OSVERSIONINFOEXA v = {sizeof(v)};
+	RtlGetVersion((PRTL_OSVERSIONINFOW)&v);
+	sprintf(out_info->os_version, "%lu.%lu", v.dwMajorVersion, v.dwMinorVersion);
+	sprintf(out_info->os_build, "%lu", v.dwBuildNumber);
+	sprintf(out_info->kernel_version, "NT %lu.%lu.%lu", v.dwMajorVersion, v.dwMinorVersion, v.dwBuildNumber);
+
+	DWORD product = 0;
+	GetProductInfo(v.dwMajorVersion, v.dwMinorVersion, 0, 0, &product);
+
+	u8 actual_ver = (v.dwBuildNumber >= 22000) ? 11 : 10;
+	char* windows_formatted = string_format("Windows %u %s 64-bit", actual_ver, windows_product_to_string(product));
+	string_copy(out_info->os_name, windows_formatted);
+	string_free(windows_formatted);
+
+	string_copy(out_info->cpu_arch, "x86_64");
+	detect_x86_features(&out_info->features);
+
+	// Storage
+	windows_query_storage(out_info);
+
+	// Misc
+	FLAG_SET(out_info->flags, KSYSTEM_INFO_FLAGS_IS_64_BIT_BIT, true);
+	FLAG_SET(out_info->flags, KSYSTEM_INFO_FLAGS_DEBUGGER_ATTACHED_BIT, IsDebuggerPresent());
+
+	return true;
 }
 
 static kwindow* window_from_handle(HWND hwnd) {
