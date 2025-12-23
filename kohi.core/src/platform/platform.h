@@ -135,7 +135,7 @@ typedef struct ksystem_info {
 	char os_name[64];
 	char os_version[64];
 	char os_build[64];
-	char kernel_version[64];
+	char kernel_version[256];
 	char distro[64]; // linux only
 
 	ksystem_info_flag_bits flags;

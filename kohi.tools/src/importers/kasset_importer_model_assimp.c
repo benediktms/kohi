@@ -14,7 +14,6 @@
 #include "assimp/anim.h"
 #include "assimp/matrix4x4.h"
 
-#include "config.h"
 #include "containers/darray.h"
 #include "core_render_types.h"
 #include "debug/kassert.h"

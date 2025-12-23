@@ -1,11 +1,14 @@
+#include "defines.h"
 #include "platform.h"
 #include "platform/platform.h"
+#include <string.h>
 
 #if defined(KPLATFORM_APPLE)
 
 #	include "logger.h"
 #	include "memory/kmemory.h"
 #	include "strings/kstring.h"
+#	include "platform/kfeatures_runtime.h"
 
 #	include "containers/darray.h"
 
@@ -15,6 +18,7 @@
 #	include <copyfile.h>
 #	include <errno.h>
 #	include <sys/stat.h>
+#	include <sys/sysctl.h>
 
 #	import <Cocoa/Cocoa.h>
 #	import <Foundation/Foundation.h>
@@ -959,6 +963,78 @@ kunix_time_ns platform_get_file_mtime(const char* path) {
 	}
 
 	return unix_time_from_stat(&s);
+}
+
+static void sysctl_str(const char* key, char* out, size_t cap) {
+	size_t len = 0;
+	if (sysctlbyname(key, NULL, &len, KNULL, 0) != 0) {
+		return;
+	}
+	if (len >= cap) {
+		len = cap - 1;
+	}
+
+	sysctlbyname(key, out, &len, KNULL, 0);
+	out[len] = 0;
+}
+
+static void sysctl_u64(const char* key, u64* out) {
+	size_t sz = sizeof(*out);
+	sysctlbyname(key, out, &sz, KNULL, 0);
+}
+
+b8 platform_system_info_collect(ksystem_info* out_info) {
+	kzero_memory(out_info, sizeof(ksystem_info));
+
+	// Intel macs
+	sysctl_str("machdep.cpu.brand_string", out_info->cpu_name, sizeof(out_info->cpu_name));
+	if (!out_info->cpu_name[0]) {
+		// Applle silicon
+		sysctl_str("hw.model", out_info->cpu_name, sizeof(out_info->cpu_name));
+	}
+	sysctlbyname("hw.logicalcpu", &out_info->logical_cores, &(size_t){sizeof(u32)}, KNULL, 0);
+	sysctlbyname("hw.physicalcpu", &out_info->physical_cores, &(size_t){sizeof(u32)}, KNULL, 0);
+
+	u64 freq;
+	sysctl_u64("hw.cpufrequency", &freq);
+	out_info->cpu_ghz = freq / 1e9;
+
+	sysctl_u64("hw.memsize", &out_info->ram_total_bytes);
+
+	// NOTE: this exists on Intel macs, missing on Apple silicon.
+	u64 memfreq;
+	sysctl_u64("hw.memfrequency", &memfreq);
+	out_info->ram_speed_mhz = (u32)(memfreq / 1000000);
+
+	sysctl_str("kern.osproductversion", out_info->os_version, sizeof(out_info->os_version));
+	sysctl_str("kern.version", out_info->kernel_version, sizeof(out_info->kernel_version));
+	sysctl_str("kern.osversion", out_info->os_build, sizeof(out_info->os_build));
+	strcpy(out_info->os_name, "macOS");
+
+	// RAM available
+	mach_msg_type_number_t count = HOST_VM_INFO64_COUNT;
+	integer_t vm_info[HOST_VM_INFO64_COUNT];
+	kern_return_t kr = host_statistics64(mach_host_self(), HOST_VM_INFO64, vm_info, &count);
+
+	if (kr == KERN_SUCCESS) {
+		vm_statistics64_data_t* vm = (vm_statistics64_data_t*)vm_info;
+		u64 page_size;
+		size_t sz = sizeof(page_size);
+		if (sysctlbyname("hw.pagesize", &page_size, &sz, KNULL, 0) == 0) {
+			out_info->ram_available_bytes = (vm->free_count + vm->inactive_count) * page_size;
+		}
+	}
+
+#	if defined(__x86_64__)
+	strcpy(out_info->cpu_arch, "x86_64");
+	detect_x86_features(&out_info->features);
+#	elif defined(__aarch64___)
+	strcpy(out_info->cpu_arch, "arm64");
+	detect_arm_features(&out_info->features);
+#	endif
+
+	FLAG_SET(out_info->flags, KSYSTEM_INFO_FLAGS_IS_64_BIT_BIT, true);
+	return true;
 }
 
 static keys translate_keycode(u32 ns_keycode) {

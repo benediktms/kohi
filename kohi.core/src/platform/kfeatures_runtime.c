@@ -41,7 +41,7 @@ void detect_x86_features(kcpu_feature_flags* flags) {
 }
 #endif
 
-#if defined(__aarch64__)
+#if defined(__linux__) && defined(__aarch64__)
 #	include <sys/auxv.h>
 
 void detect_arm_featurees(kcpu_feature_flags* flags) {
