@@ -48,11 +48,11 @@ int main(int argc, const char** argv) {
 					return 1;
 				}
 				fclose(f);
-				char* lastchar = &read_version[fsize - 2];
-				if (*lastchar == '\n' || *lastchar == '\r') {
-					*lastchar = 0;
-				} else {
-					read_version[fsize] = 0;
+				for(int i = fsize - 1; i >= 0; --i) {
+					char c = read_version[i];
+					if(c == '\n' || c == '\r' || c == 0 || c == ' ') {
+						read_version[i] = 0;
+					}
 				}
 			}
 		}
@@ -73,12 +73,12 @@ int main(int argc, const char** argv) {
 		// BUILDREV
 		// build = last 2 of year and day of year
 		// rev = number of seconds since midnight
-		printf("%02d%02d%05d", tm_info->tm_year % 100, tm_info->tm_yday, revision);
+		printf("%02d%02d%05d\n", tm_info->tm_year % 100, tm_info->tm_yday, revision);
 	} else {
 		// MAJOR.MINOR.PATCH.BUILD-REV
 		// build = last 2 of year and day of year
 		// rev = number of seconds since midnight
-		printf("%s.%02d%02d-%05d", read_version, tm_info->tm_year % 100, tm_info->tm_yday, revision);
+		printf("%s.%02d%02d-%05d\n", read_version, tm_info->tm_year % 100, tm_info->tm_yday, revision);
 	}
 	return 0;
 }

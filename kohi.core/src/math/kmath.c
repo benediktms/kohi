@@ -497,3 +497,42 @@ b8 ray_pick_triangle(const ray* r, b8 backface_cull, u32 vertex_count, u32 verte
 
 	return hit_any;
 }
+
+b8 ray_intersects_sphere(const ray* r, vec3 center, f32 radius, vec3* out_point, f32* out_distance) {
+	vec3 center_to_origin = vec3_sub(r->origin, center);
+
+	f32 b = vec3_dot(center_to_origin, r->direction);
+	f32 c = vec3_dot(center_to_origin, center_to_origin) - (radius * radius);
+
+	// Ray origin is outside the sphere and pointing away from it.
+	if (c > 0.0f && b > 0.0f) {
+		return false;
+	}
+
+	f32 discriminant = b * b - c;
+	if (discriminant < 0.0f) {
+		return false;
+	}
+
+	// Closest intersection distance
+	f32 t = -b - ksqrt(discriminant);
+
+	// Ray starts inside sphere.
+	if (t < 0.0f) {
+		t = 0.0f;
+	}
+
+	if (r->max_distance > 0.0f && t > r->max_distance) {
+		return false;
+	}
+
+	if (out_distance) {
+		*out_distance = t;
+	}
+
+	if (out_point) {
+		*out_point = vec3_add(r->origin, vec3_mul_scalar(r->direction, t));
+	}
+
+	return true;
+}

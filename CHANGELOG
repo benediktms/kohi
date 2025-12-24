@@ -44,6 +44,8 @@ Changelog
   - Added option to use shader with a given topology for greater control over how things are rendered.
   - Added kson_tree_to_string_with_options to give formatting control over indent levels and tabs/spaces. kson_tree_to_string now pipes into this 
     with new defaults of tabs instead of spaces, and 1 character per indent level.
+  - Added enhancements to hardware detection for macOS, Linux and Windows to facilitate better error reporting.
+  - Added kcamera clone and INVALID_KCAMERA. Fixed a few small issues around this.
 
 - 0.10.0
   - Combined asset_image_format and texture_format into a single kpixel_format which is used for both.

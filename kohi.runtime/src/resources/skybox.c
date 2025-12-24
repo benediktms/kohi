@@ -1,16 +1,12 @@
 #include "skybox.h"
 
-#include "core/engine.h"
-#include "debug/kassert.h"
-#include "defines.h"
+#include <defines.h>
+#include <logger.h>
+#include <math/geometry.h>
+
 #include "kresources/kresource_types.h"
-#include "logger.h"
-#include "math/geometry.h"
 #include "renderer/renderer_frontend.h"
-#include "strings/kname.h"
-#include "systems/kshader_system.h"
 #include "systems/texture_system.h"
-#include <runtime_defines.h>
 
 b8 skybox_create(skybox_config config, skybox* out_skybox) {
 	if (!out_skybox) {
@@ -52,11 +48,6 @@ b8 skybox_load(skybox* sb) {
 
 	sb->cubemap = texture_cubemap_acquire_sync(sb->cubemap_name);
 
-	/* struct renderer_system_state* renderer_system = engine_systems_get()->renderer_system; */
-
-	/* kshader skybox_shader = kshader_system_get(kname_create(SHADER_NAME_RUNTIME_SKYBOX), kname_create(PACKAGE_NAME_RUNTIME)); // TODO: allow configurable shader.
-	sb->shader_set0_instance_id = renderer_shader_acquire_binding_set_instance(renderer_system, skybox_shader, 0); */
-	/* KASSERT_DEBUG(sb->shader_set0_instance_id != INVALID_ID_U32); */
 	sb->state = SKYBOX_STATE_LOADED;
 
 	return true;
@@ -68,12 +59,6 @@ b8 skybox_unload(skybox* sb) {
 		return false;
 	}
 	sb->state = SKYBOX_STATE_UNDEFINED;
-
-	struct renderer_system_state* renderer_system = engine_systems_get()->renderer_system;
-
-	kshader skybox_shader = kshader_system_get(kname_create(SHADER_NAME_RUNTIME_SKYBOX), kname_create(PACKAGE_NAME_RUNTIME)); // TODO: allow configurable shader.
-	renderer_shader_release_binding_set_instance(renderer_system, skybox_shader, 0, sb->shader_set0_instance_id);
-	sb->shader_set0_instance_id = INVALID_ID;
 
 	renderer_geometry_destroy(&sb->geometry);
 	geometry_destroy(&sb->geometry);

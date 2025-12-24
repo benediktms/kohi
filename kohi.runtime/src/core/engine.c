@@ -729,9 +729,9 @@ b8 engine_create(application* app, const char* app_config_path, const char* game
 
 	// Allocate for the application's frame data.
 	if (app->app_config.app_frame_data_size > 0) {
-		engine_state->p_frame_data.application_frame_data = kallocate(app->app_config.app_frame_data_size, MEMORY_TAG_GAME);
+		engine_state->p_frame_data.app_frame_data = kallocate(app->app_config.app_frame_data_size, MEMORY_TAG_GAME);
 	} else {
-		engine_state->p_frame_data.application_frame_data = 0;
+		engine_state->p_frame_data.app_frame_data = 0;
 	}
 
 	app->stage = APPLICATION_STAGE_BOOT_COMPLETE;

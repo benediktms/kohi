@@ -1434,7 +1434,7 @@ char* kstring_id_join(const kstring_id* strings, u32 count, char delimiter) {
 	// Space for delimiters
 	total_length += count;
 
-	char* out_str = KALLOC_TYPE_CARRAY(char, total_length);
+	char* out_str = kallocate(sizeof(char) * total_length, MEMORY_TAG_STRING);
 	u32 offset = 0;
 	for (u32 i = 0; i < count; ++i) {
 		sprintf(out_str + offset, "%s%c", kstring_id_string_get(strings[i]), delimiter);

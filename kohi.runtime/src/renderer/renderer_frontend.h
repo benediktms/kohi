@@ -373,6 +373,7 @@ KAPI void renderer_geometry_vertex_update(kgeometry* g, u32 offset, u32 vertex_c
 
 /**
  * @brief Destroys the given geometry, releasing GPU resources.
+ * NOTE: Does NOT release index and vertex data arrays. Call geometry_destroy() to do that.
  *
  * @param geometry A pointer to the geometry to be destroyed.
  */

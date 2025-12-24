@@ -1,6 +1,7 @@
 #include "kcamera_system.h"
 
 #include "core_render_types.h"
+#include "debug/kassert.h"
 #include "defines.h"
 #include "logger.h"
 #include "math/kmath.h"
@@ -52,24 +53,21 @@ static kcamera get_new_camera(kcamera_system_state* state) {
 	}
 
 	KERROR("KCamera system: The internal array is full (max_camera_count=%u). Expand this in configuration. Returning defualt camera instead.", state->max_camera_count);
-	return 0;
+	return INVALID_KCAMERA;
 }
 
 // In range and not default
 static b8 kcamera_is_valid(kcamera camera) {
-	if (camera == DEFAULT_KCAMERA) {
+	KASSERT(state_ptr);
+	if (camera == DEFAULT_KCAMERA || camera == INVALID_KCAMERA) {
 		return false;
 	}
-	if (state_ptr) {
-		if (camera >= state_ptr->max_camera_count) {
-			KERROR("Tried to destroy a camera that is out of range, ya dingus!");
-			return false;
-		}
 
-		return true;
+	if (camera >= state_ptr->max_camera_count) {
+		return false;
 	}
 
-	return false;
+	return true;
 }
 
 b8 kcamera_system_initialize(u64* memory_requirement, void* state, void* config) {
@@ -120,7 +118,7 @@ kcamera kcamera_create(kcamera_type type, rect_2di vp_rect, vec3 position, vec3 
 	}
 
 	kcamera new_cam = get_new_camera(state_ptr);
-	if (kcamera_is_valid(new_cam)) {
+	if (kcamera_is_valid(new_cam) || new_cam == 0) {
 		kcamera_data* data = &state_ptr->cameras[new_cam];
 
 		data->type = type;
@@ -137,9 +135,45 @@ kcamera kcamera_create(kcamera_type type, rect_2di vp_rect, vec3 position, vec3 
 		data->flags = FLAG_SET(data->flags, KCAMERA_FLAG_PROJECTION_DIRTY_BIT, true);
 
 		regenerate_matrices(data);
+
+		return new_cam;
 	}
 
-	return new_cam;
+	KWARN("Error creating new camera, returning default camera.");
+	return DEFAULT_KCAMERA;
+}
+
+kcamera kcamera_clone(kcamera camera) {
+	// Take a clone of the default camera if an invalid one is passed.
+	if (!kcamera_is_valid(camera)) {
+		return kcamera_clone(DEFAULT_KCAMERA);
+	}
+
+	kcamera new_cam = get_new_camera(state_ptr);
+	if (kcamera_is_valid(new_cam)) {
+		kcamera_data* old_data = &state_ptr->cameras[camera];
+		kcamera_data* new_data = &state_ptr->cameras[new_cam];
+
+		new_data->type = old_data->type;
+		new_data->position = old_data->position;
+		new_data->euler_rotation = old_data->euler_rotation;
+		new_data->fov = old_data->fov;
+		new_data->near_clip = old_data->near_clip;
+		new_data->far_clip = old_data->far_clip;
+		new_data->vp_rect = old_data->vp_rect;
+
+		// Mark transform as dirty so it gets recalculated on the next pass.
+		new_data->flags = FLAG_SET(new_data->flags, KCAMERA_FLAG_TRANSFORM_DIRTY_BIT, true);
+		// Also mark projection as dirty so it gets recalculated as well.
+		new_data->flags = FLAG_SET(new_data->flags, KCAMERA_FLAG_PROJECTION_DIRTY_BIT, true);
+
+		regenerate_matrices(new_data);
+
+		return new_cam;
+	}
+
+	KWARN("Error cloning camera, returning default camera.");
+	return DEFAULT_KCAMERA;
 }
 
 void kcamera_destroy(kcamera camera) {

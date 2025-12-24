@@ -453,8 +453,8 @@ static kaudio internal_load_from_package(struct kaudio_system_state* state, knam
 	// Search first for an existing kaudio with the asset_name as its name.
 	for (u16 i = 0; i < state->max_count; ++i) {
 		if (state->data.names[i] == asset_name) {
-			KERROR("%s - Audio named '%k' already exists. Skipping.", __FUNCTION__, asset_name);
-			return INVALID_KAUDIO;
+			KINFO("%s - Audio named '%k' already exists.", __FUNCTION__, asset_name);
+			return i;
 		}
 	}
 

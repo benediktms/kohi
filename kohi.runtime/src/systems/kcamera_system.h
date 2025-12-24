@@ -35,6 +35,7 @@ typedef enum kcamera_type {
 } kcamera_type;
 
 #define DEFAULT_KCAMERA 0
+#define INVALID_KCAMERA INVALID_ID_U8
 
 /**
  * @brief Initializes the camera system.
@@ -69,6 +70,8 @@ void kcamera_system_shutdown(void* state);
  * @return A pointer to a camera if successful; 0 if an error occurs.
  */
 KAPI kcamera kcamera_create(kcamera_type type, rect_2di vp_rect, vec3 position, vec3 euler_rotation, f32 fov_radians, f32 near_clip, f32 far_clip);
+
+KAPI kcamera kcamera_clone(kcamera camera);
 
 /**
  * @brief Releases the given camera.

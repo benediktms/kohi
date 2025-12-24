@@ -5,6 +5,8 @@
 
 struct linear_allocator;
 
+struct application_frame_data;
+
 /**
  * @brief Engine-level current frame-specific data.
  */
@@ -20,5 +22,5 @@ typedef struct frame_data {
 	frame_allocator_int allocator;
 
 	/** @brief Application level frame specific data. Optional, up to the app to know how to use this if needed. */
-	void* application_frame_data;
+	struct application_frame_data* app_frame_data;
 } frame_data;

@@ -383,7 +383,7 @@ static void kasset_model_loaded(void* listener, kasset_model* asset) {
 				kmodel_animator* animator = &instance->animator;
 				animator->shader_data = pool_allocator_allocate(&state->shader_data_pool, &animator->shader_data_index);
 				animator->time_scale = 1.0f; // Always default time scale to 1.0f
-				animator->max_bones = asset->bone_count;
+				animator->max_bones = base->bone_count;
 				animator->time_in_ticks = 0.0f;
 
 				// Auto-set the first animation and simulate a frame being updated so it shows up
@@ -476,18 +476,30 @@ kmodel_instance kmodel_instance_acquire_from_package(struct kmodel_system_state*
 			kasset_model_loaded);
 		KASSERT_DEBUG(asset);
 	} else {
-		KTRACE("Base mesh for '%k' already exists. Getting new instance.", asset_name);
+		KTRACE("Base mesh for '%k' already exists (%u). Getting new instance.", asset_name, base_id);
 		// Base mesh already exists, just need to get material instances.
 		kmodel_base* base = &state->models[base_id];
 		kmodel_instance_data* instance = &state->models[base_id].instances[instance_id];
 
 		acquire_material_instances(state, base_id, instance_id);
 
-		// For animated meshes, setup the animator.
+		// For animated models, alloc shader data from the animation SSBO.
 		if (base->type == KMODEL_TYPE_ANIMATED) {
 			kmodel_animator* animator = &instance->animator;
 			animator->shader_data = pool_allocator_allocate(&state->shader_data_pool, &animator->shader_data_index);
 			animator->time_scale = 1.0f; // Always default time scale to 1.0f
+			animator->max_bones = base->bone_count;
+			animator->time_in_ticks = 0.0f;
+
+			// Auto-set the first animation and simulate a frame being updated so it shows up
+			// properly.
+			animator->current_animation = 0;
+			animator->current_animation_name = base->animations[0].name;
+
+			kmodel_animator_state prev_state = animator->state;
+			animator->state = KMODEL_ANIMATOR_STATE_PLAYING;
+			animator_update(state, animator, 0.0f);
+			animator->state = prev_state;
 		}
 
 		if (state->states[base_id] == KMODEL_STATE_LOADED) {
@@ -525,12 +537,18 @@ static u16 get_active_instance_count(struct kmodel_system_state* state, u16 base
 
 // NOTE: Also releases held material instances.
 void kmodel_instance_release(struct kmodel_system_state* state, kmodel_instance* instance) {
+	if (instance->instance == INVALID_ID_U16 || instance->base_mesh == INVALID_ID_U16) {
+		KERROR("Tried to release a kmodel instance with an invalid base/instance id.");
+		return;
+	}
 	kmodel_base* base = &state->models[instance->base_mesh];
 	kmodel_instance_data* inst = &base->instances[instance->instance];
 
 	u16 submesh_count = base->submesh_count;
-	for (u16 i = 0; i < submesh_count; ++i) {
-		kmaterial_system_release(engine_systems_get()->material_system, &inst->materials[i]);
+	if (inst->materials) {
+		for (u16 i = 0; i < submesh_count; ++i) {
+			kmaterial_system_release(engine_systems_get()->material_system, &inst->materials[i]);
+		}
 	}
 
 	kmodel_animator* animator = &inst->animator;
@@ -546,8 +564,10 @@ void kmodel_instance_release(struct kmodel_system_state* state, kmodel_instance*
 	animator->current_animation_name = INVALID_KNAME;
 
 	inst->state = KMODEL_INSTANCE_STATE_UNINITIALIZED;
-	KFREE_TYPE_CARRAY(inst->materials, kmaterial_instance, submesh_count);
-	inst->materials = KNULL;
+	if (inst->materials) {
+		KFREE_TYPE_CARRAY(inst->materials, kmaterial_instance, submesh_count);
+		inst->materials = KNULL;
+	}
 
 	u16 active_count = get_active_instance_count(state, instance->base_mesh);
 	if (!active_count) {
@@ -657,6 +677,9 @@ void kmodel_instance_release(struct kmodel_system_state* state, kmodel_instance*
 	} else {
 		KDEBUG("Released instance, but there are %u remaining active instances of model '%s' active.", active_count, kname_string_get(state->models[instance->base_mesh].asset_name));
 	}
+
+	instance->base_mesh = INVALID_ID_U16;
+	instance->instance = INVALID_ID_U16;
 }
 
 b8 kmodel_ray_intersects(struct kmodel_system_state* state, kmodel_instance instance, const ray* r, mat4 world, raycast_hit* out_hit) {
