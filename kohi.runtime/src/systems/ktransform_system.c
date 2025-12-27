@@ -389,6 +389,15 @@ vec3 ktransform_scale_get(ktransform t) {
 	return state->scales[t];
 }
 
+vec3 ktransform_world_scale_get(ktransform t) {
+	ktransform_system_state* state = engine_systems_get()->ktransform_system;
+	if (!validate_handle(state, t)) {
+		KWARN("Invalid handle passed, returning one vector as scale.");
+		return vec3_one();
+	}
+	return mat4_scale_get(state->world_matrices[t]);
+}
+
 void ktransform_scale_set(ktransform t, vec3 scale) {
 	ktransform_system_state* state = engine_systems_get()->ktransform_system;
 	if (!validate_handle(state, t)) {

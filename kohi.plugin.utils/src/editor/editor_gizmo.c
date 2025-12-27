@@ -182,17 +182,45 @@ void editor_gizmo_orientation_set(editor_gizmo* gizmo, editor_gizmo_orientation 
 		editor_gizmo_refresh(gizmo);
 	}
 }
-void editor_gizmo_selected_transform_set(editor_gizmo* gizmo, ktransform ktransform_handle, ktransform parent_ktransform_handle) {
+void editor_gizmo_selected_transform_set(editor_gizmo* gizmo, ktransform ktransform_handle) {
 	if (gizmo) {
 		gizmo->selected_ktransform_handle = ktransform_handle;
-		gizmo->selected_ktransform_parent_handle = parent_ktransform_handle;
 		editor_gizmo_refresh(gizmo);
 	}
 }
 
-void editor_gizmo_update(editor_gizmo* gizmo) {
+void editor_gizmo_update(editor_gizmo* gizmo, kcamera camera) {
 	if (gizmo) {
 		ktransform_calculate_local(gizmo->ktransform_handle);
+
+		vec3 cam_pos = kcamera_get_position(camera);
+		vec3 gizmo_pos = gizmo->selected_ktransform_handle == KTRANSFORM_INVALID ? vec3_zero() : ktransform_position_get(gizmo->selected_ktransform_handle);
+		f32 dist = vec3_distance(cam_pos, gizmo_pos);
+
+		rect_2di vp_rect = kcamera_get_vp_rect(camera);
+
+		/* gizmo->render_projection =
+			(gizmo->mode == EDITOR_GIZMO_MODE_ROTATE)
+				// Setting the far clip to just beyond the gizmo distance from the camera "hides" the
+				// backward parts of the loops in the rotation mode, making it far less confusing to look at.
+				? kcamera_get_projection_far_clipped(camera, dist + 0.2f)
+				// Otherwise just use the projection as normal.
+				: kcamera_get_projection(camera); */
+
+		gizmo->render_projection = kcamera_get_projection(camera);
+
+		quat orientation = ktransform_rotation_get(gizmo->ktransform_handle);
+
+		// Calculate the gizmo's world/model matrix
+		f32 proj_scale = gizmo->render_projection.data[5];
+		f32 desired_pixels = 200;
+		f32 world_scale = (dist * desired_pixels) / (proj_scale * vp_rect.height);
+
+		vec3 scale = vec3_from_scalar(world_scale);
+		// RST
+		gizmo->render_model = quat_to_mat4(orientation);
+		gizmo->render_model = mat4_mul(gizmo->render_model, mat4_scale(scale));
+		gizmo->render_model = mat4_mul(gizmo->render_model, mat4_translation(gizmo_pos));
 	}
 }
 
@@ -694,23 +722,13 @@ void editor_gizmo_handle_interaction(editor_gizmo* gizmo, kcamera camera, struct
 			// Apply translation to selection and gizmo.
 			if (gizmo->selected_ktransform_handle != KTRANSFORM_INVALID) {
 				ktransform_translate(gizmo->ktransform_handle, translation);
-
-				// Get the world scale of the parent. The inverse of this is used to keep the gizmo positon in the correct place as child objects are moved around.
-				vec3 selected_world_scale;
-				if (gizmo->selected_ktransform_parent_handle != KTRANSFORM_INVALID) {
-					mat4 selected_world = ktransform_world_get(gizmo->selected_ktransform_parent_handle);
-					selected_world_scale = vec3_create(1.0f / selected_world.data[0], 1.0f / selected_world.data[5], 1.0f / selected_world.data[10]);
-				} else {
-					selected_world_scale = vec3_one();
-				}
-				vec3 scaled_translation = vec3_mul(translation, selected_world_scale);
-				ktransform_translate(gizmo->selected_ktransform_handle, scaled_translation);
+				ktransform_translate(gizmo->selected_ktransform_handle, translation);
 			}
 		} else if (interaction_type == EDITOR_GIZMO_INTERACTION_TYPE_MOUSE_HOVER) {
 			ktransform_calculate_local(gizmo->ktransform_handle);
 			u8 hit_axis = INVALID_ID_U8;
 
-			mat4 inv = mat4_inverse(gizmo->gizmo_world);
+			mat4 inv = mat4_inverse(gizmo->render_model);
 
 			ray transformed_ray = {
 				.origin = vec3_transform(r->origin, 1.0f, inv),
@@ -840,7 +858,7 @@ void editor_gizmo_handle_interaction(editor_gizmo* gizmo, kcamera camera, struct
 			ktransform_calculate_local(gizmo->ktransform_handle);
 			u8 hit_axis = INVALID_ID_U8;
 
-			mat4 inv = mat4_inverse(gizmo->gizmo_world);
+			mat4 inv = mat4_inverse(gizmo->render_model);
 
 			ray transformed_ray = {
 				.origin = vec3_transform(r->origin, 1.0f, inv),
@@ -920,26 +938,35 @@ void editor_gizmo_handle_interaction(editor_gizmo* gizmo, kcamera camera, struct
 			vec3 point;
 			u8 hit_axis = INVALID_ID_U8;
 
-			mat4 inv = gizmo->gizmo_world;
-			vec3 rad_scale = mat4_scale_get(inv);
+			// LEFTOFF: Something is still screwy with this,
+			// axis is rotated, then the others don't work...
+
+			mat4 transform = ktransform_world_get(gizmo->ktransform_handle);
+			/* mat4 inv = gizmo->render_model; */
+			/* mat4 inv = mat4_inverse(gizmo->render_model); */
+			/* vec3 rad_scale = mat4_scale_get(gizmo->render_model); */
+			f32 radius_scale = transform.data[5];
 
 			// Loop through each axis.
 			for (u32 i = 0; i < 3; ++i) {
 				// Oriented disc.
 				vec3 aa_normal = vec3_zero();
 				aa_normal.elements[i] = 1.0f;
-				aa_normal = vec3_transform(aa_normal, 0.0f, inv);
+				aa_normal = vec3_transform(aa_normal, 0.0f, gizmo_world);
+				vec3_normalize(&aa_normal);
 				vec3 center = ktransform_position_get(gizmo->ktransform_handle);
-				f32 inner = (radius + 0.05f) * rad_scale.elements[i];
-				f32 outer = (radius - 0.05f) * rad_scale.elements[i];
+				f32 inner = radius * radius_scale + 0.15f;
+				f32 outer = radius * radius_scale - 0.15f;
 				if (raycast_disc_3d(r, center, aa_normal, inner, outer, &point, &dist)) {
 					hit_axis = i;
+					KTRACE("hit axis forward (%u)", i);
 					break;
 				} else {
 					// If not, try from the other way.
 					aa_normal = vec3_mul_scalar(aa_normal, -1.0f);
 					if (raycast_disc_3d(r, center, aa_normal, inner, outer, &point, &dist)) {
 						hit_axis = i;
+						KTRACE("hit axis backward (%u)", i);
 						break;
 					}
 				}

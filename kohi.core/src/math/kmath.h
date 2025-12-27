@@ -2237,8 +2237,20 @@ KINLINE extents_3d extents_3d_zero(void) {
 
 KINLINE extents_3d extents_3d_one(void) {
 	return (extents_3d){
-		.min = vec3_one(),
+		.min = vec3_from_scalar(-1),
 		.max = vec3_one()};
+}
+
+KINLINE extents_3d extents_3d_from_scalar(f32 scalar) {
+	return (extents_3d){
+		.min = vec3_from_scalar(-scalar),
+		.max = vec3_from_scalar(scalar)};
+}
+
+KINLINE extents_3d extents_3d_from_size(vec3 size) {
+	return (extents_3d){
+		.min = vec3_mul_scalar(size, -1.0f),
+		.max = size};
 }
 
 KINLINE vec3 extents_3d_center(extents_3d extents) {
@@ -2258,13 +2270,21 @@ KINLINE vec3 extents_3d_half(extents_3d extents) {
 }
 
 KINLINE vec3 size_from_extents_3d(extents_3d extents) {
-	return vec3_sub(extents.max, extents.min);
+	vec3 size = vec3_sub(extents.max, extents.min);
+	return (vec3){
+		kabs(size.x),
+		kabs(size.y),
+		kabs(size.z)};
 }
 
 KINLINE extents_3d extents_combine(extents_3d a, extents_3d b) {
 	return (extents_3d){
 		.min = vec3_min(a.min, b.min),
 		.max = vec3_max(a.max, b.max)};
+}
+
+KINLINE b8 extents_3d_is_zero(extents_3d extents) {
+	return vec3_compare(size_from_extents_3d(extents), vec3_zero(), K_FLOAT_EPSILON);
 }
 
 KINLINE vec2 vec2_mid(vec2 v_0, vec2 v_1) {

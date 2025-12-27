@@ -174,6 +174,9 @@ u64 darray_capacity(void* array) {
 }
 
 u64 darray_length(void* array) {
+	if (!array) {
+		return 0;
+	}
 	u64 header_size = sizeof(darray_header);
 	darray_header* header = (darray_header*)((u8*)array - header_size);
 	return header->length;

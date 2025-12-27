@@ -129,6 +129,29 @@ void point_light_set_colour(light_system_state* state, klight light, colour3 col
 	l->colour = colour;
 }
 
+f32 point_light_radius_get(light_system_state* state, klight light) {
+	KASSERT_DEBUG(light != KLIGHT_INVALID);
+	klight_data* l = &state->lights[light];
+	KASSERT_DEBUG(l->type == KLIGHT_TYPE_POINT);
+
+	klight_attenuation* att = &l->attenuation;
+
+	f32 intensity = 1.0f;
+	f32 threshold = 0.1f;
+
+	if (att->quadratic > K_FLOAT_EPSILON) {
+		float disc = att->linear * att->linear - 4.0f * att->quadratic * (att->constant_f - intensity / threshold);
+		if (disc <= 0.0f) {
+			return 0.0f;
+		}
+		return KMAX(0.0f, (-att->linear + ksqrt(disc)) / (2.0f * att->quadratic));
+	} else if (att->linear > 1e-8f) {
+		return KMAX(0.0f, (intensity / threshold - att->constant_f) / att->linear);
+	} else {
+		return K_INFINITY;
+	}
+}
+
 void light_destroy(light_system_state* state, klight light) {
 	kzero_memory(&state->lights[light], sizeof(klight_data));
 }

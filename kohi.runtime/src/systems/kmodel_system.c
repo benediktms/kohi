@@ -702,9 +702,14 @@ b8 kmodel_ray_intersects(struct kmodel_system_state* state, kmodel_instance inst
 		// Transform ray by inverted world transform
 		ray rt = ray_transformed(r, world_inv);
 
-		if (ray_pick_triangle(&rt, true, mesh->geo.vertex_count, mesh->geo.vertex_element_size, mesh->geo.vertices, mesh->geo.index_count, mesh->geo.indices, &picked, &pos, &normal)) {
+		if (ray_pick_triangle(&rt, false, mesh->geo.vertex_count, mesh->geo.vertex_element_size, mesh->geo.vertices, mesh->geo.index_count, mesh->geo.indices, &picked, &pos, &normal)) {
 			if (out_hit) {
 				out_hit->type = RAYCAST_HIT_TYPE_SURFACE;
+				// Transform position.
+				pos = vec3_transform(pos, 1.0f, world);
+				// Transform normal too.
+				normal = vec3_transform(normal, 0.0f, world);
+
 				out_hit->distance = vec3_distance(r->origin, pos);
 				out_hit->position = pos;
 				out_hit->normal = normal;

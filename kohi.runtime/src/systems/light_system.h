@@ -128,6 +128,7 @@ KAPI colour3 point_light_get_colour(light_system_state* state, klight light);
 KAPI void directional_light_set_direction(light_system_state* state, klight light, vec3 direction);
 KAPI void point_light_set_position(light_system_state* state, klight light, vec3 position);
 KAPI void point_light_set_colour(light_system_state* state, klight light, colour3 colour);
+KAPI f32 point_light_radius_get(light_system_state* state, klight light);
 
 KAPI void light_destroy(light_system_state* state, klight light);
 

@@ -398,7 +398,7 @@ b8 raycast_disc_3d(const ray* r, vec3 center, vec3 normal, f32 outer_radius, f32
 		if (dist_sq > orad_sq) {
 			return false;
 		}
-		if (inner_radius > 0 && dist_sq < irad_sq) {
+		if (/*inner_radius > 0 &&*/ dist_sq < irad_sq) {
 			return false;
 		}
 		return true;

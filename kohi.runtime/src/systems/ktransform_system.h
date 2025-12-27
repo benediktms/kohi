@@ -174,6 +174,14 @@ KAPI void ktransform_rotate(ktransform t, quat rotation);
 KAPI vec3 ktransform_scale_get(ktransform t);
 
 /**
+ * @brief Returns the world scale of the given ktransform.
+ *
+ * @param t A handle whose scale to get.
+ * @return A copy of the scale.
+ */
+KAPI vec3 ktransform_world_scale_get(ktransform t);
+
+/**
  * @brief Sets the scale of the given ktransform.
  *
  * @param t A handle to the ktransform to be updated.

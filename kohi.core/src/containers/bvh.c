@@ -19,12 +19,13 @@ static void bvh_fix_upwards(bvh* t, u32 i);
 static void bvh_insert_leaf(bvh* t, u32 leaf);
 static void bvh_remove_leaf(bvh* t, u32 leaf);
 
-b8 bvh_create(u32 inital_capacity, bvh* out_bvh) {
+b8 bvh_create(u32 inital_capacity, void* owner_context, bvh* out_bvh) {
 	out_bvh->root = 0;
 	out_bvh->nodes = KNULL;
 	out_bvh->capacity = 0;
 	out_bvh->count = 0;
 	out_bvh->free_list = KNULL;
+	out_bvh->owner_context = owner_context;
 	if (inital_capacity > 0) {
 		if (!bvh_reserve(out_bvh, inital_capacity)) {
 			return false;
@@ -176,28 +177,20 @@ raycast_result bvh_raycast(const bvh* t, const ray* r, bvh_raycast_callback call
 			f32 distance = tmin;
 			vec3 pos = vec3_add(r->origin, vec3_mul_scalar(r->direction, distance));
 
-			raycast_hit specific_hit = {
-				.type = RAYCAST_HIT_TYPE_BVH_AABB};
+			// Default to the AABB hit information.
+			raycast_hit hit = {
+				.type = RAYCAST_HIT_TYPE_BVH_AABB,
+				.distance = distance,
+				.user = t->nodes[id].user,
+				.position = pos,
+			};
 			// If no callback, assume every hit is counted.
-			if (!callback || callback(t->nodes[id].user, id, r, tmin, tmaxi, distance, pos, usr, &specific_hit)) {
+			// If there is a callback and it returns a success, it should override the data set above.
+			if (!callback || callback(t->nodes[id].user, id, r, tmin, tmaxi, distance, pos, usr, &hit)) {
 				if (!result.hits) {
 					result.hits = darray_create(raycast_hit);
 				}
 
-				// TODO: always just use the specific_hit and make the callback supply it.
-				raycast_hit hit;
-				if (specific_hit.type == RAYCAST_HIT_TYPE_BVH_AABB) {
-					hit.type = RAYCAST_HIT_TYPE_BVH_AABB;
-					hit.distance = distance;
-					hit.user = t->nodes[id].user;
-					hit.position = pos;
-				} else {
-					KTRACE("SPECIFIC");
-					// If a more specific hit information was provided, use it instead.
-					hit = specific_hit;
-					// Add back the user data.
-					hit.user = t->nodes[id].user;
-				}
 				darray_push(result.hits, hit);
 			}
 		} else {

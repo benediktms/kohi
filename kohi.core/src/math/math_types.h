@@ -635,7 +635,9 @@ typedef struct ray {
 
 typedef enum raycast_hit_type {
 	RAYCAST_HIT_TYPE_BVH_AABB,
-	RAYCAST_HIT_TYPE_SURFACE
+	RAYCAST_HIT_TYPE_SURFACE,
+	// Was a BVH AABB hit, but against a base node.
+	RAYCAST_HIT_TYPE_BVH_AABB_BASE_NODE
 } raycast_hit_type;
 
 typedef struct raycast_hit {

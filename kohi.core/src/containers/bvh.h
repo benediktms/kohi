@@ -23,9 +23,10 @@ typedef struct bvh {
 	u32 capacity;
 	u32 count;
 	u32 free_list;
+	void* owner_context;
 } bvh;
 
-KAPI b8 bvh_create(u32 inital_capacity, bvh* out_bvh);
+KAPI b8 bvh_create(u32 inital_capacity, void* owner_context, bvh* out_bvh);
 KAPI void bvh_destroy(bvh* t);
 // Reserve capacity for at least leaf_capacity leaves (internally, 2n-1 nodes)
 KAPI b8 bvh_reserve(bvh* t, u32 leaf_capacity);
