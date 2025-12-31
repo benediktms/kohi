@@ -375,7 +375,7 @@ void ktransform_rotate(ktransform t, quat rotation) {
 	if (!validate_handle(state, t)) {
 		KWARN("Invalid handle passed, nothing was done.");
 	} else {
-		state->rotations[t] = quat_mul(state->rotations[t], rotation);
+		state->rotations[t] = quat_normalize(quat_mul(state->rotations[t], rotation));
 		dirty_list_add(state, t);
 	}
 }

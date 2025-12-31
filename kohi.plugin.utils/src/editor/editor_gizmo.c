@@ -214,9 +214,9 @@ void editor_gizmo_update(editor_gizmo* gizmo, kcamera camera) {
 		// Calculate the gizmo's world/model matrix
 		f32 proj_scale = gizmo->render_projection.data[5];
 		f32 desired_pixels = 200;
-		f32 world_scale = (dist * desired_pixels) / (proj_scale * vp_rect.height);
+		gizmo->world_scale = (dist * desired_pixels) / (proj_scale * vp_rect.height);
 
-		vec3 scale = vec3_from_scalar(world_scale);
+		vec3 scale = vec3_from_scalar(gizmo->world_scale);
 		// RST
 		gizmo->render_model = quat_to_mat4(orientation);
 		gizmo->render_model = mat4_mul(gizmo->render_model, mat4_scale(scale));
@@ -938,14 +938,11 @@ void editor_gizmo_handle_interaction(editor_gizmo* gizmo, kcamera camera, struct
 			vec3 point;
 			u8 hit_axis = INVALID_ID_U8;
 
-			// LEFTOFF: Something is still screwy with this,
-			// axis is rotated, then the others don't work...
-
-			mat4 transform = ktransform_world_get(gizmo->ktransform_handle);
-			/* mat4 inv = gizmo->render_model; */
-			/* mat4 inv = mat4_inverse(gizmo->render_model); */
-			/* vec3 rad_scale = mat4_scale_get(gizmo->render_model); */
-			f32 radius_scale = transform.data[5];
+			mat4 transform = gizmo->render_model;
+			vec3 center = mat4_position(transform);
+			quat q = ktransform_rotation_get(gizmo->selected_ktransform_handle);
+			q = quat_normalize(q);
+			f32 scale = gizmo->world_scale;
 
 			// Loop through each axis.
 			for (u32 i = 0; i < 3; ++i) {
@@ -953,20 +950,17 @@ void editor_gizmo_handle_interaction(editor_gizmo* gizmo, kcamera camera, struct
 				vec3 aa_normal = vec3_zero();
 				aa_normal.elements[i] = 1.0f;
 				aa_normal = vec3_transform(aa_normal, 0.0f, gizmo_world);
-				vec3_normalize(&aa_normal);
-				vec3 center = ktransform_position_get(gizmo->ktransform_handle);
-				f32 inner = radius * radius_scale + 0.15f;
-				f32 outer = radius * radius_scale - 0.15f;
-				if (raycast_disc_3d(r, center, aa_normal, inner, outer, &point, &dist)) {
+				f32 scaled_rad = radius * scale;
+				f32 inner = scaled_rad - (scale * 0.05f);
+				f32 outer = scaled_rad + (scale * 0.05f);
+				if (raycast_disc_3d(r, center, aa_normal, outer, inner, &point, &dist)) {
 					hit_axis = i;
-					KTRACE("hit axis forward (%u)", i);
 					break;
 				} else {
 					// If not, try from the other way.
 					aa_normal = vec3_mul_scalar(aa_normal, -1.0f);
-					if (raycast_disc_3d(r, center, aa_normal, inner, outer, &point, &dist)) {
+					if (raycast_disc_3d(r, center, aa_normal, outer, inner, &point, &dist)) {
 						hit_axis = i;
-						KTRACE("hit axis backward (%u)", i);
 						break;
 					}
 				}

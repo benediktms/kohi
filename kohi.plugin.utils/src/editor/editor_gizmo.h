@@ -85,6 +85,7 @@ typedef struct editor_gizmo {
 
 	// Gizmo world matrix (use for model matrix)
 	mat4 render_model;
+	f32 world_scale;
 
 	mat4 render_projection;
 
