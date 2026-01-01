@@ -23,6 +23,7 @@
 #include <systems/ktransform_system.h>
 #include <systems/texture_system.h>
 
+#include "core_resource_types.h"
 #include "debug/kassert.h"
 #include "kohi.plugin.ui.standard_version.h"
 #include "standard_ui_defines.h"
@@ -376,6 +377,7 @@ b8 standard_ui_system_control_add_child(standard_ui_state* state, sui_control* p
 
 	darray_push(parent->children, child);
 	child->parent = parent;
+	ktransform_parent_set(child->ktransform, parent->ktransform);
 
 	return true;
 }
@@ -395,6 +397,7 @@ b8 standard_ui_system_control_remove_child(standard_ui_state* state, sui_control
 		if (parent->children[i] == child) {
 			sui_control* popped;
 			darray_pop_at(parent->children, i, &popped);
+			ktransform_parent_set(parent->ktransform, KTRANSFORM_INVALID);
 			child->parent = 0;
 
 			return true;
@@ -459,7 +462,7 @@ void sui_base_control_unload(standard_ui_state* state, struct sui_control* self)
 }
 
 static void sui_recalculate_world_ktransform(standard_ui_state* state, struct sui_control* self) {
-	ktransform_calculate_local(self->ktransform);
+	/* ktransform_calculate_local(self->ktransform);
 	mat4 local = ktransform_local_get(self->ktransform);
 
 	if (self->parent) {
@@ -469,7 +472,7 @@ static void sui_recalculate_world_ktransform(standard_ui_state* state, struct su
 		ktransform_world_set(self->ktransform, self_world);
 	} else {
 		ktransform_world_set(self->ktransform, local);
-	}
+	} */
 }
 
 b8 sui_base_control_update(standard_ui_state* state, struct sui_control* self, struct frame_data* p_frame_data) {
@@ -477,7 +480,7 @@ b8 sui_base_control_update(standard_ui_state* state, struct sui_control* self, s
 		return false;
 	}
 
-	sui_recalculate_world_ktransform(state, self);
+	/* sui_recalculate_world_ktransform(state, self); */
 
 	return true;
 }

@@ -2,8 +2,10 @@
 
 #include <stdio.h>
 
+#include "containers/darray.h"
 #include "core/console.h"
 #include "core/engine.h"
+#include "core_resource_types.h"
 #include "debug/kassert.h"
 #include "defines.h"
 #include "logger.h"
@@ -13,6 +15,7 @@
 #include "renderer/renderer_frontend.h"
 #include "renderer/renderer_types.h"
 #include "strings/kstring.h"
+#include "utils/ksort.h"
 
 typedef enum ktransform_flags {
 	KTRANSFORM_FLAG_NONE = 0,
@@ -44,6 +47,12 @@ typedef struct ktransform_system_state {
 	/** @brief User data, typically a handle or pointer to something. */
 	u64* user;
 
+	/** @brief Parent transforms, indexed by handle. KTRANSFORM_INVALID means no parent. */
+	ktransform* parents;
+
+	/** @brief The depth of the transform in the hierarchy. Used for efficient recalculation of transforms. */
+	u8* depths;
+
 	/** @brief A list of handle ids that represent dirty local ktransforms. */
 	ktransform* local_dirty_handles;
 	u32 local_dirty_count;
@@ -66,11 +75,12 @@ typedef struct ktransform_system_state {
  */
 static void ensure_allocated(ktransform_system_state* state, u32 slot_count);
 static void dirty_list_reset(ktransform_system_state* state);
-static void dirty_list_add(ktransform_system_state* state, ktransform t);
+static void dirty_list_add_r(ktransform_system_state* state, ktransform t);
 static ktransform handle_create(ktransform_system_state* state);
 static void handle_destroy(ktransform_system_state* state, ktransform* t);
 // Validates the handle itself, as well as compares it against the ktransform at the handle's index position.
 static b8 validate_handle(ktransform_system_state* state, ktransform handle);
+static void recalculate_world_r(ktransform t);
 
 static void on_transform_dump(console_command_context context) {
 	ktransform_system_state* state = context.listener;
@@ -156,9 +166,41 @@ void ktransform_system_shutdown(void* state) {
 	}
 }
 
-b8 ktransform_system_update(ktransform_system_state* state, struct frame_data* p_frame_data) {
-	// TODO: update locals for dirty ktransforms, reset list.
+static i32 transform_depth_kquicksort_compare_internal(void* a, void* b, i32 mod) {
+	ktransform* a_typed = a;
+	ktransform* b_typed = b;
 
+	ktransform_system_state* state = engine_systems_get()->ktransform_system;
+	u8 da = state->depths[*a_typed];
+	u8 db = state->depths[*b_typed];
+	if (da > db) {
+		return -mod;
+	} else if (da < db) {
+		return mod;
+	}
+	return 0;
+}
+
+static i32 transform_depth_kquicksort_compare(void* a, void* b) {
+	return transform_depth_kquicksort_compare_internal(a, b, 1);
+}
+static i32 transform_depth_kquicksort_compare_desc(void* a, void* b) {
+	return transform_depth_kquicksort_compare_internal(a, b, -1);
+}
+
+b8 ktransform_system_update(ktransform_system_state* state, struct frame_data* p_frame_data) {
+	// Sort the dirty list by depth.
+	kquick_sort(sizeof(ktransform), state->local_dirty_handles, 0, state->local_dirty_count - 1, transform_depth_kquicksort_compare);
+
+	// Update dirty transforms top-down according to depth.
+	for (u32 i = 0; i < state->local_dirty_count; ++i) {
+		recalculate_world_r(state->local_dirty_handles[i]);
+	}
+
+	// Clear the dirty list.
+	dirty_list_reset(state);
+
+	// Update the data in the SSBO.
 	void* mapped_memory = renderer_renderbuffer_get_mapped_memory(engine_systems_get()->renderer_system, state->transform_global_ssbo);
 	mat4* mapped_transforms = (mat4*)mapped_memory;
 
@@ -178,6 +220,8 @@ ktransform ktransform_create(u64 user) {
 		state->local_matrices[handle] = mat4_identity();
 		state->world_matrices[handle] = mat4_identity();
 		state->user[handle] = user;
+		state->parents[handle] = KTRANSFORM_INVALID;
+		state->depths[handle] = 0;
 		// NOTE: This is not added to the dirty list because the defualts form an identity matrix.
 	} else {
 		KERROR("Attempted to create a transform before the system was initialized.");
@@ -197,6 +241,8 @@ ktransform ktransform_clone(ktransform original, u64 user) {
 		state->local_matrices[handle] = state->local_matrices[original];
 		state->world_matrices[handle] = state->world_matrices[original];
 		state->user[handle] = user;
+		state->parents[handle] = state->parents[original];
+		state->depths[handle] = state->depths[original];
 		// NOTE: This is not added to the dirty list because the defualts form an identity matrix.
 	} else {
 		KERROR("Attempted to clone a transform before the system was initialized.");
@@ -216,8 +262,10 @@ ktransform ktransform_from_position(vec3 position, u64 user) {
 		state->local_matrices[handle] = mat4_identity();
 		state->world_matrices[handle] = mat4_identity();
 		state->user[handle] = user;
+		state->parents[handle] = KTRANSFORM_INVALID;
+		state->depths[handle] = 0;
 		// Add to the dirty list.
-		dirty_list_add(state, handle);
+		dirty_list_add_r(state, handle);
 	} else {
 		KERROR("Attempted to create a transform before the system was initialized.");
 		handle = KTRANSFORM_INVALID;
@@ -236,8 +284,10 @@ ktransform ktransform_from_rotation(quat rotation, u64 user) {
 		state->local_matrices[handle] = mat4_identity();
 		state->world_matrices[handle] = mat4_identity();
 		state->user[handle] = user;
+		state->parents[handle] = KTRANSFORM_INVALID;
+		state->depths[handle] = 0;
 		// Add to the dirty list.
-		dirty_list_add(state, handle);
+		dirty_list_add_r(state, handle);
 	} else {
 		KERROR("Attempted to create a transform before the system was initialized.");
 		handle = KTRANSFORM_INVALID;
@@ -256,8 +306,10 @@ ktransform ktransform_from_position_rotation(vec3 position, quat rotation, u64 u
 		state->local_matrices[handle] = mat4_identity();
 		state->world_matrices[handle] = mat4_identity();
 		state->user[handle] = user;
+		state->parents[handle] = KTRANSFORM_INVALID;
+		state->depths[handle] = 0;
 		// Add to the dirty list.
-		dirty_list_add(state, handle);
+		dirty_list_add_r(state, handle);
 	} else {
 		KERROR("Attempted to create a transform before the system was initialized.");
 		handle = KTRANSFORM_INVALID;
@@ -276,8 +328,10 @@ ktransform ktransform_from_position_rotation_scale(vec3 position, quat rotation,
 		state->local_matrices[handle] = mat4_identity();
 		state->world_matrices[handle] = mat4_identity();
 		state->user[handle] = user;
+		state->parents[handle] = KTRANSFORM_INVALID;
+		state->depths[handle] = 0;
 		// Add to the dirty list.
-		dirty_list_add(state, handle);
+		dirty_list_add_r(state, handle);
 	} else {
 		KERROR("Attempted to create a transform before the system was initialized.");
 		handle = KTRANSFORM_INVALID;
@@ -313,6 +367,27 @@ b8 ktransform_is_identity(ktransform t) {
 	return true;
 }
 
+b8 ktransform_parent_set(ktransform t, ktransform parent) {
+	ktransform_system_state* state = engine_systems_get()->ktransform_system;
+	if (!validate_handle(state, t)) {
+		return false;
+	}
+
+	state->parents[t] = parent;
+	// Update the depth too.
+	state->depths[t] = parent == KTRANSFORM_INVALID ? 0 : state->depths[parent] + 1;
+	return true;
+}
+
+ktransform ktransform_parent_get(ktransform t) {
+	ktransform_system_state* state = engine_systems_get()->ktransform_system;
+	if (!validate_handle(state, t)) {
+		return KTRANSFORM_INVALID;
+	}
+
+	return state->parents[t];
+}
+
 vec3 ktransform_position_get(ktransform t) {
 	ktransform_system_state* state = engine_systems_get()->ktransform_system;
 	if (!validate_handle(state, t)) {
@@ -325,7 +400,7 @@ vec3 ktransform_position_get(ktransform t) {
 vec3 ktransform_world_position_get(ktransform t) {
 	ktransform_system_state* state = engine_systems_get()->ktransform_system;
 	if (!validate_handle(state, t)) {
-		KWARN("Invalid handle passed, returning zero vector as position.");
+		KWARN("Invalid handle passed, returning z.25364-78393ero vector as position.");
 		return vec3_zero();
 	}
 	return mat4_position(state->world_matrices[t]);
@@ -337,7 +412,7 @@ void ktransform_position_set(ktransform t, vec3 position) {
 		KWARN("Invalid handle passed, nothing was done.");
 	} else {
 		state->positions[t] = position;
-		dirty_list_add(state, t);
+		dirty_list_add_r(state, t);
 	}
 }
 
@@ -347,7 +422,7 @@ void ktransform_translate(ktransform t, vec3 translation) {
 		KWARN("Invalid handle passed, nothing was done.");
 	} else {
 		state->positions[t] = vec3_add(state->positions[t], translation);
-		dirty_list_add(state, t);
+		dirty_list_add_r(state, t);
 	}
 }
 
@@ -360,13 +435,40 @@ quat ktransform_rotation_get(ktransform t) {
 	return state->rotations[t];
 }
 
+quat ktransform_world_rotation_get(ktransform t) {
+	ktransform_system_state* state = engine_systems_get()->ktransform_system;
+	if (!validate_handle(state, t)) {
+		KWARN("Invalid handle passed, returning identity quaternion as rotation.");
+		return quat_identity();
+	}
+
+	// Climb the tree until a root is reached, then multiply the rotations all the way down.
+	// This ensures that scale data doesn't affect rotational data.
+	quat* rotations = darray_reserve(quat, 16);
+	ktransform parent = state->parents[t];
+	while (parent != KTRANSFORM_INVALID) {
+		darray_push(rotations, state->rotations[parent]);
+		parent = state->parents[parent];
+	}
+
+	quat world = quat_identity();
+	u32 len = darray_length(rotations);
+	for (i32 i = len - 1; i >= 0; --i) {
+		world = quat_mul(world, rotations[i]);
+	}
+
+	world = quat_mul(world, state->rotations[t]);
+
+	return world;
+}
+
 void ktransform_rotation_set(ktransform t, quat rotation) {
 	ktransform_system_state* state = engine_systems_get()->ktransform_system;
 	if (!validate_handle(state, t)) {
 		KWARN("Invalid handle passed, nothing was done.");
 	} else {
 		state->rotations[t] = rotation;
-		dirty_list_add(state, t);
+		dirty_list_add_r(state, t);
 	}
 }
 
@@ -376,7 +478,7 @@ void ktransform_rotate(ktransform t, quat rotation) {
 		KWARN("Invalid handle passed, nothing was done.");
 	} else {
 		state->rotations[t] = quat_normalize(quat_mul(state->rotations[t], rotation));
-		dirty_list_add(state, t);
+		dirty_list_add_r(state, t);
 	}
 }
 
@@ -395,7 +497,25 @@ vec3 ktransform_world_scale_get(ktransform t) {
 		KWARN("Invalid handle passed, returning one vector as scale.");
 		return vec3_one();
 	}
-	return mat4_scale_get(state->world_matrices[t]);
+
+	// Climb the tree until a root is reached, then multiply the scales all the way down.
+	// This ensures that rotational data doesn't affect scale data.
+	vec3* scales = darray_reserve(vec3, 16);
+	ktransform parent = state->parents[t];
+	while (parent != KTRANSFORM_INVALID) {
+		darray_push(scales, state->scales[parent]);
+		parent = state->parents[parent];
+	}
+
+	vec3 world = vec3_one();
+	u32 len = darray_length(scales);
+	for (i32 i = len - 1; i >= 0; --i) {
+		world = vec3_mul(world, scales[i]);
+	}
+
+	world = vec3_mul(world, state->scales[t]);
+
+	return world;
 }
 
 void ktransform_scale_set(ktransform t, vec3 scale) {
@@ -404,7 +524,7 @@ void ktransform_scale_set(ktransform t, vec3 scale) {
 		KWARN("Invalid handle passed, nothing was done.");
 	} else {
 		state->scales[t] = scale;
-		dirty_list_add(state, t);
+		dirty_list_add_r(state, t);
 	}
 }
 
@@ -414,7 +534,7 @@ void ktransform_scale(ktransform t, vec3 scale) {
 		KWARN("Invalid handle passed, nothing was done.");
 	} else {
 		state->scales[t] = vec3_mul(state->scales[t], scale);
-		dirty_list_add(state, t);
+		dirty_list_add_r(state, t);
 	}
 }
 
@@ -425,7 +545,7 @@ void ktransform_position_rotation_set(ktransform t, vec3 position, quat rotation
 	} else {
 		state->positions[t] = position;
 		state->rotations[t] = rotation;
-		dirty_list_add(state, t);
+		dirty_list_add_r(state, t);
 	}
 }
 
@@ -437,7 +557,7 @@ void ktransform_position_rotation_scale_set(ktransform t, vec3 position, quat ro
 		state->positions[t] = position;
 		state->rotations[t] = rotation;
 		state->scales[t] = scale;
-		dirty_list_add(state, t);
+		dirty_list_add_r(state, t);
 	}
 }
 
@@ -448,7 +568,7 @@ void ktransform_translate_rotate(ktransform t, vec3 translation, quat rotation) 
 	} else {
 		state->positions[t] = vec3_add(state->positions[t], translation);
 		state->rotations[t] = quat_mul(state->rotations[t], rotation);
-		dirty_list_add(state, t);
+		dirty_list_add_r(state, t);
 	}
 }
 
@@ -459,13 +579,6 @@ void ktransform_calculate_local(ktransform t) {
 		// TODO: investigate mat4_from_translation_rotation_scale
 		state->local_matrices[index] = mat4_mul(quat_to_mat4(state->rotations[index]), mat4_translation(state->positions[index]));
 		state->local_matrices[index] = mat4_mul(mat4_scale(state->scales[index]), state->local_matrices[index]);
-	}
-}
-
-void ktransform_world_set(ktransform t, mat4 world) {
-	ktransform_system_state* state = engine_systems_get()->ktransform_system;
-	if (t != KTRANSFORM_INVALID) {
-		state->world_matrices[t] = world;
 	}
 }
 
@@ -598,7 +711,7 @@ b8 ktransform_from_string(const char* str, u64 user, ktransform* out_ktransform)
 		state->world_matrices[handle] = mat4_identity();
 		state->user[handle] = user;
 		// Add to the dirty list.
-		dirty_list_add(state, handle);
+		dirty_list_add_r(state, handle);
 	} else {
 		KERROR("Attempted to create a ktransform before the system was initialized.");
 		*out_ktransform = KTRANSFORM_INVALID;
@@ -667,6 +780,26 @@ static void ensure_allocated(ktransform_system_state* state, u32 slot_count) {
 		}
 		state->user = new_user;
 
+		// Parent data
+		ktransform* new_parent = kallocate_aligned(sizeof(ktransform) * slot_count, 16, MEMORY_TAG_TRANSFORM);
+		if (state->parents) {
+			kcopy_memory(new_parent, state->parents, sizeof(ktransform) * state->capacity);
+			kfree_aligned(state->parents, sizeof(ktransform) * state->capacity, 16, MEMORY_TAG_TRANSFORM);
+		}
+		state->parents = new_parent;
+		// Invalidate new parent datas.
+		for (u32 i = state->capacity; i < slot_count; ++i) {
+			state->parents[i] = KTRANSFORM_INVALID;
+		}
+
+		// Depths
+		u8* new_depth = kallocate_aligned(sizeof(u8) * slot_count, 16, MEMORY_TAG_TRANSFORM);
+		if (state->depths) {
+			kcopy_memory(new_depth, state->depths, sizeof(u8) * state->capacity);
+			kfree_aligned(state->depths, sizeof(u8) * state->capacity, 16, MEMORY_TAG_TRANSFORM);
+		}
+		state->depths = new_depth;
+
 		// Dirty handle list doesn't *need* to be aligned, but do it anyways since everything else is.
 		u32* new_dirty_handles = kallocate_aligned(sizeof(ktransform) * slot_count, 16, MEMORY_TAG_TRANSFORM);
 		if (state->local_dirty_handles) {
@@ -681,21 +814,33 @@ static void ensure_allocated(ktransform_system_state* state, u32 slot_count) {
 }
 
 static void dirty_list_reset(ktransform_system_state* state) {
-	for (u32 i = 1; i < state->local_dirty_count; ++i) {
+	for (u32 i = 0; i < state->local_dirty_count; ++i) {
 		state->local_dirty_handles[i] = INVALID_ID;
 	}
 	state->local_dirty_count = 0;
 }
 
-static void dirty_list_add(ktransform_system_state* state, ktransform t) {
-	for (u32 i = 1; i < state->local_dirty_count; ++i) {
+static void dirty_list_add_r(ktransform_system_state* state, ktransform t) {
+	b8 do_add = true;
+	for (u32 i = 0; i < state->local_dirty_count; ++i) {
 		if (state->local_dirty_handles[i] == t) {
 			// Already there, do nothing.
-			return;
+			do_add = false;
+			break;
 		}
 	}
-	state->local_dirty_handles[state->local_dirty_count] = t;
-	state->local_dirty_count++;
+
+	if (do_add) {
+		state->local_dirty_handles[state->local_dirty_count] = t;
+		state->local_dirty_count++;
+	}
+
+	// Need to recurse all children and add them to the list as well.
+	for (u32 i = 0; i < state->capacity; ++i) {
+		if (state->parents[i] == t) {
+			dirty_list_add_r(state, i);
+		}
+	}
 }
 
 static ktransform handle_create(ktransform_system_state* state) {
@@ -707,6 +852,9 @@ static ktransform handle_create(ktransform_system_state* state) {
 		if (FLAG_GET(state->flags[i], KTRANSFORM_FLAG_FREE)) {
 			// Found an entry.
 			state->flags[i] = FLAG_SET(state->flags[i], KTRANSFORM_FLAG_FREE, false);
+			// Ensure the parent is invalid.
+			state->parents[i] = KTRANSFORM_INVALID;
+			state->depths[i] = 0;
 			state->allocated++;
 			return i;
 		}
@@ -716,6 +864,9 @@ static ktransform handle_create(ktransform_system_state* state) {
 	ensure_allocated(state, state->capacity * 2);
 	handle = ktransform_count;
 	state->flags[handle] = FLAG_SET(state->flags[handle], KTRANSFORM_FLAG_FREE, false);
+	// Ensure the parent is invalid.
+	state->parents[handle] = KTRANSFORM_INVALID;
+	state->depths[handle] = 0;
 	state->allocated++;
 	return handle;
 }
@@ -726,6 +877,9 @@ static void handle_destroy(ktransform_system_state* state, ktransform* t) {
 	if (*t != KTRANSFORM_INVALID) {
 		KTRACE("Destroying transform handle %u", *t);
 		FLAG_SET(state->flags[*t], KTRANSFORM_FLAG_FREE, true);
+		// Ensure the parent is invalid.
+		state->parents[*t] = KTRANSFORM_INVALID;
+		state->depths[*t] = 0;
 		state->allocated--;
 		*t = KTRANSFORM_INVALID;
 	}
@@ -744,4 +898,23 @@ static b8 validate_handle(ktransform_system_state* state, ktransform handle) {
 
 	// Check for a match.
 	return true;
+}
+
+static void recalculate_world_r(ktransform t) {
+	ktransform_system_state* state = engine_systems_get()->ktransform_system;
+	if (t != KTRANSFORM_INVALID) {
+		mat4 child_world;
+		ktransform_calculate_local(t);
+		mat4 child_local = state->local_matrices[t];
+
+		ktransform parent = state->parents[t];
+		if (parent != KTRANSFORM_INVALID) {
+			recalculate_world_r(parent);
+			mat4 parent_world = state->world_matrices[parent];
+			child_world = mat4_mul(child_local, parent_world);
+		} else {
+			child_world = child_local;
+		}
+		state->world_matrices[t] = child_world;
+	}
 }

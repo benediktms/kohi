@@ -27,7 +27,7 @@ The items in this list are not in any particular order. This list will be update
       ids/weights, terrain material weights, etc. should be in a second buffer). Could then use the
       same pipeline for static/animated geometry by binding a 'dummy' vertex binding for binding 1
       and not using those attributes in the shader if there are no bone weights.
-- [ ] Remove legacy systems (i.e. lighting, etc.)
+- [x] Remove legacy systems (i.e. hierarchy system, etc.)
 - [ ] Hoist Overdrive project to it's own repo, refactor similar to Testbed.
 - [x] Bugfix: #274 Fix validation issues regarding window resize.
 - [x] Bugfix: #268 Add app config renderer option for "require_discrete_gpu". Default to false and pass down to Vulkan
@@ -43,6 +43,7 @@ The items in this list are not in any particular order. This list will be update
 
 ## Future Releases
 
+- [ ] Editor gizmo needs work when it comes to local translation on top of current/parent rotation Editor gizmo needs work when it comes to local translation on top of current/parent rotations.
 - [ ] Rework freelist to take alignment into account.
   - [ ] Rework renderbuffer to take alignment in during creation, and use said alignment for allocations.
   - [ ] Change Vulkan backend to use actual uniform size instead of stride when allocating from renderbuffer.

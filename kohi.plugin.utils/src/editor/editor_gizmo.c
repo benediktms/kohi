@@ -1,5 +1,6 @@
 
 // TODO:
+// - Local mode needs some work when it comes to translation after child/parent rotations.
 // - multi-axis rotations.
 // - The gizmo should only be active/visible on a selected object.
 // - Before editing begins, a copy of the transform should be taken beforehand to allow canceling of the operation.
@@ -19,6 +20,7 @@
 #include "math/geometry.h"
 #include "math/math_types.h"
 #include "memory/kmemory.h"
+#include "systems/kcamera_system.h"
 #include "utils/kcolour.h"
 
 static void create_gizmo_mode_none(editor_gizmo* gizmo);
@@ -45,8 +47,7 @@ b8 editor_gizmo_create(editor_gizmo* out_gizmo) {
 	out_gizmo->ktransform_handle = ktransform_create(0);
 	out_gizmo->selected_ktransform_handle = KTRANSFORM_INVALID;
 	// Default orientation.
-	out_gizmo->orientation = EDITOR_GIZMO_ORIENTATION_LOCAL;
-	// out_gizmo->orientation = EDITOR_GIZMO_ORIENTATION_GLOBAL;
+	out_gizmo->orientation = EDITOR_GIZMO_ORIENTATION_GLOBAL;
 
 	// Initialize default values for all modes.
 	for (u32 i = 0; i < EDITOR_GIZMO_MODE_MAX + 1; ++i) {
@@ -137,12 +138,18 @@ void editor_gizmo_refresh(editor_gizmo* gizmo) {
 			// Set the position.
 			mat4 world = ktransform_world_get(gizmo->selected_ktransform_handle);
 			vec3 world_position = mat4_position(world);
+			vec3 local_position = ktransform_position_get(gizmo->selected_ktransform_handle);
+			KTRACE("%s - , local=%V3.3, world=%V3.3", __FUNCTION__, &local_position, &world_position);
 			ktransform_position_set(gizmo->ktransform_handle, world_position);
 
 			// If local, set rotation.
 			if (gizmo->orientation == EDITOR_GIZMO_ORIENTATION_LOCAL) {
-				ktransform_rotation_set(gizmo->ktransform_handle, ktransform_rotation_get(gizmo->selected_ktransform_handle));
+				// Local rotation isn't enough. Even though we are affecting the local pos/rotation/scale, the gizmo needs
+				// to be oriented to the _global_ rotation of the object.
+				quat world_rotation = ktransform_world_rotation_get(gizmo->selected_ktransform_handle);
+				ktransform_rotation_set(gizmo->ktransform_handle, world_rotation);
 			} else {
+				// Global is always axis-aligned.
 				ktransform_rotation_set(gizmo->ktransform_handle, quat_identity());
 			}
 			// Ensure the scale is set.
@@ -194,7 +201,7 @@ void editor_gizmo_update(editor_gizmo* gizmo, kcamera camera) {
 		ktransform_calculate_local(gizmo->ktransform_handle);
 
 		vec3 cam_pos = kcamera_get_position(camera);
-		vec3 gizmo_pos = gizmo->selected_ktransform_handle == KTRANSFORM_INVALID ? vec3_zero() : ktransform_position_get(gizmo->selected_ktransform_handle);
+		vec3 gizmo_pos = ktransform_position_get(gizmo->ktransform_handle); // gizmo->selected_ktransform_handle == KTRANSFORM_INVALID ? vec3_zero() : ktransform_position_get(gizmo->selected_ktransform_handle);
 		f32 dist = vec3_distance(cam_pos, gizmo_pos);
 
 		rect_2di vp_rect = kcamera_get_vp_rect(camera);
@@ -550,28 +557,79 @@ void editor_gizmo_interaction_begin(editor_gizmo* gizmo, kcamera c, struct ray* 
 
 	if (gizmo->interaction == EDITOR_GIZMO_INTERACTION_TYPE_MOUSE_DRAG) {
 		editor_gizmo_mode_data* data = &gizmo->mode_data[gizmo->mode];
-		mat4 gizmo_world = ktransform_local_get(gizmo->ktransform_handle);
-
+		mat4 gizmo_local = ktransform_local_get(gizmo->ktransform_handle);
 		vec3 origin = ktransform_position_get(gizmo->ktransform_handle);
-		vec3 plane_dir;
+
+		quat child_local_rotation = ktransform_rotation_get(gizmo->selected_ktransform_handle);
+		ktransform parent = ktransform_parent_get(gizmo->selected_ktransform_handle);
+		b8 has_parent = (parent != KTRANSFORM_INVALID);
+		quat parent_world_rotation =
+			has_parent
+				? ktransform_world_rotation_get(parent)
+				: quat_identity();
+
+		quat world_rotation = child_local_rotation;
+		if (has_parent) {
+			world_rotation = quat_mul(parent_world_rotation, world_rotation);
+		}
+
+		// Interaction plane normal.
+		vec3 plane_normal;
 		if (gizmo->mode == EDITOR_GIZMO_MODE_MOVE || gizmo->mode == EDITOR_GIZMO_MODE_SCALE) {
 			// Create the interaction plane.
-			if (gizmo->orientation == EDITOR_GIZMO_ORIENTATION_LOCAL || gizmo->orientation == EDITOR_GIZMO_ORIENTATION_GLOBAL) {
+			if (gizmo->orientation == EDITOR_GIZMO_ORIENTATION_LOCAL) {
+				/* quat q_inv = inv_parent_world_rotation; */
+
+				/* vec3 axis_world, axis_world2; */
 				switch (data->current_axis_index) {
 				case 0: // x axis
 				case 3: // xy axes
-					plane_dir = vec3_transform(vec3_backward(), 0.0f, gizmo_world);
+
+					// Point along x axis to origin.
+					plane_normal = vec3_rotate(vec3_left(), world_rotation);
+					break;
+				case 1: // y axis
+				case 5: // yz axes
+
+					// Point along z axis to origin.
+					plane_normal = vec3_rotate(vec3_forward(), world_rotation);
+					break;
+				case 6: // xyz
+					plane_normal = kcamera_backward(c);
+					break;
+				case 2: // z axis
+					plane_normal = vec3_rotate(vec3_backward(), world_rotation);
+					break;
+				case 4: // xz axes
+
+					// Point along z axis to origin.
+					// NOTE: back/up works for z, but not xz
+					plane_normal = vec3_rotate(vec3_up(), world_rotation);
+					break;
+				default:
+					return;
+				}
+			} else if (gizmo->orientation == EDITOR_GIZMO_ORIENTATION_GLOBAL) {
+
+				// Orientations are axis-aligned for global movement and scale.
+				switch (data->current_axis_index) {
+				case 0: // x axis
+				case 3: // xy axes
+					plane_normal = vec3_forward();
+					/* plane_dir = vec3_normalized(vec3_cross(vec3_left(), kcamera_forward(c))); */
 					break;
 				case 1: // y axis
 				case 6: // xyz
-					plane_dir = kcamera_backward(c);
-					break;
-				case 4: // xz axes
-					plane_dir = vec3_transform(vec3_up(), 0.0f, gizmo_world);
+					plane_normal = kcamera_backward(c);
 					break;
 				case 2: // z axis
+				case 4: // xz axes
+					plane_normal = vec3_up();
+					/* plane_dir = vec3_normalized(vec3_cross(vec3_up(), kcamera_backward(c))); */
+					break;
 				case 5: // yz axes
-					plane_dir = vec3_transform(vec3_right(), 0.0f, gizmo_world);
+					plane_normal = vec3_right();
+					/* plane_dir = vec3_normalized(vec3_cross(vec3_forward(), kcamera_forward(c))); */
 					break;
 				default:
 					return;
@@ -580,11 +638,11 @@ void editor_gizmo_interaction_begin(editor_gizmo* gizmo, kcamera c, struct ray* 
 				// TODO: Other orientations.
 				return;
 			}
-			data->interaction_plane = plane_3d_create(origin, plane_dir);
-			data->interaction_plane_back = plane_3d_create(origin, vec3_mul_scalar(plane_dir, -1.0f));
+			data->interaction_plane = plane_3d_create(origin, plane_normal);
+			data->interaction_plane_back = plane_3d_create(origin, vec3_mul_scalar(plane_normal, -1.0f));
 
 #if KOHI_DEBUG
-			debug_line3d_points_set(&gizmo->plane_normal_line, origin, vec3_add(origin, plane_dir));
+			debug_line3d_points_set(&gizmo->plane_normal_line, origin, vec3_add(origin, plane_normal));
 #endif
 
 			// Get the initial intersection point of the ray on the plane.
@@ -607,21 +665,21 @@ void editor_gizmo_interaction_begin(editor_gizmo* gizmo, kcamera c, struct ray* 
 			// Create the interaction plane.
 			switch (data->current_axis_index) {
 			case 0: // x
-				plane_dir = vec3_transform(vec3_left(), 0.0f, gizmo_world);
+				plane_normal = vec3_transform(vec3_left(), 0.0f, gizmo_local);
 				break;
 			case 1: // y
-				plane_dir = vec3_transform(vec3_down(), 0.0f, gizmo_world);
+				plane_normal = vec3_transform(vec3_down(), 0.0f, gizmo_local);
 				break;
 			case 2: // z
-				plane_dir = vec3_transform(vec3_forward(), 0.0f, gizmo_world);
+				plane_normal = vec3_transform(vec3_forward(), 0.0f, gizmo_local);
 				break;
 			}
 
-			data->interaction_plane = plane_3d_create(origin, plane_dir);
-			data->interaction_plane_back = plane_3d_create(origin, vec3_mul_scalar(plane_dir, -1.0f));
+			data->interaction_plane = plane_3d_create(origin, plane_normal);
+			data->interaction_plane_back = plane_3d_create(origin, vec3_mul_scalar(plane_normal, -1.0f));
 
 #if KOHI_DEBUG
-			debug_line3d_points_set(&gizmo->plane_normal_line, origin, vec3_add(origin, plane_dir));
+			debug_line3d_points_set(&gizmo->plane_normal_line, origin, vec3_add(origin, plane_normal));
 #endif
 
 			// Get the initial intersection point of the ray on the plane.
@@ -663,8 +721,22 @@ void editor_gizmo_handle_interaction(editor_gizmo* gizmo, kcamera camera, struct
 	}
 
 	editor_gizmo_mode_data* data = &gizmo->mode_data[gizmo->mode];
-	mat4 gizmo_world = ktransform_local_get(gizmo->ktransform_handle);
+	mat4 gizmo_local = ktransform_local_get(gizmo->ktransform_handle);
 	vec3 origin = ktransform_position_get(gizmo->ktransform_handle);
+
+	quat child_local_rotation = ktransform_rotation_get(gizmo->selected_ktransform_handle);
+	ktransform parent = ktransform_parent_get(gizmo->selected_ktransform_handle);
+	b8 has_parent = (parent != KTRANSFORM_INVALID);
+	quat parent_world_rotation =
+		has_parent
+			? ktransform_world_rotation_get(parent)
+			: quat_identity();
+
+	quat world_rotation = child_local_rotation;
+	if (has_parent) {
+		world_rotation = quat_mul(parent_world_rotation, world_rotation);
+	}
+
 	f32 distance;
 	vec3 intersection = {0};
 
@@ -678,29 +750,75 @@ void editor_gizmo_handle_interaction(editor_gizmo* gizmo, kcamera camera, struct
 			if (!raycast_plane_3d(r, &data->interaction_plane, &intersection, &distance)) {
 				// Try from the other direction.
 				if (!raycast_plane_3d(r, &data->interaction_plane_back, &intersection, &distance)) {
+					KTRACE("drag no hit");
 					return;
 				}
 			}
 			vec3 diff = vec3_sub(intersection, data->last_interaction_pos);
-			vec3 direction;
-			vec3 translation;
 
-			if (gizmo->orientation == EDITOR_GIZMO_ORIENTATION_LOCAL ||
-				gizmo->orientation == EDITOR_GIZMO_ORIENTATION_GLOBAL) {
+			KTRACE("diff=%V3.3", &diff);
+
+			vec3 translation;
+			vec3 direction, direction2, cr;
+
+			if (gizmo->orientation == EDITOR_GIZMO_ORIENTATION_LOCAL) {
+
 				// move along the current axis' line
 				switch (data->current_axis_index) {
 				case 0: // x
-					direction = vec3_transform(vec3_right(), 0.0f, gizmo_world);
+
+					direction = vec3_up(); // vec3_normalized(vec3_rotate(vec3_up(), world_rotation)); // was right
+					direction2 = vec3_normalized(data->interaction_plane.normal);
+					cr = vec3_cross(direction2, direction);
+					direction = vec3_normalized(cr);
 					// Project diff onto direction.
 					translation = vec3_mul_scalar(direction, vec3_dot(diff, direction));
 					break;
 				case 1: // y
-					direction = vec3_transform(vec3_up(), 0.0f, gizmo_world);
+
+					direction = vec3_forward(); // vec3_normalized(vec3_rotate(vec3_up(), world_rotation)); // was right
+					direction2 = vec3_normalized(data->interaction_plane.normal);
+					cr = vec3_cross(direction2, direction);
+					direction = vec3_normalized(cr);
 					// Project diff onto direction.
 					translation = vec3_mul_scalar(direction, vec3_dot(diff, direction));
 					break;
 				case 2: // z
-					direction = vec3_transform(vec3_forward(), 0.0f, gizmo_world);
+
+					direction = vec3_up(); // vec3_normalized(vec3_rotate(vec3_up(), world_rotation)); // was right2
+					direction2 = vec3_normalized(data->interaction_plane.normal);
+					cr = vec3_cross(direction2, direction);
+					direction = vec3_normalized(cr);
+					// Project diff onto direction.
+					translation = vec3_mul_scalar(direction, vec3_dot(diff, direction));
+					break;
+				case 3: // xy
+				case 4: // xz
+				case 5: // yz
+				case 6: // xyz
+					translation = diff;
+					break;
+				default:
+					return;
+				}
+			} else if (gizmo->orientation == EDITOR_GIZMO_ORIENTATION_GLOBAL) {
+
+				// Orientations are axis-aligned for global movement and scale.
+				switch (data->current_axis_index) {
+				case 0: // x
+					direction = vec3_left();
+					// Project diff onto direction.
+					KTRACE("pre-final translation=%V3.3", &direction);
+					KTRACE("dot diff, dir=%.3f", vec3_dot(diff, direction));
+					translation = vec3_mul_scalar(direction, vec3_dot(diff, direction));
+					break;
+				case 1: // y
+					direction = vec3_up();
+					// Project diff onto direction.
+					translation = vec3_mul_scalar(direction, vec3_dot(diff, direction));
+					break;
+				case 2: // z
+					direction = vec3_forward();
 					// Project diff onto direction.
 					translation = vec3_mul_scalar(direction, vec3_dot(diff, direction));
 					break;
@@ -721,6 +839,15 @@ void editor_gizmo_handle_interaction(editor_gizmo* gizmo, kcamera camera, struct
 
 			// Apply translation to selection and gizmo.
 			if (gizmo->selected_ktransform_handle != KTRANSFORM_INVALID) {
+
+				// FIXME: When parent is rotated, this goes the wrong way, even though the above gizmo
+				// moves in the correct direction using the same transform...
+
+				if (has_parent) {
+					quat inv_parent = (parent_world_rotation);
+					translation = vec3_rotate(translation, inv_parent);
+				}
+
 				ktransform_translate(gizmo->ktransform_handle, translation);
 				ktransform_translate(gizmo->selected_ktransform_handle, translation);
 			}
@@ -805,10 +932,10 @@ void editor_gizmo_handle_interaction(editor_gizmo* gizmo, kcamera camera, struct
 			vec3 direction_t;
 			if (gizmo->orientation == EDITOR_GIZMO_ORIENTATION_LOCAL) {
 				if (data->current_axis_index < 6) {
-					direction_t = vec3_transform(direction, 0.0f, gizmo_world);
+					direction_t = vec3_transform(direction, 0.0f, gizmo_local);
 				} else {
 					// NOTE: In the case of uniform scale, base on the local up vector.
-					direction_t = vec3_transform(vec3_up(), 0.0f, gizmo_world);
+					direction_t = vec3_transform(vec3_up(), 0.0f, gizmo_local);
 				}
 			} else if (gizmo->orientation == EDITOR_GIZMO_ORIENTATION_GLOBAL) {
 				// Use the direction as-is.
@@ -911,13 +1038,13 @@ void editor_gizmo_handle_interaction(editor_gizmo* gizmo, kcamera camera, struct
 
 			switch (data->current_axis_index) {
 			case 0: // x
-				direction = vec3_transform(vec3_right(), 0.0f, gizmo_world);
+				direction = vec3_transform(vec3_right(), 0.0f, gizmo_local);
 				break;
 			case 1: // y
-				direction = vec3_transform(vec3_up(), 0.0f, gizmo_world);
+				direction = vec3_transform(vec3_up(), 0.0f, gizmo_local);
 				break;
 			case 2: // z
-				direction = vec3_transform(vec3_backward(), 0.0f, gizmo_world);
+				direction = vec3_transform(vec3_backward(), 0.0f, gizmo_local);
 				break;
 			default:
 				return;
@@ -949,7 +1076,7 @@ void editor_gizmo_handle_interaction(editor_gizmo* gizmo, kcamera camera, struct
 				// Oriented disc.
 				vec3 aa_normal = vec3_zero();
 				aa_normal.elements[i] = 1.0f;
-				aa_normal = vec3_transform(aa_normal, 0.0f, gizmo_world);
+				aa_normal = vec3_transform(aa_normal, 0.0f, gizmo_local);
 				f32 scaled_rad = radius * scale;
 				f32 inner = scaled_rad - (scale * 0.05f);
 				f32 outer = scaled_rad + (scale * 0.05f);

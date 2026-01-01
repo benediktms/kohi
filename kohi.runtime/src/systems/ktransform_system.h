@@ -107,6 +107,9 @@ KAPI void ktransform_destroy(ktransform* t);
  */
 KAPI b8 ktransform_is_identity(ktransform t);
 
+KAPI b8 ktransform_parent_set(ktransform t, ktransform parent);
+KAPI ktransform ktransform_parent_get(ktransform t);
+
 /**
  * @brief Returns the local position of the given ktransform.
  *
@@ -147,6 +150,14 @@ KAPI void ktransform_translate(ktransform t, vec3 translation);
  * @return A copy of the rotation.
  */
 KAPI quat ktransform_rotation_get(ktransform t);
+
+/**
+ * @brief Returns the world rotation of the given ktransform.
+ *
+ * @param t A handle whose world rotation to get.
+ * @return A copy of the world rotation.
+ */
+KAPI quat ktransform_world_rotation_get(ktransform t);
 
 /**
  * @brief Sets the rotation of the given ktransform.
@@ -241,8 +252,6 @@ KAPI void ktransform_calculate_local(ktransform t);
  * @return A copy of the local ktransformation matrix.
  */
 KAPI mat4 ktransform_local_get(ktransform t);
-
-KAPI void ktransform_world_set(ktransform t, mat4 world);
 
 /**
  * @brief Obtains the world matrix of the given ktransform.

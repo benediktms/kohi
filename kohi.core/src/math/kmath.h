@@ -2396,10 +2396,27 @@ KINLINE aabb aabb_from_mat4(vec3 half_extents, mat4 mat) {
  * @param box The box to test against.
  * @returns True if inside; otherwise false.
  */
-KINLINE b8 point_inside_aabb(vec3 point, aabb box) {
+KINLINE b8 aabb_contains_point(vec3 point, aabb box) {
 	return (point.x >= box.min.x && point.x <= box.max.x) &&
 		   (point.y >= box.min.y && point.y <= box.max.y) &&
 		   (point.z >= box.min.z && point.z <= box.max.z);
+}
+
+/**
+ * @brief Indicates if AABB b is completely inside AABB a.
+ *
+ * @param a The outer AABB to test.
+ * @param b The inner AABB to test.
+ * @returns True if inside; otherwise false.
+ */
+KINLINE b8 aabb_contains_aabb(aabb a, aabb b) {
+	return (
+		b.min.x >= a.min.x &&
+		b.min.y >= a.min.y &&
+		b.min.z >= a.min.z &&
+		b.max.x <= a.max.x &&
+		b.max.y <= a.max.y &&
+		b.max.z <= a.max.z);
 }
 
 KINLINE ray ray_create(vec3 position, vec3 direction) {

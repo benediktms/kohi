@@ -264,6 +264,8 @@ b8 sui_textbox_control_load(standard_ui_state* state, struct sui_control* self) 
 
 	typed_data->clip_mask.clip_ktransform = ktransform_from_position((vec3){corner_size.x, 0.0f, 0.0f}, 0);
 
+	ktransform_parent_set(typed_data->clip_mask.clip_ktransform, self->ktransform);
+
 	// Acquire group resources for this control.
 	kshader sui_shader = kshader_system_get(kname_create(STANDARD_UI_SHADER_NAME), kname_create(PACKAGE_NAME_STANDARD_UI));
 
@@ -288,6 +290,7 @@ b8 sui_textbox_control_load(standard_ui_state* state, struct sui_control* self) 
 		// clipping mask is attached and drawn. See the render function for the other half of this.
 		// TODO: Adjustable padding
 		typed_data->content_label.parent = self;
+		ktransform_parent_set(typed_data->content_label.ktransform, self->ktransform);
 		ktransform_position_set(typed_data->content_label.ktransform, (vec3){typed_data->nslice.corner_size.x, typed_data->label_line_height - 5.0f, 0.0f}); // padding/2 for y
 		typed_data->content_label.is_active = true;
 		if (!standard_ui_system_update_active(state, &typed_data->content_label)) {
@@ -334,10 +337,11 @@ b8 sui_textbox_control_load(standard_ui_state* state, struct sui_control* self) 
 		// clipping mask is attached and drawn. See the render function for the other half of this.
 
 		// Set an initial position.
-		ktransform_position_set(typed_data->highlight_box.ktransform, (vec3){typed_data->nslice.corner_size.x, typed_data->label_line_height - 4.0f, 0.0f});
 		typed_data->highlight_box.is_active = true;
 		typed_data->highlight_box.is_visible = false;
 		/* typed_data->highlight_box.parent = self; */
+		ktransform_parent_set(typed_data->highlight_box.ktransform, self->ktransform);
+		/* ktransform_position_set(typed_data->highlight_box.ktransform, (vec3){typed_data->nslice.corner_size.x, typed_data->label_line_height - 4.0f, 0.0f}); */
 		if (!standard_ui_system_update_active(state, &typed_data->highlight_box)) {
 			KERROR("Unable to update active state for textbox highlight box.");
 		}
@@ -363,11 +367,11 @@ b8 sui_textbox_control_update(standard_ui_state* state, struct sui_control* self
 		return false;
 	}
 
-	sui_textbox_internal_data* typed_data = self->internal_data;
-	mat4 parent_world = ktransform_world_get(self->ktransform);
+	/* sui_textbox_internal_data* typed_data = self->internal_data;
+	mat4 parent_world = ktransform_world_get(self->ktransform); */
 
 	// Update clip mask ktransform
-	ktransform_calculate_local(typed_data->clip_mask.clip_ktransform);
+	/* ktransform_calculate_local(typed_data->clip_mask.clip_ktransform);
 	mat4 local = ktransform_local_get(typed_data->clip_mask.clip_ktransform);
 	mat4 self_world = mat4_mul(local, parent_world);
 	ktransform_world_set(typed_data->clip_mask.clip_ktransform, self_world);
@@ -377,7 +381,7 @@ b8 sui_textbox_control_update(standard_ui_state* state, struct sui_control* self
 	ktransform_calculate_local(typed_data->highlight_box.ktransform);
 	mat4 hb_local = ktransform_local_get(typed_data->highlight_box.ktransform);
 	mat4 hb_world = mat4_mul(hb_local, parent_world);
-	ktransform_world_set(typed_data->highlight_box.ktransform, hb_world);
+	ktransform_world_set(typed_data->highlight_box.ktransform, hb_world); */
 	return true;
 }
 

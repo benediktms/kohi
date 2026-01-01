@@ -6,6 +6,8 @@
 typedef u32 bvh_id;
 typedef u64 bvh_userdata;
 
+#define BVH_INVALID_NODE INVALID_ID_U32
+
 typedef struct bvh_node {
 	aabb aabb;		   // padded AABB for leaves, tight AABB for internal.
 	bvh_userdata user; // user payload for leaves
@@ -47,3 +49,7 @@ typedef b8 (*bvh_raycast_callback)(bvh_userdata user, bvh_id id, const ray* r, f
 KAPI raycast_result bvh_raycast(const bvh* t, const ray* r, bvh_raycast_callback callback, void* usr);
 
 KAPI void bvh_rebalance(bvh* t, u32 iterations);
+
+KAPI void bvh_debug_trace_to_leaf(const bvh* t, bvh_userdata target_user, const ray* r);
+
+KAPI void bvh_debug_print(const bvh* t);
