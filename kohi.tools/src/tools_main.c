@@ -108,7 +108,7 @@ i32 combine_texture_maps(i32 argc, char** argv) {
 	// Starting at third argument. One argument = 1 shader.
 	for (i32 i = 2; i < argc; ++i) {
 		char** parts = darray_create(char*);
-		string_split(argv[i], '=', &parts, true, false);
+		string_split(argv[i], '=', &parts, true, false, true);
 
 		if (strings_equali(parts[0], "metallic")) {
 			maps[MAP_TYPE_METALLIC].file_path = string_duplicate(parts[1]);

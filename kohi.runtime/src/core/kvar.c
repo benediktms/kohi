@@ -415,16 +415,16 @@ static void kvar_console_command_print_all(console_command_context context) {
 
 static void kvar_console_commands_register(kvar_state* state) {
 	// Print a var by name.
-	console_command_register("kvar_print", 1, state, kvar_console_command_print);
+	console_command_register("kvar_print", 1, 1, state, kvar_console_command_print);
 	// Print all kvars.
-	console_command_register("kvar_print_all", 0, state, kvar_console_command_print_all);
+	console_command_register("kvar_print_all", 0, 0, state, kvar_console_command_print_all);
 
 	// Create/set an int-type kvar by name.
-	console_command_register("kvar_set_int", 2, state, kvar_console_command_i32_set);
-	console_command_register("kvar_set_i32", 2, state, kvar_console_command_i32_set); // alias
+	console_command_register("kvar_set_int", 2, 2, state, kvar_console_command_i32_set);
+	console_command_register("kvar_set_i32", 2, 2, state, kvar_console_command_i32_set); // alias
 	// Create/set a float-type kvar by name.
-	console_command_register("kvar_set_float", 2, state, kvar_console_command_f32_set);
-	console_command_register("kvar_set_f32", 2, state, kvar_console_command_f32_set); // alias
+	console_command_register("kvar_set_float", 2, 2, state, kvar_console_command_f32_set);
+	console_command_register("kvar_set_f32", 2, 2, state, kvar_console_command_f32_set); // alias
 	// Create/set a string-type kvar by name.
-	console_command_register("kvar_set_string", 2, state, kvar_console_command_string_set);
+	console_command_register("kvar_set_string", 2, 2, state, kvar_console_command_string_set);
 }

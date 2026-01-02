@@ -590,9 +590,10 @@ KAPI const char* bool_to_string(b8 b);
  * @param str_darray A pointer to a darray of char arrays to hold the entries. NOTE: must be a darray.
  * @param trim_entries Trims each entry if true.
  * @param include_empty Indicates if empty entries should be included.
+ * @param escape_strings If a double-quote is run across, don't split delimiter inside it.
  * @return The number of entries yielded by the split operation.
  */
-KAPI u32 string_split(const char* str, char delimiter, char*** str_darray, b8 trim_entries, b8 include_empty);
+KAPI u32 string_split(const char* str, char delimiter, char*** str_darray, b8 trim_entries, b8 include_empty, b8 escape_strings);
 
 /**
  * @brief Cleans up string allocations in str_darray, but does not

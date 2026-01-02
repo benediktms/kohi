@@ -144,7 +144,7 @@ b8 texture_system_initialize(u64* memory_requirement, void* state, void* config)
 	create_default_textures(state_ptr);
 
 	// Register a console command to dump list of materials/references.
-	console_command_register("texture_system_dump", 0, state, on_texture_system_dump);
+	console_command_register("texture_system_dump", 0, 0, state, on_texture_system_dump);
 
 	KDEBUG("Texture system initialization complete.");
 

@@ -43,6 +43,13 @@ KAPI ktransform ktransform_create(u64 user);
 KAPI ktransform ktransform_clone(ktransform original, u64 user);
 
 /**
+ * Forces the transform to be dirty, thus forcing a recalculation on the next update.
+ *
+ * @param transform The transform to flag as dirty.
+ */
+KAPI void ktransform_mark_dirty(ktransform transform);
+
+/**
  * @brief Creates a ktransform from the given position.
  * Uses a zero rotation and a one scale.
  *

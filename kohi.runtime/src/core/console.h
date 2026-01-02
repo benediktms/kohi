@@ -112,12 +112,13 @@ void console_write(log_level level, const char* message);
  * @brief Registers a console command with the console system.
  *
  * @param command The name of the command.
- * @param arg_count The number of required arguments.
+ * @param min_arg_count The minimum number of required arguments.
+ * @param max_arg_count The maximum number of required arguments.
  * @param listener A pointer to a listener, if needed.
  * @param func The function pointer to be invoked.
  * @return True on success; otherwise false.
  */
-KAPI b8 console_command_register(const char* command, u8 arg_count, void* listener, PFN_console_command func);
+KAPI b8 console_command_register(const char* command, u8 min_arg_count, u8 max_arg_count, void* listener, PFN_console_command func);
 
 /**
  * @brief Unregisters the given command.

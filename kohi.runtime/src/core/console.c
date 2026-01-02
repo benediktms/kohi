@@ -15,7 +15,8 @@ typedef struct console_consumer {
 
 typedef struct console_command {
 	const char* name;
-	u8 arg_count;
+	u8 min_arg_count;
+	u8 max_arg_count;
 	PFN_console_command func;
 	void* listener;
 } console_command;
@@ -110,7 +111,7 @@ void console_write(log_level level, const char* message) {
 	}
 }
 
-b8 console_command_register(const char* command, u8 arg_count, void* listener, PFN_console_command func) {
+b8 console_command_register(const char* command, u8 min_arg_count, u8 max_arg_count, void* listener, PFN_console_command func) {
 	KASSERT_MSG(state_ptr && command, "console_register_command requires state and valid command");
 
 	// Make sure it doesn't already exist.
@@ -123,7 +124,8 @@ b8 console_command_register(const char* command, u8 arg_count, void* listener, P
 	}
 
 	console_command new_command = {
-		.arg_count = arg_count,
+		.min_arg_count = min_arg_count,
+		.max_arg_count = max_arg_count,
 		.func = func,
 		.name = string_duplicate(command),
 		.listener = listener,
@@ -244,8 +246,7 @@ b8 console_command_execute(const char* command) {
 	b8 has_error = true;
 	char* temp = 0;
 	char** parts = darray_create(char*);
-	// TODO: If strings are ever used as arguments, this will split improperly.
-	u32 part_count = string_split(command, ' ', &parts, true, false);
+	u32 part_count = string_split(command, ' ', &parts, true, false, true);
 	if (part_count < 1) {
 		has_error = true;
 		goto console_command_execute_cleanup;
@@ -266,19 +267,19 @@ b8 console_command_execute(const char* command) {
 		if (strings_equali(cmd->name, parts[0])) {
 			command_found = true;
 			u8 arg_count = part_count - 1;
-			// Provided argument count must match expected number of arguments for the command.
-			if (state_ptr->registered_commands[i].arg_count != arg_count) {
-				KERROR("The console command '%s' requires %u arguments but %u were provided.", cmd->name, cmd->arg_count, arg_count);
+			// Must be in range of required number of args
+			if (arg_count < state_ptr->registered_commands[i].min_arg_count || arg_count > state_ptr->registered_commands[i].max_arg_count) {
+				KERROR("The console command '%s' requires argumet count between %u and %u but %u were provided.", cmd->name, cmd->min_arg_count, cmd->max_arg_count, arg_count);
 				has_error = true;
 			} else {
 				// Execute it, passing along arguments if needed.
 				console_command_context context = {0};
 				context.command = string_duplicate(command);
 				context.command_name = string_duplicate(cmd->name);
-				context.argument_count = cmd->arg_count;
+				context.argument_count = arg_count;
 				if (context.argument_count > 0) {
-					context.arguments = kallocate(sizeof(console_command_argument) * cmd->arg_count, MEMORY_TAG_ARRAY);
-					for (u8 j = 0; j < cmd->arg_count; ++j) {
+					context.arguments = kallocate(sizeof(console_command_argument) * arg_count, MEMORY_TAG_ARRAY);
+					for (u8 j = 0; j < arg_count; ++j) {
 						context.arguments[j].value = parts[j + 1];
 					}
 				}
@@ -288,7 +289,7 @@ b8 console_command_execute(const char* command) {
 				cmd->func(context);
 
 				if (context.arguments) {
-					kfree(context.arguments, sizeof(console_command_argument) * cmd->arg_count, MEMORY_TAG_ARRAY);
+					kfree(context.arguments, sizeof(console_command_argument) * arg_count, MEMORY_TAG_ARRAY);
 				}
 			}
 			break;

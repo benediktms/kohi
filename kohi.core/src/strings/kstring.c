@@ -1184,7 +1184,7 @@ const char* bool_to_string(b8 b) {
 	return string_duplicate(b == false ? "false" : "true");
 }
 
-u32 string_split(const char* str, char delimiter, char*** str_darray, b8 trim_entries, b8 include_empty) {
+u32 string_split(const char* str, char delimiter, char*** str_darray, b8 trim_entries, b8 include_empty, b8 escape_strings) {
 	if (!str || !str_darray) {
 		return 0;
 	}
@@ -1195,12 +1195,14 @@ u32 string_split(const char* str, char delimiter, char*** str_darray, b8 trim_en
 	u32 length = string_length(str);
 	char buffer[16384] = {0}; // If a single entry goes beyond this, well... just don't do that.
 	u32 current_length = 0;
+	b8 in_string = false;
+	char prev = 0;
 	// Iterate each character until a delimiter is reached.
 	for (u32 i = 0; i < length; ++i) {
 		char c = str[i];
 
 		// Found delimiter, finalize string.
-		if (c == delimiter) {
+		if (c == delimiter && (!escape_strings || !in_string)) {
 			buffer[current_length] = 0;
 			result = buffer;
 			trimmed_length = current_length;
@@ -1227,11 +1229,18 @@ u32 string_split(const char* str, char delimiter, char*** str_darray, b8 trim_en
 			// Clear the buffer.
 			kzero_memory(buffer, sizeof(char) * 16384);
 			current_length = 0;
+			prev = c;
 			continue;
 		}
 
-		buffer[current_length] = c;
-		current_length++;
+		if (c == '\"' && prev != '\\') {
+			in_string = !in_string;
+		} else {
+			buffer[current_length] = c;
+			current_length++;
+		}
+
+		prev = c;
 	}
 
 	// At the end of the string. If any chars are queued up, read them.

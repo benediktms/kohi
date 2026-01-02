@@ -120,7 +120,7 @@ b8 ktransform_system_initialize(u64* memory_requirement, void* state, void* conf
 	KASSERT(typed_state->transform_global_ssbo != KRENDERBUFFER_INVALID);
 	KDEBUG("Created transforms global storage buffer.");
 
-	KASSERT(console_command_register("transform_system_dump", 0, typed_state, on_transform_dump));
+	KASSERT(console_command_register("transform_system_dump", 0, 0, typed_state, on_transform_dump));
 
 	return true;
 }
@@ -251,6 +251,15 @@ ktransform ktransform_clone(ktransform original, u64 user) {
 	return handle;
 }
 
+void ktransform_mark_dirty(ktransform transform) {
+	ktransform_system_state* state = engine_systems_get()->ktransform_system;
+	if (!validate_handle(state, transform)) {
+		KWARN("Invalid handle passed, nothing was done.");
+	} else {
+		dirty_list_add_r(state, transform);
+	}
+}
+
 ktransform ktransform_from_position(vec3 position, u64 user) {
 	ktransform handle = {0};
 	ktransform_system_state* state = engine_systems_get()->ktransform_system;
@@ -376,6 +385,9 @@ b8 ktransform_parent_set(ktransform t, ktransform parent) {
 	state->parents[t] = parent;
 	// Update the depth too.
 	state->depths[t] = parent == KTRANSFORM_INVALID ? 0 : state->depths[parent] + 1;
+
+	dirty_list_add_r(state, t);
+
 	return true;
 }
 

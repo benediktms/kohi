@@ -38,7 +38,7 @@ b8 debug_console_consumer_write(void* inst, log_level level, const char* message
 		// be accessed by this debug console. Ordinarily a cleanup
 		// via string_cleanup_split_darray would be warranted.
 		char** split_message = darray_create(char*);
-		u32 count = string_split(message, '\n', &split_message, true, false);
+		u32 count = string_split(message, '\n', &split_message, true, false, false);
 		// Push each to the array as a new line.
 		for (u32 i = 0; i < count; ++i) {
 			darray_push(state->lines, split_message[i]);

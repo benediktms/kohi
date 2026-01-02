@@ -97,7 +97,7 @@ b8 kmaterial_system_initialize(u64* memory_requirement, kmaterial_system_state* 
 	state->instances = darray_reserve(kmaterial_instance_data*, config->max_material_count);
 
 	// Register a console command to dump list of materials/references.
-	console_command_register("material_system_dump", 0, state, on_material_system_dump);
+	console_command_register("material_system_dump", 0, 0, state, on_material_system_dump);
 
 	return true;
 }

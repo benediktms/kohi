@@ -261,7 +261,7 @@ b8 engine_create(application* app, const char* app_config_path, const char* game
 		}
 	}
 
-	KASSERT(console_command_register("memory_dump", 0, 0, on_memory_dump));
+	KASSERT(console_command_register("memory_dump", 0, 0, 0, on_memory_dump));
 
 	// Report runtime version
 #if KOHI_RELEASE
