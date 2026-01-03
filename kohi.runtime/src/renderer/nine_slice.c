@@ -260,7 +260,7 @@ void nine_slice_render_frame_prepare(nine_slice* nslice, const struct frame_data
 		struct renderer_system_state* renderer_system = engine_systems_get()->renderer_system;
 		krenderbuffer vertex_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_VERTEX_STANDARD));
 		u32 size = nslice->vertex_data.element_size * nslice->vertex_data.element_count;
-		if (!renderer_renderbuffer_load_range(renderer_system, vertex_buffer, nslice->vertex_data.buffer_offset, size, nslice->vertex_data.elements, true)) {
+		if (!renderer_renderbuffer_load_range(renderer_system, vertex_buffer, nslice->vertex_data.buffer_offset, size, nslice->vertex_data.elements, false)) {
 			KERROR("vulkan_renderer_geometry_vertex_update failed to upload to the vertex buffer!");
 		}
 

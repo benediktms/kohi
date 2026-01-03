@@ -30,131 +30,167 @@
 #include "sui_defines.h"
 #include "systems/kshader_system.h"
 
-static b8 standard_ui_system_mouse_down(u16 code, void* sender, void* listener_inst, event_context context) {
-	standard_ui_state* typed_state = (standard_ui_state*)listener_inst;
+static b8 sui_base_internal_mouse_down(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
+static b8 sui_base_internal_mouse_up(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
+static b8 sui_base_internal_click(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
+static b8 sui_base_internal_mouse_over(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
+static b8 sui_base_internal_mouse_out(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
+static b8 sui_base_internal_mouse_move(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
 
-	sui_mouse_event evt;
-	evt.mouse_button = (mouse_buttons)context.data.i16[0];
-	evt.x = context.data.i16[1];
-	evt.y = context.data.i16[2];
-	for (u32 i = 0; i < typed_state->active_control_count; ++i) {
-		sui_control* control = typed_state->active_controls[i];
-		if (control->internal_mouse_down || control->on_mouse_down) {
-			mat4 model = ktransform_world_get(control->ktransform);
-			mat4 inv = mat4_inverse(model);
-			vec3 transformed_evt = vec3_transform((vec3){evt.x, evt.y, 0.0f}, 1.0f, inv);
-			if (rect_2d_contains_point(control->bounds, (vec2){transformed_evt.x, transformed_evt.y})) {
-				control->is_pressed = true;
-				if (control->internal_mouse_down) {
-					control->internal_mouse_down(typed_state, control, evt);
-				}
-				if (control->on_mouse_down) {
-					control->on_mouse_down(typed_state, control, evt);
-				}
+static b8 control_and_ancestors_active_r(const struct sui_control* control) {
+	if (!control->is_active) {
+		return false;
+	}
+
+	if (control->parent) {
+		return control_and_ancestors_active_r(control->parent);
+	}
+
+	return true;
+}
+
+static b8 control_and_ancestors_visible_r(const struct sui_control* control) {
+	if (!control->is_visible) {
+		return false;
+	}
+
+	if (control->parent) {
+		return control_and_ancestors_visible_r(control->parent);
+	}
+
+	return true;
+}
+
+static b8 control_and_ancestors_active_and_visible_r(const struct sui_control* control) {
+	return control_and_ancestors_active_r(control) && control_and_ancestors_visible_r(control);
+}
+
+static b8 control_process_mouse_event(standard_ui_state* typed_state, sui_control* control, event_context evt_context, u32 inside_count, PFN_mouse_event_callback* inside_callbacks, u32 outside_count, PFN_mouse_event_callback* outside_callbacks, b8 affect_hover_state) {
+
+	// Check if control is active and visible. This should check recursively upward to make sure any
+	// disabled/invisible parent controls are taken into account.
+	if (!control_and_ancestors_active_and_visible_r(control)) {
+		// Skip ones that aren't.
+		return false;
+	}
+
+	sui_mouse_event evt = {
+		.mouse_button = (mouse_buttons)evt_context.data.i16[0],
+		.x = evt_context.data.i16[1],
+		.y = evt_context.data.i16[2],
+	};
+
+	b8 block_propagation = false;
+	mat4 model = ktransform_world_get(control->ktransform);
+	mat4 inv = mat4_inverse(model);
+	vec3 transformed_evt = vec3_transform((vec3){evt.x, evt.y, 0.0f}, 1.0f, inv);
+
+	// If any callback returns false, block propagation of the event.
+	if (rect_2d_contains_point(control->bounds, (vec2){transformed_evt.x, transformed_evt.y})) {
+		if (affect_hover_state) {
+			control->is_hovered = true;
+		}
+		for (u32 i = 0; i < inside_count; ++i) {
+			if (!inside_callbacks[i](typed_state, control, evt)) {
+				block_propagation = true;
+			}
+		}
+	} else {
+		if (affect_hover_state) {
+			control->is_hovered = false;
+		}
+		for (u32 i = 0; i < outside_count; ++i) {
+			if (!outside_callbacks[i](typed_state, control, evt)) {
+				block_propagation = true;
 			}
 		}
 	}
-	return false;
+
+	return block_propagation;
 }
+
+static b8 standard_ui_system_mouse_down(u16 code, void* sender, void* listener_inst, event_context context) {
+	standard_ui_state* typed_state = (standard_ui_state*)listener_inst;
+
+	b8 block_propagation = false;
+	for (u32 i = 0; i < typed_state->active_control_count; ++i) {
+		sui_control* control = typed_state->active_controls[i];
+
+		PFN_mouse_event_callback inside_callbacks[1] = {
+			control->internal_mouse_down,
+		};
+		if (control_process_mouse_event(typed_state, control, context, 1, inside_callbacks, 0, 0, false)) {
+			block_propagation = true;
+		}
+	}
+
+	KTRACE("ui mouse up, block_propagation = %s", block_propagation ? "yes" : "no");
+
+	// If a control was hit, block the event from going any futher.
+	return block_propagation;
+}
+
 static b8 standard_ui_system_mouse_up(u16 code, void* sender, void* listener_inst, event_context context) {
 	standard_ui_state* typed_state = (standard_ui_state*)listener_inst;
 
-	sui_mouse_event evt;
-	evt.mouse_button = (mouse_buttons)context.data.i16[0];
-	evt.x = context.data.i16[1];
-	evt.y = context.data.i16[2];
+	b8 block_propagation = false;
 	for (u32 i = 0; i < typed_state->active_control_count; ++i) {
 		sui_control* control = typed_state->active_controls[i];
 		control->is_pressed = false;
 
-		if (control->internal_mouse_up || control->on_mouse_up) {
-			mat4 model = ktransform_world_get(control->ktransform);
-			mat4 inv = mat4_inverse(model);
-			vec3 transformed_evt = vec3_transform((vec3){evt.x, evt.y, 0.0f}, 1.0f, inv);
-			if (rect_2d_contains_point(control->bounds, (vec2){transformed_evt.x, transformed_evt.y})) {
-				if (control->internal_mouse_up) {
-					control->internal_mouse_up(typed_state, control, evt);
-				}
-				if (control->on_mouse_up) {
-					control->on_mouse_up(typed_state, control, evt);
-				}
-			}
+		PFN_mouse_event_callback inside_callbacks[1] = {
+			control->internal_mouse_up,
+		};
+		if (control_process_mouse_event(typed_state, control, context, 1, inside_callbacks, 0, 0, false)) {
+			block_propagation = true;
 		}
 	}
-	return false;
+
+	KTRACE("ui mouse up, block_propagation = %s", block_propagation ? "yes" : "no");
+
+	// If a control was hit, block the event from going any futher.
+	return block_propagation;
 }
 static b8 standard_ui_system_click(u16 code, void* sender, void* listener_inst, event_context context) {
 	standard_ui_state* typed_state = (standard_ui_state*)listener_inst;
 
-	sui_mouse_event evt;
-	evt.mouse_button = (mouse_buttons)context.data.i16[0];
-	evt.x = context.data.i16[1];
-	evt.y = context.data.i16[2];
+	b8 block_propagation = false;
 	for (u32 i = 0; i < typed_state->active_control_count; ++i) {
 		sui_control* control = typed_state->active_controls[i];
-		if (control->on_click || control->internal_click) {
-			mat4 model = ktransform_world_get(control->ktransform);
-			mat4 inv = mat4_inverse(model);
-			vec3 transformed_evt = vec3_transform((vec3){evt.x, evt.y, 0.0f}, 1.0f, inv);
-			if (rect_2d_contains_point(control->bounds, (vec2){transformed_evt.x, transformed_evt.y})) {
-				if (control->internal_click) {
-					control->internal_click(typed_state, control, evt);
-				}
-				if (control->on_click) {
-					control->on_click(typed_state, control, evt);
-				}
-			}
+
+		PFN_mouse_event_callback inside_callbacks[1] = {
+			control->internal_click,
+		};
+		if (control_process_mouse_event(typed_state, control, context, 1, inside_callbacks, 0, 0, false)) {
+			block_propagation = true;
 		}
 	}
-	return false;
+
+	KTRACE("ui mouse click, block_propagation = %s", block_propagation ? "yes" : "no");
+
+	// If a control was hit, block the event from going any futher.
+	return block_propagation;
 }
 
 static b8 standard_ui_system_move(u16 code, void* sender, void* listener_inst, event_context context) {
 	standard_ui_state* typed_state = (standard_ui_state*)listener_inst;
 
-	sui_mouse_event evt;
-	evt.x = context.data.i16[0];
-	evt.y = context.data.i16[1];
+	b8 block_propagation = false;
 	for (u32 i = 0; i < typed_state->active_control_count; ++i) {
 		sui_control* control = typed_state->active_controls[i];
-		if (control->on_mouse_over || control->on_mouse_out || control->internal_mouse_over || control->internal_mouse_out) {
-			mat4 model = ktransform_world_get(control->ktransform);
-			mat4 inv = mat4_inverse(model);
-			vec3 transformed_evt = vec3_transform((vec3){evt.x, evt.y, 0.0f}, 1.0f, inv);
-			vec2 transformed_vec2 = (vec2){transformed_evt.x, transformed_evt.y};
-			if (rect_2d_contains_point(control->bounds, transformed_vec2)) {
-				KTRACE("Button hover: %s", control->name);
-				if (!control->is_hovered) {
-					control->is_hovered = true;
-					if (control->internal_mouse_over) {
-						control->internal_mouse_over(typed_state, control, evt);
-					}
-					if (control->on_mouse_over) {
-						control->on_mouse_over(typed_state, control, evt);
-					}
-				}
 
-				// Move events are only triggered while actually over the control.
-				if (control->internal_mouse_move) {
-					control->internal_mouse_move(typed_state, control, evt);
-				}
-				if (control->on_mouse_move) {
-					control->on_mouse_move(typed_state, control, evt);
-				}
-			} else {
-				if (control->is_hovered) {
-					control->is_hovered = false;
-					if (control->internal_mouse_out) {
-						control->internal_mouse_out(typed_state, control, evt);
-					}
-					if (control->on_mouse_out) {
-						control->on_mouse_out(typed_state, control, evt);
-					}
-				}
-			}
+		PFN_mouse_event_callback inside_callbacks[2] = {
+			control->internal_mouse_over,
+			control->internal_mouse_move,
+		};
+		PFN_mouse_event_callback outside_callbacks[1] = {
+			control->internal_mouse_out,
+		};
+		if (control_process_mouse_event(typed_state, control, context, 2, inside_callbacks, 1, outside_callbacks, true)) {
+			block_propagation = true;
 		}
 	}
-	return false;
+	return block_propagation;
 }
 
 b8 standard_ui_system_initialize(u64* memory_requirement, standard_ui_state* state, standard_ui_system_config* config) {
@@ -194,6 +230,8 @@ b8 standard_ui_system_initialize(u64* memory_requirement, standard_ui_state* sta
 	kzero_memory(state->inactive_controls, sizeof(sui_control) * config->max_control_count);
 
 	sui_base_control_create(state, "__ROOT__", &state->root);
+	state->root.is_active = true;
+	standard_ui_system_update_active(state, &state->root);
 
 	// Atlas texture.
 	state->atlas_texture = texture_acquire_from_package_sync(
@@ -231,13 +269,11 @@ void standard_ui_system_shutdown(standard_ui_state* state) {
 		// Unload and destroy inactive controls.
 		for (u32 i = 0; i < state->inactive_control_count; ++i) {
 			sui_control* c = state->inactive_controls[i];
-			c->unload(state, c);
 			c->destroy(state, c);
 		}
 		// Unload and destroy active controls.
 		for (u32 i = 0; i < state->active_control_count; ++i) {
 			sui_control* c = state->active_controls[i];
-			c->unload(state, c);
 			c->destroy(state, c);
 		}
 
@@ -260,19 +296,6 @@ b8 standard_ui_system_update(standard_ui_state* state, struct frame_data* p_fram
 	}
 
 	return true;
-}
-
-void standard_ui_system_render_prepare_frame(standard_ui_state* state, const struct frame_data* p_frame_data) {
-	if (!state) {
-		return;
-	}
-
-	for (u32 i = 0; i < state->active_control_count; ++i) {
-		sui_control* c = state->active_controls[i];
-		if (c->render_prepare) {
-			c->render_prepare(state, c, p_frame_data);
-		}
-	}
 }
 
 b8 standard_ui_system_render(standard_ui_state* state, sui_control* root, struct frame_data* p_frame_data, standard_ui_render_data* render_data) {
@@ -422,8 +445,6 @@ b8 sui_base_control_create(standard_ui_state* state, const char* name, struct su
 
 	// Assign function pointers.
 	out_control->destroy = sui_base_control_destroy;
-	out_control->load = sui_base_control_load;
-	out_control->unload = sui_base_control_unload;
 	out_control->update = sui_base_control_update;
 	out_control->render = sui_base_control_render;
 
@@ -431,6 +452,14 @@ b8 sui_base_control_create(standard_ui_state* state, const char* name, struct su
 	out_control->id = identifier_create();
 
 	out_control->ktransform = ktransform_create(0);
+
+	// Hook up default internal events. These can be overridden as needed by specialized controls.
+	out_control->internal_mouse_down = sui_base_internal_mouse_down;
+	out_control->internal_mouse_up = sui_base_internal_mouse_up;
+	out_control->internal_click = sui_base_internal_click;
+	out_control->internal_mouse_over = sui_base_internal_mouse_over;
+	out_control->internal_mouse_out = sui_base_internal_mouse_out;
+	out_control->internal_mouse_move = sui_base_internal_mouse_move;
 
 	return true;
 }
@@ -445,19 +474,6 @@ void sui_base_control_destroy(standard_ui_state* state, struct sui_control* self
 			string_free(self->name);
 		}
 		kzero_memory(self, sizeof(sui_control));
-	}
-}
-
-b8 sui_base_control_load(standard_ui_state* state, struct sui_control* self) {
-	if (!self) {
-		return false;
-	}
-
-	return true;
-}
-void sui_base_control_unload(standard_ui_state* state, struct sui_control* self) {
-	if (!self) {
-		//
 	}
 }
 
@@ -498,4 +514,58 @@ void sui_control_position_set(standard_ui_state* state, struct sui_control* self
 
 vec3 sui_control_position_get(standard_ui_state* state, struct sui_control* self) {
 	return ktransform_position_get(self->ktransform);
+}
+
+static b8 sui_base_internal_mouse_down(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event) {
+	if (!self) {
+		return true;
+	}
+
+	// Block event propagation by default. User events can override this.
+	return self->on_mouse_down ? self->on_mouse_down(state, self, event) : false;
+}
+
+static b8 sui_base_internal_mouse_up(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event) {
+	if (!self) {
+		return true;
+	}
+
+	// Block event propagation by default. User events can override this.
+	return self->on_mouse_up ? self->on_mouse_up(state, self, event) : false;
+}
+
+static b8 sui_base_internal_click(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event) {
+	if (!self) {
+		return true;
+	}
+
+	// Block event propagation by default. User events can override this.
+	return self->on_click ? self->on_click(state, self, event) : false;
+}
+
+static b8 sui_base_internal_mouse_over(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event) {
+	if (!self) {
+		return true;
+	}
+
+	// Block event propagation by default. User events can override this.
+	return self->on_mouse_over ? self->on_mouse_over(state, self, event) : false;
+}
+
+static b8 sui_base_internal_mouse_out(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event) {
+	if (!self) {
+		return true;
+	}
+
+	// Block event propagation by default. User events can override this.
+	return self->on_mouse_out ? self->on_mouse_out(state, self, event) : false;
+}
+
+static b8 sui_base_internal_mouse_move(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event) {
+	if (!self) {
+		return true;
+	}
+
+	// Block event propagation by default. User events can override this.
+	return self->on_mouse_move ? self->on_mouse_move(state, self, event) : false;
 }

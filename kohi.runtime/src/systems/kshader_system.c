@@ -14,6 +14,7 @@
 #include "core/engine.h"
 #include "core/event.h"
 #include "renderer/renderer_frontend.h"
+#include "renderer/renderer_types.h"
 #include "systems/asset_system.h"
 #include "systems/texture_system.h"
 
@@ -333,6 +334,9 @@ void kshader_set_binding_data(kshader shader, u8 binding_set, u32 instance_id, u
 }
 void kshader_set_binding_texture(kshader shader, u8 binding_set, u32 instance_id, u8 binding_index, u8 array_index, ktexture texture) {
 	renderer_shader_set_binding_texture(engine_systems_get()->renderer_system, shader, binding_set, instance_id, binding_index, array_index, texture);
+}
+void kshader_set_binding_sampler(kshader shader, u8 binding_set, u32 instance_id, u8 binding_index, u8 array_index, ksampler_backend sampler) {
+	renderer_shader_set_binding_sampler(engine_systems_get()->renderer_system, shader, binding_set, instance_id, binding_index, array_index, sampler);
 }
 u32 kshader_acquire_binding_set_instance(kshader shader, u8 binding_set) {
 	return renderer_shader_acquire_binding_set_instance(engine_systems_get()->renderer_system, shader, binding_set);

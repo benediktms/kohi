@@ -40,7 +40,6 @@
 #	include "memory/kmemory.h"
 #	include "strings/kstring.h"
 
-#	include "kfeatures_compile.h"
 #	include "kfeatures_runtime.h"
 
 #	if _POSIX_C_SOURCE >= 199309L
@@ -81,6 +80,34 @@ typedef struct kwindow_platform_state {
 	f32 device_pixel_ratio;
 } kwindow_platform_state;
 
+typedef struct internal_clipboard_state {
+	xcb_atom_t clipboard;
+	xcb_atom_t targets;
+	xcb_atom_t utf8;
+	xcb_atom_t text_plain;
+	xcb_atom_t text_plain_utf8;
+	xcb_atom_t string;
+
+	xcb_atom_t property;
+
+	xcb_window_t requesting_window;
+
+	b8 initialized;
+
+	// Paste state
+	b8 paste_pending;
+	xcb_atom_t request_targets[4];
+	u8 request_index;
+	u8 request_count;
+
+	// Owned content for copying
+	kclipboard_content_type owned_type;
+	u32 owned_size;
+	void* owned_data;
+	b8 clipboard_owned;
+
+} internal_clipboard_state;
+
 typedef struct platform_state {
 	Display* display;
 	linux_handle_info handle;
@@ -100,9 +127,12 @@ typedef struct platform_state {
 	platform_process_mouse_button process_mouse_button;
 	platform_process_mouse_move process_mouse_move;
 	platform_process_mouse_wheel process_mouse_wheel;
+	platform_clipboard_on_paste_callback on_paste;
 
 	u8 last_keycode;
 	u32 last_key_time;
+
+	internal_clipboard_state clipboard;
 } platform_state;
 
 static platform_state* state_ptr;
@@ -112,6 +142,34 @@ static b8 key_is_repeat(platform_state* state, const xcb_key_press_event_t* ev);
 // Key translation
 static keys translate_keycode(u32 x_keycode);
 static kwindow* window_from_handle(xcb_window_t window);
+
+static xcb_atom_t intern_atom(xcb_connection_t* conn, const char* name) {
+	xcb_intern_atom_cookie_t cookie = xcb_intern_atom(conn, 0, string_length(name), name);
+	xcb_intern_atom_reply_t* reply = xcb_intern_atom_reply(conn, cookie, KNULL);
+
+	xcb_atom_t atom = reply ? reply->atom : XCB_NONE;
+	free(reply);
+
+	return atom;
+}
+
+static const char* atom_name(xcb_connection_t* conn, xcb_atom_t atom) {
+	xcb_get_atom_name_cookie_t cookie = xcb_get_atom_name(conn, atom);
+	xcb_get_atom_name_reply_t* reply = xcb_get_atom_name_reply(conn, cookie, KNULL);
+
+	if (!reply) {
+		return KNULL;
+	}
+
+	i32 len = xcb_get_atom_name_name_length(reply);
+	char* name = kallocate(len + 1, MEMORY_TAG_STRING);
+	kcopy_memory(name, xcb_get_atom_name_name(reply), len);
+	name[len] = 0;
+
+	free(reply);
+
+	return name;
+}
 
 static b8 enable_detectable_autorepeat(xcb_connection_t* conn) {
 	// Initialize xkb extension
@@ -417,6 +475,20 @@ b8 platform_window_create(const kwindow_config* config, struct kwindow* window, 
 	// Map the window to the screen
 	xcb_map_window(state_ptr->handle.connection, window->platform_state->window);
 
+	if (!state_ptr->clipboard.initialized) {
+		state_ptr->clipboard.clipboard = intern_atom(state_ptr->handle.connection, "CLIPBOARD");
+		state_ptr->clipboard.targets = intern_atom(state_ptr->handle.connection, "TARGETS");
+		state_ptr->clipboard.utf8 = intern_atom(state_ptr->handle.connection, "UTF8_STRING");
+		state_ptr->clipboard.text_plain = intern_atom(state_ptr->handle.connection, "text/plain");
+		state_ptr->clipboard.text_plain_utf8 = intern_atom(state_ptr->handle.connection, "text/plain;charset=utf-8");
+		state_ptr->clipboard.string = intern_atom(state_ptr->handle.connection, "STRING");
+		state_ptr->clipboard.property = intern_atom(state_ptr->handle.connection, "X11_CLIP_TEMP");
+		state_ptr->clipboard.paste_pending = false;
+		state_ptr->clipboard.clipboard_owned = false;
+
+		state_ptr->clipboard.initialized = true;
+	}
+
 	// Flush the stream
 	i32 stream_result = xcb_flush(state_ptr->handle.connection);
 	if (stream_result <= 0) {
@@ -511,6 +583,25 @@ b8 platform_window_title_set(struct kwindow* window, const char* title) {
 		window->title);
 
 	return true;
+}
+
+static void clipboard_retry_next_target(internal_clipboard_state* cb) {
+
+	cb->request_index++;
+	if (cb->request_index >= cb->request_count) {
+		cb->paste_pending = false;
+		return;
+	}
+
+	xcb_convert_selection(
+		state_ptr->handle.connection,
+		cb->requesting_window,
+		cb->clipboard,
+		cb->request_targets[cb->request_index],
+		cb->property,
+		XCB_CURRENT_TIME);
+
+	xcb_flush(state_ptr->handle.connection);
 }
 
 b8 platform_pump_messages(void) {
@@ -609,6 +700,156 @@ b8 platform_pump_messages(void) {
 				// Window close
 				if (cm->data.data32[0] == state_ptr->wm_delete_win) {
 					quit_flagged = true;
+				}
+			} break;
+			case XCB_SELECTION_CLEAR: {
+
+				// Clipboard ownership lost (another app copied)
+
+				xcb_selection_clear_event_t* clear_event = (xcb_selection_clear_event_t*)event;
+				if (clear_event->selection == state_ptr->clipboard.clipboard) {
+
+					state_ptr->clipboard.clipboard_owned = false;
+					if (state_ptr->clipboard.owned_data) {
+						if (state_ptr->clipboard.owned_type == KCLIPBOARD_CONTENT_TYPE_STRING) {
+							string_free(state_ptr->clipboard.owned_data);
+						} else {
+							kfree(state_ptr->clipboard.owned_data, state_ptr->clipboard.owned_size, MEMORY_TAG_BINARY_DATA);
+						}
+						state_ptr->clipboard.owned_data = KNULL;
+						state_ptr->clipboard.owned_size = 0;
+					}
+				}
+			} break;
+			case XCB_SELECTION_NOTIFY: {
+
+				internal_clipboard_state* cb = &state_ptr->clipboard;
+
+				xcb_selection_notify_event_t* selection_event = (xcb_selection_notify_event_t*)event;
+
+				if (selection_event->requestor == cb->requesting_window) {
+					if (cb->paste_pending) {
+						// Pasting reply.
+						if (selection_event->property == XCB_NONE) {
+							// Retry with next type.
+							clipboard_retry_next_target(cb);
+							break;
+						}
+
+						xcb_get_property_cookie_t prop_cookie = xcb_get_property(
+							state_ptr->handle.connection,
+							false,
+							cb->requesting_window,
+							cb->property,
+							XCB_GET_PROPERTY_TYPE_ANY,
+							0,
+							UINT32_MAX);
+
+						xcb_get_property_reply_t* prop = xcb_get_property_reply(state_ptr->handle.connection, prop_cookie, KNULL);
+
+						if (!prop) {
+							clipboard_retry_next_target(cb);
+							break;
+						}
+
+						i32 len = xcb_get_property_value_length(prop);
+						const void* val = xcb_get_property_value(prop);
+
+						if (len > 0 && val) {
+
+							// TODO: determine content type
+							kclipboard_context ctx = {
+								.requesting_window = window_from_handle(cb->requesting_window),
+								.content_type = KCLIPBOARD_CONTENT_TYPE_STRING,
+								.content = 0,
+								.size = 0};
+
+							// For strings, be sure to null-terminate them.
+							if (ctx.content_type == KCLIPBOARD_CONTENT_TYPE_STRING) {
+								ctx.content = kallocate(len + 1, MEMORY_TAG_STRING);
+								kcopy_memory((void*)ctx.content, val, len);
+								((char*)ctx.content)[len] = 0;
+							} else {
+								ctx.content = val;
+								ctx.size = len;
+							}
+
+							if (state_ptr->on_paste) {
+								state_ptr->on_paste(ctx);
+							}
+
+							if (ctx.content_type == KCLIPBOARD_CONTENT_TYPE_STRING) {
+								kfree((void*)ctx.content, len + 1, MEMORY_TAG_STRING);
+							}
+
+							cb->paste_pending = false;
+
+						} else {
+							clipboard_retry_next_target(cb);
+						}
+						free(prop);
+					}
+				}
+
+			} break;
+			case XCB_SELECTION_REQUEST: {
+				// Paste from external app requested.
+				internal_clipboard_state* cb = &state_ptr->clipboard;
+				xcb_selection_request_event_t* request_event = (xcb_selection_request_event_t*)event;
+				if (cb->clipboard) {
+					// Paste request (our app is the owner of the data)
+
+					xcb_selection_notify_event_t reply = {
+						.response_type = XCB_SELECTION_NOTIFY,
+						.requestor = request_event->requestor,
+						.selection = request_event->selection,
+						.target = request_event->target,
+						.time = request_event->time,
+						.property = XCB_NONE};
+
+					if (request_event->target == cb->targets) {
+						xcb_atom_t supported[] = {
+							cb->utf8,
+							cb->text_plain_utf8,
+							cb->text_plain,
+							cb->string};
+
+						xcb_change_property(
+							state_ptr->handle.connection,
+							XCB_PROP_MODE_REPLACE,
+							request_event->requestor,
+							request_event->property,
+							XCB_ATOM_ATOM,
+							32,
+							4,
+							supported);
+
+						reply.property = request_event->property;
+					} else if (
+						request_event->target == cb->utf8 ||
+						request_event->target == cb->text_plain_utf8 ||
+						request_event->target == cb->text_plain ||
+						request_event->target == cb->string) {
+
+						xcb_change_property(
+							state_ptr->handle.connection,
+							XCB_PROP_MODE_REPLACE,
+							request_event->requestor,
+							request_event->property,
+							request_event->target,
+							8,
+							cb->owned_size,
+							cb->owned_data);
+
+						reply.property = request_event->property;
+					}
+
+					xcb_send_event(
+						state_ptr->handle.connection,
+						0,
+						request_event->requestor,
+						0,
+						(const char*)&reply);
 				}
 			} break;
 			default:
@@ -722,6 +963,9 @@ void platform_register_process_mouse_move_callback(platform_process_mouse_move c
 
 void platform_register_process_mouse_wheel_callback(platform_process_mouse_wheel callback) {
 	state_ptr->process_mouse_wheel = callback;
+}
+void platform_register_clipboard_paste_callback(platform_clipboard_on_paste_callback callback) {
+	state_ptr->on_paste = callback;
 }
 
 platform_error_code platform_copy_file(const char* source, const char* dest, b8 overwrite_if_exists) {
@@ -1349,6 +1593,75 @@ b8 platform_system_info_collect(ksystem_info* out_info) {
 
 	FLAG_SET(out_info->flags, KSYSTEM_INFO_FLAGS_IS_64_BIT_BIT, true);
 	return true;
+}
+
+void platform_request_clipboard_content(kwindow* window) {
+	if (!state_ptr->clipboard.initialized) {
+		KWARN("Clipboard not yet initialized, unable to begin new request.");
+		return;
+	}
+
+	internal_clipboard_state* cb = &state_ptr->clipboard;
+
+	if (cb->paste_pending) {
+		KWARN("Clipboard currently processing, unable to begin new request.");
+		return;
+	}
+
+	// TODO: may need to expand this for other types of data than strings.
+	cb->request_targets[0] = state_ptr->clipboard.utf8;
+	cb->request_targets[1] = state_ptr->clipboard.text_plain_utf8;
+	cb->request_targets[2] = state_ptr->clipboard.text_plain;
+	cb->request_targets[3] = state_ptr->clipboard.string;
+	cb->request_count = 4;
+	cb->request_index = 0;
+	cb->paste_pending = true;
+
+	cb->requesting_window = window->platform_state->window;
+
+	xcb_convert_selection(
+		state_ptr->handle.connection,
+		window->platform_state->window,
+		cb->clipboard,
+		cb->request_targets[0],
+		cb->property,
+		XCB_CURRENT_TIME);
+
+	xcb_flush(state_ptr->handle.connection);
+}
+
+void platform_clipboard_content_set(kwindow* window, kclipboard_content_type type, u32 size, void* content) {
+	internal_clipboard_state* cb = &state_ptr->clipboard;
+	if (cb->owned_data) {
+		if (cb->owned_type == KCLIPBOARD_CONTENT_TYPE_STRING) {
+			string_free(cb->owned_data);
+		} else {
+			kfree(cb->owned_data, size, MEMORY_TAG_BINARY_DATA);
+		}
+		cb->owned_data = KNULL;
+		cb->owned_size = 0;
+	}
+
+	cb->owned_type = type;
+	if (type == KCLIPBOARD_CONTENT_TYPE_STRING) {
+		cb->owned_size = string_length(content) + 1;
+		cb->owned_data = string_duplicate(content);
+	} else {
+		cb->owned_size = size;
+		cb->owned_data = kallocate(size, MEMORY_TAG_BINARY_DATA);
+	}
+	kcopy_memory(cb->owned_data, content, size);
+
+	// Take ownership of the clipboard.
+	xcb_set_selection_owner(
+		state_ptr->handle.connection,
+		window->platform_state->window,
+		cb->clipboard,
+		XCB_CURRENT_TIME);
+
+	cb->clipboard_owned = true;
+
+	xcb_flush(state_ptr->handle.connection);
 }
 
 static kwindow* window_from_handle(xcb_window_t window) {

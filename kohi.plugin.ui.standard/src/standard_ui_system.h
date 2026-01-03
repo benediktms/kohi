@@ -81,6 +81,14 @@ typedef struct sui_clip_mask {
 	geometry_render_data render_data;
 } sui_clip_mask;
 
+struct sui_control;
+
+/**
+ * The mouse event handler callback for a control.
+ * @returns True if the event should be allowed to propagate to other controls; otherwise false.
+ */
+typedef b8 (*PFN_mouse_event_callback)(struct standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
+
 typedef struct sui_control {
 	identifier id;
 	ktransform ktransform;
@@ -103,11 +111,8 @@ typedef struct sui_control {
 	u64 user_data_size;
 
 	void (*destroy)(struct standard_ui_state* state, struct sui_control* self);
-	b8 (*load)(struct standard_ui_state* state, struct sui_control* self);
-	void (*unload)(struct standard_ui_state* state, struct sui_control* self);
 
 	b8 (*update)(struct standard_ui_state* state, struct sui_control* self, struct frame_data* p_frame_data);
-	void (*render_prepare)(struct standard_ui_state* state, struct sui_control* self, const struct frame_data* p_frame_data);
 	b8 (*render)(struct standard_ui_state* state, struct sui_control* self, struct frame_data* p_frame_data, standard_ui_render_data* reneder_data);
 
 	/**
@@ -116,19 +121,19 @@ typedef struct sui_control {
 	 * @param event The mouse event.
 	 * @returns True if the event should be allowed to propagate to other controls; otherwise false.
 	 */
-	void (*on_click)(struct standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
-	void (*on_mouse_down)(struct standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
-	void (*on_mouse_up)(struct standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
-	void (*on_mouse_over)(struct standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
-	void (*on_mouse_out)(struct standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
-	void (*on_mouse_move)(struct standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
+	PFN_mouse_event_callback on_click;
+	PFN_mouse_event_callback on_mouse_down;
+	PFN_mouse_event_callback on_mouse_up;
+	PFN_mouse_event_callback on_mouse_over;
+	PFN_mouse_event_callback on_mouse_out;
+	PFN_mouse_event_callback on_mouse_move;
 
-	void (*internal_click)(struct standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
-	void (*internal_mouse_over)(struct standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
-	void (*internal_mouse_out)(struct standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
-	void (*internal_mouse_down)(struct standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
-	void (*internal_mouse_up)(struct standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
-	void (*internal_mouse_move)(struct standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
+	PFN_mouse_event_callback internal_click;
+	PFN_mouse_event_callback internal_mouse_over;
+	PFN_mouse_event_callback internal_mouse_out;
+	PFN_mouse_event_callback internal_mouse_down;
+	PFN_mouse_event_callback internal_mouse_up;
+	PFN_mouse_event_callback internal_mouse_move;
 
 	void (*on_key)(struct standard_ui_state* state, struct sui_control* self, struct sui_keyboard_event event);
 
@@ -180,8 +185,6 @@ KAPI void standard_ui_system_shutdown(standard_ui_state* state);
 
 KAPI b8 standard_ui_system_update(standard_ui_state* state, struct frame_data* p_frame_data);
 
-KAPI void standard_ui_system_render_prepare_frame(standard_ui_state* state, const struct frame_data* p_frame_data);
-
 KAPI b8 standard_ui_system_render(standard_ui_state* state, sui_control* root, struct frame_data* p_frame_data, standard_ui_render_data* render_data);
 
 KAPI b8 standard_ui_system_update_active(standard_ui_state* state, sui_control* control);
@@ -199,9 +202,6 @@ KAPI void standard_ui_system_focus_control(standard_ui_state* state, sui_control
 // ---------------------------
 KAPI b8 sui_base_control_create(standard_ui_state* state, const char* name, struct sui_control* out_control);
 KAPI void sui_base_control_destroy(standard_ui_state* state, struct sui_control* self);
-
-KAPI b8 sui_base_control_load(standard_ui_state* state, struct sui_control* self);
-KAPI void sui_base_control_unload(standard_ui_state* state, struct sui_control* self);
 
 KAPI b8 sui_base_control_update(standard_ui_state* state, struct sui_control* self, struct frame_data* p_frame_data);
 KAPI b8 sui_base_control_render(standard_ui_state* state, struct sui_control* self, struct frame_data* p_frame_data, standard_ui_render_data* render_data);

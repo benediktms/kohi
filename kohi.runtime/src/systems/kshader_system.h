@@ -13,6 +13,7 @@
 
 #pragma once
 
+#include "renderer/renderer_types.h"
 #include <core_render_types.h>
 #include <defines.h>
 #include <kresources/kresource_types.h>
@@ -101,6 +102,7 @@ KAPI b8 kshader_system_use_with_topology(kshader shader, primitive_topology_type
 KAPI void kshader_set_immediate_data(kshader shader, const void* data, u8 size);
 KAPI void kshader_set_binding_data(kshader shader, u8 binding_set, u32 instance_id, u8 binding_index, u64 offset, void* data, u64 size);
 KAPI void kshader_set_binding_texture(kshader shader, u8 binding_set, u32 instance_id, u8 binding_index, u8 array_index, ktexture texture);
+KAPI void kshader_set_binding_sampler(kshader shader, u8 binding_set, u32 instance_id, u8 binding_index, u8 array_index, ksampler_backend sampler);
 KAPI u32 kshader_acquire_binding_set_instance(kshader shader, u8 binding_set);
 KAPI void kshader_release_binding_set_instance(kshader shader, u8 binding_set, u32 instance_id);
 KAPI u32 kshader_binding_set_instance_count_get(kshader shader, u8 binding_set);

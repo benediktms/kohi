@@ -28,8 +28,6 @@ typedef struct sui_label_internal_data {
 
 KAPI b8 sui_label_control_create(standard_ui_state* state, const char* name, font_type type, kname font_name, u16 font_size, const char* text, struct sui_control* out_control);
 KAPI void sui_label_control_destroy(standard_ui_state* state, struct sui_control* self);
-KAPI b8 sui_label_control_load(standard_ui_state* state, struct sui_control* self);
-KAPI void sui_label_control_unload(standard_ui_state* state, struct sui_control* self);
 KAPI b8 sui_label_control_update(standard_ui_state* state, struct sui_control* self, struct frame_data* p_frame_data);
 KAPI b8 sui_label_control_render(standard_ui_state* state, struct sui_control* self, struct frame_data* p_frame_data, standard_ui_render_data* render_data);
 

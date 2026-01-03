@@ -11,8 +11,6 @@
 #include <strings/kstring.h>
 #include <systems/kshader_system.h>
 
-static void sui_panel_control_render_frame_prepare(standard_ui_state* state, struct sui_control* self, const struct frame_data* p_frame_data);
-
 b8 sui_panel_control_create(standard_ui_state* state, const char* name, vec2 size, vec4 colour, struct sui_control* out_control) {
 	if (!sui_base_control_create(state, name, out_control)) {
 		return false;
@@ -22,33 +20,20 @@ b8 sui_panel_control_create(standard_ui_state* state, const char* name, vec2 siz
 	out_control->internal_data = kallocate(out_control->internal_data_size, MEMORY_TAG_UI);
 	sui_panel_internal_data* typed_data = out_control->internal_data;
 
+	out_control->bounds = vec4_create(0, 0, size.x, size.y);
+
 	// Reasonable defaults.
-	typed_data->rect = vec4_create(0, 0, size.x, size.y);
 	typed_data->colour = colour;
 	typed_data->is_dirty = true;
 
 	// Assign function pointers.
 	out_control->destroy = sui_panel_control_destroy;
-	out_control->load = sui_panel_control_load;
-	out_control->unload = sui_panel_control_unload;
 	out_control->update = sui_panel_control_update;
-	out_control->render_prepare = sui_panel_control_render_frame_prepare;
 	out_control->render = sui_panel_control_render;
 
 	out_control->name = string_duplicate(name);
-	return true;
-}
 
-void sui_panel_control_destroy(standard_ui_state* state, struct sui_control* self) {
-	sui_base_control_destroy(state, self);
-}
-
-b8 sui_panel_control_load(standard_ui_state* state, struct sui_control* self) {
-	if (!sui_base_control_load(state, self)) {
-		return false;
-	}
-
-	sui_panel_internal_data* typed_data = self->internal_data;
+	// load
 
 	// Generate UVs.
 	f32 xmin, ymin, xmax, ymax;
@@ -56,7 +41,7 @@ b8 sui_panel_control_load(standard_ui_state* state, struct sui_control* self) {
 	generate_uvs_from_image_coords(512, 512, 73, 36, &xmax, &ymax);
 
 	// Create a simple plane.
-	typed_data->g = geometry_generate_quad(typed_data->rect.width, typed_data->rect.height, xmin, xmax, ymin, ymax, kname_create(self->name));
+	typed_data->g = geometry_generate_quad(out_control->bounds.width, out_control->bounds.height, xmin, xmax, ymin, ymax, kname_create(out_control->name));
 	if (!renderer_geometry_upload(&typed_data->g)) {
 		KERROR("sui_panel_control_load - Failed to upload geometry quad");
 		return false;
@@ -70,11 +55,11 @@ b8 sui_panel_control_load(standard_ui_state* state, struct sui_control* self) {
 		KFATAL("Unable to acquire shader binding set resources for label.");
 		return false;
 	}
-
 	return true;
 }
 
-void sui_panel_control_unload(standard_ui_state* state, struct sui_control* self) {
+void sui_panel_control_destroy(standard_ui_state* state, struct sui_control* self) {
+	sui_base_control_destroy(state, self);
 }
 
 b8 sui_panel_control_update(standard_ui_state* state, struct sui_control* self, struct frame_data* p_frame_data) {
@@ -93,6 +78,11 @@ b8 sui_panel_control_render(standard_ui_state* state, struct sui_control* self, 
 	}
 
 	sui_panel_internal_data* typed_data = self->internal_data;
+	if (typed_data->is_dirty) {
+		renderer_geometry_vertex_update(&typed_data->g, 0, typed_data->g.vertex_count, typed_data->g.vertices, true);
+		typed_data->is_dirty = false;
+	}
+
 	if (typed_data->g.vertices) {
 		standard_ui_renderable renderable = {0};
 		renderable.render_data.unique_id = self->id.uniqueid;
@@ -118,8 +108,7 @@ vec2 sui_panel_size(standard_ui_state* state, struct sui_control* self) {
 		return vec2_zero();
 	}
 
-	sui_panel_internal_data* typed_data = self->internal_data;
-	return (vec2){typed_data->rect.width, typed_data->rect.height};
+	return (vec2){self->bounds.width, self->bounds.height};
 }
 
 b8 sui_panel_control_resize(standard_ui_state* state, struct sui_control* self, vec2 new_size) {
@@ -129,8 +118,8 @@ b8 sui_panel_control_resize(standard_ui_state* state, struct sui_control* self, 
 
 	sui_panel_internal_data* typed_data = self->internal_data;
 
-	typed_data->rect.width = new_size.x;
-	typed_data->rect.height = new_size.y;
+	self->bounds.width = new_size.x;
+	self->bounds.height = new_size.y;
 	vertex_2d* vertices = typed_data->g.vertices;
 	vertices[1].position.y = new_size.y;
 	vertices[1].position.x = new_size.x;
@@ -139,14 +128,4 @@ b8 sui_panel_control_resize(standard_ui_state* state, struct sui_control* self, 
 	typed_data->is_dirty = true;
 
 	return true;
-}
-
-static void sui_panel_control_render_frame_prepare(standard_ui_state* state, struct sui_control* self, const struct frame_data* p_frame_data) {
-	if (self) {
-		sui_panel_internal_data* typed_data = self->internal_data;
-		if (typed_data->is_dirty) {
-			renderer_geometry_vertex_update(&typed_data->g, 0, typed_data->g.vertex_count, typed_data->g.vertices, true);
-			typed_data->is_dirty = false;
-		}
-	}
 }

@@ -47,6 +47,11 @@ Changelog
   - Added kcamera clone and INVALID_KCAMERA. Fixed a few small issues around this.
   - Removed hierarchy_graph
   - Added parent capability to transform system and removed ability to set world transform. This is now calculated automatically by the transform system on update.
+  - Added clipboard functionality at the platform layer. For now, this just handles text.
+  - Simplified lifecycle of Standard UI controls by removing load (now part of create), unload (now in destroy), and frame_prepare (now part of render).
+  - Fixed various bugs with Standard UI, including using correct sampling and adding mouse event propagation blocking to controls by default.
+  - Added ability to register an event for a single firing, upon which it auto-unregisters.
+  - Added missing functions exposing binding of samplers to binding sets in shader system.
 
 - 0.10.0
   - Combined asset_image_format and texture_format into a single kpixel_format which is used for both.

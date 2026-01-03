@@ -42,15 +42,13 @@ KAPI b8 sui_textbox_control_size_set(standard_ui_state* state, struct sui_contro
 KAPI b8 sui_textbox_control_width_set(standard_ui_state* state, struct sui_control* self, i32 width);
 KAPI b8 sui_textbox_control_height_set(standard_ui_state* state, struct sui_control* self, i32 height);
 
-KAPI b8 sui_textbox_control_load(standard_ui_state* state, struct sui_control* self);
-
-KAPI void sui_textbox_control_unload(standard_ui_state* state, struct sui_control* self);
-
 KAPI b8 sui_textbox_control_update(standard_ui_state* state, struct sui_control* self, struct frame_data* p_frame_data);
 
 KAPI b8 sui_textbox_control_render(standard_ui_state* state, struct sui_control* self, struct frame_data* p_frame_data, standard_ui_render_data* render_data);
 
 KAPI const char* sui_textbox_text_get(standard_ui_state* state, struct sui_control* self);
 KAPI void sui_textbox_text_set(standard_ui_state* state, struct sui_control* self, const char* text);
-KAPI void sui_textbox_on_mouse_down(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
-KAPI void sui_textbox_on_mouse_up(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
+
+// Deletes text at cursor position. If a highlight range exists, the entire range is deleted.
+// Updates cursor position and highlight range accordingly.
+KAPI void sui_textbox_delete_at_cursor(standard_ui_state* state, struct sui_control* self);

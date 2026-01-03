@@ -13,7 +13,10 @@
 #include "standard_ui_system.h"
 #include "strings/kname.h"
 
-static void sui_button_control_render_frame_prepare(standard_ui_state* state, struct sui_control* self, const struct frame_data* p_frame_data);
+static b8 sui_button_internal_mouse_out(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
+static b8 sui_button_internal_mouse_over(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
+static b8 sui_button_internal_mouse_down(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
+static b8 sui_button_internal_mouse_up(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
 
 b8 sui_button_control_create(standard_ui_state* state, const char* name, struct sui_control* out_control) {
 	if (!sui_base_control_create(state, name, out_control)) {
@@ -30,18 +33,42 @@ b8 sui_button_control_create(standard_ui_state* state, const char* name, struct 
 
 	// Assign function pointers.
 	out_control->destroy = sui_button_control_destroy;
-	out_control->load = sui_button_control_load;
-	out_control->unload = sui_button_control_unload;
 	out_control->update = sui_button_control_update;
-	out_control->render_prepare = sui_button_control_render_frame_prepare;
 	out_control->render = sui_button_control_render;
 
-	out_control->internal_mouse_down = sui_button_on_mouse_down;
-	out_control->internal_mouse_up = sui_button_on_mouse_up;
-	out_control->internal_mouse_out = sui_button_on_mouse_out;
-	out_control->internal_mouse_over = sui_button_on_mouse_over;
+	out_control->internal_mouse_down = sui_button_internal_mouse_down;
+	out_control->internal_mouse_up = sui_button_internal_mouse_up;
+	out_control->internal_mouse_out = sui_button_internal_mouse_out;
+	out_control->internal_mouse_over = sui_button_internal_mouse_over;
 
 	out_control->name = string_duplicate(name);
+
+	// HACK: TODO: remove hardcoded stuff.
+	/* vec2i atlas_size = (vec2i){typed_state->ui_atlas.texture->width, typed_state->ui_atlas.texture->height}; */
+	vec2i atlas_size = (vec2i){512, 512};
+	vec2i atlas_min = (vec2i){151, 12};
+	vec2i atlas_max = (vec2i){158, 19};
+	vec2i corner_px_size = (vec2i){3, 3};
+	vec2i corner_size = (vec2i){10, 10};
+	if (!nine_slice_create(out_control->name, typed_data->size, atlas_size, atlas_min, atlas_max, corner_px_size, corner_size, &typed_data->nslice)) {
+		KERROR("Failed to generate nine slice.");
+		return false;
+	}
+
+	out_control->bounds.x = 0.0f;
+	out_control->bounds.y = 0.0f;
+	out_control->bounds.width = typed_data->size.x;
+	out_control->bounds.height = typed_data->size.y;
+
+	kshader sui_shader = kshader_system_get(kname_create(STANDARD_UI_SHADER_NAME), kname_create(PACKAGE_NAME_STANDARD_UI));
+	// Acquire binding set resources for this control.
+	typed_data->binding_instance_id = INVALID_ID;
+	typed_data->binding_instance_id = kshader_acquire_binding_set_instance(sui_shader, 1);
+	if (typed_data->binding_instance_id == INVALID_ID) {
+		KFATAL("Unable to acquire shader binding set resources for label.");
+		return false;
+	}
+
 	return true;
 }
 
@@ -65,46 +92,6 @@ b8 sui_button_control_height_set(standard_ui_state* state, struct sui_control* s
 	return true;
 }
 
-b8 sui_button_control_load(standard_ui_state* state, struct sui_control* self) {
-	if (!sui_base_control_load(state, self)) {
-		return false;
-	}
-
-	sui_button_internal_data* typed_data = self->internal_data;
-
-	// HACK: TODO: remove hardcoded stuff.
-	/* vec2i atlas_size = (vec2i){typed_state->ui_atlas.texture->width, typed_state->ui_atlas.texture->height}; */
-	vec2i atlas_size = (vec2i){512, 512};
-	vec2i atlas_min = (vec2i){151, 12};
-	vec2i atlas_max = (vec2i){158, 19};
-	vec2i corner_px_size = (vec2i){3, 3};
-	vec2i corner_size = (vec2i){10, 10};
-	if (!nine_slice_create(self->name, typed_data->size, atlas_size, atlas_min, atlas_max, corner_px_size, corner_size, &typed_data->nslice)) {
-		KERROR("Failed to generate nine slice.");
-		return false;
-	}
-
-	self->bounds.x = 0.0f;
-	self->bounds.y = 0.0f;
-	self->bounds.width = typed_data->size.x;
-	self->bounds.height = typed_data->size.y;
-
-	kshader sui_shader = kshader_system_get(kname_create(STANDARD_UI_SHADER_NAME), kname_create(PACKAGE_NAME_STANDARD_UI));
-	// Acquire binding set resources for this control.
-	typed_data->binding_instance_id = INVALID_ID;
-	typed_data->binding_instance_id = kshader_acquire_binding_set_instance(sui_shader, 1);
-	if (typed_data->binding_instance_id == INVALID_ID) {
-		KFATAL("Unable to acquire shader binding set resources for label.");
-		return false;
-	}
-
-	return true;
-}
-
-void sui_button_control_unload(standard_ui_state* state, struct sui_control* self) {
-	//
-}
-
 b8 sui_button_control_update(standard_ui_state* state, struct sui_control* self, struct frame_data* p_frame_data) {
 	if (!sui_base_control_update(state, self, p_frame_data)) {
 		return false;
@@ -115,19 +102,14 @@ b8 sui_button_control_update(standard_ui_state* state, struct sui_control* self,
 	return true;
 }
 
-static void sui_button_control_render_frame_prepare(standard_ui_state* state, struct sui_control* self, const struct frame_data* p_frame_data) {
-	if (self) {
-		sui_button_internal_data* internal_data = self->internal_data;
-		nine_slice_render_frame_prepare(&internal_data->nslice, p_frame_data);
-	}
-}
-
 b8 sui_button_control_render(standard_ui_state* state, struct sui_control* self, struct frame_data* p_frame_data, standard_ui_render_data* render_data) {
 	if (!sui_base_control_render(state, self, p_frame_data, render_data)) {
 		return false;
 	}
 
 	sui_button_internal_data* typed_data = self->internal_data;
+	nine_slice_render_frame_prepare(&typed_data->nslice, p_frame_data);
+
 	if (typed_data->nslice.vertex_data.elements) {
 		standard_ui_renderable renderable = {0};
 		renderable.render_data.unique_id = self->id.uniqueid;
@@ -149,7 +131,7 @@ b8 sui_button_control_render(standard_ui_state* state, struct sui_control* self,
 	return true;
 }
 
-void sui_button_on_mouse_out(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event) {
+static b8 sui_button_internal_mouse_out(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event) {
 	if (self) {
 		sui_button_internal_data* typed_data = self->internal_data;
 		typed_data->nslice.atlas_px_min.x = 151;
@@ -158,9 +140,12 @@ void sui_button_on_mouse_out(standard_ui_state* state, struct sui_control* self,
 		typed_data->nslice.atlas_px_max.y = 19;
 		nine_slice_update(&typed_data->nslice, 0);
 	}
+
+	// Block event propagation by default. User events can override this.
+	return self->on_mouse_out ? self->on_mouse_out(state, self, event) : false;
 }
 
-void sui_button_on_mouse_over(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event) {
+static b8 sui_button_internal_mouse_over(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event) {
 	if (self) {
 		sui_button_internal_data* typed_data = self->internal_data;
 		if (self->is_pressed) {
@@ -176,8 +161,10 @@ void sui_button_on_mouse_over(standard_ui_state* state, struct sui_control* self
 		}
 		nine_slice_update(&typed_data->nslice, 0);
 	}
+	// Block event propagation by default. User events can override this.
+	return self->on_mouse_over ? self->on_mouse_over(state, self, event) : false;
 }
-void sui_button_on_mouse_down(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event) {
+static b8 sui_button_internal_mouse_down(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event) {
 	if (self) {
 		sui_button_internal_data* typed_data = self->internal_data;
 		typed_data->nslice.atlas_px_min.x = 151;
@@ -186,8 +173,10 @@ void sui_button_on_mouse_down(standard_ui_state* state, struct sui_control* self
 		typed_data->nslice.atlas_px_max.y = 28;
 		nine_slice_update(&typed_data->nslice, 0);
 	}
+	// Block event propagation by default. User events can override this.
+	return self->on_mouse_down ? self->on_mouse_down(state, self, event) : false;
 }
-void sui_button_on_mouse_up(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event) {
+static b8 sui_button_internal_mouse_up(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event) {
 	if (self) {
 		// TODO: DRY
 		sui_button_internal_data* typed_data = self->internal_data;
@@ -204,4 +193,6 @@ void sui_button_on_mouse_up(standard_ui_state* state, struct sui_control* self, 
 		}
 		nine_slice_update(&typed_data->nslice, 0);
 	}
+	// Block event propagation by default. User events can override this.
+	return self->on_mouse_up ? self->on_mouse_up(state, self, event) : false;
 }

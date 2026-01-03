@@ -8,6 +8,7 @@
 typedef struct registered_event {
 	void* listener;
 	PFN_on_event callback;
+	b8 is_single;
 } registered_event;
 
 typedef struct event_code_entry {
@@ -55,7 +56,7 @@ void event_system_shutdown(void* state) {
 	state_ptr = 0;
 }
 
-b8 event_register(u16 code, void* listener, PFN_on_event on_event) {
+static b8 internal_register(u16 code, void* listener, PFN_on_event on_event, b8 is_single) {
 	if (!state_ptr) {
 		return false;
 	}
@@ -81,9 +82,18 @@ b8 event_register(u16 code, void* listener, PFN_on_event on_event) {
 	registered_event event;
 	event.listener = listener;
 	event.callback = on_event;
+	event.is_single = is_single;
 	darray_push(state_ptr->registered[code].events, event);
 
 	return true;
+}
+
+b8 event_register(u16 code, void* listener, PFN_on_event on_event) {
+	return internal_register(code, listener, on_event, false);
+}
+
+b8 event_register_single(u16 code, void* listener, PFN_on_event on_event) {
+	return internal_register(code, listener, on_event, true);
 }
 
 b8 event_unregister(u16 code, void* listener, PFN_on_event on_event) {
@@ -123,13 +133,40 @@ b8 event_fire(u16 code, void* sender, event_context context) {
 	}
 
 	u64 registered_count = darray_length(state_ptr->registered[code].events);
+	registered_event* singles = KNULL;
 	for (u64 i = 0; i < registered_count; ++i) {
 		registered_event e = state_ptr->registered[code].events[i];
 		// This fires once for every listener/callback combo.
-		if (e.callback(code, sender, e.listener, context)) {
+		b8 handled = e.callback(code, sender, e.listener, context);
+
+		if (e.is_single) {
+			if (!singles) {
+				singles = darray_create(registered_event);
+			}
+			darray_push(singles, e);
+		}
+
+		if (handled) {
+			if (singles) {
+				u32 len = darray_length(singles);
+				for (u32 s = 0; s < len; ++s) {
+					event_unregister(code, singles[s].listener, singles[s].callback);
+				}
+				darray_destroy(singles);
+				singles = KNULL;
+			}
 			// Message has been handled, do not send to other listeners.
 			return true;
 		}
+	}
+
+	if (singles) {
+		u32 len = darray_length(singles);
+		for (u32 s = 0; s < len; ++s) {
+			event_unregister(code, singles[s].listener, singles[s].callback);
+		}
+		darray_destroy(singles);
+		singles = KNULL;
 	}
 
 	// Not found.

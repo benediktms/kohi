@@ -18,10 +18,15 @@
 #include "../standard_ui_system.h"
 #include "controls/sui_label.h"
 #include "controls/sui_panel.h"
+#include "core/engine.h"
+#include "input_types.h"
+#include "platform/platform.h"
+#include "renderer/nine_slice.h"
 #include "standard_ui_defines.h"
 #include "strings/kname.h"
 
 static b8 sui_textbox_on_key(u16 code, void* sender, void* listener_inst, event_context context);
+static b8 sui_textbox_on_paste(u16 code, void* sender, void* listener_inst, event_context context);
 
 static f32 sui_textbox_calculate_cursor_offset(standard_ui_state* state, u32 string_pos, const char* full_string, sui_textbox_internal_data* internal_data) {
 	if (string_pos == 0) {
@@ -134,15 +139,8 @@ b8 sui_textbox_control_create(standard_ui_state* state, const char* name, font_t
 
 	// Assign function pointers.
 	out_control->destroy = sui_textbox_control_destroy;
-	out_control->load = sui_textbox_control_load;
-	out_control->unload = sui_textbox_control_unload;
 	out_control->update = sui_textbox_control_update;
 	out_control->render = sui_textbox_control_render;
-
-	out_control->internal_mouse_down = sui_textbox_on_mouse_down;
-	out_control->internal_mouse_up = sui_textbox_on_mouse_up;
-	/* out_control->internal_mouse_out = sui_textbox_on_mouse_out;
-	out_control->internal_mouse_over = sui_textbox_on_mouse_over; */
 
 	out_control->name = string_duplicate(name);
 
@@ -177,46 +175,7 @@ b8 sui_textbox_control_create(standard_ui_state* state, const char* name, font_t
 	// single pointer which is already occupied by "self". This needs to be rethought.
 	typed_data->state = state;
 
-	return true;
-}
-
-void sui_textbox_control_destroy(standard_ui_state* state, struct sui_control* self) {
-	sui_base_control_destroy(state, self);
-}
-
-b8 sui_textbox_control_size_set(standard_ui_state* state, struct sui_control* self, i32 width, i32 height) {
-	if (!self) {
-		return false;
-	}
-
-	sui_textbox_internal_data* typed_data = self->internal_data;
-	typed_data->size.x = width;
-	typed_data->size.y = height;
-	typed_data->nslice.size.x = width;
-	typed_data->nslice.size.y = height;
-
-	self->bounds.height = height;
-	self->bounds.width = width;
-
-	nine_slice_update(&typed_data->nslice, 0);
-
-	return true;
-}
-b8 sui_textbox_control_width_set(standard_ui_state* state, struct sui_control* self, i32 width) {
-	sui_textbox_internal_data* typed_data = self->internal_data;
-	return sui_textbox_control_size_set(state, self, width, typed_data->size.y);
-}
-b8 sui_textbox_control_height_set(standard_ui_state* state, struct sui_control* self, i32 height) {
-	sui_textbox_internal_data* typed_data = self->internal_data;
-	return sui_textbox_control_size_set(state, self, typed_data->size.x, height);
-}
-
-b8 sui_textbox_control_load(standard_ui_state* state, struct sui_control* self) {
-	if (!sui_base_control_load(state, self)) {
-		return false;
-	}
-
-	sui_textbox_internal_data* typed_data = self->internal_data;
+	// load
 
 	// HACK: TODO: remove hardcoded stuff.
 	/* vec2i atlas_size = (vec2i){state->ui_atlas.texture->width, state->ui_atlas.texture->height}; */
@@ -226,16 +185,15 @@ b8 sui_textbox_control_load(standard_ui_state* state, struct sui_control* self) 
 	vec2i corner_px_size = (vec2i){3, 3};
 	vec2i corner_size = (vec2i){10, 10};
 	// NOTE: Also uploads to the GPU.
-	if (!nine_slice_create(self->name, typed_data->size, atlas_size, atlas_min, atlas_max, corner_px_size, corner_size, &typed_data->nslice)) {
+	if (!nine_slice_create(out_control->name, typed_data->size, atlas_size, atlas_min, atlas_max, corner_px_size, corner_size, &typed_data->nslice)) {
 		KERROR("Failed to generate nine slice.");
 		return false;
 	}
 
-	self->bounds.x = 0.0f;
-	self->bounds.y = 0.0f;
-	self->bounds.width = typed_data->size.x;
-	self->bounds.height = typed_data->size.y;
-
+	out_control->bounds.x = 0.0f;
+	out_control->bounds.y = 0.0f;
+	out_control->bounds.width = typed_data->size.x;
+	out_control->bounds.height = typed_data->size.y;
 	// Setup textbox clipping mask geometry.
 	typed_data->clip_mask.reference_id = 1; // TODO: move creation/reference_id assignment.
 
@@ -264,7 +222,7 @@ b8 sui_textbox_control_load(standard_ui_state* state, struct sui_control* self) 
 
 	typed_data->clip_mask.clip_ktransform = ktransform_from_position((vec3){corner_size.x, 0.0f, 0.0f}, 0);
 
-	ktransform_parent_set(typed_data->clip_mask.clip_ktransform, self->ktransform);
+	ktransform_parent_set(typed_data->clip_mask.clip_ktransform, out_control->ktransform);
 
 	// Acquire group resources for this control.
 	kshader sui_shader = kshader_system_get(kname_create(STANDARD_UI_SHADER_NAME), kname_create(PACKAGE_NAME_STANDARD_UI));
@@ -278,10 +236,10 @@ b8 sui_textbox_control_load(standard_ui_state* state, struct sui_control* self) 
 	}
 
 	// Load up a label control to use as the text.
-	if (!typed_data->content_label.load(state, &typed_data->content_label)) {
+	/* if (!typed_data->content_label.load(state, &typed_data->content_label)) {
 		KERROR("Failed to setup label within textbox.");
 		return false;
-	}
+	} */
 
 	if (!standard_ui_system_register_control(state, &typed_data->content_label)) {
 		KERROR("Unable to register control.");
@@ -289,8 +247,8 @@ b8 sui_textbox_control_load(standard_ui_state* state, struct sui_control* self) 
 		// NOTE: Only parenting the transform, the control. This is to have control over how the
 		// clipping mask is attached and drawn. See the render function for the other half of this.
 		// TODO: Adjustable padding
-		typed_data->content_label.parent = self;
-		ktransform_parent_set(typed_data->content_label.ktransform, self->ktransform);
+		typed_data->content_label.parent = out_control;
+		ktransform_parent_set(typed_data->content_label.ktransform, out_control->ktransform);
 		ktransform_position_set(typed_data->content_label.ktransform, (vec3){typed_data->nslice.corner_size.x, typed_data->label_line_height - 5.0f, 0.0f}); // padding/2 for y
 		typed_data->content_label.is_active = true;
 		if (!standard_ui_system_update_active(state, &typed_data->content_label)) {
@@ -299,16 +257,16 @@ b8 sui_textbox_control_load(standard_ui_state* state, struct sui_control* self) 
 	}
 
 	// Load up a panel control for the cursor.
-	if (!typed_data->cursor.load(state, &typed_data->cursor)) {
+	/* if (!typed_data->cursor.load(state, &typed_data->cursor)) {
 		KERROR("Failed to setup cursor within textbox.");
 		return false;
-	}
+	} */
 
 	// Create the cursor and attach it as a child.
 	if (!standard_ui_system_register_control(state, &typed_data->cursor)) {
 		KERROR("Unable to register control.");
 	} else {
-		if (!standard_ui_system_control_add_child(state, self, &typed_data->cursor)) {
+		if (!standard_ui_system_control_add_child(state, out_control, &typed_data->cursor)) {
 			KERROR("Failed to parent textbox system text.");
 		} else {
 			// Set an initial position.
@@ -321,13 +279,13 @@ b8 sui_textbox_control_load(standard_ui_state* state, struct sui_control* self) 
 	}
 
 	// Ensure the cursor position is correct.
-	sui_textbox_update_cursor_position(state, self);
+	sui_textbox_update_cursor_position(state, out_control);
 
 	// Load up a panel control for the highlight box.
-	if (!typed_data->cursor.load(state, &typed_data->highlight_box)) {
+	/* if (!typed_data->cursor.load(state, &typed_data->highlight_box)) {
 		KERROR("Failed to setup highlight box within textbox.");
 		return false;
-	}
+	} */
 
 	// Create the highlight box and attach it as a child.
 	if (!standard_ui_system_register_control(state, &typed_data->highlight_box)) {
@@ -340,7 +298,7 @@ b8 sui_textbox_control_load(standard_ui_state* state, struct sui_control* self) 
 		typed_data->highlight_box.is_active = true;
 		typed_data->highlight_box.is_visible = false;
 		/* typed_data->highlight_box.parent = self; */
-		ktransform_parent_set(typed_data->highlight_box.ktransform, self->ktransform);
+		ktransform_parent_set(typed_data->highlight_box.ktransform, out_control->ktransform);
 		/* ktransform_position_set(typed_data->highlight_box.ktransform, (vec3){typed_data->nslice.corner_size.x, typed_data->label_line_height - 4.0f, 0.0f}); */
 		if (!standard_ui_system_update_active(state, &typed_data->highlight_box)) {
 			KERROR("Unable to update active state for textbox highlight box.");
@@ -348,18 +306,61 @@ b8 sui_textbox_control_load(standard_ui_state* state, struct sui_control* self) 
 	}
 
 	// Ensure the highlight box size and position is correct.
-	sui_textbox_update_highlight_box(state, self);
+	sui_textbox_update_highlight_box(state, out_control);
 
-	event_register(EVENT_CODE_KEY_PRESSED, self, sui_textbox_on_key);
-	event_register(EVENT_CODE_KEY_RELEASED, self, sui_textbox_on_key);
+	event_register(EVENT_CODE_KEY_PRESSED, out_control, sui_textbox_on_key);
+	event_register(EVENT_CODE_KEY_RELEASED, out_control, sui_textbox_on_key);
 
 	return true;
 }
 
-void sui_textbox_control_unload(standard_ui_state* state, struct sui_control* self) {
+void sui_textbox_control_destroy(standard_ui_state* state, struct sui_control* self) {
+	// unload
 	// TODO: unload sub-controls that aren't children (i.e content_label and highlight_box)
 	event_unregister(EVENT_CODE_KEY_PRESSED, self, sui_textbox_on_key);
 	event_unregister(EVENT_CODE_KEY_RELEASED, self, sui_textbox_on_key);
+
+	sui_base_control_destroy(state, self);
+}
+
+b8 sui_textbox_control_size_set(standard_ui_state* state, struct sui_control* self, i32 width, i32 height) {
+	if (!self) {
+		return false;
+	}
+
+	sui_textbox_internal_data* typed_data = self->internal_data;
+	typed_data->size.x = width;
+	typed_data->size.y = height;
+	typed_data->nslice.size.x = width;
+	typed_data->nslice.size.y = height;
+
+	self->bounds.height = height;
+	self->bounds.width = width;
+
+	nine_slice_update(&typed_data->nslice, 0);
+
+	kgeometry* vg = &typed_data->clip_mask.clip_geometry;
+	// HACK: TODO: remove hardcoded stuff.
+	vec2i corner_size = (vec2i){10, 10};
+
+	kgeometry quad = geometry_generate_quad(typed_data->size.x - (corner_size.x * 2), typed_data->size.y, 0, 0, 0, 0, 0);
+	kfree(quad.indices, quad.index_element_size * quad.index_count, MEMORY_TAG_ARRAY);
+
+	kfree(vg->vertices, vg->vertex_element_size * vg->vertex_count, MEMORY_TAG_ARRAY);
+	vg->vertices = quad.vertices;
+	vg->extents = quad.extents;
+
+	renderer_geometry_vertex_update(&typed_data->clip_mask.clip_geometry, 0, vg->vertex_count, vg->vertices, false);
+
+	return true;
+}
+b8 sui_textbox_control_width_set(standard_ui_state* state, struct sui_control* self, i32 width) {
+	sui_textbox_internal_data* typed_data = self->internal_data;
+	return sui_textbox_control_size_set(state, self, width, typed_data->size.y);
+}
+b8 sui_textbox_control_height_set(standard_ui_state* state, struct sui_control* self, i32 height) {
+	sui_textbox_internal_data* typed_data = self->internal_data;
+	return sui_textbox_control_size_set(state, self, typed_data->size.x, height);
 }
 
 b8 sui_textbox_control_update(standard_ui_state* state, struct sui_control* self, struct frame_data* p_frame_data) {
@@ -367,21 +368,9 @@ b8 sui_textbox_control_update(standard_ui_state* state, struct sui_control* self
 		return false;
 	}
 
-	/* sui_textbox_internal_data* typed_data = self->internal_data;
-	mat4 parent_world = ktransform_world_get(self->ktransform); */
+	sui_textbox_internal_data* typed_data = self->internal_data;
+	nine_slice_render_frame_prepare(&typed_data->nslice, p_frame_data);
 
-	// Update clip mask ktransform
-	/* ktransform_calculate_local(typed_data->clip_mask.clip_ktransform);
-	mat4 local = ktransform_local_get(typed_data->clip_mask.clip_ktransform);
-	mat4 self_world = mat4_mul(local, parent_world);
-	ktransform_world_set(typed_data->clip_mask.clip_ktransform, self_world);
-
-	// Update highlight box ktransform
-	// FIXME: The transform of this highlight box is wrong.
-	ktransform_calculate_local(typed_data->highlight_box.ktransform);
-	mat4 hb_local = ktransform_local_get(typed_data->highlight_box.ktransform);
-	mat4 hb_world = mat4_mul(hb_local, parent_world);
-	ktransform_world_set(typed_data->highlight_box.ktransform, hb_world); */
 	return true;
 }
 
@@ -436,9 +425,9 @@ b8 sui_textbox_control_render(standard_ui_state* state, struct sui_control* self
 			return false;
 		}
 
-		// Attach clipping mask to text, which would be the last element added.
-		/* u32 renderable_count = darray_length(render_data->renderables);
-		render_data->renderables[renderable_count - 1].clip_mask_render_data = &typed_data->clip_mask.render_data; */
+		// Attach clipping mask to highlight box, which would be the last element added.
+		u32 renderable_count = darray_length(render_data->renderables);
+		render_data->renderables[renderable_count - 1].clip_mask_render_data = &typed_data->clip_mask.render_data;
 	}
 
 	return true;
@@ -464,35 +453,42 @@ void sui_textbox_text_set(standard_ui_state* state, struct sui_control* self, co
 	}
 }
 
-void sui_textbox_on_mouse_down(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event) {
-	if (!self) {
-		return;
+void sui_textbox_delete_at_cursor(standard_ui_state* state, struct sui_control* self) {
+	sui_textbox_internal_data* typed_data = self->internal_data;
+	const char* entry_control_text = sui_label_text_get(state, &typed_data->content_label);
+	u32 len = string_length(entry_control_text);
 
-		/* sui_button_internal_data* typed_data = self->internal_data;
-		typed_data->nslice.atlas_px_min.x = 151;
-		typed_data->nslice.atlas_px_min.y = 21;
-		typed_data->nslice.atlas_px_max.x = 158;
-		typed_data->nslice.atlas_px_max.y = 28;
-		update_nine_slice(&typed_data->nslice, 0); */
+	if (!len) {
+		sui_label_text_set(state, &typed_data->content_label, "");
+		typed_data->cursor_position = 0;
+		return;
 	}
-}
-void sui_textbox_on_mouse_up(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event) {
-	if (!self) {
-		/* // TODO: DRY
-		sui_button_internal_data* typed_data = self->internal_data;
-		if (self->is_hovered) {
-			typed_data->nslice.atlas_px_min.x = 151;
-			typed_data->nslice.atlas_px_min.y = 31;
-			typed_data->nslice.atlas_px_max.x = 158;
-			typed_data->nslice.atlas_px_max.y = 37;
-		} else {
-			typed_data->nslice.atlas_px_min.x = 151;
-			typed_data->nslice.atlas_px_min.y = 31;
-			typed_data->nslice.atlas_px_max.x = 158;
-			typed_data->nslice.atlas_px_max.y = 37;
+
+	char* str = string_duplicate(entry_control_text);
+	if (typed_data->highlight_range.size == (i32)len) {
+		// Whole range is selected, delete and reset cursor position.
+		str = string_empty(str);
+		typed_data->cursor_position = 0;
+	} else {
+		if (typed_data->highlight_range.size > 0) {
+			// If there is a selection, delete it.
+			string_remove_at(str, entry_control_text, typed_data->highlight_range.offset, typed_data->highlight_range.size);
+			typed_data->cursor_position = typed_data->highlight_range.offset;
+		} else if (typed_data->cursor_position < len) {
+			// Otherwise delete one character at the selection point.
+			string_remove_at(str, entry_control_text, typed_data->cursor_position, 1);
 		}
-		update_nine_slice(&typed_data->nslice, 0); */
 	}
+
+	// Clear the highlight range.
+	typed_data->highlight_range.offset = 0;
+	typed_data->highlight_range.size = 0;
+	sui_textbox_update_highlight_box(state, self);
+
+	sui_label_text_set(state, &typed_data->content_label, str);
+	// NOTE: Cannot just do a string_free because it will be shorter than the actual memory allocated.
+	kfree((char*)str, len + 1, MEMORY_TAG_STRING);
+	sui_textbox_update_cursor_position(state, self);
 }
 
 static b8 sui_textbox_on_key(u16 code, void* sender, void* listener_inst, event_context context) {
@@ -537,37 +533,7 @@ static b8 sui_textbox_on_key(u16 code, void* sender, void* listener_inst, event_
 				sui_textbox_update_cursor_position(state, self);
 			}
 		} else if (key_code == KEY_DELETE) {
-			if (len == 0) {
-				sui_label_text_set(state, &typed_data->content_label, "");
-			} else if (typed_data->cursor_position == len && typed_data->highlight_range.size == (i32)len) {
-				char* str = string_duplicate(entry_control_text);
-				str = string_empty(str);
-				typed_data->cursor_position = 0;
-				// Clear the highlight range.
-				typed_data->highlight_range.offset = 0;
-				typed_data->highlight_range.size = 0;
-				sui_textbox_update_highlight_box(state, self);
-				sui_label_text_set(state, &typed_data->content_label, str);
-				// NOTE: Cannot just do a string_free because it will be shorter than the actual memory allocated.
-				kfree((char*)str, len + 1, MEMORY_TAG_STRING);
-				sui_textbox_update_cursor_position(state, self);
-			} else if (typed_data->cursor_position <= len) {
-				char* str = string_duplicate(entry_control_text);
-				if (typed_data->highlight_range.size > 0) {
-					string_remove_at(str, entry_control_text, typed_data->highlight_range.offset, typed_data->highlight_range.size);
-					typed_data->cursor_position = typed_data->highlight_range.offset;
-					// Clear the highlight range.
-					typed_data->highlight_range.offset = 0;
-					typed_data->highlight_range.size = 0;
-					sui_textbox_update_highlight_box(state, self);
-				} else {
-					string_remove_at(str, entry_control_text, typed_data->cursor_position, 1);
-				}
-				sui_label_text_set(state, &typed_data->content_label, str);
-				// NOTE: Cannot just do a string_free because it will be shorter than the actual memory allocated.
-				kfree((char*)str, len + 1, MEMORY_TAG_STRING);
-				sui_textbox_update_cursor_position(state, self);
-			}
+			sui_textbox_delete_at_cursor(state, self);
 		} else if (key_code == KEY_LEFT) {
 			if (typed_data->cursor_position > 0) {
 				if (shift_held) {
@@ -655,6 +621,38 @@ static b8 sui_textbox_on_key(u16 code, void* sender, void* listener_inst, event_
 						typed_data->cursor_position = len;
 						sui_textbox_update_highlight_box(state, self);
 						sui_textbox_update_cursor_position(state, self);
+					}
+
+					// Paste
+					if (key_code == KEY_V) {
+						// Request a paste. This will consume the event.
+						event_register_single(EVENT_CODE_CLIPBOARD_PASTE, self, sui_textbox_on_paste);
+						platform_request_clipboard_content(engine_active_window_get());
+						return true;
+					}
+
+					// Copy/cut
+					if (key_code == KEY_C || key_code == KEY_X) {
+						if (typed_data->highlight_range.size > 0) {
+
+							// Copy the selected text to the clipboard, if any is selected.
+							const range32* hl = &typed_data->highlight_range;
+							char* buf = kallocate(hl->size + 1, MEMORY_TAG_STRING);
+
+							const char* entry_control_text = sui_label_text_get(state, &typed_data->content_label);
+							for (i32 i = 0; i < hl->size; ++i) {
+								buf[i] = entry_control_text[hl->offset + i];
+							}
+							buf[hl->size + 1] = 0;
+
+							platform_clipboard_content_set(engine_active_window_get(), KCLIPBOARD_CONTENT_TYPE_STRING, hl->size + 1, buf);
+
+							// If cutting, remove the selected text from the textbox.
+							if (key_code == KEY_X) {
+								sui_textbox_delete_at_cursor(state, self);
+							}
+						}
+						return true;
 					}
 				}
 				// TODO: check caps lock.
@@ -784,4 +782,52 @@ static b8 sui_textbox_on_key(u16 code, void* sender, void* listener_inst, event_
 	}
 
 	return false;
+}
+
+static b8 sui_textbox_on_paste(u16 code, void* sender, void* listener_inst, event_context context) {
+
+	kclipboard_context* clip = context.data.custom_data.data;
+
+	// Only handle string data.
+	if (clip->content_type == KCLIPBOARD_CONTENT_TYPE_STRING) {
+
+		sui_control* self = listener_inst;
+		sui_textbox_internal_data* typed_data = self->internal_data;
+		standard_ui_state* state = typed_data->state;
+
+		const char* entry_control_text = sui_label_text_get(state, &typed_data->content_label);
+		u32 insert_length = string_length(clip->content);
+		u32 len = string_length(entry_control_text);
+		char* str = kallocate(sizeof(char) * (len + insert_length + 1), MEMORY_TAG_STRING);
+
+		// If text is highlighted, delete highlighted text, then insert at cursor position.
+		if (typed_data->highlight_range.size > 0) {
+			if (typed_data->highlight_range.size == (i32)len) {
+				str = string_empty(str);
+				typed_data->cursor_position = 0;
+			} else {
+				string_remove_at(str, entry_control_text, typed_data->highlight_range.offset, typed_data->highlight_range.size);
+				typed_data->cursor_position = typed_data->highlight_range.offset;
+			}
+		} else {
+			string_copy(str, entry_control_text);
+		}
+
+		string_insert_str_at(str, str, typed_data->cursor_position, clip->content);
+
+		sui_label_text_set(state, &typed_data->content_label, str);
+		kfree(str, len + insert_length + 1, MEMORY_TAG_STRING);
+		if (typed_data->highlight_range.size > 0) {
+			// Clear the highlight range.
+			typed_data->highlight_range.offset = 0;
+			typed_data->highlight_range.size = 0;
+			sui_textbox_update_highlight_box(state, self);
+		}
+
+		typed_data->cursor_position += insert_length;
+		sui_textbox_update_cursor_position(state, self);
+	}
+
+	// Consider the event handled, don't let anything else have it.
+	return true;
 }

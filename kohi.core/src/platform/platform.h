@@ -187,6 +187,19 @@ typedef struct ksystem_info {
 	u32 storage_count;
 } ksystem_info;
 
+typedef enum kclipboard_content_type {
+	KCLIPBOARD_CONTENT_TYPE_STRING,
+	KCLIPBOARD_CONTENT_TYPE_IMAGE,
+	KCLIPBOARD_CONTENT_TYPE_BINARY
+} kclipboard_content_type;
+
+typedef struct kclipboard_context {
+	kclipboard_content_type content_type;
+	kwindow* requesting_window;
+	u64 size;
+	const void* content;
+} kclipboard_context;
+
 typedef void (*platform_filewatcher_file_deleted_callback)(u32 watcher_id, void* context);
 typedef void (*platform_filewatcher_file_written_callback)(u32 watcher_id, const char* file_path, b8 is_binary, void* context);
 typedef void (*platform_window_closed_callback)(const struct kwindow* window);
@@ -195,6 +208,7 @@ typedef void (*platform_process_key)(keys key, b8 pressed, b8 is_repeat);
 typedef void (*platform_process_mouse_button)(mouse_buttons button, b8 pressed);
 typedef void (*platform_process_mouse_move)(i16 x, i16 y);
 typedef void (*platform_process_mouse_wheel)(i8 z_delta);
+typedef void (*platform_clipboard_on_paste_callback)(kclipboard_context context);
 
 /**
  * @brief Performs startup routines within the platform layer. Should be called twice,
@@ -461,6 +475,13 @@ KAPI void platform_register_process_mouse_move_callback(platform_process_mouse_m
 KAPI void platform_register_process_mouse_wheel_callback(platform_process_mouse_wheel callback);
 
 /**
+ * @brief Registers the system-level handler for content being ready to paste from the clipboard.
+ *
+ * @param callback A pointer to the handler function.
+ */
+KAPI void platform_register_clipboard_paste_callback(platform_clipboard_on_paste_callback callback);
+
+/**
  * @brief Watch a file at the given path.
  *
  * @param file_path The file path. Required.
@@ -494,3 +515,9 @@ KAPI b8 platform_unwatch_file(u32 watch_id);
 KAPI kunix_time_ns platform_get_file_mtime(const char* path);
 
 KAPI b8 platform_system_info_collect(ksystem_info* out_info);
+
+// Used for pasting into the application.
+KAPI void platform_request_clipboard_content(kwindow* window);
+
+// Used for copying from the application.
+KAPI void platform_clipboard_content_set(kwindow* window, kclipboard_content_type type, u32 size, void* content);

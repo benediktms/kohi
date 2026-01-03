@@ -61,7 +61,6 @@ b8 kplugin_frame_prepare(struct kruntime_plugin* plugin, struct frame_data* p_fr
 	}
 
 	standard_ui_plugin_state* plugin_state = plugin->plugin_state;
-	standard_ui_system_render_prepare_frame(plugin_state->state, p_frame_data);
 
 	plugin_state->render_data = p_frame_data->allocator.allocate(sizeof(standard_ui_render_data));
 	plugin_state->render_data->renderables = darray_create_with_allocator(standard_ui_renderable, &p_frame_data->allocator);

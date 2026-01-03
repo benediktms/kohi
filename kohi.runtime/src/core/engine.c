@@ -117,6 +117,7 @@ static void engine_on_process_key(keys key, b8 pressed, b8 is_repeat);
 static void engine_on_process_mouse_button(mouse_buttons button, b8 pressed);
 static void engine_on_process_mouse_move(i16 x, i16 y);
 static void engine_on_process_mouse_wheel(i8 z_delta);
+static void engine_on_paste(kclipboard_context context);
 static b8 engine_log_file_write(void* engine, log_level level, const char* message);
 static b8 engine_platform_console_write(void* platform, log_level level, const char* message);
 static b8 load_game_lib(application* app);
@@ -435,6 +436,11 @@ b8 engine_create(application* app, const char* app_config_path, const char* game
 		platform_register_process_mouse_button_callback(engine_on_process_mouse_button);
 		platform_register_process_mouse_move_callback(engine_on_process_mouse_move);
 		platform_register_process_mouse_wheel_callback(engine_on_process_mouse_wheel);
+	}
+
+	// Clipboard
+	{
+		platform_register_clipboard_paste_callback(engine_on_paste);
 	}
 
 	// Renderer system
@@ -1072,6 +1078,16 @@ static void engine_on_process_mouse_move(i16 x, i16 y) {
 
 static void engine_on_process_mouse_wheel(i8 z_delta) {
 	input_process_mouse_wheel(z_delta);
+}
+
+static void engine_on_paste(kclipboard_context context) {
+	KTRACE("Clipboard paste event from platform.");
+	event_context evt = {
+		.data.custom_data = {
+			.data = &context,
+			.size = sizeof(kclipboard_context)}};
+
+	event_fire(EVENT_CODE_CLIPBOARD_PASTE, KNULL, evt);
 }
 
 static b8 engine_log_file_write(void* engine_state, log_level level, const char* message) {

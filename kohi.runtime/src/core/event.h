@@ -57,7 +57,7 @@ typedef struct event_context {
 		 * @brief Allows a pointer to arbitrary data to be passed. Also includes size info.
 		 * NOTE: If used, should be freed by the sender or listener.
 		 */
-		union {
+		struct {
 			// The size of the data pointed to.
 			u64 size;
 			// A pointer to a memory block of data to be included with the event.
@@ -99,6 +99,18 @@ void event_system_shutdown(void* state);
  * @returns True if the event is successfully registered; otherwise false.
  */
 KAPI b8 event_register(u16 code, void* listener, PFN_on_event on_event);
+
+/**
+ * @brief Register to listen for when a single event is sent with the provided code. Events with duplicate
+ * listener/callback combos will not be registered again and will cause this to return false.
+ * @note: the event is automatically unregistered once fired a single time.
+ *
+ * @param code The event code to listen for.
+ * @param listener A pointer to a listener instance. Can be 0/NULL.
+ * @param on_event The callback function pointer to be invoked when the event code is fired.
+ * @returns True if the event is successfully registered; otherwise false.
+ */
+KAPI b8 event_register_single(u16 code, void* listener, PFN_on_event on_event);
 
 /**
  * @brief Unregister from listening for when events are sent with the provided code. If no matching
@@ -189,6 +201,14 @@ typedef enum system_event_code {
 	 * i32 mode = context.data.i32[0];
 	 */
 	EVENT_CODE_SET_RENDER_MODE = 0x0A,
+
+	/** @brief Clipboard content is ready to be retrieved.
+	 * NOTE: data is freed by the platform immediately after this event is fired.
+	 *
+	 * Context usage:
+	 * struct clipboard_context* = context.data.custom_data.data, (sizeof clipboard_context)
+	 */
+	EVENT_CODE_CLIPBOARD_PASTE = 0x0B,
 
 	/** @brief Special-purpose debugging event. Context will vary over time. */
 	EVENT_CODE_DEBUG0 = 0x10,
