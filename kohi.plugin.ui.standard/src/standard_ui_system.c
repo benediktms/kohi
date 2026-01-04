@@ -36,6 +36,9 @@ static b8 sui_base_internal_click(standard_ui_state* state, struct sui_control* 
 static b8 sui_base_internal_mouse_over(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
 static b8 sui_base_internal_mouse_out(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
 static b8 sui_base_internal_mouse_move(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
+static b8 sui_base_internal_mouse_drag_begin(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
+static b8 sui_base_internal_mouse_drag(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
+static b8 sui_base_internal_mouse_drag_end(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
 
 static b8 control_and_ancestors_active_r(const struct sui_control* control) {
 	if (!control->is_active) {
@@ -75,9 +78,9 @@ static b8 control_process_mouse_event(standard_ui_state* typed_state, sui_contro
 	}
 
 	sui_mouse_event evt = {
-		.mouse_button = (mouse_buttons)evt_context.data.i16[0],
-		.x = evt_context.data.i16[1],
-		.y = evt_context.data.i16[2],
+		.mouse_button = (mouse_buttons)evt_context.data.i16[2],
+		.x = evt_context.data.i16[0],
+		.y = evt_context.data.i16[1],
 	};
 
 	b8 block_propagation = false;
@@ -124,7 +127,7 @@ static b8 standard_ui_system_mouse_down(u16 code, void* sender, void* listener_i
 		}
 	}
 
-	KTRACE("ui mouse up, block_propagation = %s", block_propagation ? "yes" : "no");
+	KTRACE("ui mouse down, block_propagation = %s", block_propagation ? "yes" : "no");
 
 	// If a control was hit, block the event from going any futher.
 	return block_propagation;
@@ -190,6 +193,51 @@ static b8 standard_ui_system_move(u16 code, void* sender, void* listener_inst, e
 			block_propagation = true;
 		}
 	}
+
+	/* KTRACE("ui mouse move, block_propagation = %s", block_propagation ? "yes" : "no"); */
+
+	return block_propagation;
+}
+
+static b8 standard_ui_system_drag(u16 code, void* sender, void* listener_inst, event_context context) {
+	standard_ui_state* typed_state = (standard_ui_state*)listener_inst;
+
+	b8 block_propagation = false;
+	for (u32 i = 0; i < typed_state->active_control_count; ++i) {
+		sui_control* control = typed_state->active_controls[i];
+
+		PFN_mouse_event_callback inside_callback, outside_callback;
+		u32 inside_count, outside_count;
+		if (code == EVENT_CODE_MOUSE_DRAG_BEGIN) {
+			// Drag begin must start within the control.
+			inside_callback = control->internal_mouse_drag_begin;
+			inside_count = 1;
+			outside_callback = KNULL;
+			outside_count = 0;
+		} else if (code == EVENT_CODE_MOUSE_DRAGGED) {
+			// Drag event can occur inside or outside the control.
+			inside_callback = control->internal_mouse_drag;
+			inside_count = 1;
+			outside_callback = control->internal_mouse_drag;
+			outside_count = 1;
+		} else if (code == EVENT_CODE_MOUSE_DRAG_END) {
+			// Drag end event can occur inside or outside the control.
+			inside_callback = control->internal_mouse_drag_end;
+			inside_count = 1;
+			outside_callback = control->internal_mouse_drag_end;
+			outside_count = 1;
+		} else {
+			KTRACE("Other event...");
+			return false;
+		}
+
+		if (control_process_mouse_event(typed_state, control, context, inside_count, &inside_callback, outside_count, &outside_callback, true)) {
+			block_propagation = true;
+		}
+	}
+
+	/* KTRACE("ui mouse drag, block_propagation = %s", block_propagation ? "yes" : "no"); */
+
 	return block_propagation;
 }
 
@@ -245,10 +293,11 @@ b8 standard_ui_system_initialize(u64* memory_requirement, standard_ui_state* sta
 	// Listen for input events.
 	event_register(EVENT_CODE_BUTTON_CLICKED, state, standard_ui_system_click);
 	event_register(EVENT_CODE_MOUSE_MOVED, state, standard_ui_system_move);
+	event_register(EVENT_CODE_MOUSE_DRAG_BEGIN, state, standard_ui_system_drag);
+	event_register(EVENT_CODE_MOUSE_DRAGGED, state, standard_ui_system_drag);
+	event_register(EVENT_CODE_MOUSE_DRAG_END, state, standard_ui_system_drag);
 	event_register(EVENT_CODE_BUTTON_PRESSED, state, standard_ui_system_mouse_down);
 	event_register(EVENT_CODE_BUTTON_RELEASED, state, standard_ui_system_mouse_up);
-
-	state->focused_id = INVALID_ID_U64;
 
 	state->vertex_buffer = renderer_renderbuffer_get(state->renderer, kname_create(KRENDERBUFFER_NAME_VERTEX_STANDARD));
 	state->index_buffer = renderer_renderbuffer_get(state->renderer, kname_create(KRENDERBUFFER_NAME_INDEX_STANDARD));
@@ -263,6 +312,9 @@ void standard_ui_system_shutdown(standard_ui_state* state) {
 		// Stop listening for input events.
 		event_unregister(EVENT_CODE_BUTTON_CLICKED, state, standard_ui_system_click);
 		event_unregister(EVENT_CODE_MOUSE_MOVED, state, standard_ui_system_move);
+		event_unregister(EVENT_CODE_MOUSE_DRAG_BEGIN, state, standard_ui_system_drag);
+		event_unregister(EVENT_CODE_MOUSE_DRAGGED, state, standard_ui_system_drag);
+		event_unregister(EVENT_CODE_MOUSE_DRAG_END, state, standard_ui_system_drag);
 		event_unregister(EVENT_CODE_BUTTON_PRESSED, state, standard_ui_system_mouse_down);
 		event_unregister(EVENT_CODE_BUTTON_RELEASED, state, standard_ui_system_mouse_up);
 
@@ -432,7 +484,20 @@ b8 standard_ui_system_control_remove_child(standard_ui_state* state, sui_control
 }
 
 void standard_ui_system_focus_control(standard_ui_state* state, sui_control* control) {
-	state->focused_id = control ? control->id.uniqueid : INVALID_ID_U64;
+	if (!control) {
+		if (state->focused && state->focused->on_unfocus) {
+			state->focused->on_unfocus(state, state->focused);
+		}
+		state->focused = KNULL;
+	} else if (control->is_focusable) {
+		if (state->focused && state->focused->on_unfocus) {
+			state->focused->on_unfocus(state, state->focused);
+		}
+		state->focused = control;
+		if (state->focused && state->focused->on_focus) {
+			state->focused->on_focus(state, state->focused);
+		}
+	}
 }
 
 b8 sui_base_control_create(standard_ui_state* state, const char* name, struct sui_control* out_control) {
@@ -460,6 +525,9 @@ b8 sui_base_control_create(standard_ui_state* state, const char* name, struct su
 	out_control->internal_mouse_over = sui_base_internal_mouse_over;
 	out_control->internal_mouse_out = sui_base_internal_mouse_out;
 	out_control->internal_mouse_move = sui_base_internal_mouse_move;
+	out_control->internal_mouse_drag_begin = sui_base_internal_mouse_drag_begin;
+	out_control->internal_mouse_drag = sui_base_internal_mouse_drag;
+	out_control->internal_mouse_drag_end = sui_base_internal_mouse_drag_end;
 
 	return true;
 }
@@ -539,6 +607,15 @@ static b8 sui_base_internal_click(standard_ui_state* state, struct sui_control* 
 		return true;
 	}
 
+	if (self->is_focusable) {
+		if (state->focused != self) {
+			standard_ui_system_focus_control(state, self);
+		}
+	} else {
+		// Something else was clicked, unfocus.
+		standard_ui_system_focus_control(state, KNULL);
+	}
+
 	// Block event propagation by default. User events can override this.
 	return self->on_click ? self->on_click(state, self, event) : false;
 }
@@ -568,4 +645,31 @@ static b8 sui_base_internal_mouse_move(standard_ui_state* state, struct sui_cont
 
 	// Block event propagation by default. User events can override this.
 	return self->on_mouse_move ? self->on_mouse_move(state, self, event) : false;
+}
+
+static b8 sui_base_internal_mouse_drag_begin(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event) {
+	if (!self) {
+		return true;
+	}
+
+	// Block event propagation by default. User events can override this.
+	return self->on_mouse_drag_begin ? self->on_mouse_drag_begin(state, self, event) : false;
+}
+
+static b8 sui_base_internal_mouse_drag(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event) {
+	if (!self) {
+		return true;
+	}
+
+	// Block event propagation by default. User events can override this.
+	return self->on_mouse_drag ? self->on_mouse_drag(state, self, event) : false;
+}
+
+static b8 sui_base_internal_mouse_drag_end(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event) {
+	if (!self) {
+		return true;
+	}
+
+	// Block event propagation by default. User events can override this.
+	return self->on_mouse_drag_end ? self->on_mouse_drag_end(state, self, event) : false;
 }

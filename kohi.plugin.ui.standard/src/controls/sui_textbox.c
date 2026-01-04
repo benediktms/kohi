@@ -27,6 +27,8 @@
 
 static b8 sui_textbox_on_key(u16 code, void* sender, void* listener_inst, event_context context);
 static b8 sui_textbox_on_paste(u16 code, void* sender, void* listener_inst, event_context context);
+static void sui_textbox_on_focus(struct standard_ui_state* state, sui_control* self);
+static void sui_textbox_on_unfocus(struct standard_ui_state* state, sui_control* self);
 
 static f32 sui_textbox_calculate_cursor_offset(standard_ui_state* state, u32 string_pos, const char* full_string, sui_textbox_internal_data* internal_data) {
 	if (string_pos == 0) {
@@ -137,10 +139,14 @@ b8 sui_textbox_control_create(standard_ui_state* state, const char* name, font_t
 	typed_data->size = (vec2i){200, font_size + 10}; // add padding
 	typed_data->colour = vec4_one();
 
+	out_control->is_focusable = true;
+
 	// Assign function pointers.
 	out_control->destroy = sui_textbox_control_destroy;
 	out_control->update = sui_textbox_control_update;
 	out_control->render = sui_textbox_control_render;
+	out_control->on_focus = sui_textbox_on_focus;
+	out_control->on_unfocus = sui_textbox_on_unfocus;
 
 	out_control->name = string_duplicate(name);
 
@@ -495,7 +501,7 @@ static b8 sui_textbox_on_key(u16 code, void* sender, void* listener_inst, event_
 	sui_control* self = listener_inst;
 	sui_textbox_internal_data* typed_data = self->internal_data;
 	standard_ui_state* state = typed_data->state;
-	if (state->focused_id != self->id.uniqueid) {
+	if (state->focused != self) {
 		return false;
 	}
 
@@ -836,4 +842,12 @@ static b8 sui_textbox_on_paste(u16 code, void* sender, void* listener_inst, even
 
 	// Consider the event handled, don't let anything else have it.
 	return true;
+}
+
+static void sui_textbox_on_focus(struct standard_ui_state* state, sui_control* self) {
+	KTRACE("Focused textbox '%s'.", self->name);
+}
+
+static void sui_textbox_on_unfocus(struct standard_ui_state* state, sui_control* self) {
+	KTRACE("Focused textbox '%s'.", self->name);
 }

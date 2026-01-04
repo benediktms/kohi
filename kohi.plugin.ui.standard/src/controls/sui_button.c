@@ -28,7 +28,6 @@ b8 sui_button_control_create(standard_ui_state* state, const char* name, struct 
 	sui_button_internal_data* typed_data = out_control->internal_data;
 
 	// Reasonable defaults.
-	typed_data->size = (vec2i){180, 40};
 	typed_data->colour = vec4_one();
 
 	// Assign function pointers.
@@ -50,15 +49,15 @@ b8 sui_button_control_create(standard_ui_state* state, const char* name, struct 
 	vec2i atlas_max = (vec2i){158, 19};
 	vec2i corner_px_size = (vec2i){3, 3};
 	vec2i corner_size = (vec2i){10, 10};
-	if (!nine_slice_create(out_control->name, typed_data->size, atlas_size, atlas_min, atlas_max, corner_px_size, corner_size, &typed_data->nslice)) {
+	if (!nine_slice_create(out_control->name, (vec2i){200, 40}, atlas_size, atlas_min, atlas_max, corner_px_size, corner_size, &typed_data->nslice)) {
 		KERROR("Failed to generate nine slice.");
 		return false;
 	}
 
 	out_control->bounds.x = 0.0f;
 	out_control->bounds.y = 0.0f;
-	out_control->bounds.width = typed_data->size.x;
-	out_control->bounds.height = typed_data->size.y;
+	out_control->bounds.width = 200;
+	out_control->bounds.height = 40;
 
 	kshader sui_shader = kshader_system_get(kname_create(STANDARD_UI_SHADER_NAME), kname_create(PACKAGE_NAME_STANDARD_UI));
 	// Acquire binding set resources for this control.
@@ -82,10 +81,24 @@ b8 sui_button_control_height_set(standard_ui_state* state, struct sui_control* s
 	}
 
 	sui_button_internal_data* typed_data = self->internal_data;
-	typed_data->size.y = height;
 	typed_data->nslice.size.y = height;
 
 	self->bounds.height = height;
+
+	nine_slice_update(&typed_data->nslice, 0);
+
+	return true;
+}
+
+b8 sui_button_control_width_set(standard_ui_state* state, struct sui_control* self, i32 width) {
+	if (!self) {
+		return false;
+	}
+
+	sui_button_internal_data* typed_data = self->internal_data;
+	typed_data->nslice.size.x = width;
+
+	self->bounds.width = width;
 
 	nine_slice_update(&typed_data->nslice, 0);
 

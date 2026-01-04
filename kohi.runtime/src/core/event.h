@@ -153,25 +153,25 @@ typedef enum system_event_code {
 
 	/** @brief Mouse button pressed.
 	 * Context usage:
-	 * u16 button = data.data.u16[0];
-	 * u16 x = data.data.i16[1];
-	 * u16 y = data.data.i16[2];
+	 * u16 x = data.data.i16[0];
+	 * u16 y = data.data.i16[1];
+	 * u16 button = data.data.u16[2];
 	 */
 	EVENT_CODE_BUTTON_PRESSED = 0x04,
 
 	/** @brief Mouse button released.
 	 * Context usage:
-	 * u16 button = data.data.u16[0];
-	 * u16 x = data.data.i16[1];
-	 * u16 y = data.data.i16[2];
+	 * u16 x = data.data.i16[0];
+	 * u16 y = data.data.i16[1];
+	 * u16 button = data.data.u16[2];
 	 */
 	EVENT_CODE_BUTTON_RELEASED = 0x05,
 
 	/** @brief Mouse button pressed then released.
 	 * Context usage:
-	 * u16 button = data.data.u16[0];
-	 * u16 x = data.data.i16[1];
-	 * u16 y = data.data.i16[2];
+	 * u16 x = data.data.i16[0];
+	 * u16 y = data.data.i16[1];
+	 * u16 button = data.data.u16[2];
 	 */
 	EVENT_CODE_BUTTON_CLICKED = 0x06,
 

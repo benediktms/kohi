@@ -98,6 +98,7 @@ typedef struct sui_control {
 	b8 is_visible;
 	b8 is_hovered;
 	b8 is_pressed;
+	b8 is_focusable;
 	rect_2d bounds;
 
 	struct sui_control* parent;
@@ -127,6 +128,12 @@ typedef struct sui_control {
 	PFN_mouse_event_callback on_mouse_over;
 	PFN_mouse_event_callback on_mouse_out;
 	PFN_mouse_event_callback on_mouse_move;
+	PFN_mouse_event_callback on_mouse_drag_begin;
+	PFN_mouse_event_callback on_mouse_drag;
+	PFN_mouse_event_callback on_mouse_drag_end;
+
+	void (*on_focus)(struct standard_ui_state* state, struct sui_control* self);
+	void (*on_unfocus)(struct standard_ui_state* state, struct sui_control* self);
 
 	PFN_mouse_event_callback internal_click;
 	PFN_mouse_event_callback internal_mouse_over;
@@ -134,6 +141,9 @@ typedef struct sui_control {
 	PFN_mouse_event_callback internal_mouse_down;
 	PFN_mouse_event_callback internal_mouse_up;
 	PFN_mouse_event_callback internal_mouse_move;
+	PFN_mouse_event_callback internal_mouse_drag_begin;
+	PFN_mouse_event_callback internal_mouse_drag;
+	PFN_mouse_event_callback internal_mouse_drag_end;
 
 	void (*on_key)(struct standard_ui_state* state, struct sui_control* self, struct sui_keyboard_event event);
 
@@ -160,7 +170,7 @@ typedef struct standard_ui_state {
 	krenderbuffer vertex_buffer;
 	krenderbuffer index_buffer;
 
-	u64 focused_id;
+	sui_control* focused;
 
 } standard_ui_state;
 
@@ -195,6 +205,7 @@ KAPI b8 standard_ui_system_control_add_child(standard_ui_state* state, sui_contr
 
 KAPI b8 standard_ui_system_control_remove_child(standard_ui_state* state, sui_control* parent, sui_control* child);
 
+// Pass KNULL to unfocus without focusing something new.
 KAPI void standard_ui_system_focus_control(standard_ui_state* state, sui_control* control);
 
 // ---------------------------
