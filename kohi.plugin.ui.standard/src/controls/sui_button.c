@@ -28,7 +28,7 @@ b8 sui_button_control_create(standard_ui_state* state, const char* name, struct 
 	sui_button_internal_data* typed_data = out_control->internal_data;
 
 	// Reasonable defaults.
-	typed_data->size = (vec2i){200, 50};
+	typed_data->size = (vec2i){180, 40};
 	typed_data->colour = vec4_one();
 
 	// Assign function pointers.
