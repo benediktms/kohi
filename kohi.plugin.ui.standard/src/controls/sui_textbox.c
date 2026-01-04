@@ -502,7 +502,13 @@ static b8 sui_textbox_on_key(u16 code, void* sender, void* listener_inst, event_
 	u16 key_code = context.data.u16[0];
 	if (code == EVENT_CODE_KEY_PRESSED) {
 		b8 shift_held = input_is_key_down(KEY_LSHIFT) || input_is_key_down(KEY_RSHIFT) || input_is_key_down(KEY_SHIFT);
+#if KPLATFORM_APPLE
+		// On Apple, consider "command" as control.
+		// TODO: Need to think this through better for the future to not have platform code here.
+		b8 ctrl_held = input_is_key_down(KEY_LSUPER) || input_is_key_down(KEY_RSUPER);
+#else
 		b8 ctrl_held = input_is_key_down(KEY_LCONTROL) || input_is_key_down(KEY_RCONTROL) || input_is_key_down(KEY_CONTROL);
+#endif
 
 		const char* entry_control_text = sui_label_text_get(state, &typed_data->content_label);
 		u32 len = string_length(entry_control_text);

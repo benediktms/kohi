@@ -72,6 +72,7 @@ typedef struct platform_state {
 	platform_process_mouse_button process_mouse_button;
 	platform_process_mouse_move process_mouse_move;
 	platform_process_mouse_wheel process_mouse_wheel;
+	platform_clipboard_on_paste_callback on_paste;
 } platform_state;
 
 enum macos_modifier_keys {
@@ -791,6 +792,9 @@ void platform_register_process_mouse_move_callback(platform_process_mouse_move c
 void platform_register_process_mouse_wheel_callback(platform_process_mouse_wheel callback) {
 	state_ptr->process_mouse_wheel = callback;
 }
+void platform_register_clipboard_paste_callback(platform_clipboard_on_paste_callback callback) {
+	state_ptr->on_paste = callback;
+}
 
 platform_error_code platform_copy_file(const char* source, const char* dest, b8 overwrite_if_exists) {
 	u32 flags = COPYFILE_ALL;
@@ -1240,6 +1244,55 @@ b8 platform_system_info_collect(ksystem_info* out_info) {
 
 	FLAG_SET(out_info->flags, KSYSTEM_INFO_FLAGS_IS_64_BIT_BIT, true);
 	return true;
+}
+
+void platform_request_clipboard_content(kwindow* window) {
+	NSPasteboard* pb = [NSPasteboard generalPasteboard];
+	NSString* str = [pb stringForType:NSPasteboardTypeString];
+	if (!str) {
+		return;
+	}
+
+	const char* utf8 = [str UTF8String];
+	kclipboard_context ctx = {
+		.size = string_length(utf8) + 1,
+		.content = utf8,
+		.content_type = KCLIPBOARD_CONTENT_TYPE_STRING,
+		.requesting_window = window};
+	if (state_ptr->on_paste) {
+		state_ptr->on_paste(ctx);
+	}
+}
+
+void platform_clipboard_content_set(kwindow* window, kclipboard_content_type type, u32 size, void* content) {
+	if (!content) {
+		return;
+	}
+
+	PasteboardRef pb;
+	if (PasteboardCreate(kPasteboardClipboard, &pb) != noErr)
+		return;
+
+	PasteboardClear(pb);
+
+	CFDataRef data = CFDataCreate(
+		kCFAllocatorDefault,
+		(const UInt8*)content,
+		(CFIndex)strlen(content));
+	if (!data) {
+		CFRelease(pb);
+		return;
+	}
+
+	PasteboardPutItemFlavor(
+		pb,
+		(PasteboardItemID)1,
+		kUTTypeUTF8PlainText,
+		data,
+		0);
+
+	CFRelease(data);
+	CFRelease(pb);
 }
 
 static keys translate_keycode(u32 ns_keycode) {
