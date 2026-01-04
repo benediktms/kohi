@@ -28,6 +28,12 @@
 #	include <winnt.h>
 #	include <winreg.h>
 #	include <stdint.h>
+#	include <string.h>
+#	include <stringapiset.h>
+#	include <wchar.h>
+#	include <winbase.h>
+#	include <winnls.h>
+#	include <winuser.h>
 
 #	define UNIX_EPOCH_TO_FILETIME_NS 116444736000000000ULL
 #	define FILETIME_TICK_NS 100ULL
@@ -86,6 +92,7 @@ typedef struct platform_state {
 	platform_process_mouse_button process_mouse_button;
 	platform_process_mouse_move process_mouse_move;
 	platform_process_mouse_wheel process_mouse_wheel;
+	platform_clipboard_on_paste_callback on_paste;
 } platform_state;
 
 static platform_state* state_ptr;
@@ -810,6 +817,10 @@ void platform_register_process_mouse_wheel_callback(platform_process_mouse_wheel
 	state_ptr->process_mouse_wheel = callback;
 }
 
+void platform_register_clipboard_paste_callback(platform_clipboard_on_paste_callback callback) {
+	state_ptr->on_paste = callback;
+}
+
 platform_error_code platform_copy_file(const char* source, const char* dest, b8 overwrite_if_exists) {
 	LPCWSTR wsource = cstr_to_wcstr(source);
 	LPCWSTR wdest = cstr_to_wcstr(dest);
@@ -1247,6 +1258,97 @@ b8 platform_system_info_collect(ksystem_info* out_info) {
 	return true;
 }
 
+void platform_request_clipboard_content(kwindow* window) {
+	if (!OpenClipboard(NULL)) {
+		return;
+	}
+
+	HANDLE h = GetClipboardData(CF_UNICODETEXT);
+	if (!h) {
+		goto win32_clipboard_fire;
+	}
+
+	wchar_t* wtext = (wchar_t*)GlobalLock(h);
+	if (!wtext) {
+		goto win32_clipboard_fire;
+	}
+
+	i32 utf8_len = WideCharToMultiByte(CP_UTF8, 0, wtext, -1, NULL, 0, NULL, NULL);
+
+	char* text = kallocate(utf8_len, MEMORY_TAG_STRING);
+	WideCharToMultiByte(CP_UTF8, 0, wtext, -1, text, utf8_len, NULL, NULL);
+
+	GlobalUnlock(h);
+
+win32_clipboard_fire:
+	CloseClipboard();
+
+	if (state_ptr->on_paste) {
+		kclipboard_context ctx = {
+			.content = text,
+			.content_type = KCLIPBOARD_CONTENT_TYPE_STRING,
+			.size = utf8_len,
+			.requesting_window = window};
+		state_ptr->on_paste(ctx);
+	}
+}
+static wchar_t* utf8_to_utf16(const char* utf8) {
+	if (!utf8) {
+		return KNULL;
+	}
+
+	i32 len = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, utf8, -1, KNULL, 0);
+
+	if (len <= 0) {
+		return KNULL;
+	}
+
+	wchar_t* out = (wchar_t*)malloc(len * sizeof(wchar_t));
+	if (!out) {
+		return KNULL;
+	}
+	MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, utf8, -1, out, len);
+
+	return out;
+}
+
+void platform_clipboard_content_set(kwindow* window, kclipboard_content_type type, u32 size, void* content) {
+	if (!OpenClipboard(KNULL)) {
+		return;
+	}
+
+	EmptyClipboard();
+
+	u64 len;
+	wchar_t* wtext = 0;
+	if (type == KCLIPBOARD_CONTENT_TYPE_STRING) {
+		wtext = utf8_to_utf16(content);
+		len = (wcslen(wtext) + 1) * sizeof(wchar_t);
+	} else {
+		len = size;
+	}
+
+	HGLOBAL hmem = GlobalAlloc(GMEM_MOVEABLE, len);
+	if (!hmem) {
+		goto win32_clipboard_fire;
+	}
+
+	void* dest = GlobalLock(hmem);
+	if (type == KCLIPBOARD_CONTENT_TYPE_STRING) {
+		memcpy(dest, wtext, len);
+	} else {
+		memcpy(dest, content, len);
+	}
+	GlobalUnlock(hmem);
+
+	SetClipboardData(CF_UNICODETEXT, hmem);
+
+win32_clipboard_fire:
+	CloseClipboard();
+	if (wtext) {
+		free(wtext);
+	}
+}
 static kwindow* window_from_handle(HWND hwnd) {
 	u32 len = darray_length(state_ptr->windows);
 	for (u32 i = 0; i < len; ++i) {
