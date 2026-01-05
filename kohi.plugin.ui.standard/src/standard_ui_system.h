@@ -13,6 +13,7 @@
 #pragma once
 
 #include "core_resource_types.h"
+#include "utils/kcolour.h"
 #include <defines.h>
 #include <identifiers/identifier.h>
 #include <input_types.h>
@@ -165,6 +166,9 @@ typedef struct standard_ui_state {
 	sui_control root;
 	// texture_map ui_atlas;
 
+	colour4 focused_base_colour;
+	colour4 unfocused_base_colour;
+
 	ktexture atlas_texture;
 
 	krenderbuffer vertex_buffer;
@@ -207,6 +211,7 @@ KAPI b8 standard_ui_system_control_remove_child(standard_ui_state* state, sui_co
 
 // Pass KNULL to unfocus without focusing something new.
 KAPI void standard_ui_system_focus_control(standard_ui_state* state, sui_control* control);
+KAPI b8 standard_ui_system_is_control_focused(const standard_ui_state* state, const sui_control* control);
 
 // ---------------------------
 // Base control

@@ -155,7 +155,7 @@ static b8 sui_button_internal_mouse_out(standard_ui_state* state, struct sui_con
 	}
 
 	// Block event propagation by default. User events can override this.
-	return self->on_mouse_out ? self->on_mouse_out(state, self, event) : false;
+	return self->on_mouse_out ? self->on_mouse_out(state, self, event) : true;
 }
 
 static b8 sui_button_internal_mouse_over(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event) {

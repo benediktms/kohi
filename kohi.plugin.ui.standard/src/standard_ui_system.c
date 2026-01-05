@@ -29,6 +29,7 @@
 #include "standard_ui_defines.h"
 #include "sui_defines.h"
 #include "systems/kshader_system.h"
+#include "utils/kcolour.h"
 
 static b8 sui_base_internal_mouse_down(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
 static b8 sui_base_internal_mouse_up(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
@@ -194,7 +195,7 @@ static b8 standard_ui_system_move(u16 code, void* sender, void* listener_inst, e
 		}
 	}
 
-	/* KTRACE("ui mouse move, block_propagation = %s", block_propagation ? "yes" : "no"); */
+	KTRACE("ui mouse move, block_propagation = %s", block_propagation ? "yes" : "no");
 
 	return block_propagation;
 }
@@ -236,7 +237,7 @@ static b8 standard_ui_system_drag(u16 code, void* sender, void* listener_inst, e
 		}
 	}
 
-	/* KTRACE("ui mouse drag, block_propagation = %s", block_propagation ? "yes" : "no"); */
+	KTRACE("ui mouse drag, block_propagation = %s", block_propagation ? "yes" : "no");
 
 	return block_propagation;
 }
@@ -263,6 +264,9 @@ b8 standard_ui_system_initialize(u64* memory_requirement, standard_ui_state* sta
 
 	state->renderer = engine_systems_get()->renderer_system;
 	state->font_system = engine_systems_get()->font_system;
+
+	state->focused_base_colour = KCOLOUR4_WHITE;
+	state->unfocused_base_colour = KCOLOUR4_WHITE_50;
 
 	// Get the shader and the global binding id.
 	state->shader = kshader_system_get(kname_create(STANDARD_UI_SHADER_NAME), kname_create(PACKAGE_NAME_STANDARD_UI));
@@ -500,6 +504,10 @@ void standard_ui_system_focus_control(standard_ui_state* state, sui_control* con
 	}
 }
 
+b8 standard_ui_system_is_control_focused(const standard_ui_state* state, const sui_control* control) {
+	return state->focused == control;
+}
+
 b8 sui_base_control_create(standard_ui_state* state, const char* name, struct sui_control* out_control) {
 	if (!out_control) {
 		return false;
@@ -625,8 +633,8 @@ static b8 sui_base_internal_mouse_over(standard_ui_state* state, struct sui_cont
 		return true;
 	}
 
-	// Block event propagation by default. User events can override this.
-	return self->on_mouse_over ? self->on_mouse_over(state, self, event) : false;
+	// Allow event propagation by default. User events can override this.
+	return self->on_mouse_over ? self->on_mouse_over(state, self, event) : true;
 }
 
 static b8 sui_base_internal_mouse_out(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event) {
@@ -634,8 +642,8 @@ static b8 sui_base_internal_mouse_out(standard_ui_state* state, struct sui_contr
 		return true;
 	}
 
-	// Block event propagation by default. User events can override this.
-	return self->on_mouse_out ? self->on_mouse_out(state, self, event) : false;
+	// Allow event propagation by default. User events can override this.
+	return self->on_mouse_out ? self->on_mouse_out(state, self, event) : true;
 }
 
 static b8 sui_base_internal_mouse_move(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event) {
@@ -643,8 +651,8 @@ static b8 sui_base_internal_mouse_move(standard_ui_state* state, struct sui_cont
 		return true;
 	}
 
-	// Block event propagation by default. User events can override this.
-	return self->on_mouse_move ? self->on_mouse_move(state, self, event) : false;
+	// Allow event propagation by default. User events can override this.
+	return self->on_mouse_move ? self->on_mouse_move(state, self, event) : true;
 }
 
 static b8 sui_base_internal_mouse_drag_begin(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event) {
@@ -653,7 +661,7 @@ static b8 sui_base_internal_mouse_drag_begin(standard_ui_state* state, struct su
 	}
 
 	// Block event propagation by default. User events can override this.
-	return self->on_mouse_drag_begin ? self->on_mouse_drag_begin(state, self, event) : false;
+	return self->on_mouse_drag_begin ? self->on_mouse_drag_begin(state, self, event) : true;
 }
 
 static b8 sui_base_internal_mouse_drag(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event) {
@@ -662,7 +670,7 @@ static b8 sui_base_internal_mouse_drag(standard_ui_state* state, struct sui_cont
 	}
 
 	// Block event propagation by default. User events can override this.
-	return self->on_mouse_drag ? self->on_mouse_drag(state, self, event) : false;
+	return self->on_mouse_drag ? self->on_mouse_drag(state, self, event) : true;
 }
 
 static b8 sui_base_internal_mouse_drag_end(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event) {
@@ -671,5 +679,5 @@ static b8 sui_base_internal_mouse_drag_end(standard_ui_state* state, struct sui_
 	}
 
 	// Block event propagation by default. User events can override this.
-	return self->on_mouse_drag_end ? self->on_mouse_drag_end(state, self, event) : false;
+	return self->on_mouse_drag_end ? self->on_mouse_drag_end(state, self, event) : true;
 }

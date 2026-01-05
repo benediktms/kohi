@@ -385,25 +385,29 @@ b8 sui_textbox_control_render(standard_ui_state* state, struct sui_control* self
 		return false;
 	}
 
+	b8 is_focused = standard_ui_system_is_control_focused(state, self);
+
 	// Render the nine-slice.
 	sui_textbox_internal_data* typed_data = self->internal_data;
 	if (typed_data->nslice.vertex_data.elements) {
-		standard_ui_renderable renderable = {0};
-		renderable.render_data.unique_id = self->id.uniqueid;
-		renderable.render_data.vertex_count = typed_data->nslice.vertex_data.element_count;
-		renderable.render_data.vertex_element_size = typed_data->nslice.vertex_data.element_size;
-		renderable.render_data.vertex_buffer_offset = typed_data->nslice.vertex_data.buffer_offset;
-		renderable.render_data.index_count = typed_data->nslice.index_data.element_count;
-		renderable.render_data.index_element_size = typed_data->nslice.index_data.element_size;
-		renderable.render_data.index_buffer_offset = typed_data->nslice.index_data.buffer_offset;
-		renderable.render_data.model = ktransform_world_get(self->ktransform);
-		renderable.render_data.diffuse_colour = typed_data->colour;
+		standard_ui_renderable nineslice_renderable = {0};
+		nineslice_renderable.render_data.unique_id = self->id.uniqueid;
+		nineslice_renderable.render_data.vertex_count = typed_data->nslice.vertex_data.element_count;
+		nineslice_renderable.render_data.vertex_element_size = typed_data->nslice.vertex_data.element_size;
+		nineslice_renderable.render_data.vertex_buffer_offset = typed_data->nslice.vertex_data.buffer_offset;
+		nineslice_renderable.render_data.index_count = typed_data->nslice.index_data.element_count;
+		nineslice_renderable.render_data.index_element_size = typed_data->nslice.index_data.element_size;
+		nineslice_renderable.render_data.index_buffer_offset = typed_data->nslice.index_data.buffer_offset;
+		nineslice_renderable.render_data.model = ktransform_world_get(self->ktransform);
+		nineslice_renderable.render_data.diffuse_colour = vec4_mul(is_focused ? state->focused_base_colour : state->unfocused_base_colour, typed_data->colour);
 
-		renderable.binding_instance_id = typed_data->binding_instance_id;
-		renderable.atlas_override = INVALID_KTEXTURE;
+		nineslice_renderable.binding_instance_id = typed_data->binding_instance_id;
+		nineslice_renderable.atlas_override = INVALID_KTEXTURE;
 
-		darray_push(render_data->renderables, renderable);
+		darray_push(render_data->renderables, nineslice_renderable);
 	}
+
+	typed_data->cursor.is_visible = is_focused;
 
 	// Render the content label manually so the clip mask can be attached to it.
 	// This ensures the content label is rendered and clipped before the cursor or other
@@ -791,6 +795,7 @@ static b8 sui_textbox_on_key(u16 code, void* sender, void* listener_inst, event_
 		evt.key = key_code;
 		evt.type = code == EVENT_CODE_KEY_PRESSED ? SUI_KEYBOARD_EVENT_TYPE_PRESS : SUI_KEYBOARD_EVENT_TYPE_RELEASE;
 		self->on_key(state, self, evt);
+		return true;
 	}
 
 	return false;
