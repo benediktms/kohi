@@ -126,7 +126,7 @@ static void sui_textbox_update_cursor_position(standard_ui_state* state, sui_con
 	ktransform_position_set(typed_data->cursor.ktransform, cursor_pos);
 }
 
-b8 sui_textbox_control_create(standard_ui_state* state, const char* name, font_type type, kname font_name, u16 font_size, const char* text, struct sui_control* out_control) {
+b8 sui_textbox_control_create(standard_ui_state* state, const char* name, font_type font_type, kname font_name, u16 font_size, const char* text, sui_textbox_type type, struct sui_control* out_control) {
 	if (!sui_base_control_create(state, name, out_control)) {
 		return false;
 	}
@@ -138,6 +138,7 @@ b8 sui_textbox_control_create(standard_ui_state* state, const char* name, font_t
 	// Reasonable defaults.
 	typed_data->size = (vec2i){200, font_size + 10}; // add padding
 	typed_data->colour = vec4_one();
+	typed_data->type = type;
 
 	out_control->is_focusable = true;
 
@@ -151,7 +152,21 @@ b8 sui_textbox_control_create(standard_ui_state* state, const char* name, font_t
 	out_control->name = string_duplicate(name);
 
 	char* buffer = string_format("%s_textbox_internal_label", name);
-	if (!sui_label_control_create(state, buffer, type, font_name, font_size, text, &typed_data->content_label)) {
+
+	if (type == SUI_TEXTBOX_TYPE_FLOAT) {
+		// Verify the text content. If numeric is required and it isn't numeric, blank it out.
+		f32 f = 0;
+		if (!string_to_f32(text, &f)) {
+			text = "";
+		}
+	} else if (type == SUI_TEXTBOX_TYPE_INT) {
+		i64 i = 0;
+		if (!string_to_i64(text, &i)) {
+			text = "";
+		}
+	}
+
+	if (!sui_label_control_create(state, buffer, font_type, font_name, font_size, text, &typed_data->content_label)) {
 		KERROR("Failed to create internal label control for textbox. Textbox creation failed.");
 		string_free(buffer);
 		return false;
@@ -241,12 +256,6 @@ b8 sui_textbox_control_create(standard_ui_state* state, const char* name, font_t
 		return false;
 	}
 
-	// Load up a label control to use as the text.
-	/* if (!typed_data->content_label.load(state, &typed_data->content_label)) {
-		KERROR("Failed to setup label within textbox.");
-		return false;
-	} */
-
 	if (!standard_ui_system_register_control(state, &typed_data->content_label)) {
 		KERROR("Unable to register control.");
 	} else {
@@ -261,12 +270,6 @@ b8 sui_textbox_control_create(standard_ui_state* state, const char* name, font_t
 			KERROR("Unable to update active state for textbox system text.");
 		}
 	}
-
-	// Load up a panel control for the cursor.
-	/* if (!typed_data->cursor.load(state, &typed_data->cursor)) {
-		KERROR("Failed to setup cursor within textbox.");
-		return false;
-	} */
 
 	// Create the cursor and attach it as a child.
 	if (!standard_ui_system_register_control(state, &typed_data->cursor)) {
@@ -286,12 +289,6 @@ b8 sui_textbox_control_create(standard_ui_state* state, const char* name, font_t
 
 	// Ensure the cursor position is correct.
 	sui_textbox_update_cursor_position(state, out_control);
-
-	// Load up a panel control for the highlight box.
-	/* if (!typed_data->cursor.load(state, &typed_data->highlight_box)) {
-		KERROR("Failed to setup highlight box within textbox.");
-		return false;
-	} */
 
 	// Create the highlight box and attach it as a child.
 	if (!standard_ui_system_register_control(state, &typed_data->highlight_box)) {
@@ -409,14 +406,6 @@ b8 sui_textbox_control_render(standard_ui_state* state, struct sui_control* self
 
 	typed_data->cursor.is_visible = is_focused;
 
-	// Render the content label manually so the clip mask can be attached to it.
-	// This ensures the content label is rendered and clipped before the cursor or other
-	// children are drawn.
-	if (!typed_data->content_label.render(state, &typed_data->content_label, p_frame_data, render_data)) {
-		KERROR("Failed to render content label for textbox '%s'", self->name);
-		return false;
-	}
-
 	// Only attach clipping mask if the content label actually has... content.
 	if (string_utf8_length(sui_label_text_get(state, &typed_data->content_label))) {
 		// Attach clipping mask to text, which would be the last element added.
@@ -440,6 +429,14 @@ b8 sui_textbox_control_render(standard_ui_state* state, struct sui_control* self
 		render_data->renderables[renderable_count - 1].clip_mask_render_data = &typed_data->clip_mask.render_data;
 	}
 
+	// Render the content label manually so the clip mask can be attached to it.
+	// This ensures the content label is rendered and clipped before the cursor or other
+	// children are drawn. Also render it last so it appears over the highlight box for clarity.
+	if (!typed_data->content_label.render(state, &typed_data->content_label, p_frame_data, render_data)) {
+		KERROR("Failed to render content label for textbox '%s'", self->name);
+		return false;
+	}
+
 	return true;
 }
 
@@ -455,6 +452,24 @@ const char* sui_textbox_text_get(standard_ui_state* state, struct sui_control* s
 void sui_textbox_text_set(standard_ui_state* state, struct sui_control* self, const char* text) {
 	if (self) {
 		sui_textbox_internal_data* typed_data = self->internal_data;
+
+		if (string_length(text)) {
+			if (typed_data->type == SUI_TEXTBOX_TYPE_FLOAT) {
+				// Verify the text content. If numeric is required and it isn't numeric, blank it out.
+				f32 f = 0;
+				if (!string_to_f32(text, &f)) {
+					text = "";
+					KWARN("%s - Textbox '%s' is of type float, but input does not parse to float. Blanking out.", __FUNCTION__, self->name);
+				}
+			} else if (typed_data->type == SUI_TEXTBOX_TYPE_INT) {
+				i64 i = 0;
+				if (!string_to_i64(text, &i)) {
+					KWARN("%s - Textbox '%s' is of type int, but input does not parse to int. Blanking out.", __FUNCTION__, self->name);
+					text = "";
+				}
+			}
+		}
+
 		sui_label_text_set(state, &typed_data->content_label, text);
 
 		// Reset the cursor position when the text is set.
@@ -498,6 +513,26 @@ void sui_textbox_delete_at_cursor(standard_ui_state* state, struct sui_control* 
 	sui_label_text_set(state, &typed_data->content_label, str);
 	// NOTE: Cannot just do a string_free because it will be shorter than the actual memory allocated.
 	kfree((char*)str, len + 1, MEMORY_TAG_STRING);
+	sui_textbox_update_cursor_position(state, self);
+}
+
+void sui_textbox_select_all(standard_ui_state* state, struct sui_control* self) {
+	sui_textbox_internal_data* typed_data = self->internal_data;
+	const char* entry_control_text = sui_label_text_get(state, &typed_data->content_label);
+	u32 len = string_length(entry_control_text);
+	typed_data->highlight_range.size = len;
+	typed_data->highlight_range.offset = 0;
+	typed_data->cursor_position = len;
+	sui_textbox_update_highlight_box(state, self);
+	sui_textbox_update_cursor_position(state, self);
+}
+
+void sui_textbox_select_none(standard_ui_state* state, struct sui_control* self) {
+	sui_textbox_internal_data* typed_data = self->internal_data;
+	typed_data->highlight_range.size = 0;
+	typed_data->highlight_range.offset = 0;
+	typed_data->cursor_position = 0;
+	sui_textbox_update_highlight_box(state, self);
 	sui_textbox_update_cursor_position(state, self);
 }
 
@@ -631,12 +666,7 @@ static b8 sui_textbox_on_key(u16 code, void* sender, void* listener_inst, event_
 				if (ctrl_held) {
 					if (key_code == KEY_A) {
 						char_code = 0;
-						// Select all and set cursor to the end.
-						typed_data->highlight_range.size = len;
-						typed_data->highlight_range.offset = 0;
-						typed_data->cursor_position = len;
-						sui_textbox_update_highlight_box(state, self);
-						sui_textbox_update_cursor_position(state, self);
+						sui_textbox_select_all(state, self);
 					}
 
 					// Paste
@@ -757,6 +787,25 @@ static b8 sui_textbox_on_key(u16 code, void* sender, void* listener_inst, event_
 
 			if (char_code != 0) {
 				const char* entry_control_text = sui_label_text_get(state, &typed_data->content_label);
+
+				// Need to verify that the input is valid before doing it. Otherwise boot.
+				if (typed_data->type == SUI_TEXTBOX_TYPE_INT || typed_data->type == SUI_TEXTBOX_TYPE_FLOAT) {
+					if (!codepoint_is_numeric(char_code)) {
+						return true;
+					}
+
+					// Each of these is only allowed once.
+					if (char_code == '.' || char_code == '-' || char_code == '+') {
+						if (string_index_of(entry_control_text, char_code)) {
+							return true;
+						}
+					}
+
+					// Decimals are only allowed for float types.
+					if (char_code == '.' && typed_data->type == SUI_TEXTBOX_TYPE_INT) {
+						return true;
+					}
+				}
 				u32 len = string_length(entry_control_text);
 				char* str = kallocate(sizeof(char) * (len + 2), MEMORY_TAG_STRING);
 
@@ -814,6 +863,22 @@ static b8 sui_textbox_on_paste(u16 code, void* sender, void* listener_inst, even
 
 		const char* entry_control_text = sui_label_text_get(state, &typed_data->content_label);
 		u32 insert_length = string_length(clip->content);
+
+		// Verify the text content. If numeric is required and it isn't numeric, cancel the paste.
+		if (typed_data->type == SUI_TEXTBOX_TYPE_FLOAT) {
+			f32 f = 0;
+			if (!string_to_f32(clip->content, &f)) {
+				// Consider the event handled, don't let anything else have it.
+				return true;
+			}
+		} else if (typed_data->type == SUI_TEXTBOX_TYPE_INT) {
+			i64 i = 0;
+			if (!string_to_i64(clip->content, &i)) {
+				// Consider the event handled, don't let anything else have it.
+				return true;
+			}
+		}
+
 		u32 len = string_length(entry_control_text);
 		char* str = kallocate(sizeof(char) * (len + insert_length + 1), MEMORY_TAG_STRING);
 
@@ -851,8 +916,12 @@ static b8 sui_textbox_on_paste(u16 code, void* sender, void* listener_inst, even
 
 static void sui_textbox_on_focus(struct standard_ui_state* state, sui_control* self) {
 	KTRACE("Focused textbox '%s'.", self->name);
+
+	sui_textbox_select_all(state, self);
 }
 
 static void sui_textbox_on_unfocus(struct standard_ui_state* state, sui_control* self) {
-	KTRACE("Focused textbox '%s'.", self->name);
+	KTRACE("Unfocused textbox '%s'.", self->name);
+
+	sui_textbox_select_none(state, self);
 }

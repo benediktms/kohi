@@ -268,8 +268,8 @@ static void kasset_model_loaded(void* listener, kasset_model* asset) {
 			KCOPY_TYPE_CARRAY(target->geo.indices, source->indices, u32, source->index_count);
 
 			// Extract the extents.
-			vec3 min_pos = vec3_zero();
-			vec3 max_pos = vec3_zero();
+			vec3 min_pos = vec3_create(99999999.9f, 99999999.9f, 99999999.9f);
+			vec3 max_pos = vec3_create(-99999999.9f, -99999999.9f, -99999999.9f);
 
 			vertex_3d* verts = (vertex_3d*)target->geo.vertices;
 			for (u32 v = 0; v < source->vertex_count; ++v) {

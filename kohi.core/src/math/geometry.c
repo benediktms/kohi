@@ -603,115 +603,115 @@ void geometry_recalculate_line_box3d_by_points(kgeometry* geometry, vec3 points[
 	}
 }
 
-void geometry_recalculate_line_box3d_by_extents(kgeometry* geometry, extents_3d extents) {
+void geometry_recalculate_line_box3d_by_extents(kgeometry* geometry, extents_3d extents, vec3 offset) {
 	if (geometry->type == KGEOMETRY_TYPE_3D_STATIC_COLOUR) {
 		// Front lines
 		{
 			// top
-			((colour_vertex_3d*)geometry->vertices)[0].position = (vec4){extents.min.x, extents.min.y, extents.min.z, 1.0f};
-			((colour_vertex_3d*)geometry->vertices)[1].position = (vec4){extents.max.x, extents.min.y, extents.min.z, 1.0f};
+			((colour_vertex_3d*)geometry->vertices)[0].position = (vec4){extents.min.x + offset.x, extents.min.y + offset.y, extents.min.z + offset.z, 1.0f};
+			((colour_vertex_3d*)geometry->vertices)[1].position = (vec4){extents.max.x + offset.x, extents.min.y + offset.y, extents.min.z + offset.z, 1.0f};
 			// right
-			((colour_vertex_3d*)geometry->vertices)[2].position = (vec4){extents.max.x, extents.min.y, extents.min.z, 1.0f};
-			((colour_vertex_3d*)geometry->vertices)[3].position = (vec4){extents.max.x, extents.max.y, extents.min.z, 1.0f};
+			((colour_vertex_3d*)geometry->vertices)[2].position = (vec4){extents.max.x + offset.x, extents.min.y + offset.y, extents.min.z + offset.z, 1.0f};
+			((colour_vertex_3d*)geometry->vertices)[3].position = (vec4){extents.max.x + offset.x, extents.max.y + offset.y, extents.min.z + offset.z, 1.0f};
 			// bottom
-			((colour_vertex_3d*)geometry->vertices)[4].position = (vec4){extents.max.x, extents.max.y, extents.min.z, 1.0f};
-			((colour_vertex_3d*)geometry->vertices)[5].position = (vec4){extents.min.x, extents.max.y, extents.min.z, 1.0f};
+			((colour_vertex_3d*)geometry->vertices)[4].position = (vec4){extents.max.x + offset.x, extents.max.y + offset.y, extents.min.z + offset.z, 1.0f};
+			((colour_vertex_3d*)geometry->vertices)[5].position = (vec4){extents.min.x + offset.x, extents.max.y + offset.y, extents.min.z + offset.z, 1.0f};
 			// left
-			((colour_vertex_3d*)geometry->vertices)[6].position = (vec4){extents.min.x, extents.min.y, extents.min.z, 1.0f};
-			((colour_vertex_3d*)geometry->vertices)[7].position = (vec4){extents.min.x, extents.max.y, extents.min.z, 1.0f};
+			((colour_vertex_3d*)geometry->vertices)[6].position = (vec4){extents.min.x + offset.x, extents.min.y + offset.y, extents.min.z + offset.z, 1.0f};
+			((colour_vertex_3d*)geometry->vertices)[7].position = (vec4){extents.min.x + offset.x, extents.max.y + offset.y, extents.min.z + offset.z, 1.0f};
 		}
 		// back lines
 		{
 			// top
-			((colour_vertex_3d*)geometry->vertices)[8].position = (vec4){extents.min.x, extents.min.y, extents.max.z, 1.0f};
-			((colour_vertex_3d*)geometry->vertices)[9].position = (vec4){extents.max.x, extents.min.y, extents.max.z, 1.0f};
+			((colour_vertex_3d*)geometry->vertices)[8].position = (vec4){extents.min.x + offset.x, extents.min.y + offset.y, extents.max.z + offset.z, 1.0f};
+			((colour_vertex_3d*)geometry->vertices)[9].position = (vec4){extents.max.x + offset.x, extents.min.y + offset.y, extents.max.z + offset.z, 1.0f};
 			// right
-			((colour_vertex_3d*)geometry->vertices)[10].position = (vec4){extents.max.x, extents.min.y, extents.max.z, 1.0f};
-			((colour_vertex_3d*)geometry->vertices)[11].position = (vec4){extents.max.x, extents.max.y, extents.max.z, 1.0f};
+			((colour_vertex_3d*)geometry->vertices)[10].position = (vec4){extents.max.x + offset.x, extents.min.y + offset.y, extents.max.z + offset.z, 1.0f};
+			((colour_vertex_3d*)geometry->vertices)[11].position = (vec4){extents.max.x + offset.x, extents.max.y + offset.y, extents.max.z + offset.z, 1.0f};
 			// bottom
-			((colour_vertex_3d*)geometry->vertices)[12].position = (vec4){extents.max.x, extents.max.y, extents.max.z, 1.0f};
-			((colour_vertex_3d*)geometry->vertices)[13].position = (vec4){extents.min.x, extents.max.y, extents.max.z, 1.0f};
+			((colour_vertex_3d*)geometry->vertices)[12].position = (vec4){extents.max.x + offset.x, extents.max.y + offset.y, extents.max.z + offset.z, 1.0f};
+			((colour_vertex_3d*)geometry->vertices)[13].position = (vec4){extents.min.x + offset.x, extents.max.y + offset.y, extents.max.z + offset.z, 1.0f};
 			// left
-			((colour_vertex_3d*)geometry->vertices)[14].position = (vec4){extents.min.x, extents.min.y, extents.max.z, 1.0f};
-			((colour_vertex_3d*)geometry->vertices)[15].position = (vec4){extents.min.x, extents.max.y, extents.max.z, 1.0f};
+			((colour_vertex_3d*)geometry->vertices)[14].position = (vec4){extents.min.x + offset.x, extents.min.y + offset.y, extents.max.z + offset.z, 1.0f};
+			((colour_vertex_3d*)geometry->vertices)[15].position = (vec4){extents.min.x + offset.x, extents.max.y + offset.y, extents.max.z + offset.z, 1.0f};
 		}
 
 		// top connecting lines
 		{
 			// left
-			((colour_vertex_3d*)geometry->vertices)[16].position = (vec4){extents.min.x, extents.min.y, extents.min.z, 1.0f};
-			((colour_vertex_3d*)geometry->vertices)[17].position = (vec4){extents.min.x, extents.min.y, extents.max.z, 1.0f};
+			((colour_vertex_3d*)geometry->vertices)[16].position = (vec4){extents.min.x + offset.x, extents.min.y + offset.y, extents.min.z + offset.z, 1.0f};
+			((colour_vertex_3d*)geometry->vertices)[17].position = (vec4){extents.min.x + offset.x, extents.min.y + offset.y, extents.max.z + offset.z, 1.0f};
 			// right
-			((colour_vertex_3d*)geometry->vertices)[18].position = (vec4){extents.max.x, extents.min.y, extents.min.z, 1.0f};
-			((colour_vertex_3d*)geometry->vertices)[19].position = (vec4){extents.max.x, extents.min.y, extents.max.z, 1.0f};
+			((colour_vertex_3d*)geometry->vertices)[18].position = (vec4){extents.max.x + offset.x, extents.min.y + offset.y, extents.min.z + offset.z, 1.0f};
+			((colour_vertex_3d*)geometry->vertices)[19].position = (vec4){extents.max.x + offset.x, extents.min.y + offset.y, extents.max.z + offset.z, 1.0f};
 		}
 		// bottom connecting lines
 		{
 			// left
-			((colour_vertex_3d*)geometry->vertices)[20].position = (vec4){extents.min.x, extents.max.y, extents.min.z, 1.0f};
-			((colour_vertex_3d*)geometry->vertices)[21].position = (vec4){extents.min.x, extents.max.y, extents.max.z, 1.0f};
+			((colour_vertex_3d*)geometry->vertices)[20].position = (vec4){extents.min.x + offset.x, extents.max.y + offset.y, extents.min.z + offset.z, 1.0f};
+			((colour_vertex_3d*)geometry->vertices)[21].position = (vec4){extents.min.x + offset.x, extents.max.y + offset.y, extents.max.z + offset.z, 1.0f};
 			// right
-			((colour_vertex_3d*)geometry->vertices)[22].position = (vec4){extents.max.x, extents.max.y, extents.min.z, 1.0f};
-			((colour_vertex_3d*)geometry->vertices)[23].position = (vec4){extents.max.x, extents.max.y, extents.max.z, 1.0f};
+			((colour_vertex_3d*)geometry->vertices)[22].position = (vec4){extents.max.x + offset.x, extents.max.y + offset.y, extents.min.z + offset.z, 1.0f};
+			((colour_vertex_3d*)geometry->vertices)[23].position = (vec4){extents.max.x + offset.x, extents.max.y + offset.y, extents.max.z + offset.z, 1.0f};
 		}
 	} else if (geometry->type == KGEOMETRY_TYPE_3D_STATIC_POSITION_ONLY) {
 		// Front lines
 		{
 			// top
-			((position_vertex_3d*)geometry->vertices)[0].position = (vec4){extents.min.x, extents.min.y, extents.min.z, 1.0f};
-			((position_vertex_3d*)geometry->vertices)[1].position = (vec4){extents.max.x, extents.min.y, extents.min.z, 1.0f};
+			((position_vertex_3d*)geometry->vertices)[0].position = (vec4){extents.min.x + offset.x, extents.min.y + offset.y, extents.min.z + offset.z, 1.0f};
+			((position_vertex_3d*)geometry->vertices)[1].position = (vec4){extents.max.x + offset.x, extents.min.y + offset.y, extents.min.z + offset.z, 1.0f};
 			// right
-			((position_vertex_3d*)geometry->vertices)[2].position = (vec4){extents.max.x, extents.min.y, extents.min.z, 1.0f};
-			((position_vertex_3d*)geometry->vertices)[3].position = (vec4){extents.max.x, extents.max.y, extents.min.z, 1.0f};
+			((position_vertex_3d*)geometry->vertices)[2].position = (vec4){extents.max.x + offset.x, extents.min.y + offset.y, extents.min.z + offset.z, 1.0f};
+			((position_vertex_3d*)geometry->vertices)[3].position = (vec4){extents.max.x + offset.x, extents.max.y + offset.y, extents.min.z + offset.z, 1.0f};
 			// bottom
-			((position_vertex_3d*)geometry->vertices)[4].position = (vec4){extents.max.x, extents.max.y, extents.min.z, 1.0f};
-			((position_vertex_3d*)geometry->vertices)[5].position = (vec4){extents.min.x, extents.max.y, extents.min.z, 1.0f};
+			((position_vertex_3d*)geometry->vertices)[4].position = (vec4){extents.max.x + offset.x, extents.max.y + offset.y, extents.min.z + offset.z, 1.0f};
+			((position_vertex_3d*)geometry->vertices)[5].position = (vec4){extents.min.x + offset.x, extents.max.y + offset.y, extents.min.z + offset.z, 1.0f};
 			// left
-			((position_vertex_3d*)geometry->vertices)[6].position = (vec4){extents.min.x, extents.min.y, extents.min.z, 1.0f};
-			((position_vertex_3d*)geometry->vertices)[7].position = (vec4){extents.min.x, extents.max.y, extents.min.z, 1.0f};
+			((position_vertex_3d*)geometry->vertices)[6].position = (vec4){extents.min.x + offset.x, extents.min.y + offset.y, extents.min.z + offset.z, 1.0f};
+			((position_vertex_3d*)geometry->vertices)[7].position = (vec4){extents.min.x + offset.x, extents.max.y + offset.y, extents.min.z + offset.z, 1.0f};
 		}
 		// back lines
 		{
 			// top
-			((position_vertex_3d*)geometry->vertices)[8].position = (vec4){extents.min.x, extents.min.y, extents.max.z, 1.0f};
-			((position_vertex_3d*)geometry->vertices)[9].position = (vec4){extents.max.x, extents.min.y, extents.max.z, 1.0f};
+			((position_vertex_3d*)geometry->vertices)[8].position = (vec4){extents.min.x + offset.x, extents.min.y + offset.y, extents.max.z + offset.z, 1.0f};
+			((position_vertex_3d*)geometry->vertices)[9].position = (vec4){extents.max.x + offset.x, extents.min.y + offset.y, extents.max.z + offset.z, 1.0f};
 			// right
-			((position_vertex_3d*)geometry->vertices)[10].position = (vec4){extents.max.x, extents.min.y, extents.max.z, 1.0f};
-			((position_vertex_3d*)geometry->vertices)[11].position = (vec4){extents.max.x, extents.max.y, extents.max.z, 1.0f};
+			((position_vertex_3d*)geometry->vertices)[10].position = (vec4){extents.max.x + offset.x, extents.min.y + offset.y, extents.max.z + offset.z, 1.0f};
+			((position_vertex_3d*)geometry->vertices)[11].position = (vec4){extents.max.x + offset.x, extents.max.y + offset.y, extents.max.z + offset.z, 1.0f};
 			// bottom
-			((position_vertex_3d*)geometry->vertices)[12].position = (vec4){extents.max.x, extents.max.y, extents.max.z, 1.0f};
-			((position_vertex_3d*)geometry->vertices)[13].position = (vec4){extents.min.x, extents.max.y, extents.max.z, 1.0f};
+			((position_vertex_3d*)geometry->vertices)[12].position = (vec4){extents.max.x + offset.x, extents.max.y + offset.y, extents.max.z + offset.z, 1.0f};
+			((position_vertex_3d*)geometry->vertices)[13].position = (vec4){extents.min.x + offset.x, extents.max.y + offset.y, extents.max.z + offset.z, 1.0f};
 			// left
-			((position_vertex_3d*)geometry->vertices)[14].position = (vec4){extents.min.x, extents.min.y, extents.max.z, 1.0f};
-			((position_vertex_3d*)geometry->vertices)[15].position = (vec4){extents.min.x, extents.max.y, extents.max.z, 1.0f};
+			((position_vertex_3d*)geometry->vertices)[14].position = (vec4){extents.min.x + offset.x, extents.min.y + offset.y, extents.max.z + offset.z, 1.0f};
+			((position_vertex_3d*)geometry->vertices)[15].position = (vec4){extents.min.x + offset.x, extents.max.y + offset.y, extents.max.z + offset.z, 1.0f};
 		}
 
 		// top connecting lines
 		{
 			// left
-			((position_vertex_3d*)geometry->vertices)[16].position = (vec4){extents.min.x, extents.min.y, extents.min.z, 1.0f};
-			((position_vertex_3d*)geometry->vertices)[17].position = (vec4){extents.min.x, extents.min.y, extents.max.z, 1.0f};
+			((position_vertex_3d*)geometry->vertices)[16].position = (vec4){extents.min.x + offset.x, extents.min.y + offset.y, extents.min.z + offset.z, 1.0f};
+			((position_vertex_3d*)geometry->vertices)[17].position = (vec4){extents.min.x + offset.x, extents.min.y + offset.y, extents.max.z + offset.z, 1.0f};
 			// right
-			((position_vertex_3d*)geometry->vertices)[18].position = (vec4){extents.max.x, extents.min.y, extents.min.z, 1.0f};
-			((position_vertex_3d*)geometry->vertices)[19].position = (vec4){extents.max.x, extents.min.y, extents.max.z, 1.0f};
+			((position_vertex_3d*)geometry->vertices)[18].position = (vec4){extents.max.x + offset.x, extents.min.y + offset.y, extents.min.z + offset.z, 1.0f};
+			((position_vertex_3d*)geometry->vertices)[19].position = (vec4){extents.max.x + offset.x, extents.min.y + offset.y, extents.max.z + offset.z, 1.0f};
 		}
 		// bottom connecting lines
 		{
 			// left
-			((position_vertex_3d*)geometry->vertices)[20].position = (vec4){extents.min.x, extents.max.y, extents.min.z, 1.0f};
-			((position_vertex_3d*)geometry->vertices)[21].position = (vec4){extents.min.x, extents.max.y, extents.max.z, 1.0f};
+			((position_vertex_3d*)geometry->vertices)[20].position = (vec4){extents.min.x + offset.x, extents.max.y + offset.y, extents.min.z + offset.z, 1.0f};
+			((position_vertex_3d*)geometry->vertices)[21].position = (vec4){extents.min.x + offset.x, extents.max.y + offset.y, extents.max.z + offset.z, 1.0f};
 			// right
-			((position_vertex_3d*)geometry->vertices)[22].position = (vec4){extents.max.x, extents.max.y, extents.min.z, 1.0f};
-			((position_vertex_3d*)geometry->vertices)[23].position = (vec4){extents.max.x, extents.max.y, extents.max.z, 1.0f};
+			((position_vertex_3d*)geometry->vertices)[22].position = (vec4){extents.max.x + offset.x, extents.max.y + offset.y, extents.min.z + offset.z, 1.0f};
+			((position_vertex_3d*)geometry->vertices)[23].position = (vec4){extents.max.x + offset.x, extents.max.y + offset.y, extents.max.z + offset.z, 1.0f};
 		}
 	}
 }
 
-kgeometry geometry_generate_line_box3d(vec3 size, kname name) {
-	return geometry_generate_line_box3d_typed(size, name, KGEOMETRY_TYPE_3D_STATIC_COLOUR);
+kgeometry geometry_generate_line_box3d(vec3 size, kname name, vec3 offset) {
+	return geometry_generate_line_box3d_typed(size, name, KGEOMETRY_TYPE_3D_STATIC_COLOUR, offset);
 }
 
-kgeometry geometry_generate_line_box3d_typed(vec3 size, kname name, kgeometry_type type) {
+kgeometry geometry_generate_line_box3d_typed(vec3 size, kname name, kgeometry_type type, vec3 offset) {
 
 	f32 half_width = size.x * 0.5f;
 	f32 half_height = size.y * 0.5f;
@@ -756,7 +756,7 @@ kgeometry geometry_generate_line_box3d_typed(vec3 size, kname name, kgeometry_ty
 	extents.max.y = half_height;
 	extents.max.z = half_depth;
 
-	geometry_recalculate_line_box3d_by_extents(&out_geometry, extents);
+	geometry_recalculate_line_box3d_by_extents(&out_geometry, extents, offset);
 
 	return out_geometry;
 }

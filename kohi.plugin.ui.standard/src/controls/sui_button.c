@@ -154,6 +154,8 @@ static b8 sui_button_internal_mouse_out(standard_ui_state* state, struct sui_con
 		nine_slice_update(&typed_data->nslice, 0);
 	}
 
+	KTRACE("mouse OUT on button '%s'", self->name);
+
 	// Block event propagation by default. User events can override this.
 	return self->on_mouse_out ? self->on_mouse_out(state, self, event) : true;
 }
@@ -174,6 +176,9 @@ static b8 sui_button_internal_mouse_over(standard_ui_state* state, struct sui_co
 		}
 		nine_slice_update(&typed_data->nslice, 0);
 	}
+
+	KTRACE("mouse OVER on button '%s'", self->name);
+
 	// Block event propagation by default. User events can override this.
 	return self->on_mouse_over ? self->on_mouse_over(state, self, event) : false;
 }

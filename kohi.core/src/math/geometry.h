@@ -218,7 +218,7 @@ KAPI void geometry_recalculate_line_box3d_by_points(kgeometry* geometry, vec3 po
  * @param geometry A pointer to the geometry to modify.
  * @param extents The extents of which to base the modification.
  */
-KAPI void geometry_recalculate_line_box3d_by_extents(kgeometry* geometry, extents_3d extents);
+KAPI void geometry_recalculate_line_box3d_by_extents(kgeometry* geometry, extents_3d extents, vec3 offset);
 
 /**
  * @brief Generates a line-based 3d box based on the provided size.
@@ -227,8 +227,8 @@ KAPI void geometry_recalculate_line_box3d_by_extents(kgeometry* geometry, extent
  * @param name The name of the geometry.
  * @returns The newly-created geometry.
  */
-KAPI kgeometry geometry_generate_line_box3d(vec3 size, kname name);
-KAPI kgeometry geometry_generate_line_box3d_typed(vec3 size, kname name, kgeometry_type type);
+KAPI kgeometry geometry_generate_line_box3d(vec3 size, kname name, vec3 offset);
+KAPI kgeometry geometry_generate_line_box3d_typed(vec3 size, kname name, kgeometry_type type, vec3 offset);
 
 /**
  * @brief Generates a three-dimensional cube of geometry. Note that memory for the

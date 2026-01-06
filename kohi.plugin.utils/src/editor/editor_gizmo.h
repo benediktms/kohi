@@ -50,6 +50,7 @@ typedef struct editor_gizmo_mode_data {
 
 	vec3 interaction_start_pos;
 	vec3 last_interaction_pos;
+
 } editor_gizmo_mode_data;
 
 typedef enum editor_gizmo_orientation {
@@ -69,6 +70,10 @@ typedef struct editor_gizmo {
 	ktransform selected_ktransform_handle;
 	/** @brief The current mode of the gizmo. */
 	editor_gizmo_mode mode;
+
+	vec3 initial_position;
+	vec3 initial_scale;
+	quat initial_rotation;
 
 	/** @brief Used to keep the gizmo a consistent size on the screen despite camera distance. */
 	f32 scale_scalar;

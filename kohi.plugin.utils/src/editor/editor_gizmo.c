@@ -560,6 +560,11 @@ void editor_gizmo_interaction_begin(editor_gizmo* gizmo, kcamera c, struct ray* 
 		mat4 gizmo_local = ktransform_local_get(gizmo->ktransform_handle);
 		vec3 origin = ktransform_position_get(gizmo->ktransform_handle);
 
+		// Take a copy of the current transform.
+		gizmo->initial_position = origin;
+		gizmo->initial_scale = ktransform_scale_get(gizmo->selected_ktransform_handle);
+		gizmo->initial_rotation = ktransform_rotation_get(gizmo->selected_ktransform_handle);
+
 		quat child_local_rotation = ktransform_rotation_get(gizmo->selected_ktransform_handle);
 		ktransform parent = ktransform_parent_get(gizmo->selected_ktransform_handle);
 		b8 has_parent = (parent != KTRANSFORM_INVALID);
@@ -890,7 +895,6 @@ void editor_gizmo_handle_interaction(editor_gizmo* gizmo, kcamera camera, struct
 				}
 			}
 			vec3 direction;
-			vec3 scale;
 
 			// Scale along the current axis' line in local space.
 			// This will be transformed to global later if need be.
@@ -955,26 +959,28 @@ void editor_gizmo_handle_interaction(editor_gizmo* gizmo, kcamera camera, struct
 
 			// Calculate the scale difference by taking the
 			// signed magnitude and scaling the untransformed directon by it.
-			scale = vec3_mul_scalar(direction, d * dist);
+			// FIXME: Better, but still not right. Local scale is FUBAR.
+			vec3 mod_scale = vec3_mul_scalar(direction, d * dist);
+			/* vec3 mod_scale = vec3_mul_scalar(direction, dist); */
 
 			// For global transforms, get the inverse of the rotation and apply that
 			// to the scale to scale on absolute (global) axes instead of local.
 			if (gizmo->orientation == EDITOR_GIZMO_ORIENTATION_GLOBAL) {
 				if (gizmo->selected_ktransform_handle != KTRANSFORM_INVALID) {
 					quat q = quat_inverse(ktransform_rotation_get(gizmo->selected_ktransform_handle));
-					scale = vec3_rotate(scale, q);
+					mod_scale = vec3_rotate(mod_scale, q);
 				}
 			}
 
-			KTRACE("scale (diff): [%.4f,%.4f,%.4f]", scale.x, scale.y, scale.z);
+			KTRACE("scale (diff): [%.4f,%.4f,%.4f]", mod_scale.x, mod_scale.y, mod_scale.z);
 			// Apply scale to selected object.
 			if (gizmo->selected_ktransform_handle != KTRANSFORM_INVALID) {
-				vec3 current_scale = ktransform_scale_get(gizmo->selected_ktransform_handle);
+				vec3 current_scale = gizmo->initial_scale;
 
 				// Apply scale, but only on axes that have changed.
 				for (u8 i = 0; i < 3; ++i) {
-					if (scale.elements[i] != 0.0f) {
-						current_scale.elements[i] = scale.elements[i];
+					if (mod_scale.elements[i] != 0.0f) {
+						current_scale.elements[i] += mod_scale.elements[i];
 					}
 				}
 				KTRACE("Applying scale: [%.4f,%.4f,%.4f]", current_scale.x, current_scale.y, current_scale.z);

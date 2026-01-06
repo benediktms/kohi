@@ -280,7 +280,7 @@ b8 kaudio_system_initialize(u64* memory_requirement, void* memory, const char* c
 		channel->bound_instance = INVALID_ID_U16;
 	}
 
-	state->listener_position = vec3_zero();
+	state->listener_position = vec3_create(9999, 9999, 9999); // vec3_zero();
 	state->listener_forward = vec3_forward();
 	state->listener_up = vec3_up();
 

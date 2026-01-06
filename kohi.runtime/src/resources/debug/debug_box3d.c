@@ -54,7 +54,7 @@ void debug_box3d_colour_set(debug_box3d* box, vec4 colour) {
 void debug_box3d_extents_set(debug_box3d* box, extents_3d extents) {
 	if (box) {
 		if (box->geometry.generation != INVALID_ID_U16 && box->geometry.vertex_count && box->geometry.vertices) {
-			geometry_recalculate_line_box3d_by_extents(&box->geometry, extents);
+			geometry_recalculate_line_box3d_by_extents(&box->geometry, extents, vec3_zero());
 			box->is_dirty = true;
 		}
 	}
@@ -93,7 +93,7 @@ b8 debug_box3d_initialize(debug_box3d* box) {
 		return false;
 	}
 
-	box->geometry = geometry_generate_line_box3d(box->size, box->name);
+	box->geometry = geometry_generate_line_box3d(box->size, box->name, vec3_zero());
 
 	update_vert_colour(box);
 

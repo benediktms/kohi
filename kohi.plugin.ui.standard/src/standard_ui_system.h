@@ -100,6 +100,10 @@ typedef struct sui_control {
 	b8 is_hovered;
 	b8 is_pressed;
 	b8 is_focusable;
+
+	// How deep in the hierarchy the control is.
+	u32 depth;
+
 	rect_2d bounds;
 
 	struct sui_control* parent;
@@ -221,6 +225,22 @@ KAPI void sui_base_control_destroy(standard_ui_state* state, struct sui_control*
 
 KAPI b8 sui_base_control_update(standard_ui_state* state, struct sui_control* self, struct frame_data* p_frame_data);
 KAPI b8 sui_base_control_render(standard_ui_state* state, struct sui_control* self, struct frame_data* p_frame_data, standard_ui_render_data* render_data);
+
+/**
+ * @brief Checks control and its ancestors to see if it is active. More reliable than
+ * checking just the control's is_active property.
+ *
+ * @return True if active; otherwise false.
+ */
+KAPI b8 sui_control_is_active(standard_ui_state* state, struct sui_control* self);
+
+/**
+ * @brief Checks control and its ancestors to see if it is visible. More reliable than
+ * checking just the control's is_visible property.
+ *
+ * @return True if visible; otherwise false.
+ */
+KAPI b8 sui_control_is_visible(standard_ui_state* state, struct sui_control* self);
 
 /**
  * @brief Sets the position on the given control.

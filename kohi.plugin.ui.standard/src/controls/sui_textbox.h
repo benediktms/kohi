@@ -7,14 +7,16 @@
 #include <renderer/renderer_types.h>
 #include <systems/font_system.h>
 
-/*
- * TODO: Textbox items
- *
- * - The ability to hightlight text, then add/remove/overwrite highlighted text.
- */
+typedef enum sui_textbox_type {
+	SUI_TEXTBOX_TYPE_STRING,
+	SUI_TEXTBOX_TYPE_INT,
+	SUI_TEXTBOX_TYPE_FLOAT
+} sui_textbox_type;
+
 typedef struct sui_textbox_internal_data {
 	vec2i size;
 	vec4 colour;
+	sui_textbox_type type;
 	nine_slice nslice;
 	u32 binding_instance_id;
 	sui_control content_label;
@@ -34,7 +36,7 @@ typedef struct sui_textbox_internal_data {
 	struct standard_ui_state* state;
 } sui_textbox_internal_data;
 
-KAPI b8 sui_textbox_control_create(standard_ui_state* state, const char* name, font_type type, kname font_name, u16 font_size, const char* text, struct sui_control* out_control);
+KAPI b8 sui_textbox_control_create(standard_ui_state* state, const char* name, font_type font_type, kname font_name, u16 font_size, const char* text, sui_textbox_type type, struct sui_control* out_control);
 
 KAPI void sui_textbox_control_destroy(standard_ui_state* state, struct sui_control* self);
 
@@ -52,3 +54,8 @@ KAPI void sui_textbox_text_set(standard_ui_state* state, struct sui_control* sel
 // Deletes text at cursor position. If a highlight range exists, the entire range is deleted.
 // Updates cursor position and highlight range accordingly.
 KAPI void sui_textbox_delete_at_cursor(standard_ui_state* state, struct sui_control* self);
+
+// Select all and set cursor to the end.
+KAPI void sui_textbox_select_all(standard_ui_state* state, struct sui_control* self);
+// Select none and set cursor to the beginning.
+KAPI void sui_textbox_select_none(standard_ui_state* state, struct sui_control* self);

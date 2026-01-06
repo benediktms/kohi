@@ -16,6 +16,7 @@
 #include "defines.h"
 #include "math_types.h"
 #include "memory/kmemory.h"
+#include <float.h>
 
 /** @brief An approximate representation of PI. */
 #define K_PI 3.14159265358979323846f
@@ -71,9 +72,8 @@
 /** @brief Smallest positive number where 1.0 + FLOAT_EPSILON != 0 */
 #define K_FLOAT_EPSILON 1.192092896e-07f
 
-#define K_FLOAT_MIN -3.40282e+38F
-
 #define K_FLOAT_MAX 3.40282e+38F
+#define K_FLOAT_MIN -K_FLOAT_MAX
 
 // ------------------------------------------
 // General math functions
@@ -2387,6 +2387,37 @@ KINLINE aabb aabb_from_mat4(vec3 half_extents, mat4 mat) {
 	f32 az = kabs(mat.data[2]) * half_extents.x + kabs(mat.data[6]) * half_extents.y + kabs(mat.data[10]) * half_extents.z;
 	vec3 half = (vec3){ax, ay, az};
 	return aabb_create(vec3_sub(center, half), vec3_add(center, half));
+}
+
+KINLINE aabb aabb_from_mat4_extents(vec3 local_min, vec3 local_max, mat4 mat) {
+	// Local-space center and half extents
+	vec3 local_center = vec3_mul_scalar(vec3_add(local_min, local_max), 0.5f);
+	vec3 half_extents = vec3_mul_scalar(vec3_sub(local_max, local_min), 0.5f);
+
+	// Transform center into world space
+	vec3 center = {
+		mat.data[0] * local_center.x + mat.data[4] * local_center.y + mat.data[8] * local_center.z + mat.data[12],
+		mat.data[1] * local_center.x + mat.data[5] * local_center.y + mat.data[9] * local_center.z + mat.data[13],
+		mat.data[2] * local_center.x + mat.data[6] * local_center.y + mat.data[10] * local_center.z + mat.data[14]};
+
+	// Compute world-space half extents
+	f32 ax = kabs(mat.data[0]) * half_extents.x +
+			 kabs(mat.data[4]) * half_extents.y +
+			 kabs(mat.data[8]) * half_extents.z;
+
+	f32 ay = kabs(mat.data[1]) * half_extents.x +
+			 kabs(mat.data[5]) * half_extents.y +
+			 kabs(mat.data[9]) * half_extents.z;
+
+	f32 az = kabs(mat.data[2]) * half_extents.x +
+			 kabs(mat.data[6]) * half_extents.y +
+			 kabs(mat.data[10]) * half_extents.z;
+
+	vec3 half = {ax, ay, az};
+
+	return aabb_create(
+		vec3_sub(center, half),
+		vec3_add(center, half));
 }
 
 /**

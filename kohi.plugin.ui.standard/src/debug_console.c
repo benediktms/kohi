@@ -5,12 +5,14 @@
 #include <core/event.h>
 #include <core/input.h>
 #include <memory/kmemory.h>
+#include <platform/platform.h>
 #include <resources/resource_types.h>
 #include <strings/kstring.h>
 
 #include "controls/sui_label.h"
 #include "controls/sui_panel.h"
 #include "controls/sui_textbox.h"
+#include "core/engine.h"
 #include "standard_ui_system.h"
 
 static void debug_console_entry_box_on_key(standard_ui_state* state, sui_control* self, sui_keyboard_event evt);
@@ -88,72 +90,6 @@ b8 debug_console_create(standard_ui_state* sui_state, debug_console_state* out_c
 	// Register as a console consumer.
 	console_consumer_register(out_console_state, debug_console_consumer_write, &out_console_state->console_consumer_id);
 
-	// Register for key events.
-	event_register(EVENT_CODE_WINDOW_RESIZED, out_console_state, debug_console_on_resize);
-
-	u16 font_size = 31;
-	f32 height = 50.0f + (font_size * out_console_state->line_display_count + 1); // Account for padding and textbox at the bottom
-
-	// Create controls.
-
-	// Background panel.
-	{
-		if (!sui_panel_control_create(sui_state, "debug_console_bg_panel", (vec2){1280.0f, height}, (vec4){0.0f, 0.0f, 0.0f, 0.75f}, &out_console_state->bg_panel)) {
-			KERROR("Failed to create background panel.");
-			return false;
-		}
-		if (!standard_ui_system_register_control(sui_state, &out_console_state->bg_panel)) {
-			KERROR("Unable to register control.");
-			return false;
-		}
-		/* transform_translate(&state->bg_panel.ktransform, (vec3){500, 100}); */
-		if (!standard_ui_system_control_add_child(sui_state, 0, &out_console_state->bg_panel)) {
-			KERROR("Failed to parent background panel.");
-			return false;
-		}
-	}
-
-	// Label to render console text.
-	{
-		if (!sui_label_control_create(sui_state, "debug_console_log_text", FONT_TYPE_SYSTEM, kname_create("Noto Sans Mono CJK JP"), font_size, "", &out_console_state->text_control)) {
-			KFATAL("Unable to create text control for debug console.");
-			return false;
-		}
-		if (!standard_ui_system_register_control(sui_state, &out_console_state->text_control)) {
-			KERROR("Unable to register console text label control.");
-			return false;
-		}
-		if (!standard_ui_system_control_add_child(sui_state, &out_console_state->bg_panel, &out_console_state->text_control)) {
-			KERROR("Failed to add background console text label as a child of the panel.");
-			return false;
-		}
-
-		sui_control_position_set(sui_state, &out_console_state->text_control, (vec3){3.0f, font_size, 0.0f});
-	}
-
-	// Textbox for command entry.
-	{
-		if (!sui_textbox_control_create(sui_state, "debug_console_entry_textbox", FONT_TYPE_SYSTEM, kname_create("Noto Sans Mono CJK JP"), font_size, "", &out_console_state->entry_textbox)) {
-			KFATAL("Unable to create entry textbox control for debug console.");
-			return false;
-		}
-
-		out_console_state->entry_textbox.user_data = out_console_state;
-		out_console_state->entry_textbox.user_data_size = sizeof(debug_console_state*);
-		out_console_state->entry_textbox.on_key = debug_console_entry_box_on_key;
-		if (!standard_ui_system_register_control(out_console_state->sui_state, &out_console_state->entry_textbox)) {
-			KERROR("Unable to register control.");
-			return false;
-		}
-		if (!standard_ui_system_control_add_child(sui_state, &out_console_state->bg_panel, &out_console_state->entry_textbox)) {
-			KERROR("Failed to parent textbox control to background panel of debug console.");
-			return false;
-		}
-
-		// HACK: This is definitely not the best way to figure out the height of the above text control.
-		sui_control_position_set(sui_state, &out_console_state->entry_textbox, (vec3){3.0f, 10.0f + (font_size * out_console_state->line_display_count), 0.0f});
-	}
-
 	return true;
 }
 
@@ -161,6 +97,74 @@ b8 debug_console_load(debug_console_state* state) {
 	if (!state) {
 		KFATAL("debug_console_load() called before console was initialized!");
 		return false;
+	}
+
+	// Register for key events.
+	event_register(EVENT_CODE_WINDOW_RESIZED, state, debug_console_on_resize);
+
+	u16 font_size = 31;
+	f32 height = 50.0f + (font_size * state->line_display_count + 1); // Account for padding and textbox at the bottom
+	f32 width = engine_active_window_get()->width;
+
+	// Create controls.
+	standard_ui_state* sui_state = state->sui_state;
+
+	// Background panel.
+	{
+		if (!sui_panel_control_create(sui_state, "debug_console_bg_panel", (vec2){width, height}, (vec4){0.0f, 0.0f, 0.0f, 0.75f}, &state->bg_panel)) {
+			KERROR("Failed to create background panel.");
+			return false;
+		}
+		if (!standard_ui_system_register_control(sui_state, &state->bg_panel)) {
+			KERROR("Unable to register control.");
+			return false;
+		}
+		/* transform_translate(&state->bg_panel.ktransform, (vec3){500, 100}); */
+		if (!standard_ui_system_control_add_child(sui_state, 0, &state->bg_panel)) {
+			KERROR("Failed to parent background panel.");
+			return false;
+		}
+	}
+
+	// Label to render console text.
+	{
+		if (!sui_label_control_create(sui_state, "debug_console_log_text", FONT_TYPE_SYSTEM, kname_create("Noto Sans Mono CJK JP"), font_size, "", &state->text_control)) {
+			KFATAL("Unable to create text control for debug console.");
+			return false;
+		}
+		if (!standard_ui_system_register_control(sui_state, &state->text_control)) {
+			KERROR("Unable to register console text label control.");
+			return false;
+		}
+		if (!standard_ui_system_control_add_child(sui_state, &state->bg_panel, &state->text_control)) {
+			KERROR("Failed to add background console text label as a child of the panel.");
+			return false;
+		}
+
+		sui_control_position_set(sui_state, &state->text_control, (vec3){3.0f, font_size, 0.0f});
+	}
+
+	// Textbox for command entry.
+	{
+		if (!sui_textbox_control_create(sui_state, "debug_console_entry_textbox", FONT_TYPE_SYSTEM, kname_create("Noto Sans Mono CJK JP"), font_size, "", SUI_TEXTBOX_TYPE_STRING, &state->entry_textbox)) {
+			KFATAL("Unable to create entry textbox control for debug console.");
+			return false;
+		}
+
+		state->entry_textbox.user_data = state;
+		state->entry_textbox.user_data_size = sizeof(debug_console_state*);
+		state->entry_textbox.on_key = debug_console_entry_box_on_key;
+		if (!standard_ui_system_register_control(state->sui_state, &state->entry_textbox)) {
+			KERROR("Unable to register control.");
+			return false;
+		}
+		if (!standard_ui_system_control_add_child(sui_state, &state->bg_panel, &state->entry_textbox)) {
+			KERROR("Failed to parent textbox control to background panel of debug console.");
+			return false;
+		}
+
+		// HACK: This is definitely not the best way to figure out the height of the above text control.
+		sui_control_position_set(sui_state, &state->entry_textbox, (vec3){3.0f, 10.0f + (font_size * state->line_display_count), 0.0f});
 	}
 
 	// Load controls and activate them.
@@ -189,7 +193,7 @@ b8 debug_console_load(debug_console_state* state) {
 			KERROR("Unable to update active state.");
 		}
 
-		sui_textbox_control_width_set(state->sui_state, &state->entry_textbox, 1280 - 4);
+		sui_textbox_control_width_set(state->sui_state, &state->entry_textbox, width - 4);
 	}
 
 	state->loaded = true;

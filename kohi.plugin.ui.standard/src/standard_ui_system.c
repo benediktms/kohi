@@ -30,6 +30,7 @@
 #include "sui_defines.h"
 #include "systems/kshader_system.h"
 #include "utils/kcolour.h"
+#include "utils/ksort.h"
 
 static b8 sui_base_internal_mouse_down(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
 static b8 sui_base_internal_mouse_up(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
@@ -41,206 +42,16 @@ static b8 sui_base_internal_mouse_drag_begin(standard_ui_state* state, struct su
 static b8 sui_base_internal_mouse_drag(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
 static b8 sui_base_internal_mouse_drag_end(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
 
-static b8 control_and_ancestors_active_r(const struct sui_control* control) {
-	if (!control->is_active) {
-		return false;
-	}
-
-	if (control->parent) {
-		return control_and_ancestors_active_r(control->parent);
-	}
-
-	return true;
-}
-
-static b8 control_and_ancestors_visible_r(const struct sui_control* control) {
-	if (!control->is_visible) {
-		return false;
-	}
-
-	if (control->parent) {
-		return control_and_ancestors_visible_r(control->parent);
-	}
-
-	return true;
-}
-
-static b8 control_and_ancestors_active_and_visible_r(const struct sui_control* control) {
-	return control_and_ancestors_active_r(control) && control_and_ancestors_visible_r(control);
-}
-
-static b8 control_process_mouse_event(standard_ui_state* typed_state, sui_control* control, event_context evt_context, u32 inside_count, PFN_mouse_event_callback* inside_callbacks, u32 outside_count, PFN_mouse_event_callback* outside_callbacks, b8 affect_hover_state) {
-
-	// Check if control is active and visible. This should check recursively upward to make sure any
-	// disabled/invisible parent controls are taken into account.
-	if (!control_and_ancestors_active_and_visible_r(control)) {
-		// Skip ones that aren't.
-		return false;
-	}
-
-	sui_mouse_event evt = {
-		.mouse_button = (mouse_buttons)evt_context.data.i16[2],
-		.x = evt_context.data.i16[0],
-		.y = evt_context.data.i16[1],
-	};
-
-	b8 block_propagation = false;
-	mat4 model = ktransform_world_get(control->ktransform);
-	mat4 inv = mat4_inverse(model);
-	vec3 transformed_evt = vec3_transform((vec3){evt.x, evt.y, 0.0f}, 1.0f, inv);
-
-	// If any callback returns false, block propagation of the event.
-	if (rect_2d_contains_point(control->bounds, (vec2){transformed_evt.x, transformed_evt.y})) {
-		if (affect_hover_state) {
-			control->is_hovered = true;
-		}
-		for (u32 i = 0; i < inside_count; ++i) {
-			if (!inside_callbacks[i](typed_state, control, evt)) {
-				block_propagation = true;
-			}
-		}
-	} else {
-		if (affect_hover_state) {
-			control->is_hovered = false;
-		}
-		for (u32 i = 0; i < outside_count; ++i) {
-			if (!outside_callbacks[i](typed_state, control, evt)) {
-				block_propagation = true;
-			}
-		}
-	}
-
-	return block_propagation;
-}
-
-static b8 standard_ui_system_mouse_down(u16 code, void* sender, void* listener_inst, event_context context) {
-	standard_ui_state* typed_state = (standard_ui_state*)listener_inst;
-
-	b8 block_propagation = false;
-	for (u32 i = 0; i < typed_state->active_control_count; ++i) {
-		sui_control* control = typed_state->active_controls[i];
-
-		PFN_mouse_event_callback inside_callbacks[1] = {
-			control->internal_mouse_down,
-		};
-		if (control_process_mouse_event(typed_state, control, context, 1, inside_callbacks, 0, 0, false)) {
-			block_propagation = true;
-		}
-	}
-
-	KTRACE("ui mouse down, block_propagation = %s", block_propagation ? "yes" : "no");
-
-	// If a control was hit, block the event from going any futher.
-	return block_propagation;
-}
-
-static b8 standard_ui_system_mouse_up(u16 code, void* sender, void* listener_inst, event_context context) {
-	standard_ui_state* typed_state = (standard_ui_state*)listener_inst;
-
-	b8 block_propagation = false;
-	for (u32 i = 0; i < typed_state->active_control_count; ++i) {
-		sui_control* control = typed_state->active_controls[i];
-		control->is_pressed = false;
-
-		PFN_mouse_event_callback inside_callbacks[1] = {
-			control->internal_mouse_up,
-		};
-		if (control_process_mouse_event(typed_state, control, context, 1, inside_callbacks, 0, 0, false)) {
-			block_propagation = true;
-		}
-	}
-
-	KTRACE("ui mouse up, block_propagation = %s", block_propagation ? "yes" : "no");
-
-	// If a control was hit, block the event from going any futher.
-	return block_propagation;
-}
-static b8 standard_ui_system_click(u16 code, void* sender, void* listener_inst, event_context context) {
-	standard_ui_state* typed_state = (standard_ui_state*)listener_inst;
-
-	b8 block_propagation = false;
-	for (u32 i = 0; i < typed_state->active_control_count; ++i) {
-		sui_control* control = typed_state->active_controls[i];
-
-		PFN_mouse_event_callback inside_callbacks[1] = {
-			control->internal_click,
-		};
-		if (control_process_mouse_event(typed_state, control, context, 1, inside_callbacks, 0, 0, false)) {
-			block_propagation = true;
-		}
-	}
-
-	KTRACE("ui mouse click, block_propagation = %s", block_propagation ? "yes" : "no");
-
-	// If a control was hit, block the event from going any futher.
-	return block_propagation;
-}
-
-static b8 standard_ui_system_move(u16 code, void* sender, void* listener_inst, event_context context) {
-	standard_ui_state* typed_state = (standard_ui_state*)listener_inst;
-
-	b8 block_propagation = false;
-	for (u32 i = 0; i < typed_state->active_control_count; ++i) {
-		sui_control* control = typed_state->active_controls[i];
-
-		PFN_mouse_event_callback inside_callbacks[2] = {
-			control->internal_mouse_over,
-			control->internal_mouse_move,
-		};
-		PFN_mouse_event_callback outside_callbacks[1] = {
-			control->internal_mouse_out,
-		};
-		if (control_process_mouse_event(typed_state, control, context, 2, inside_callbacks, 1, outside_callbacks, true)) {
-			block_propagation = true;
-		}
-	}
-
-	KTRACE("ui mouse move, block_propagation = %s", block_propagation ? "yes" : "no");
-
-	return block_propagation;
-}
-
-static b8 standard_ui_system_drag(u16 code, void* sender, void* listener_inst, event_context context) {
-	standard_ui_state* typed_state = (standard_ui_state*)listener_inst;
-
-	b8 block_propagation = false;
-	for (u32 i = 0; i < typed_state->active_control_count; ++i) {
-		sui_control* control = typed_state->active_controls[i];
-
-		PFN_mouse_event_callback inside_callback, outside_callback;
-		u32 inside_count, outside_count;
-		if (code == EVENT_CODE_MOUSE_DRAG_BEGIN) {
-			// Drag begin must start within the control.
-			inside_callback = control->internal_mouse_drag_begin;
-			inside_count = 1;
-			outside_callback = KNULL;
-			outside_count = 0;
-		} else if (code == EVENT_CODE_MOUSE_DRAGGED) {
-			// Drag event can occur inside or outside the control.
-			inside_callback = control->internal_mouse_drag;
-			inside_count = 1;
-			outside_callback = control->internal_mouse_drag;
-			outside_count = 1;
-		} else if (code == EVENT_CODE_MOUSE_DRAG_END) {
-			// Drag end event can occur inside or outside the control.
-			inside_callback = control->internal_mouse_drag_end;
-			inside_count = 1;
-			outside_callback = control->internal_mouse_drag_end;
-			outside_count = 1;
-		} else {
-			KTRACE("Other event...");
-			return false;
-		}
-
-		if (control_process_mouse_event(typed_state, control, context, inside_count, &inside_callback, outside_count, &outside_callback, true)) {
-			block_propagation = true;
-		}
-	}
-
-	KTRACE("ui mouse drag, block_propagation = %s", block_propagation ? "yes" : "no");
-
-	return block_propagation;
-}
+static b8 control_and_ancestors_active_r(const struct sui_control* control);
+static b8 control_and_ancestors_visible_r(const struct sui_control* control);
+static b8 control_and_ancestors_active_and_visible_r(const struct sui_control* control);
+static i32 sui_control_depth_compare_desc(void* a, void* b);
+static b8 control_event_intersects(standard_ui_state* typed_state, sui_control* control, sui_mouse_event evt);
+static b8 standard_ui_system_mouse_down(u16 code, void* sender, void* listener_inst, event_context context);
+static b8 standard_ui_system_mouse_up(u16 code, void* sender, void* listener_inst, event_context context);
+static b8 standard_ui_system_click(u16 code, void* sender, void* listener_inst, event_context context);
+static b8 standard_ui_system_mouse_move(u16 code, void* sender, void* listener_inst, event_context context);
+static b8 standard_ui_system_drag(u16 code, void* sender, void* listener_inst, event_context context);
 
 b8 standard_ui_system_initialize(u64* memory_requirement, standard_ui_state* state, standard_ui_system_config* config) {
 	if (!memory_requirement) {
@@ -296,7 +107,7 @@ b8 standard_ui_system_initialize(u64* memory_requirement, standard_ui_state* sta
 
 	// Listen for input events.
 	event_register(EVENT_CODE_BUTTON_CLICKED, state, standard_ui_system_click);
-	event_register(EVENT_CODE_MOUSE_MOVED, state, standard_ui_system_move);
+	event_register(EVENT_CODE_MOUSE_MOVED, state, standard_ui_system_mouse_move);
 	event_register(EVENT_CODE_MOUSE_DRAG_BEGIN, state, standard_ui_system_drag);
 	event_register(EVENT_CODE_MOUSE_DRAGGED, state, standard_ui_system_drag);
 	event_register(EVENT_CODE_MOUSE_DRAG_END, state, standard_ui_system_drag);
@@ -315,7 +126,7 @@ void standard_ui_system_shutdown(standard_ui_state* state) {
 	if (state) {
 		// Stop listening for input events.
 		event_unregister(EVENT_CODE_BUTTON_CLICKED, state, standard_ui_system_click);
-		event_unregister(EVENT_CODE_MOUSE_MOVED, state, standard_ui_system_move);
+		event_unregister(EVENT_CODE_MOUSE_MOVED, state, standard_ui_system_mouse_move);
 		event_unregister(EVENT_CODE_MOUSE_DRAG_BEGIN, state, standard_ui_system_drag);
 		event_unregister(EVENT_CODE_MOUSE_DRAGGED, state, standard_ui_system_drag);
 		event_unregister(EVENT_CODE_MOUSE_DRAG_END, state, standard_ui_system_drag);
@@ -456,6 +267,7 @@ b8 standard_ui_system_control_add_child(standard_ui_state* state, sui_control* p
 
 	darray_push(parent->children, child);
 	child->parent = parent;
+	child->depth = parent->depth + 1;
 	ktransform_parent_set(child->ktransform, parent->ktransform);
 
 	return true;
@@ -478,6 +290,7 @@ b8 standard_ui_system_control_remove_child(standard_ui_state* state, sui_control
 			darray_pop_at(parent->children, i, &popped);
 			ktransform_parent_set(parent->ktransform, KTRANSFORM_INVALID);
 			child->parent = 0;
+			child->depth = 0;
 
 			return true;
 		}
@@ -487,20 +300,30 @@ b8 standard_ui_system_control_remove_child(standard_ui_state* state, sui_control
 	return false;
 }
 
+static void clear_focus(standard_ui_state* state) {
+	if (state->focused && state->focused->on_unfocus) {
+		state->focused->on_unfocus(state, state->focused);
+	}
+	state->focused = KNULL;
+}
+
 void standard_ui_system_focus_control(standard_ui_state* state, sui_control* control) {
 	if (!control) {
-		if (state->focused && state->focused->on_unfocus) {
-			state->focused->on_unfocus(state, state->focused);
-		}
-		state->focused = KNULL;
+		clear_focus(state);
 	} else if (control->is_focusable) {
-		if (state->focused && state->focused->on_unfocus) {
-			state->focused->on_unfocus(state, state->focused);
+		// Clear current focus.
+		clear_focus(state);
+
+		// Only focus new control if it's active and visible.
+		if (sui_control_is_visible(state, control) && sui_control_is_active(state, control)) {
+			state->focused = control;
+			if (state->focused->on_focus) {
+				state->focused->on_focus(state, state->focused);
+			}
 		}
-		state->focused = control;
-		if (state->focused && state->focused->on_focus) {
-			state->focused->on_focus(state, state->focused);
-		}
+	} else {
+		// Clear focus if the control isn't focusable
+		clear_focus(state);
 	}
 }
 
@@ -515,6 +338,7 @@ b8 sui_base_control_create(standard_ui_state* state, const char* name, struct su
 
 	// Set all controls to visible by default.
 	out_control->is_visible = true;
+	out_control->depth = 0;
 
 	// Assign function pointers.
 	out_control->destroy = sui_base_control_destroy;
@@ -584,6 +408,14 @@ b8 sui_base_control_render(standard_ui_state* state, struct sui_control* self, s
 	return true;
 }
 
+b8 sui_control_is_active(standard_ui_state* state, struct sui_control* self) {
+	return control_and_ancestors_active_r(self);
+}
+
+b8 sui_control_is_visible(standard_ui_state* state, struct sui_control* self) {
+	return control_and_ancestors_visible_r(self);
+}
+
 void sui_control_position_set(standard_ui_state* state, struct sui_control* self, vec3 position) {
 	ktransform_position_set(self->ktransform, position);
 }
@@ -633,8 +465,8 @@ static b8 sui_base_internal_mouse_over(standard_ui_state* state, struct sui_cont
 		return true;
 	}
 
-	// Allow event propagation by default. User events can override this.
-	return self->on_mouse_over ? self->on_mouse_over(state, self, event) : true;
+	// Block event propagation by default. User events can override this.
+	return self->on_mouse_over ? self->on_mouse_over(state, self, event) : false;
 }
 
 static b8 sui_base_internal_mouse_out(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event) {
@@ -651,8 +483,8 @@ static b8 sui_base_internal_mouse_move(standard_ui_state* state, struct sui_cont
 		return true;
 	}
 
-	// Allow event propagation by default. User events can override this.
-	return self->on_mouse_move ? self->on_mouse_move(state, self, event) : true;
+	// Block event propagation by default. User events can override this.
+	return self->on_mouse_move ? self->on_mouse_move(state, self, event) : false;
 }
 
 static b8 sui_base_internal_mouse_drag_begin(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event) {
@@ -661,7 +493,7 @@ static b8 sui_base_internal_mouse_drag_begin(standard_ui_state* state, struct su
 	}
 
 	// Block event propagation by default. User events can override this.
-	return self->on_mouse_drag_begin ? self->on_mouse_drag_begin(state, self, event) : true;
+	return self->on_mouse_drag_begin ? self->on_mouse_drag_begin(state, self, event) : false;
 }
 
 static b8 sui_base_internal_mouse_drag(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event) {
@@ -670,7 +502,7 @@ static b8 sui_base_internal_mouse_drag(standard_ui_state* state, struct sui_cont
 	}
 
 	// Block event propagation by default. User events can override this.
-	return self->on_mouse_drag ? self->on_mouse_drag(state, self, event) : true;
+	return self->on_mouse_drag ? self->on_mouse_drag(state, self, event) : false;
 }
 
 static b8 sui_base_internal_mouse_drag_end(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event) {
@@ -679,5 +511,361 @@ static b8 sui_base_internal_mouse_drag_end(standard_ui_state* state, struct sui_
 	}
 
 	// Block event propagation by default. User events can override this.
-	return self->on_mouse_drag_end ? self->on_mouse_drag_end(state, self, event) : true;
+	return self->on_mouse_drag_end ? self->on_mouse_drag_end(state, self, event) : false;
+}
+
+static b8 control_and_ancestors_active_r(const struct sui_control* control) {
+	if (!control->is_active) {
+		return false;
+	}
+
+	if (control->parent) {
+		return control_and_ancestors_active_r(control->parent);
+	}
+
+	return true;
+}
+
+static b8 control_and_ancestors_visible_r(const struct sui_control* control) {
+	if (!control->is_visible) {
+		return false;
+	}
+
+	if (control->parent) {
+		return control_and_ancestors_visible_r(control->parent);
+	}
+
+	return true;
+}
+
+static b8 control_and_ancestors_active_and_visible_r(const struct sui_control* control) {
+	return control_and_ancestors_active_r(control) && control_and_ancestors_visible_r(control);
+}
+
+static i32 sui_control_depth_compare_desc(void* a, void* b) {
+	sui_control** a_typed = a;
+	sui_control** b_typed = b;
+	if ((a_typed[0])->depth > (b_typed[0])->depth) {
+		return 1;
+	} else if ((a_typed[0])->depth < (b_typed[0])->depth) {
+		return -1;
+	}
+	return 0;
+}
+
+static b8 control_event_intersects(standard_ui_state* typed_state, sui_control* control, sui_mouse_event evt) {
+	// Check if control is active and visible. This should check recursively upward to make sure any
+	// disabled/invisible parent controls are taken into account.
+	if (!control_and_ancestors_active_and_visible_r(control)) {
+		// Skip ones that aren't.
+		return false;
+	}
+
+	mat4 model = ktransform_world_get(control->ktransform);
+	mat4 inv = mat4_inverse(model);
+	vec3 transformed_evt = vec3_transform((vec3){evt.x, evt.y, 0.0f}, 1.0f, inv);
+
+	return rect_2d_contains_point(control->bounds, (vec2){transformed_evt.x, transformed_evt.y});
+}
+
+static b8 standard_ui_system_mouse_down(u16 code, void* sender, void* listener_inst, event_context context) {
+	standard_ui_state* typed_state = (standard_ui_state*)listener_inst;
+	b8 block_propagation = false;
+	sui_mouse_event evt = {
+		.mouse_button = (mouse_buttons)context.data.i16[2],
+		.x = context.data.i16[0],
+		.y = context.data.i16[1],
+	};
+
+	// Active, visible controls that the event intersects.
+	sui_control** intersecting_controls = darray_create(sui_control*);
+	for (u32 i = 0; i < typed_state->active_control_count; ++i) {
+		sui_control* control = typed_state->active_controls[i];
+		if (control_event_intersects(typed_state, control, evt)) {
+			darray_push(intersecting_controls, control);
+		}
+	}
+
+	// Sort and get the topmost elements first.
+	u32 hit_count = darray_length(intersecting_controls);
+	kquick_sort(sizeof(sui_control*), intersecting_controls, 0, hit_count - 1, sui_control_depth_compare_desc);
+	for (u32 i = 0; i < hit_count; ++i) {
+		sui_control* control = intersecting_controls[i];
+
+		if (control->internal_mouse_down) {
+			if (!control->internal_mouse_down(typed_state, control, evt)) {
+				block_propagation = true;
+				// If propagation is blocked, don't look any further.
+				break;
+			}
+		}
+	}
+	darray_destroy(intersecting_controls);
+
+	/* KTRACE("ui mouse down, block_propagation = %s", block_propagation ? "yes" : "no"); */
+
+	// If no control was hit, make sure there is no focused control.
+	if (!hit_count) {
+		standard_ui_system_focus_control(typed_state, KNULL);
+	}
+
+	// If a control was hit, block the event from going any futher.
+	return block_propagation;
+}
+
+static b8 standard_ui_system_mouse_up(u16 code, void* sender, void* listener_inst, event_context context) {
+	standard_ui_state* typed_state = (standard_ui_state*)listener_inst;
+	b8 block_propagation = false;
+	sui_mouse_event evt = {
+		.mouse_button = (mouse_buttons)context.data.i16[2],
+		.x = context.data.i16[0],
+		.y = context.data.i16[1],
+	};
+
+	// Active, visible controls that the event intersects.
+	sui_control** intersecting_controls = darray_create(sui_control*);
+	for (u32 i = 0; i < typed_state->active_control_count; ++i) {
+		sui_control* control = typed_state->active_controls[i];
+		if (control_event_intersects(typed_state, control, evt)) {
+			darray_push(intersecting_controls, control);
+		}
+	}
+
+	// Sort and get the topmost elements first.
+	u32 hit_count = darray_length(intersecting_controls);
+	kquick_sort(sizeof(sui_control*), intersecting_controls, 0, hit_count - 1, sui_control_depth_compare_desc);
+	for (u32 i = 0; i < hit_count; ++i) {
+		sui_control* control = intersecting_controls[i];
+
+		if (control->internal_mouse_up) {
+			if (!control->internal_mouse_up(typed_state, control, evt)) {
+				block_propagation = true;
+				// If propagation is blocked, don't look any further.
+				break;
+			}
+		}
+	}
+	darray_destroy(intersecting_controls);
+
+	/* KTRACE("ui mouse up, block_propagation = %s", block_propagation ? "yes" : "no"); */
+
+	// If no control was hit, make sure there is no focused control.
+	if (!hit_count) {
+		standard_ui_system_focus_control(typed_state, KNULL);
+	}
+
+	// If a control was hit, block the event from going any futher.
+	return block_propagation;
+}
+
+static b8 standard_ui_system_click(u16 code, void* sender, void* listener_inst, event_context context) {
+	standard_ui_state* typed_state = (standard_ui_state*)listener_inst;
+	b8 block_propagation = false;
+	sui_mouse_event evt = {
+		.mouse_button = (mouse_buttons)context.data.i16[2],
+		.x = context.data.i16[0],
+		.y = context.data.i16[1],
+	};
+
+	// Active, visible controls that the event intersects.
+	sui_control** intersecting_controls = darray_create(sui_control*);
+	for (u32 i = 0; i < typed_state->active_control_count; ++i) {
+		sui_control* control = typed_state->active_controls[i];
+		if (control_event_intersects(typed_state, control, evt)) {
+			darray_push(intersecting_controls, control);
+		}
+	}
+
+	// Sort and get the topmost elements first.
+	u32 hit_count = darray_length(intersecting_controls);
+	kquick_sort(sizeof(sui_control*), intersecting_controls, 0, hit_count - 1, sui_control_depth_compare_desc);
+	for (u32 i = 0; i < hit_count; ++i) {
+		sui_control* control = intersecting_controls[i];
+
+		if (control->internal_click) {
+			if (!control->internal_click(typed_state, control, evt)) {
+				block_propagation = true;
+				// If propagation is blocked, don't look any further.
+				break;
+			}
+		}
+	}
+	darray_destroy(intersecting_controls);
+
+	/* KTRACE("ui mouse click, block_propagation = %s", block_propagation ? "yes" : "no"); */
+
+	// If no control was hit, make sure there is no focused control.
+	if (!hit_count) {
+		standard_ui_system_focus_control(typed_state, KNULL);
+	}
+
+	// If a control was hit, block the event from going any futher.
+	return block_propagation;
+}
+
+static b8 standard_ui_system_mouse_move(u16 code, void* sender, void* listener_inst, event_context context) {
+	standard_ui_state* typed_state = (standard_ui_state*)listener_inst;
+	b8 block_propagation = false;
+	sui_mouse_event evt = {
+		.mouse_button = (mouse_buttons)context.data.i16[2],
+		.x = context.data.i16[0],
+		.y = context.data.i16[1],
+	};
+
+	// Active, visible controls that the event intersects.
+	sui_control** intersecting_controls = darray_create(sui_control*);
+	sui_control** non_intersecting_controls = darray_create(sui_control*);
+	for (u32 i = 0; i < typed_state->active_control_count; ++i) {
+		sui_control* control = typed_state->active_controls[i];
+		if (control_event_intersects(typed_state, control, evt)) {
+			darray_push(intersecting_controls, control);
+		} else {
+			darray_push(non_intersecting_controls, control);
+		}
+	}
+
+	// Sort and get the topmost elements first.
+	u32 hit_count = darray_length(intersecting_controls);
+	kquick_sort(sizeof(sui_control*), intersecting_controls, 0, hit_count - 1, sui_control_depth_compare_desc);
+	for (u32 i = 0; i < hit_count; ++i) {
+		sui_control* control = intersecting_controls[i];
+
+		if (!control->is_hovered && control->internal_mouse_over) {
+			control->is_hovered = true;
+			if (!control->internal_mouse_over(typed_state, control, evt)) {
+				block_propagation = true;
+			}
+		}
+
+		if (control->internal_mouse_move) {
+			if (!control->internal_mouse_move(typed_state, control, evt)) {
+				block_propagation = true;
+			}
+		}
+
+		/* if (block_propagation) {
+			// If propagation is blocked, don't look any further.
+			break;
+		} */
+	}
+	darray_destroy(intersecting_controls);
+
+	// Outside functions don't block propagation... for now.
+	u32 non_hit_count = darray_length(non_intersecting_controls);
+	kquick_sort(sizeof(sui_control*), non_intersecting_controls, 0, non_hit_count - 1, sui_control_depth_compare_desc);
+	for (u32 i = 0; i < non_hit_count; ++i) {
+		sui_control* control = non_intersecting_controls[i];
+
+		if (control->is_hovered && control->internal_mouse_out) {
+			control->is_hovered = false;
+			if (!control->internal_mouse_out(typed_state, control, evt)) {
+				block_propagation = true;
+				// If propagation is blocked, don't look any further.
+				/* break; */
+			}
+		}
+	}
+	darray_destroy(non_intersecting_controls);
+
+	/* KTRACE("ui mouse move, block_propagation = %s", block_propagation ? "yes" : "no"); */
+
+	// If a control was hit, block the event from going any futher.
+	return block_propagation;
+}
+
+static b8 standard_ui_system_drag(u16 code, void* sender, void* listener_inst, event_context context) {
+	standard_ui_state* typed_state = (standard_ui_state*)listener_inst;
+	b8 block_propagation = false;
+	sui_mouse_event evt = {
+		.mouse_button = (mouse_buttons)context.data.i16[2],
+		.x = context.data.i16[0],
+		.y = context.data.i16[1],
+	};
+
+	// Active, visible controls that the event intersects.
+	sui_control** intersecting_controls = darray_create(sui_control*);
+	sui_control** non_intersecting_controls = darray_create(sui_control*);
+	for (u32 i = 0; i < typed_state->active_control_count; ++i) {
+		sui_control* control = typed_state->active_controls[i];
+		if (control_event_intersects(typed_state, control, evt)) {
+			darray_push(intersecting_controls, control);
+		} else {
+			darray_push(non_intersecting_controls, control);
+		}
+	}
+
+	// Sort and get the topmost elements first.
+	u32 hit_count = darray_length(intersecting_controls);
+	kquick_sort(sizeof(sui_control*), intersecting_controls, 0, hit_count - 1, sui_control_depth_compare_desc);
+	for (u32 i = 0; i < hit_count; ++i) {
+		sui_control* control = intersecting_controls[i];
+
+		if (code == EVENT_CODE_MOUSE_DRAG_BEGIN) {
+			// Drag begin must start within the control.
+			if (control->internal_mouse_drag_begin) {
+				if (!control->internal_mouse_drag_begin(typed_state, control, evt)) {
+					block_propagation = true;
+				}
+			}
+		} else if (code == EVENT_CODE_MOUSE_DRAGGED) {
+			// Drag event can occur inside or outside the control.
+			if (control->internal_mouse_drag) {
+				if (!control->internal_mouse_drag(typed_state, control, evt)) {
+					block_propagation = true;
+				}
+			}
+		} else if (code == EVENT_CODE_MOUSE_DRAG_END) {
+			// Drag end event can occur inside or outside the control.
+			if (control->internal_mouse_drag_end) {
+				if (!control->internal_mouse_drag_end(typed_state, control, evt)) {
+					block_propagation = true;
+				}
+			}
+		}
+
+		if (block_propagation) {
+			// If propagation is blocked, don't look any further.
+			break;
+		}
+	}
+	darray_destroy(intersecting_controls);
+
+	// Outside functions don't block propagation... for now.
+	u32 non_hit_count = darray_length(intersecting_controls);
+	kquick_sort(sizeof(sui_control*), non_intersecting_controls, 0, non_hit_count - 1, sui_control_depth_compare_desc);
+	for (u32 i = 0; i < non_hit_count; ++i) {
+		sui_control* control = non_intersecting_controls[i];
+
+		if (code == EVENT_CODE_MOUSE_DRAGGED) {
+			// Drag event can occur inside or outside the control.
+			if (control->internal_mouse_drag) {
+				if (!control->internal_mouse_drag(typed_state, control, evt)) {
+					block_propagation = true;
+				}
+			}
+		} else if (code == EVENT_CODE_MOUSE_DRAG_END) {
+			// Drag end event can occur inside or outside the control.
+			if (control->internal_mouse_drag_end) {
+				if (!control->internal_mouse_drag_end(typed_state, control, evt)) {
+					block_propagation = true;
+				}
+			}
+		}
+
+		if (block_propagation) {
+			// If propagation is blocked, don't look any further.
+			break;
+		}
+	}
+	darray_destroy(non_intersecting_controls);
+
+	/* KTRACE("ui mouse drag, block_propagation = %s", block_propagation ? "yes" : "no"); */
+
+	// If no control was hit, make sure there is no focused control.
+	if (!hit_count) {
+		standard_ui_system_focus_control(typed_state, KNULL);
+	}
+
+	// If a control was hit, block the event from going any futher.
+	return block_propagation;
 }
