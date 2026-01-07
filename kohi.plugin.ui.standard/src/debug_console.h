@@ -1,13 +1,12 @@
 #pragma once
 
-#include "defines.h"
-#include "standard_ui_system.h"
+#include <defines.h>
+#include <standard_ui_system.h>
 
 typedef struct command_history_entry {
 	const char* command;
 } command_history_entry;
 
-// TODO(travis): statically-defined state for now.
 typedef struct debug_console_state {
 	b8 loaded;
 	u8 console_consumer_id;

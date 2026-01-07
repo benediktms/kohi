@@ -1,21 +1,21 @@
 #include "texture_system.h"
 
+#include <containers/u64_bst.h>
+#include <core/engine.h>
+#include <core_render_types.h>
+#include <debug/kassert.h>
+#include <defines.h>
+#include <logger.h>
+#include <memory/kmemory.h>
+#include <strings/kname.h>
+#include <strings/kstring.h>
+#include <utils/render_type_utils.h>
+
 #include "assets/kasset_types.h"
-#include "containers/u64_bst.h"
 #include "core/console.h"
-#include "core/engine.h"
-#include "core_render_types.h"
-#include "debug/kassert.h"
-#include "defines.h"
-#include "kresources/kresource_types.h"
-#include "logger.h"
-#include "memory/kmemory.h"
 #include "renderer/renderer_frontend.h"
-#include "strings/kname.h"
-#include "strings/kstring.h"
+#include "runtime_defines.h"
 #include "systems/asset_system.h"
-#include "utils/render_type_utils.h"
-#include <runtime_defines.h>
 
 typedef enum texture_state {
 	TEXTURE_STATE_UNINITIALIZED,

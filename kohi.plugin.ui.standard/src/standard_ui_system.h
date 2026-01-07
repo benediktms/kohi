@@ -3,10 +3,10 @@
  * @author Travis Vroman (travis@kohiengine.com)
  * @brief The standard UI system is responsible for managing standard ui elements throughout the engine.
  * This is an example of a retained-mode UI.
- * @version 1.0
- * @date 2023-09-21
+ * @version 1.1
+ * @date 2026-01-06
  *
- * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2024
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
  *
  */
 
@@ -17,7 +17,6 @@
 #include <defines.h>
 #include <identifiers/identifier.h>
 #include <input_types.h>
-#include <kresources/kresource_types.h>
 #include <math/geometry.h>
 #include <math/math_types.h>
 #include <renderer/renderer_types.h>

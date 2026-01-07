@@ -14,7 +14,6 @@
 #include "audio/kaudio_types.h"
 #include "core/engine.h"
 #include "core/event.h"
-#include "kresources/kresource_types.h"
 #include "plugins/plugin_types.h"
 #include "strings/kstring.h"
 #include "systems/asset_system.h"

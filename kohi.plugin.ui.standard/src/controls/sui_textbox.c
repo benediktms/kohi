@@ -1,29 +1,28 @@
 #include "sui_textbox.h"
 
 #include <containers/darray.h>
+#include <core/engine.h>
 #include <core/event.h>
 #include <core/input.h>
 #include <defines.h>
+#include <input_types.h>
 #include <logger.h>
 #include <math/geometry.h>
 #include <math/kmath.h>
 #include <memory/kmemory.h>
+#include <platform/platform.h>
+#include <renderer/nine_slice.h>
 #include <renderer/renderer_frontend.h>
-#include <resources/resource_types.h>
+#include <strings/kname.h>
 #include <strings/kstring.h>
 #include <systems/font_system.h>
 #include <systems/kshader_system.h>
 #include <systems/ktransform_system.h>
 
-#include "../standard_ui_system.h"
 #include "controls/sui_label.h"
 #include "controls/sui_panel.h"
-#include "core/engine.h"
-#include "input_types.h"
-#include "platform/platform.h"
-#include "renderer/nine_slice.h"
 #include "standard_ui_defines.h"
-#include "strings/kname.h"
+#include "standard_ui_system.h"
 
 static b8 sui_textbox_on_key(u16 code, void* sender, void* listener_inst, event_context context);
 static b8 sui_textbox_on_paste(u16 code, void* sender, void* listener_inst, event_context context);

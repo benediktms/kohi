@@ -4,25 +4,25 @@
 
 #include "renderer_frontend.h"
 
-#include "containers/darray.h"
-#include "containers/freelist.h"
+#include <containers/darray.h>
+#include <containers/freelist.h>
+#include <core_render_types.h>
+#include <debug/kassert.h>
+#include <defines.h>
+#include <logger.h>
+#include <math/geometry.h>
+#include <math/math_types.h>
+#include <memory/kmemory.h>
+#include <parsers/kson_parser.h>
+#include <platform/platform.h>
+#include <strings/kname.h>
+#include <strings/kstring.h>
+
 #include "core/engine.h"
 #include "core/event.h"
 #include "core/frame_data.h"
 #include "core/kvar.h"
-#include "core_render_types.h"
-#include "debug/kassert.h"
-#include "defines.h"
-#include "kresources/kresource_types.h"
-#include "logger.h"
-#include "math/geometry.h"
-#include "math/math_types.h"
-#include "memory/kmemory.h"
-#include "parsers/kson_parser.h"
-#include "platform/platform.h"
 #include "renderer/renderer_types.h"
-#include "strings/kname.h"
-#include "strings/kstring.h"
 #include "systems/plugin_system.h"
 #include "systems/texture_system.h"
 

@@ -3,7 +3,6 @@
 #include <defines.h>
 #include <math/geometry.h>
 #include <math/math_types.h>
-#include <resources/resource_types.h>
 #include <systems/kcamera_system.h>
 
 #include "core_resource_types.h"

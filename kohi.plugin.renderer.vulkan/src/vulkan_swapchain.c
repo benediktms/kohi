@@ -1,20 +1,18 @@
 #include "vulkan_swapchain.h"
-#include "core_render_types.h"
-#include "debug/kassert.h"
-#include "kresources/kresource_types.h"
-#include "platform/vulkan_platform.h"
-#include "systems/texture_system.h"
 
 #include <vulkan/vulkan_core.h>
 
+#include <core_render_types.h>
+#include <debug/kassert.h>
 #include <defines.h>
 #include <logger.h>
 #include <memory/kmemory.h>
 #include <platform/platform.h>
+#include <platform/vulkan_platform.h>
 #include <renderer/renderer_frontend.h>
 #include <renderer/renderer_types.h>
-#include <resources/resource_types.h>
 #include <strings/kstring.h>
+#include <systems/texture_system.h>
 #include <vulkan_device.h>
 #include <vulkan_types.h>
 #include <vulkan_utils.h>

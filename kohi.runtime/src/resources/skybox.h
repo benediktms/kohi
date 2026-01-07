@@ -1,7 +1,7 @@
 #pragma once
 
-#include "kresources/kresource_types.h"
-#include "math/geometry.h"
+#include <core_render_types.h>
+#include <math/geometry.h>
 
 typedef struct skybox_config {
 	/** @brief The name of the cubemap to be used for the skybox. */

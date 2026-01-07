@@ -10,18 +10,19 @@ static const char* kasset_type_strs[KASSET_TYPE_MAX] = {
 	"Unknown",			// KASSET_TYPE_UNKNOWN,
 	"Image",			// KASSET_TYPE_IMAGE,
 	"Material",			// KASSET_TYPE_MATERIAL,
-	"StaticMesh",		// KASSET_TYPE_STATIC_MESH,
+	"Reserved0",		// KASSET_TYPE_RESERVED_0,
 	"HeightmapTerrain", // KASSET_TYPE_HEIGHTMAP_TERRAIN,
-	"Scene",			// KASSET_TYPE_SCENE
+	"Reserved1",		// KASSET_TYPE_RESERVED_1
 	"BitmapFont",		// KASSET_TYPE_BITMAP_FONT,
 	"SystemFont",		// KASSET_TYPE_SYSTEM_FONT,
 	"Text",				// KASSET_TYPE_TEXT,
 	"Binary",			// KASSET_TYPE_BINARY,
 	"Kson",				// KASSET_TYPE_KSON,
 	"VoxelTerrain",		// KASSET_TYPE_VOXEL_TERRAIN,
-	"SkinnedMesh",		// KASSET_TYPE_SKINNED_MESH,
+	"Reserved2",		// KASSET_TYPE_RESERVED_2,
 	"Audio",			// KASSET_TYPE_AUDIO,
-	"Shader"			// KASSET_TYPE_SHADER,
+	"Shader",			// KASSET_TYPE_SHADER,
+	"Model"				// KASSET_TYPE_MODEL,
 };
 
 // Ensure changes to asset types break this if it isn't also updated.
@@ -49,18 +50,18 @@ b8 kasset_type_is_binary(kasset_type type) {
 	case KASSET_TYPE_MAX:
 	case KASSET_TYPE_MATERIAL:
 	case KASSET_TYPE_HEIGHTMAP_TERRAIN:
-	case KASSET_TYPE_SCENE:
+	case KASSET_TYPE_RESERVED_0:
+	case KASSET_TYPE_RESERVED_1:
+	case KASSET_TYPE_RESERVED_2:
 	case KASSET_TYPE_SYSTEM_FONT:
 	case KASSET_TYPE_TEXT:
 	case KASSET_TYPE_KSON:
 	case KASSET_TYPE_SHADER:
 		return false;
 	case KASSET_TYPE_IMAGE:
-	case KASSET_TYPE_STATIC_MESH:
 	case KASSET_TYPE_BITMAP_FONT:
 	case KASSET_TYPE_BINARY:
 	case KASSET_TYPE_VOXEL_TERRAIN:
-	case KASSET_TYPE_ANIMATED_MESH:
 	case KASSET_TYPE_AUDIO:
 		return true;
 	}

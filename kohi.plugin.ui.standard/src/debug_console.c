@@ -1,19 +1,17 @@
 #include "debug_console.h"
 
 #include <containers/darray.h>
+#include <controls/sui_label.h>
+#include <controls/sui_panel.h>
+#include <controls/sui_textbox.h>
 #include <core/console.h>
+#include <core/engine.h>
 #include <core/event.h>
 #include <core/input.h>
 #include <memory/kmemory.h>
 #include <platform/platform.h>
-#include <resources/resource_types.h>
+#include <standard_ui_system.h>
 #include <strings/kstring.h>
-
-#include "controls/sui_label.h"
-#include "controls/sui_panel.h"
-#include "controls/sui_textbox.h"
-#include "core/engine.h"
-#include "standard_ui_system.h"
 
 static void debug_console_entry_box_on_key(standard_ui_state* state, sui_control* self, sui_keyboard_event evt);
 

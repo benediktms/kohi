@@ -4,11 +4,13 @@
 #include <core/engine.h>
 #include <core/event.h>
 #include <core/input.h>
+#include <core_resource_types.h>
+#include <debug/kassert.h>
 #include <defines.h>
 #include <identifiers/identifier.h>
 #include <identifiers/khandle.h>
 #include <input_types.h>
-#include <kresources/kresource_types.h>
+#include <kohi.plugin.ui.standard_version.h>
 #include <logger.h>
 #include <math/geometry.h>
 #include <math/kmath.h>
@@ -16,21 +18,17 @@
 #include <memory/kmemory.h>
 #include <renderer/renderer_frontend.h>
 #include <renderer/renderer_types.h>
-#include <resources/resource_types.h>
 #include <strings/kname.h>
 #include <strings/kstring.h>
 #include <systems/font_system.h>
+#include <systems/kshader_system.h>
 #include <systems/ktransform_system.h>
 #include <systems/texture_system.h>
+#include <utils/kcolour.h>
+#include <utils/ksort.h>
 
-#include "core_resource_types.h"
-#include "debug/kassert.h"
-#include "kohi.plugin.ui.standard_version.h"
 #include "standard_ui_defines.h"
 #include "sui_defines.h"
-#include "systems/kshader_system.h"
-#include "utils/kcolour.h"
-#include "utils/ksort.h"
 
 static b8 sui_base_internal_mouse_down(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
 static b8 sui_base_internal_mouse_up(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);

@@ -5,18 +5,18 @@
  * renderer to create, destroy, bind/unbind and set shader properties
  * such as uniforms.
  * @version 1.0
- * @date 2022-03-09
+ * @date 2026-01-06
  *
- * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2022
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
  *
  */
 
 #pragma once
 
-#include "renderer/renderer_types.h"
 #include <core_render_types.h>
 #include <defines.h>
-#include <kresources/kresource_types.h>
+
+#include "renderer/renderer_types.h"
 
 /** @brief Configuration for the shader system. */
 typedef struct kshader_system_config {

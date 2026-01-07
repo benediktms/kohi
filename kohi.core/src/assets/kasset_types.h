@@ -27,16 +27,19 @@ typedef enum kasset_type {
 	/** An image, typically (but not always) used as a texture. */
 	KASSET_TYPE_IMAGE = 1,
 	KASSET_TYPE_MATERIAL = 2,
-	KASSET_TYPE_STATIC_MESH = 3,
+	// TODO: use this for the next asset type
+	KASSET_TYPE_RESERVED_0 = 3,
 	KASSET_TYPE_HEIGHTMAP_TERRAIN = 4,
-	KASSET_TYPE_SCENE = 5,
+	// TODO: use this for the next asset type
+	KASSET_TYPE_RESERVED_1 = 5,
 	KASSET_TYPE_BITMAP_FONT = 6,
 	KASSET_TYPE_SYSTEM_FONT = 7,
 	KASSET_TYPE_TEXT = 8,
 	KASSET_TYPE_BINARY = 9,
 	KASSET_TYPE_KSON = 10,
 	KASSET_TYPE_VOXEL_TERRAIN = 11,
-	KASSET_TYPE_ANIMATED_MESH = 12,
+	// TODO: use this for the next asset type
+	KASSET_TYPE_RESERVED_2 = 12,
 	KASSET_TYPE_AUDIO = 13,
 	KASSET_TYPE_SHADER = 14,
 	KASSET_TYPE_MODEL = 15,

@@ -1,8 +1,3 @@
-/**
- * LEFTOFF:
- * - Any get_shader_for_material_type call should include whether or not it's for a static/skinned mesh and
- *   return accordingly.
- */
 
 #include "kmaterial_renderer.h"
 #include "assets/kasset_types.h"
@@ -11,7 +6,6 @@
 #include "core_render_types.h"
 #include "debug/kassert.h"
 #include "defines.h"
-#include "kresources/kresource_types.h"
 #include "logger.h"
 #include "math/kmath.h"
 #include "memory/kmemory.h"

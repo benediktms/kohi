@@ -1,8 +1,4 @@
 #include "sui_label.h"
-#include "kresources/kresource_types.h"
-#include "renderer/renderer_types.h"
-#include "standard_ui_defines.h"
-#include "standard_ui_system.h"
 
 #include <containers/darray.h>
 #include <debug/kassert.h>
@@ -11,10 +7,13 @@
 #include <math/kmath.h>
 #include <memory/kmemory.h>
 #include <renderer/renderer_frontend.h>
-#include <resources/resource_types.h>
+#include <renderer/renderer_types.h>
 #include <strings/kstring.h>
 #include <systems/font_system.h>
 #include <systems/kshader_system.h>
+
+#include "standard_ui_defines.h"
+#include "standard_ui_system.h"
 
 static b8 regenerate_label_geometry(standard_ui_state* state, const sui_control* self, font_geometry* pending_data);
 

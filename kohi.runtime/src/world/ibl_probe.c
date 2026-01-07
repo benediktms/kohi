@@ -1,9 +1,8 @@
 #include "ibl_probe.h"
-#include "kresources/kresource_types.h"
-#include "logger.h"
-#include "memory/kmemory.h"
-#include "strings/kname.h"
-#include "systems/texture_system.h"
+
+#include <logger.h>
+#include <memory/kmemory.h>
+#include <systems/texture_system.h>
 
 b8 ibl_probe_create(kname cubemap_name, vec3 position, ibl_probe* out_probe) {
 	if (!out_probe) {

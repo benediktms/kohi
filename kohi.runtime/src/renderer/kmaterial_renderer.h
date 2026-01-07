@@ -1,8 +1,8 @@
 #pragma once
 
-#include "core_render_types.h"
-#include "kresources/kresource_types.h"
-#include "math/math_types.h"
+#include <core_render_types.h>
+#include <math/math_types.h>
+
 #include "renderer/renderer_types.h"
 #include "systems/kmaterial_system.h"
 

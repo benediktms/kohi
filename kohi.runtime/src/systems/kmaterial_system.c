@@ -21,7 +21,6 @@
 #include "core/console.h"
 #include "core/engine.h"
 #include "core/event.h"
-#include "kresources/kresource_types.h"
 #include "renderer/kmaterial_renderer.h"
 #include "renderer/renderer_frontend.h"
 #include "runtime_defines.h"

@@ -1,14 +1,20 @@
 #pragma once
 
+#include <core_audio_types.h>
 #include <defines.h>
 #include <identifiers/khandle.h>
 #include <math/math_types.h>
 
-#include "core_audio_types.h"
-#include "kresources/kresource_types.h"
-
 struct frame_data;
 struct kaudio_backend_state;
+
+/**
+ * Represents a Kohi Audio.
+ */
+typedef u16 kaudio;
+
+// The id representing an invalid kaudio.
+#define INVALID_KAUDIO INVALID_ID_U16
 
 typedef struct kaudio_instance {
 	kaudio base;

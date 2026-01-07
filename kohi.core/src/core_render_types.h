@@ -3,7 +3,6 @@
 #include "defines.h"
 #include "math/math_types.h"
 #include "strings/kname.h"
-#include "utils/kcolour.h"
 
 typedef enum projection_matrix_type {
 	PROJECTION_MATRIX_TYPE_PERSPECTIVE = 0x0,
@@ -298,6 +297,15 @@ typedef struct shader_binding_set_config {
 	shader_binding_config* bindings;
 } shader_binding_set_config;
 
+/**
+ * @brief Represents a texture to be used for rendering purposes,
+ * stored on the GPU (VRAM)
+ */
+typedef u16 ktexture;
+
+// The id representing an invalid texture.
+#define INVALID_KTEXTURE INVALID_ID_U16
+
 typedef enum ktexture_flag {
 	/** @brief Indicates if the texture has transparency. */
 	KTEXTURE_FLAG_HAS_TRANSPARENCY = 0x01,
@@ -431,98 +439,6 @@ typedef struct kskybox_render_data {
 	u32 draw_id;
 	struct kresource_texture* cubemap;
 } kskybox_render_data;
-
-/** @brief Defines flags used for rendering static meshes */
-typedef enum kstatic_mesh_render_data_flag {
-	/** @brief Indicates that the winding order for the given static mesh should be inverted. */
-	KSTATIC_MESH_RENDER_DATA_FLAG_WINDING_INVERTED_BIT = 0x0001
-} kstatic_mesh_render_data_flag;
-
-/**
- * @brief Collection of flags for a static mesh submesh to be rendered.
- * @see kstatic_mesh_render_data_flag
- */
-typedef u32 kstatic_mesh_render_data_flag_bits;
-
-/**
- * @brief The render data for an individual static sub-mesh
- * to be rendered.
- */
-typedef struct kstatic_mesh_submesh_render_data {
-	/** @brief Flags for the static mesh to be rendered. */
-	kstatic_mesh_render_data_flag_bits flags;
-
-	/** @brief The vertex data. */
-	krenderbuffer_render_data vertex_data;
-
-	/** @brief The index data. */
-	krenderbuffer_render_data index_data;
-
-	/** @brief The instance of the material to use with this static mesh when rendering. */
-	kmaterial_instance material;
-} kstatic_mesh_submesh_render_data;
-
-/**
- * Contains data required to render a static mesh (ultimately its submeshes).
- */
-typedef struct kstatic_mesh_render_data {
-	/** The identifier of the mesh instance being rendered. */
-	u16 instance_id;
-
-	/** @brief The number of submeshes to be rendered. */
-	u32 submesh_count;
-	/** @brief The array of submeshes to be rendered. */
-	kstatic_mesh_submesh_render_data* submeshes;
-
-	/** @brief The tint override to be used when rendering all submeshes. Typically white (1, 1, 1, 1) if not used. */
-	vec4 tint;
-} kstatic_mesh_render_data;
-
-/** @brief Defines flags used for rendering skinned meshes */
-typedef enum kskinned_mesh_render_data_flag {
-	/** @brief Indicates that the winding order for the given skinned mesh should be inverted. */
-	KSKINNED_MESH_RENDER_DATA_FLAG_WINDING_INVERTED_BIT = 0x0001
-} kskinned_mesh_render_data_flag;
-
-/**
- * @brief Collection of flags for a skinned mesh submesh to be rendered.
- * @see kskinned_mesh_render_data_flag
- */
-typedef u32 kskinned_mesh_render_data_flag_bits;
-
-/**
- * @brief The render data for an individual skinned sub-mesh
- * to be rendered.
- */
-typedef struct kskinned_mesh_submesh_render_data {
-	/** @brief Flags for the skinned mesh to be rendered. */
-	kskinned_mesh_render_data_flag_bits flags;
-
-	/** @brief The vertex data. */
-	krenderbuffer_render_data vertex_data;
-
-	/** @brief The index data. */
-	krenderbuffer_render_data index_data;
-
-	/** @brief The instance of the material to use with this skinned mesh when rendering. */
-	kmaterial_instance material;
-} kskinned_mesh_submesh_render_data;
-
-/**
- * Contains data required to render a skinned mesh (ultimately its submeshes).
- */
-typedef struct kskinned_mesh_render_data {
-	/** The identifier of the mesh instance being rendered. */
-	u16 instance_id;
-
-	/** @brief The number of submeshes to be rendered. */
-	u32 submesh_count;
-	/** @brief The array of submeshes to be rendered. */
-	kskinned_mesh_submesh_render_data* submeshes;
-
-	/** @brief The tint override to be used when rendering all submeshes. Typically white (1, 1, 1, 1) if not used. */
-	vec4 tint;
-} kskinned_mesh_render_data;
 
 typedef struct kwater_plane_render_data {
 	mat4 model;

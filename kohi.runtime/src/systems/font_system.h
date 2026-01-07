@@ -4,9 +4,9 @@
  * @brief A system responsible for the management of bitmap
  * and system fonts.
  * @version 2.0
- * @date 2023-01-18
+ * @date 2026-01-06
  *
- * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2024
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
  *
  * A "bitmap" font uses an image containing pre-rendered glyphs which are then referenced
  * in an internal lookup table by character codepoint. The display of characters for this
@@ -23,10 +23,11 @@
  */
 #pragma once
 
-#include "identifiers/khandle.h"
-#include "kresources/kresource_types.h"
-#include "math/math_types.h"
-#include "strings/kname.h"
+#include <containers/array.h>
+#include <core_render_types.h>
+#include <identifiers/khandle.h>
+#include <math/math_types.h>
+#include <strings/kname.h>
 
 struct font_system_state;
 
@@ -34,6 +35,32 @@ typedef enum font_type {
 	FONT_TYPE_BITMAP,
 	FONT_TYPE_SYSTEM
 } font_type;
+
+typedef struct font_glyph {
+	i32 codepoint;
+	u16 x;
+	u16 y;
+	u16 width;
+	u16 height;
+	i16 x_offset;
+	i16 y_offset;
+	i16 x_advance;
+	u8 page_id;
+} font_glyph;
+
+typedef struct font_kerning {
+	i32 codepoint_0;
+	i32 codepoint_1;
+	i16 amount;
+} font_kerning;
+
+typedef struct font_page {
+	kname image_asset_name;
+} font_page;
+
+ARRAY_TYPE(font_glyph);
+ARRAY_TYPE(font_kerning);
+ARRAY_TYPE(font_page);
 
 /**
  * Represents a system font size variant and its "base" font.

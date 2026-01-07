@@ -4,7 +4,6 @@
 #include <logger.h>
 #include <math/geometry.h>
 
-#include "kresources/kresource_types.h"
 #include "renderer/renderer_frontend.h"
 #include "systems/texture_system.h"
 

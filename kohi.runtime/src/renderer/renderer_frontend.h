@@ -5,9 +5,9 @@
  * This is responsible for transferring any data to and from the renderer backend in an
  * agnostic way.
  * @version 1.0
- * @date 2022-01-11
+ * @date 2026-01-06
  *
- * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2022
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
  *
  * The lifecycle of a single frame (including mult. monitors) should look something like this:
  *
@@ -27,7 +27,6 @@
 #pragma once
 
 #include <defines.h>
-#include <kresources/kresource_types.h>
 #include <math/geometry.h>
 #include <strings/kname.h>
 

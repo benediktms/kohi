@@ -15,7 +15,6 @@
 #include <core_render_types.h>
 #include <debug/kassert.h>
 #include <defines.h>
-#include <kresources/kresource_types.h>
 #include <logger.h>
 #include <math/kmath.h>
 #include <math/math_types.h>
@@ -24,7 +23,6 @@
 #include <platform/vulkan_platform.h>
 #include <renderer/renderer_frontend.h>
 #include <renderer/renderer_types.h>
-#include <resources/resource_types.h>
 #include <strings/kname.h>
 #include <strings/kstring.h>
 #include <utils/ksort.h>

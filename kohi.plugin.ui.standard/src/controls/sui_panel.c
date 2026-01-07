@@ -1,15 +1,14 @@
 #include "sui_panel.h"
-#include "kresources/kresource_types.h"
-#include "standard_ui_defines.h"
 
 #include <containers/darray.h>
 #include <logger.h>
 #include <math/geometry.h>
 #include <math/kmath.h>
 #include <renderer/renderer_frontend.h>
-#include <resources/resource_types.h>
 #include <strings/kstring.h>
 #include <systems/kshader_system.h>
+
+#include "standard_ui_defines.h"
 
 b8 sui_panel_control_create(standard_ui_state* state, const char* name, vec2 size, vec4 colour, struct sui_control* out_control) {
 	if (!sui_base_control_create(state, name, out_control)) {

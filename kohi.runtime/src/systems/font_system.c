@@ -13,7 +13,6 @@
 
 #include "core/engine.h"
 #include "core_render_types.h"
-#include "kresources/kresource_types.h"
 #include "renderer/renderer_frontend.h"
 #include "systems/asset_system.h"
 #include "systems/texture_system.h"

@@ -1,8 +1,8 @@
 #pragma once
 
-#include "kresources/kresource_types.h"
-#include "math/math_types.h"
-#include "strings/kname.h"
+#include <core_render_types.h>
+#include <math/math_types.h>
+#include <strings/kname.h>
 
 typedef struct ibl_probe {
 	kname cubemap_name;

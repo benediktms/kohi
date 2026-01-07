@@ -299,6 +299,9 @@ void main() {
         if(base_colour_samp.a < 0.1 && flag_get(base_material.flags, KMATERIAL_FLAG_HAS_TRANSPARENCY_BIT) && flag_get(base_material.flags, KMATERIAL_FLAG_MASKED_BIT)) {
             discard;
         }
+        if(global_settings.render_mode != 0) {
+            base_colour_samp = vec4(1.0);
+        }
         albedo = pow(base_colour_samp.rgb, vec3(2.2));
 
         // Either use combined MRA (metallic/roughness/ao) or individual maps, depending on settings.
@@ -343,11 +346,14 @@ void main() {
             }
         }
 
-        if(flag_get(base_material.flags, KMATERIAL_FLAG_EMISSIVE_ENABLED_BIT)) { 
-            if(flag_get(base_material.tex_flags, MATERIAL_STANDARD_FLAG_USE_EMISSIVE_TEX)) {
-                emissive = texture(sampler2D(material_textures[MAT_STANDARD_IDX_EMISSIVE], material_samplers[MAT_STANDARD_IDX_EMISSIVE]), in_dto.tex_coord).rgb;
-            } else {
-                emissive = base_material.emissive.rgb;
+        // Only use emissive in render modes 0 and 1
+        if(global_settings.render_mode == 0 || global_settings.render_mode == 1) {
+            if(flag_get(base_material.flags, KMATERIAL_FLAG_EMISSIVE_ENABLED_BIT)) { 
+                if(flag_get(base_material.tex_flags, MATERIAL_STANDARD_FLAG_USE_EMISSIVE_TEX)) {
+                    emissive = texture(sampler2D(material_textures[MAT_STANDARD_IDX_EMISSIVE], material_samplers[MAT_STANDARD_IDX_EMISSIVE]), in_dto.tex_coord).rgb;
+                } else {
+                    emissive = base_material.emissive.rgb;
+                }
             }
         }
 

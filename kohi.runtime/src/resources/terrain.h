@@ -6,7 +6,8 @@
 #include <math/math_types.h>
 #include <strings/kname.h>
 
-#include "resources/resource_types.h"
+#define TERRAIN_MAX_MATERIAL_COUNT 4
+
 /*
 Need to modify the geometry structure/functions to allow for multiple materials.
 Write shader to handle 8 material weights/blending

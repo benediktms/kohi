@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../standard_ui_system.h"
+#include "standard_ui_system.h"
 
 struct geometry;
 

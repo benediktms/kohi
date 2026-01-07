@@ -20,7 +20,7 @@ The items in this list are not in any particular order. This list will be update
 - [x] Move renderer code out of kmaterial_system and into a kmaterial_renderer (or maybe just move to the bespoke renderer?)
 - [x] Move scene to game code, game-specific.
   - [x] Change scenes to use single level of 'inheritance', i.e. have a base_entity that has props, then a static_mesh_entity that has `base_entity base` member.
-  - [ ] Remove all references to scenes in engine core/runtime.
+  - [x] Remove all references to scenes in engine core/runtime.
 - [ ] Refactor Testbed project for the above changes.
 - [x] Remove viewports, enhance camera system to include this instead.
 - [x] Change to use multiple vertex buffers instead of a single one to handle extra data (i.e. bone

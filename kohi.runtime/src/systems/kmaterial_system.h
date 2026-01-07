@@ -4,16 +4,15 @@
  * @brief The material system is responsible for managing materials in the
  * engine, including reference counting and auto-unloading.
  * @version 2.0
- * @date 2025-07-25
+ * @date 2026-01-06
  *
- * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2025
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
  *
  */
 
 #pragma once
 
 #include "core_render_types.h"
-#include "kresources/kresource_types.h"
 
 #include <defines.h>
 #include <strings/kname.h>
