@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../standard_ui_system.h"
 #include "renderer/nine_slice.h"
+#include "standard_ui_system.h"
 
 typedef struct sui_button_internal_data {
 	vec4 colour;
@@ -15,4 +15,4 @@ KAPI b8 sui_button_control_height_set(standard_ui_state* state, struct sui_contr
 KAPI b8 sui_button_control_width_set(standard_ui_state* state, struct sui_control* self, i32 width);
 
 KAPI b8 sui_button_control_update(standard_ui_state* state, struct sui_control* self, struct frame_data* p_frame_data);
-KAPI b8 sui_button_control_render(standard_ui_state* state, struct sui_control* self, struct frame_data* p_frame_data, standard_ui_render_data* render_data);
+KAPI b8 sui_button_control_render(standard_ui_state* state, struct sui_control* self, struct frame_data* p_frame_data, struct standard_ui_render_data* render_data);

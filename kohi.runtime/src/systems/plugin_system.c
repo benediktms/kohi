@@ -191,6 +191,18 @@ b8 plugin_system_on_window_resize_plugins(struct plugin_system_state* state, str
 	return true;
 }
 
+static void* get_func_from_tokenized_name(dynamic_library* lib, const char* plugin_name, b8 required, const char* func_name) {
+	char* fn_name = string_format("%s_%s", plugin_name, func_name);
+	void* pfn = platform_dynamic_library_load_function(fn_name, lib);
+	if (!pfn && required) {
+		KFATAL("Required function '%s' does not exist in library '%s'. Plugin load failed.", fn_name, lib->name);
+		return 0;
+	}
+	string_free(fn_name);
+
+	return pfn;
+}
+
 b8 plugin_system_load_plugin(struct plugin_system_state* state, const char* name, const char* config_str) {
 	if (!state) {
 		return false;
@@ -204,6 +216,9 @@ b8 plugin_system_load_plugin(struct plugin_system_state* state, const char* name
 	kruntime_plugin new_plugin = {0};
 	new_plugin.name = string_duplicate(name);
 
+	char* plugin_fn_prefix = string_duplicate(name);
+	string_replace_char_all(plugin_fn_prefix, '.', '_');
+
 	// Load the plugin library.
 	if (!platform_dynamic_library_load(name, &new_plugin.library)) {
 		KERROR("Failed to load library for plugin '%s'. See logs for details.", name);
@@ -211,26 +226,21 @@ b8 plugin_system_load_plugin(struct plugin_system_state* state, const char* name
 	}
 
 	// kplugin_create is required. This should fail if it does not exist.
-	PFN_kruntime_plugin_create plugin_create = platform_dynamic_library_load_function("kplugin_create", &new_plugin.library);
+	PFN_kruntime_plugin_create plugin_create = get_func_from_tokenized_name(&new_plugin.library, plugin_fn_prefix, true, "create");
 	if (!plugin_create) {
-		KERROR("Required function kplugin_create does not exist in library '%s'. Plugin load failed.", name);
 		return false;
 	}
 
 	// kplugin_destroy is required. This should fail if it does not exist.
-	new_plugin.kplugin_destroy = platform_dynamic_library_load_function("kplugin_destroy", &new_plugin.library);
-	if (!new_plugin.kplugin_destroy) {
-		KERROR("Required function kplugin_destroy does not exist in library '%s'. Plugin load failed.", name);
-		return false;
-	}
+	new_plugin.kplugin_destroy = get_func_from_tokenized_name(&new_plugin.library, plugin_fn_prefix, true, "destroy");
 
 	// Load optional hook functions.
-	new_plugin.kplugin_boot = platform_dynamic_library_load_function("kplugin_boot", &new_plugin.library);
-	new_plugin.kplugin_initialize = platform_dynamic_library_load_function("kplugin_initialize", &new_plugin.library);
-	new_plugin.kplugin_update = platform_dynamic_library_load_function("kplugin_update", &new_plugin.library);
-	new_plugin.kplugin_frame_prepare = platform_dynamic_library_load_function("kplugin_frame_prepare", &new_plugin.library);
-	new_plugin.kplugin_render = platform_dynamic_library_load_function("kplugin_render", &new_plugin.library);
-	new_plugin.kplugin_on_window_resized = platform_dynamic_library_load_function("kplugin_on_window_resized", &new_plugin.library);
+	new_plugin.kplugin_boot = get_func_from_tokenized_name(&new_plugin.library, plugin_fn_prefix, false, "boot");
+	new_plugin.kplugin_initialize = get_func_from_tokenized_name(&new_plugin.library, plugin_fn_prefix, false, "initialize");
+	new_plugin.kplugin_update = get_func_from_tokenized_name(&new_plugin.library, plugin_fn_prefix, false, "update");
+	new_plugin.kplugin_frame_prepare = get_func_from_tokenized_name(&new_plugin.library, plugin_fn_prefix, false, "frame_prepare");
+	new_plugin.kplugin_render = get_func_from_tokenized_name(&new_plugin.library, plugin_fn_prefix, false, "render");
+	new_plugin.kplugin_on_window_resized = get_func_from_tokenized_name(&new_plugin.library, plugin_fn_prefix, false, "on_window_resized");
 
 	// Invoke plugin creation.
 	if (!plugin_create(&new_plugin)) {

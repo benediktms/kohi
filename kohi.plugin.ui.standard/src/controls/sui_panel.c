@@ -8,6 +8,7 @@
 #include <strings/kstring.h>
 #include <systems/kshader_system.h>
 
+#include "renderer/standard_ui_renderer.h"
 #include "standard_ui_defines.h"
 
 b8 sui_panel_control_create(standard_ui_state* state, const char* name, vec2 size, vec4 colour, struct sui_control* out_control) {

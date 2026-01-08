@@ -54,6 +54,9 @@ Changelog
   - Added missing functions exposing binding of samplers to binding sets in shader system.
   - Fixed and enhanced SUI control focus and text input. Added numeric types as well as string to textboxes.
   - Fixed an issue that caused debug data to render correctly, as well as BVH picking.
+  - Moved renderer from game code to a newly-defined kforward_renderer in the runtime.
+  - Moved scene from game code to a newly-defined kscene in the runtime.
+  - Moved editor from game code to the kohi utils plugin.
 
 - 0.10.0
   - Combined asset_image_format and texture_format into a single kpixel_format which is used for both.

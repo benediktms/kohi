@@ -942,6 +942,33 @@ void string_remove_at(char* dest, const char* src, u32 pos, u32 length) {
 	dest[original_length - length] = 0;
 }
 
+i32 string_replace_char(char* str, char find, char replace) {
+	if (!str) {
+		return -1;
+	}
+
+	i32 len = string_length(str);
+	for (i32 i = 0; i < len; ++i) {
+		if (str[i] == find) {
+			str[i] = replace;
+			return i;
+		}
+	}
+
+	return -1;
+}
+
+u32 string_replace_char_all(char* str, char find, char replace) {
+	i32 result = 0;
+	u32 count = 0;
+	while (result != -1) {
+		result = string_replace_char(str, find, replace);
+		count++;
+	}
+
+	return count;
+}
+
 b8 string_to_mat4(const char* str, mat4* out_mat) {
 	if (!str || !out_mat) {
 		return false;

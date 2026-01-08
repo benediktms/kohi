@@ -47,6 +47,7 @@
  * @return const char* The application path.
  */
 extern const char* application_config_path_get(void);
+extern const char* application_klib_name_get(void);
 
 /**
  * @brief The main entry point of the application.
@@ -57,7 +58,7 @@ int main(void) {
 	application app_inst = {0};
 
 	// Initialization.
-	if (!engine_create(&app_inst, application_config_path_get(), "illumina.klib")) {
+	if (!engine_create(&app_inst, application_config_path_get(), application_klib_name_get())) {
 		KFATAL("Engine failed to create!.");
 		return 1;
 	}

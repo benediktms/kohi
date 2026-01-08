@@ -1,0 +1,17 @@
+package_name = "Kohi.Plugin.Utils"
+references = [
+]
+assets = [
+	{
+		name = "Shader.EditorGizmo"
+		path = "assets/shaders/Shader.EditorGizmo.ksc"
+	}
+	{
+		name = "Shader.EditorGizmo_frag"
+		path = "assets/shaders/Shader.EditorGizmo_frag.glsl"
+	}
+	{
+		name = "Shader.EditorGizmo_vert"
+		path = "assets/shaders/Shader.EditorGizmo_vert.glsl"
+	}
+]

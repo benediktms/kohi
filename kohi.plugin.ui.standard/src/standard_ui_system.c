@@ -27,8 +27,8 @@
 #include <utils/kcolour.h>
 #include <utils/ksort.h>
 
+#include "renderer/standard_ui_renderer.h"
 #include "standard_ui_defines.h"
-#include "sui_defines.h"
 
 static b8 sui_base_internal_mouse_down(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
 static b8 sui_base_internal_mouse_up(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
@@ -91,6 +91,7 @@ b8 standard_ui_system_initialize(u64* memory_requirement, standard_ui_state* sta
 	kzero_memory(state->inactive_controls, sizeof(sui_control) * config->max_control_count);
 
 	sui_base_control_create(state, "__ROOT__", &state->root);
+	standard_ui_system_register_control(state, &state->root);
 	state->root.is_active = true;
 	standard_ui_system_update_active(state, &state->root);
 
@@ -218,6 +219,14 @@ b8 standard_ui_system_update_active(standard_ui_state* state, sui_control* contr
 			kcopy_memory(((u8*)src_array) + (i * sizeof(sui_control*)), ((u8*)src_array) + ((i + 1) * sizeof(sui_control*)), sizeof(sui_control*) * ((*src_limit) - i));
 			src_array[*src_limit] = 0;
 			(*src_limit)--;
+			return true;
+		}
+	}
+
+	// Check the destination and see if it's already there (i.e. it doesn't need an update)
+	for (u32 i = 0; i < *dst_limit; ++i) {
+		if (dst_array[i] == control) {
+			KTRACE("%s - Control already in the appropriate array for its active state. Nothing to do.", __FUNCTION__);
 			return true;
 		}
 	}

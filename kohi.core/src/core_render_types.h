@@ -424,30 +424,3 @@ typedef struct krenderbuffer_render_data {
 	/** @brief The offset from the beginning of the buffer. */
 	u64 offset;
 } krenderbuffer_render_data;
-
-/** @brief Represents render data for arbitrary geometry. */
-typedef struct kgeometry_render_data {
-	struct renderbuffer* vertex_buffer;
-	krenderbuffer_render_data vertex_data;
-	struct renderbuffer* index_buffer;
-	krenderbuffer_render_data index_data;
-} kgeometry_render_data;
-
-typedef struct kskybox_render_data {
-	mat4 model;
-	u32 group_id;
-	u32 draw_id;
-	struct kresource_texture* cubemap;
-} kskybox_render_data;
-
-typedef struct kwater_plane_render_data {
-	mat4 model;
-	/** @brief The vertex data. */
-	krenderbuffer_render_data vertex_data;
-
-	/** @brief The index data. */
-	krenderbuffer_render_data index_data;
-
-	/** @brief The instance of the material to use with this static mesh when rendering. */
-	kmaterial_instance material;
-} kwater_plane_render_data;

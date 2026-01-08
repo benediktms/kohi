@@ -1,5 +1,8 @@
 #include "standard_ui_plugin_main.h"
 
+#include "kohi.plugin.ui.standard_version.h"
+
+#include "renderer/standard_ui_renderer.h"
 #include <containers/darray.h>
 #include <core/frame_data.h>
 #include <logger.h>
@@ -7,7 +10,7 @@
 #include <plugins/plugin_types.h>
 #include <standard_ui_system.h>
 
-b8 kplugin_create(struct kruntime_plugin* out_plugin) {
+b8 kohi_plugin_ui_standard_create(struct kruntime_plugin* out_plugin) {
 	if (!out_plugin) {
 		KERROR("Cannot create a plugin without a pointer to hold it, ya dingus!");
 		return false;
@@ -16,10 +19,12 @@ b8 kplugin_create(struct kruntime_plugin* out_plugin) {
 	out_plugin->plugin_state_size = sizeof(standard_ui_plugin_state);
 	out_plugin->plugin_state = kallocate(out_plugin->plugin_state_size, MEMORY_TAG_PLUGIN);
 
+	KINFO("Kohi Standard UI Plugin Creation successful (%s).", KVERSION);
+
 	return true;
 }
 
-b8 kplugin_initialize(struct kruntime_plugin* plugin) {
+b8 kohi_plugin_ui_standard_initialize(struct kruntime_plugin* plugin) {
 	if (!plugin) {
 		KERROR("Cannot initialize a plugin without a pointer to it, ya dingus!");
 		return false;
@@ -39,14 +44,14 @@ b8 kplugin_initialize(struct kruntime_plugin* plugin) {
 	return true;
 }
 
-void kplugin_destroy(struct kruntime_plugin* plugin) {
+void kohi_plugin_ui_standard_destroy(struct kruntime_plugin* plugin) {
 	if (plugin) {
 		standard_ui_plugin_state* plugin_state = plugin->plugin_state;
 		standard_ui_system_shutdown(plugin_state->state);
 	}
 }
 
-b8 kplugin_update(struct kruntime_plugin* plugin, struct frame_data* p_frame_data) {
+b8 kohi_plugin_ui_standard_update(struct kruntime_plugin* plugin, struct frame_data* p_frame_data) {
 	if (!plugin) {
 		return false;
 	}
@@ -55,7 +60,7 @@ b8 kplugin_update(struct kruntime_plugin* plugin, struct frame_data* p_frame_dat
 	return standard_ui_system_update(plugin_state->state, p_frame_data);
 }
 
-b8 kplugin_frame_prepare(struct kruntime_plugin* plugin, struct frame_data* p_frame_data) {
+b8 kohi_plugin_ui_standard_frame_prepare(struct kruntime_plugin* plugin, struct frame_data* p_frame_data) {
 	if (!plugin) {
 		return false;
 	}
@@ -72,6 +77,6 @@ b8 kplugin_frame_prepare(struct kruntime_plugin* plugin, struct frame_data* p_fr
 	return standard_ui_system_render(plugin_state->state, 0, p_frame_data, plugin_state->render_data);
 }
 
-void kplugin_on_window_resized(void* plugin_state, struct kwindow* window, u16 width, u16 height) {
+void kohi_plugin_ui_standard_on_window_resized(void* plugin_state, struct kwindow* window, u16 width, u16 height) {
 	// TODO: resize logic.
 }

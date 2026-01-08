@@ -21,6 +21,7 @@
 
 #include "controls/sui_label.h"
 #include "controls/sui_panel.h"
+#include "renderer/standard_ui_renderer.h"
 #include "standard_ui_defines.h"
 #include "standard_ui_system.h"
 

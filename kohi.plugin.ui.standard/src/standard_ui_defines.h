@@ -2,3 +2,4 @@
 
 #define STANDARD_UI_SHADER_NAME "Shader.UI"
 #define PACKAGE_NAME_STANDARD_UI "Kohi.Plugin.Ui.Standard"
+#define STANDARD_UI_DEFAULT_ATLAS_NAME "Texture.StandardUIAtlas"

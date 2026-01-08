@@ -1,0 +1,48 @@
+version=1
+
+depth_test=true
+depth_write=true
+
+topology_types = [
+    "line_list"
+    "triangle_list"
+]
+
+stages = [
+    {
+        type = "vertex"
+        source_asset_name = "Shader.Colour3D_vert"
+        package_name = "Kohi.Runtime"
+    }
+    {
+        type = "fragment"
+        source_asset_name = "Shader.Colour3D_frag"
+        package_name = "Kohi.Runtime"
+    }
+]
+
+attributes = [
+    {
+        name = "in_position"
+        type = "vec4"
+    }
+    {
+        name = "in_colour"
+        type = "vec4"
+    }
+]
+
+binding_sets = [
+    {
+        name = "Colour3D global binding set"
+        max_instance_count = 1
+        bindings = [
+            {
+                name = "Colour3D global UBO"
+                type = "UBO"
+                data_size = 128
+            }
+        ]
+    }
+]
+

@@ -6,6 +6,8 @@
 struct linear_allocator;
 
 struct application_frame_data;
+struct kforward_renderer_render_data;
+struct standard_ui_render_data;
 
 /**
  * @brief Engine-level current frame-specific data.
@@ -23,4 +25,8 @@ typedef struct frame_data {
 
 	/** @brief Application level frame specific data. Optional, up to the app to know how to use this if needed. */
 	struct application_frame_data* app_frame_data;
+
+	struct standard_ui_render_data* sui_render_data;
+	struct kforward_renderer_render_data* render_data;
+
 } frame_data;

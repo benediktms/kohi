@@ -23,19 +23,7 @@ if "%ACTION%" == "build" (
 )
 
 
-if "%PLATFORM%" == "windows" (
-    SET ENGINE_LINK=-luser32
-) else (
-    if "%PLATFORM%" == "linux" (
-        SET ENGINE_LINK=
-    ) else (
-        if "%PLATFORM%" == "macos" (
-            SET ENGINE_LINK=
-        ) else (
-            echo "Unknown platform %PLATFORM%. Aborting" && exit
-        )
-    )
-)
+SET ENGINE_LINK=-luser32
 
 REM del bin\*.pdb
 
@@ -45,59 +33,86 @@ SET LNK_CORE_RT=-lkohi.core -lkohi.runtime
 ECHO "%ACTION_STR% everything on %PLATFORM% (%TARGET%)..."
 
 REM Version Generator - Build this first so it can be used later in the build process.
-make -j -f "Makefile.executable.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=kohi.tools.versiongen
+make -j -f "Makefile.kohi.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=kohi.tools.versiongen BUILD_MODE=exe DO_VERSION=no FOLDER=
 IF %ERRORLEVEL% NEQ 0 (echo Error:%ERRORLEVEL% && exit)
 
+@REM ---------------------------------------------------
+@REM Engine Libraries
+@REM ---------------------------------------------------
+
 REM Engine core lib
-make -j -f "Makefile.library.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=kohi.core DO_VERSION=%DO_VERSION% ADDL_LINK_FLAGS="-lgdi32 %ENGINE_LINK%"
+make -f "Makefile.kohi.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=kohi.core BUILD_MODE=lib DO_VERSION=%DO_VERSION% ADDL_LINK_FLAGS="-lgdi32 -lwinmm %ENGINE_LINK%" FOLDER=
 IF %ERRORLEVEL% NEQ 0 (echo Error:%ERRORLEVEL% && exit)
 
 REM Engine runtime lib
-make -j -f "Makefile.library.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=kohi.runtime DO_VERSION=%DO_VERSION% ADDL_INC_FLAGS="%INC_CORE_RT%" ADDL_LINK_FLAGS="-lkohi.core %ENGINE_LINK%"
+make -f "Makefile.kohi.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=kohi.runtime BUILD_MODE=lib DO_VERSION=%DO_VERSION% ADDL_INC_FLAGS="%INC_CORE_RT%" ADDL_LINK_FLAGS="-lkohi.core %ENGINE_LINK%" FOLDER=
 IF %ERRORLEVEL% NEQ 0 (echo Error:%ERRORLEVEL% && exit)
 
 REM Kohi Utils plugin lib
-make -j -f "Makefile.library.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=kohi.plugin.utils DO_VERSION=%DO_VERSION% ADDL_INC_FLAGS="%INC_CORE_RT%" ADDL_LINK_FLAGS="%LNK_CORE_RT%"
+make -j -f "Makefile.kohi.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=kohi.plugin.utils BUILD_MODE=lib DO_VERSION=%DO_VERSION% ADDL_INC_FLAGS="%INC_CORE_RT%" ADDL_LINK_FLAGS="%LNK_CORE_RT%" FOLDER=
 IF %ERRORLEVEL% NEQ 0 (echo Error:%ERRORLEVEL% && exit)
 
 REM Vulkan Renderer plugin lib
-make -j -f "Makefile.library.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=kohi.plugin.renderer.vulkan DO_VERSION=%DO_VERSION% ADDL_INC_FLAGS="%INC_CORE_RT% -I%VULKAN_SDK%\include" ADDL_LINK_FLAGS="%LNK_CORE_RT% -lshaderc_shared -L%VULKAN_SDK%\Lib"
+make -j -f "Makefile.kohi.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=kohi.plugin.renderer.vulkan BUILD_MODE=lib DO_VERSION=%DO_VERSION% ADDL_INC_FLAGS="%INC_CORE_RT% -I%VULKAN_SDK%\include" ADDL_LINK_FLAGS="%LNK_CORE_RT% -lshaderc_shared -L%VULKAN_SDK%\Lib" FOLDER=
 IF %ERRORLEVEL% NEQ 0 (echo Error:%ERRORLEVEL% && exit)
 
 REM OpenAL plugin lib
-make -j -f "Makefile.library.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=kohi.plugin.audio.openal DO_VERSION=%DO_VERSION% ADDL_INC_FLAGS="%INC_CORE_RT% -I'%programfiles(x86)%\OpenAL 1.1 SDK\include'" ADDL_LINK_FLAGS="%LNK_CORE_RT% -lopenal32 -L'%programfiles(x86)%\OpenAL 1.1 SDK\libs\win64'"
+make -j -f "Makefile.kohi.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=kohi.plugin.audio.openal BUILD_MODE=lib DO_VERSION=%DO_VERSION% ADDL_INC_FLAGS="%INC_CORE_RT% -I'%programfiles(x86)%\OpenAL 1.1 SDK\include'" ADDL_LINK_FLAGS="%LNK_CORE_RT% -lopenal32 -L'%programfiles(x86)%\OpenAL 1.1 SDK\libs\win64'" FOLDER=
 IF %ERRORLEVEL% NEQ 0 (echo Error:%ERRORLEVEL% && exit)
 
 REM Standard UI lib
-make -j -f "Makefile.library.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=kohi.plugin.ui.standard DO_VERSION=%DO_VERSION% ADDL_INC_FLAGS="%INC_CORE_RT%" ADDL_LINK_FLAGS="%LNK_CORE_RT%"
-IF %ERRORLEVEL% NEQ 0 (echo Error:%ERRORLEVEL% && exit)
-
-REM Testbed lib
-make -j -f "Makefile.library.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=testbed.klib DO_VERSION=%DO_VERSION% ADDL_INC_FLAGS="%INC_CORE_RT% -Ikohi.plugin.ui.standard\src -Ikohi.plugin.audio.openal\src -Ikohi.plugin.utils\src" ADDL_LINK_FLAGS="%LNK_CORE_RT% -lkohi.plugin.ui.standard -lkohi.plugin.audio.openal -lkohi.plugin.utils"
-IF %ERRORLEVEL% NEQ 0 (echo Error:%ERRORLEVEL% && exit)
-
-REM Overdrive2069 lib
-make -j -f "Makefile.library.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=overdrive2069.klib DO_VERSION=%DO_VERSION% ADDL_INC_FLAGS="%INC_CORE_RT% -Ikohi.plugin.ui.standard\src -Ikohi.plugin.audio.openal\src -Ikohi.plugin.utils\src" ADDL_LINK_FLAGS="%LNK_CORE_RT% -lkohi.plugin.ui.standard -lkohi.plugin.audio.openal -lkohi.plugin.utils"
+make -j -f "Makefile.kohi.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=kohi.plugin.ui.standard BUILD_MODE=lib DO_VERSION=%DO_VERSION% ADDL_INC_FLAGS="%INC_CORE_RT%" ADDL_LINK_FLAGS="%LNK_CORE_RT%" FOLDER=
 IF %ERRORLEVEL% NEQ 0 (echo Error:%ERRORLEVEL% && exit)
 
 @REM ---------------------------------------------------
-@REM Executables
+@REM Engine Executables
 @REM ---------------------------------------------------
 
-REM Testbed
-make -j -f "Makefile.executable.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=testbed.kapp ADDL_INC_FLAGS="%INC_CORE_RT%" ADDL_LINK_FLAGS="%LNK_CORE_RT%"
-IF %ERRORLEVEL% NEQ 0 (echo Error:%ERRORLEVEL% && exit)
-
-REM Overdrive2069 app
-make -j -f "Makefile.executable.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=overdrive2069.kapp ADDL_INC_FLAGS="%INC_CORE_RT%" ADDL_LINK_FLAGS="%LNK_CORE_RT%"
-IF %ERRORLEVEL% NEQ 0 (echo Error:%ERRORLEVEL% && exit)
-
-REM Tests
-make -j -f "Makefile.executable.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=kohi.core.tests ADDL_INC_FLAGS="%INC_CORE_RT%" ADDL_LINK_FLAGS="%LNK_CORE_RT%"
-IF %ERRORLEVEL% NEQ 0 (echo Error:%ERRORLEVEL% && exit)
 
 REM Tools
-make -j -f "Makefile.executable.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=kohi.tools ADDL_INC_FLAGS="%INC_CORE_RT%" ADDL_LINK_FLAGS="%LNK_CORE_RT%"
+
+REM Copy assimp lib/dll to bin folder.
+@REM copy "%ASSIMP%\lib\x64\assimp-*.lib" "lib\assimp.lib"
+setlocal enabledelayedexpansion
+set "founddll="
+for %%F in ("%ASSIMP%\bin\x64\assimp-*.dll") do (
+    if not defined founddll (
+        set "founddll=1"
+        set "filename=%%~nxF"
+        copy /Y "%%~F" "bin\!filename!"
+    )
+)
+@REM copy "%ASSIMP%\bin\x64\assimp-*.dll" "bin\assimp.dll"
+set "foundlib="
+for %%F in ("%ASSIMP%\lib\x64\assimp-*.lib") do (
+    if not defined foundlib (
+        set "foundlib=1"
+        copy /Y "%%~F" "lib\assimp.lib"
+    )
+)
+
+set "ASSIMP_PATH=%ASSIMP:"=%"
+make -j -f "Makefile.kohi.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=kohi.tools BUILD_MODE=exe ADDL_INC_FLAGS="%INC_CORE_RT% -I'%ASSIMP_PATH%\include' " ADDL_LINK_FLAGS="%LNK_CORE_RT% -lassimp" FOLDER=
+IF %ERRORLEVEL% NEQ 0 (echo Error:%ERRORLEVEL% && exit)
+
+@REM ---------------------------------------------------
+@REM Application Libraries and Executables
+@REM ---------------------------------------------------
+
+REM Testbed lib
+make -j -f "Makefile.kohi.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=testbed.klib BUILD_MODE=lib DO_VERSION=%DO_VERSION% ADDL_INC_FLAGS="%INC_CORE_RT% -Ikohi.plugin.ui.standard\src -Ikohi.plugin.audio.openal\src -Ikohi.plugin.utils\src" ADDL_LINK_FLAGS="%LNK_CORE_RT% -lkohi.plugin.ui.standard -lkohi.plugin.audio.openal -lkohi.plugin.utils" FOLDER=
+IF %ERRORLEVEL% NEQ 0 (echo Error:%ERRORLEVEL% && exit)
+
+REM Testbed
+make -j -f "Makefile.kohi.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=testbed.kapp BUILD_MODE=exe ADDL_INC_FLAGS="%INC_CORE_RT%" ADDL_LINK_FLAGS="%LNK_CORE_RT%" FOLDER=
+IF %ERRORLEVEL% NEQ 0 (echo Error:%ERRORLEVEL% && exit)
+
+REM Core Tests
+make -j -f "Makefile.kohi.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=kohi.core.tests BUILD_MODE=exe ADDL_INC_FLAGS="%INC_CORE_RT%" ADDL_LINK_FLAGS="%LNK_CORE_RT%" FOLDER=
+IF %ERRORLEVEL% NEQ 0 (echo Error:%ERRORLEVEL% && exit)
+
+REM Runtime Tests
+make -j -f "Makefile.kohi.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=kohi.runtime.tests BUILD_MODE=exe ADDL_INC_FLAGS="%INC_CORE_RT%" ADDL_LINK_FLAGS="%LNK_CORE_RT%" FOLDER=
 IF %ERRORLEVEL% NEQ 0 (echo Error:%ERRORLEVEL% && exit)
 
 ECHO All assemblies %ACTION_STR_PAST% successfully on %PLATFORM% (%TARGET%).

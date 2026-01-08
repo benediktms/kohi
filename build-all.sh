@@ -32,7 +32,7 @@ LNK_CORE_RT="-lkohi.core -lkohi.runtime"
 echo "$ACTION_STR everything on $PLATFORM ($TARGET)..."
 
 # Version Generator - Build this first so it can be used later in the build process.
-make -f Makefile.executable.mak $ACTION TARGET=$TARGET ASSEMBLY=kohi.tools.versiongen
+make -f Makefile.kohi.mak $ACTION TARGET=$TARGET ASSEMBLY=kohi.tools.versiongen BUILD_MODE=exe DO_VERSION=no FOLDER=
 ERRORLEVEL=$?
 if [ $ERRORLEVEL -ne 0 ]
 then
@@ -40,15 +40,33 @@ echo "error:"$errorlevel | sed -e "s/error/${txtred}error${txtrst}/g" && exit
 fi
 
 # Kohi Core
-make -f Makefile.library.mak $ACTION TARGET=$TARGET ASSEMBLY=kohi.core DO_VERSION=$DO_VERSION
+ADDL_CORE_LINK_FLAGS=
+if [ $PLATFORM = 'macos' ]
+then
+    ADDL_CORE_LINK_FLAGS="-lobjc -framework AppKit -framework QuartzCore -framework DiskArbitration -framework CoreFoundation"
+else
+    ADDL_CORE_LINK_FLAGS="-lxcb -lX11 -lX11-xcb -lxkbcommon -lxcb-xkb -lm -ldl -L/usr/X11R6/lib"
+fi
+make -f Makefile.kohi.mak $ACTION TARGET=$TARGET ASSEMBLY=kohi.core BUILD_MODE=lib DO_VERSION=$DO_VERSION ADDL_LINK_FLAGS="$ADDL_CORE_LINK_FLAGS" FOLDER=
 ERRORLEVEL=$?
 if [ $ERRORLEVEL -ne 0 ]
 then
 echo "error:"$errorlevel | sed -e "s/error/${txtred}error${txtrst}/g" && exit
 fi
 
+ASSIMP_INC=
+ASSIMP_LIB=
+if [ $PLATFORM = 'macos' ]
+then
+    ASSIMP_INC="/opt/homebrew/Cellar/assimp/6.0.2/include/"
+    ASSIMP_LIB="/opt/homebrew/lib/assimp/"
+else
+    ASSIMP_INC="/usr/include/assimp/"
+    ASSIMP_LIB="/usr/lib/"
+fi
+
 # Tools NOTE: Building tools here since it's required below.
-make -f Makefile.executable.mak $ACTION TARGET=$TARGET ASSEMBLY=kohi.tools ADDL_INC_FLAGS="$INC_CORE_RT" ADDL_LINK_FLAGS="-lkohi.core"
+make -f Makefile.kohi.mak $ACTION TARGET=$TARGET ASSEMBLY=kohi.tools BUILD_MODE=exe ADDL_INC_FLAGS="$INC_CORE_RT -I$ASSIMP_INC" ADDL_LINK_FLAGS="-lm -lkohi.core -L$ASSIMP_LIB -lassimp " FOLDER=
 ERRORLEVEL=$?
 if [ $ERRORLEVEL -ne 0 ]
 then
@@ -56,15 +74,7 @@ echo "Error:"$ERRORLEVEL | sed -e "s/Error/${txtred}Error${txtrst}/g" && exit
 fi
 
 # Kohi Runtime
-make -f Makefile.library.mak $ACTION TARGET=$TARGET ASSEMBLY=kohi.runtime DO_VERSION=$DO_VERSION ADDL_INC_FLAGS="$INC_CORE_RT" ADDL_LINK_FLAGS="-lkohi.core"
-ERRORLEVEL=$?
-if [ $ERRORLEVEL -ne 0 ]
-then
-echo "error:"$errorlevel | sed -e "s/error/${txtred}error${txtrst}/g" && exit
-fi
-
-# Kohi Utils plugin Lib
-make -f Makefile.library.mak $ACTION TARGET=$TARGET ASSEMBLY=kohi.plugin.utils DO_VERSION=$DO_VERSION ADDL_INC_FLAGS="$INC_CORE_RT" ADDL_LINK_FLAGS="$LNK_CORE_RT"
+make -f Makefile.kohi.mak $ACTION TARGET=$TARGET ASSEMBLY=kohi.runtime BUILD_MODE=lib DO_VERSION=$DO_VERSION ADDL_INC_FLAGS="$INC_CORE_RT" ADDL_LINK_FLAGS="-lm -lkohi.core" FOLDER=
 ERRORLEVEL=$?
 if [ $ERRORLEVEL -ne 0 ]
 then
@@ -76,7 +86,7 @@ if [ $PLATFORM = 'macos' ]
 then
    VULKAN_SDK=/usr/local/
 fi
-make -f Makefile.library.mak $ACTION TARGET=$TARGET ASSEMBLY=kohi.plugin.renderer.vulkan DO_VERSION=$DO_VERSION ADDL_INC_FLAGS="$INC_CORE_RT -I../bin/ -I$VULKAN_SDK/include" ADDL_LINK_FLAGS="$LNK_CORE_RT -lshaderc_shared "
+make -f Makefile.kohi.mak $ACTION TARGET=$TARGET ASSEMBLY=kohi.plugin.renderer.vulkan BUILD_MODE=lib DO_VERSION=$DO_VERSION ADDL_INC_FLAGS="$INC_CORE_RT -I../bin/ -I$VULKAN_SDK/include" ADDL_LINK_FLAGS="$LNK_CORE_RT -lshaderc_shared " FOLDER=
 ERRORLEVEL=$?
 if [ $ERRORLEVEL -ne 0 ]
 then
@@ -84,7 +94,15 @@ echo "error:"$errorlevel | sed -e "s/error/${txtred}error${txtrst}/g" && exit
 fi
 
 # Standard UI Lib
-make -f Makefile.library.mak $ACTION TARGET=$TARGET ASSEMBLY=kohi.plugin.ui.standard DO_VERSION=$DO_VERSION ADDL_INC_FLAGS="$INC_CORE_RT" ADDL_LINK_FLAGS="$LNK_CORE_RT"
+make -f Makefile.kohi.mak $ACTION TARGET=$TARGET ASSEMBLY=kohi.plugin.ui.standard BUILD_MODE=lib DO_VERSION=$DO_VERSION ADDL_INC_FLAGS="$INC_CORE_RT" ADDL_LINK_FLAGS="$LNK_CORE_RT" FOLDER=
+ERRORLEVEL=$?
+if [ $ERRORLEVEL -ne 0 ]
+then
+echo "error:"$errorlevel | sed -e "s/error/${txtred}error${txtrst}/g" && exit
+fi
+
+# Kohi Utils plugin Lib
+make -f Makefile.kohi.mak $ACTION TARGET=$TARGET ASSEMBLY=kohi.plugin.utils BUILD_MODE=lib DO_VERSION=$DO_VERSION ADDL_INC_FLAGS="$INC_CORE_RT -I./kohi.plugin.ui.standard/src" ADDL_LINK_FLAGS="-lm $LNK_CORE_RT -lkohi.plugin.ui.standard" FOLDER=
 ERRORLEVEL=$?
 if [ $ERRORLEVEL -ne 0 ]
 then
@@ -97,7 +115,7 @@ then
     OPENAL_INC=-I/opt/homebrew/opt/openal-soft/include/
     OPENAL_LIB=-L/opt/homebrew/opt/openal-soft/lib/
 fi
-make -f Makefile.library.mak $ACTION TARGET=$TARGET ASSEMBLY=kohi.plugin.audio.openal DO_VERSION=$DO_VERSION ADDL_INC_FLAGS="$INC_CORE_RT $OPENAL_INC" ADDL_LINK_FLAGS="$LNK_CORE_RT -lopenal $OPENAL_LIB"
+make -f Makefile.kohi.mak $ACTION TARGET=$TARGET ASSEMBLY=kohi.plugin.audio.openal BUILD_MODE=lib DO_VERSION=$DO_VERSION ADDL_INC_FLAGS="$INC_CORE_RT $OPENAL_INC" ADDL_LINK_FLAGS="$LNK_CORE_RT -lopenal $OPENAL_LIB" FOLDER=
 ERRORLEVEL=$?
 if [ $ERRORLEVEL -ne 0 ]
 then
@@ -105,43 +123,36 @@ echo "error:"$errorlevel | sed -e "s/error/${txtred}error${txtrst}/g" && exit
 fi
 
 # Testbed Lib
-make -f Makefile.library.mak $ACTION TARGET=$TARGET ASSEMBLY=testbed.klib DO_VERSION=$DO_VERSION ADDL_INC_FLAGS="$INC_CORE_RT -I./kohi.plugin.ui.standard/src -I./kohi.plugin.audio.openal/src -I./kohi.plugin.utils/src" ADDL_LINK_FLAGS="$LNK_CORE_RT -lkohi.plugin.ui.standard -lkohi.plugin.audio.openal -lkohi.plugin.utils"
+make -f Makefile.kohi.mak $ACTION TARGET=$TARGET ASSEMBLY=testbed.klib BUILD_MODE=lib DO_VERSION=$DO_VERSION ADDL_INC_FLAGS="$INC_CORE_RT -I./kohi.plugin.ui.standard/src -I./kohi.plugin.audio.openal/src -I./kohi.plugin.utils/src" ADDL_LINK_FLAGS="$LNK_CORE_RT -lkohi.plugin.ui.standard -lkohi.plugin.audio.openal -lkohi.plugin.utils" FOLDER=
 ERRORLEVEL=$?
 if [ $ERRORLEVEL -ne 0 ]
 then
 echo "Error:"$ERRORLEVEL | sed -e "s/Error/${txtred}Error${txtrst}/g" && exit
 fi
 
-# Overdrive2069 Lib
-#make -f Makefile.library.mak $ACTION TARGET=$TARGET ASSEMBLY=overdrive2069.klib DO_VERSION=$DO_VERSION ADDL_INC_FLAGS="$INC_CORE_RT -I./kohi.plugin.ui.standard/src -I./kohi.plugin.audio.openal/src -I./kohi.plugin.utils/src" ADDL_LINK_FLAGS="$LNK_CORE_RT -lkohi.plugin.ui.standard -lkohi.plugin.audio.openal -lkohi.plugin.utils"
-#ERRORLEVEL=$?
-#if [ $ERRORLEVEL -ne 0 ]
-#then
-#echo "Error:"$ERRORLEVEL | sed -e "s/Error/${txtred}Error${txtrst}/g" && exit
-#fi
 
 # ---------------------------------------------------
 # Executables
 # ---------------------------------------------------
 
 # Testbed
-make -f Makefile.executable.mak $ACTION TARGET=$TARGET ASSEMBLY=testbed.kapp ADDL_INC_FLAGS="$INC_CORE_RT" ADDL_LINK_FLAGS="$LNK_CORE_RT -lkohi.plugin.ui.standard -lkohi.plugin.audio.openal"
+make -f Makefile.kohi.mak $ACTION TARGET=$TARGET ASSEMBLY=testbed.kapp BUILD_MODE=exe ADDL_INC_FLAGS="$INC_CORE_RT" ADDL_LINK_FLAGS="$LNK_CORE_RT -lkohi.plugin.ui.standard -lkohi.plugin.audio.openal" FOLDER=
 ERRORLEVEL=$?
 if [ $ERRORLEVEL -ne 0 ]
 then
 echo "Error:"$ERRORLEVEL | sed -e "s/Error/${txtred}Error${txtrst}/g" && exit
 fi
 
-# Overdrive 2069 Game Executable
-# make -f Makefile.executable.mak $ACTION TARGET=$TARGET ASSEMBLY=overdrive2069.kapp ADDL_INC_FLAGS="$INC_CORE_RT" ADDL_LINK_FLAGS="$LNK_CORE_RT -lkohi.plugin.ui.standard -lkohi.plugin.audio.openal"
-# ERRORLEVEL=$?
-# if [ $ERRORLEVEL -ne 0 ]
-# then
-# echo "Error:"$ERRORLEVEL | sed -e "s/Error/${txtred}Error${txtrst}/g" && exit
-# fi
+# Core Tests
+make -f Makefile.kohi.mak $ACTION TARGET=$TARGET ASSEMBLY=kohi.core.tests BUILD_MODE=exe ADDL_INC_FLAGS="$INC_CORE_RT" ADDL_LINK_FLAGS="$LNK_CORE_RT" FOLDER=
+ERRORLEVEL=$?
+if [ $ERRORLEVEL -ne 0 ]
+then
+echo "Error:"$ERRORLEVEL | sed -e "s/Error/${txtred}Error${txtrst}/g" && exit
+fi
 
-# Tests
-make -f Makefile.executable.mak $ACTION TARGET=$TARGET ASSEMBLY=kohi.core.tests ADDL_INC_FLAGS="$INC_CORE_RT" ADDL_LINK_FLAGS="$LNK_CORE_RT"
+# Runtime Tests
+make -f Makefile.kohi.mak $ACTION TARGET=$TARGET ASSEMBLY=kohi.runtime.tests BUILD_MODE=exe ADDL_INC_FLAGS="$INC_CORE_RT" ADDL_LINK_FLAGS="$LNK_CORE_RT" FOLDER=
 ERRORLEVEL=$?
 if [ $ERRORLEVEL -ne 0 ]
 then

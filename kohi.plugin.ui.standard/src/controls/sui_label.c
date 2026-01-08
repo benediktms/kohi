@@ -12,6 +12,7 @@
 #include <systems/font_system.h>
 #include <systems/kshader_system.h>
 
+#include "renderer/standard_ui_renderer.h"
 #include "standard_ui_defines.h"
 #include "standard_ui_system.h"
 

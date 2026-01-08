@@ -21,25 +21,26 @@ The items in this list are not in any particular order. This list will be update
 - [x] Move scene to game code, game-specific.
   - [x] Change scenes to use single level of 'inheritance', i.e. have a base_entity that has props, then a static_mesh_entity that has `base_entity base` member.
   - [x] Remove all references to scenes in engine core/runtime.
-- [ ] Refactor Testbed project for the above changes.
+- [x] Refactor Testbed project for the above changes.
 - [x] Remove viewports, enhance camera system to include this instead.
 - [x] Change to use multiple vertex buffers instead of a single one to handle extra data (i.e. bone
       ids/weights, terrain material weights, etc. should be in a second buffer). Could then use the
       same pipeline for static/animated geometry by binding a 'dummy' vertex binding for binding 1
       and not using those attributes in the shader if there are no bone weights.
 - [x] Remove legacy systems (i.e. hierarchy system, etc.)
-- [ ] Hoist Overdrive project to it's own repo, refactor similar to Testbed.
+- [x] Hoist Overdrive project to it's own repo, refactor similar to Testbed.
 - [x] Bugfix: #274 Fix validation issues regarding window resize.
 - [x] Bugfix: #268 Add app config renderer option for "require_discrete_gpu". Default to false and pass down to Vulkan
-- [ ] Bugfix: #264 Address window closing issue on i3wm.
 - [x] Bugfix: #252 Fix/ensure macOS build script works as intended.
+- [x] Animation system/animated meshes.
+
+## 0.12.0 Release
+
+- [ ] Bugfix: #264 Address window closing issue on i3wm.
 - [ ] Bugfix: #237 Fix/ensure Windows build script works as intended. Perhaps remove Powershell requirement?
 - [ ] Build: Make a setup script that creates the clangd 'compile_flags.txt'
       files that is independent of the build process and can be run separately
       when the project is first cloned.
-- [x] Animation system/animated meshes.
-
-## 0.12.0 Release
 
 ## Future Releases
 

@@ -9,6 +9,7 @@
 #include <systems/kshader_system.h>
 
 #include "renderer/nine_slice.h"
+#include "renderer/standard_ui_renderer.h"
 #include "standard_ui_defines.h"
 #include "standard_ui_system.h"
 #include "strings/kname.h"

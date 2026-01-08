@@ -8,7 +8,7 @@
 #include "renderer/renderer_types.h"
 #include "vulkan_backend.h"
 
-b8 kplugin_create(kruntime_plugin* out_plugin) {
+b8 kohi_plugin_renderer_vulkan_create(kruntime_plugin* out_plugin) {
 	out_plugin->plugin_state_size = sizeof(renderer_backend_interface);
 	out_plugin->plugin_state = kallocate(out_plugin->plugin_state_size, MEMORY_TAG_RENDERER);
 
@@ -113,7 +113,7 @@ b8 kplugin_create(kruntime_plugin* out_plugin) {
 	return true;
 }
 
-void kplugin_destroy(kruntime_plugin* plugin) {
+void kohi_plugin_renderer_vulkan_destroy(kruntime_plugin* plugin) {
 	// NOTE: this is taken care of internally
 	// if (plugin && plugin->plugin_state) {
 	//     kfree(plugin->plugin_state, plugin->plugin_state_size, MEMORY_TAG_RENDERER);

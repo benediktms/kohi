@@ -309,6 +309,28 @@ KAPI void string_insert_str_at(char* dest, const char* src, u32 pos, const char*
 KAPI void string_remove_at(char* dest, const char* src, u32 pos, u32 length);
 
 /**
+ * @brief Replaces the first instance of char find with the one provided (replace).
+ * Done in place.
+ *
+ * @param str The string to be operated on.
+ * @param find The character to search for.
+ * @param replace The character to replace find with.
+ * @return Index of the replaced char, or -1 if not found.
+ */
+KAPI i32 string_replace_char(char* str, char find, char replace);
+
+/**
+ * @brief Replaces all instances of char find with the one provided (replace).
+ * Done in place.
+ *
+ * @param str The string to be operated on.
+ * @param find The character to search for.
+ * @param replace The character to replace find with.
+ * @return Count of instances found and replaced.
+ */
+KAPI u32 string_replace_char_all(char* str, char find, char replace);
+
+/**
  * @brief Attempts to parse a 4x4 matrix from the provided string.
  *
  * @param str The string to parse from. Should be space delimited. (i.e "1.0 1.0 ... 1.0")

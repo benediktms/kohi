@@ -39,13 +39,6 @@ typedef struct standard_ui_renderable {
 	geometry_render_data* clip_mask_render_data;
 } standard_ui_renderable;
 
-typedef struct standard_ui_render_data {
-	ktexture ui_atlas;
-	u32 shader_set0_binding_instance_id;
-	// darray
-	standard_ui_renderable* renderables;
-} standard_ui_render_data;
-
 // Global UBO data for the SUI shader.
 typedef struct sui_global_ubo {
 	mat4 projection;
@@ -82,6 +75,7 @@ typedef struct sui_clip_mask {
 } sui_clip_mask;
 
 struct sui_control;
+struct standard_ui_render_data;
 
 /**
  * The mouse event handler callback for a control.
@@ -118,7 +112,7 @@ typedef struct sui_control {
 	void (*destroy)(struct standard_ui_state* state, struct sui_control* self);
 
 	b8 (*update)(struct standard_ui_state* state, struct sui_control* self, struct frame_data* p_frame_data);
-	b8 (*render)(struct standard_ui_state* state, struct sui_control* self, struct frame_data* p_frame_data, standard_ui_render_data* reneder_data);
+	b8 (*render)(struct standard_ui_state* state, struct sui_control* self, struct frame_data* p_frame_data, struct standard_ui_render_data* reneder_data);
 
 	/**
 	 * The click handler for a control.
@@ -202,7 +196,9 @@ KAPI void standard_ui_system_shutdown(standard_ui_state* state);
 
 KAPI b8 standard_ui_system_update(standard_ui_state* state, struct frame_data* p_frame_data);
 
-KAPI b8 standard_ui_system_render(standard_ui_state* state, sui_control* root, struct frame_data* p_frame_data, standard_ui_render_data* render_data);
+// FIXME: combine the SUI renderer into here.
+struct standard_ui_render_data;
+KAPI b8 standard_ui_system_render(standard_ui_state* state, sui_control* root, struct frame_data* p_frame_data, struct standard_ui_render_data* render_data);
 
 KAPI b8 standard_ui_system_update_active(standard_ui_state* state, sui_control* control);
 
@@ -223,7 +219,7 @@ KAPI b8 sui_base_control_create(standard_ui_state* state, const char* name, stru
 KAPI void sui_base_control_destroy(standard_ui_state* state, struct sui_control* self);
 
 KAPI b8 sui_base_control_update(standard_ui_state* state, struct sui_control* self, struct frame_data* p_frame_data);
-KAPI b8 sui_base_control_render(standard_ui_state* state, struct sui_control* self, struct frame_data* p_frame_data, standard_ui_render_data* render_data);
+KAPI b8 sui_base_control_render(standard_ui_state* state, struct sui_control* self, struct frame_data* p_frame_data, struct standard_ui_render_data* render_data);
 
 /**
  * @brief Checks control and its ancestors to see if it is active. More reliable than

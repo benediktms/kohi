@@ -9,6 +9,12 @@ KAPI u64 application_state_size(void);
 
 KAPI b8 application_boot(struct application* game_inst);
 
+/**
+ * @brief Application initialization routine.
+ *
+ * @param app A pointer to the application state.
+ * @return True on success; otherwise false.
+ */
 KAPI b8 application_initialize(struct application* game_inst);
 
 KAPI b8 application_update(struct application* game_inst, struct frame_data* p_frame_data);

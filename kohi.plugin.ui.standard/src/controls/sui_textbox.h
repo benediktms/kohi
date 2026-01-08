@@ -7,6 +7,8 @@
 #include <renderer/renderer_types.h>
 #include <systems/font_system.h>
 
+struct standard_ui_render_data;
+
 typedef enum sui_textbox_type {
 	SUI_TEXTBOX_TYPE_STRING,
 	SUI_TEXTBOX_TYPE_INT,
@@ -46,7 +48,7 @@ KAPI b8 sui_textbox_control_height_set(standard_ui_state* state, struct sui_cont
 
 KAPI b8 sui_textbox_control_update(standard_ui_state* state, struct sui_control* self, struct frame_data* p_frame_data);
 
-KAPI b8 sui_textbox_control_render(standard_ui_state* state, struct sui_control* self, struct frame_data* p_frame_data, standard_ui_render_data* render_data);
+KAPI b8 sui_textbox_control_render(standard_ui_state* state, struct sui_control* self, struct frame_data* p_frame_data, struct standard_ui_render_data* render_data);
 
 KAPI const char* sui_textbox_text_get(standard_ui_state* state, struct sui_control* self);
 KAPI void sui_textbox_text_set(standard_ui_state* state, struct sui_control* self, const char* text);
