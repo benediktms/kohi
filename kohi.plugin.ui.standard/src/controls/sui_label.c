@@ -298,6 +298,16 @@ void sui_label_text_set(standard_ui_state* state, struct sui_control* self, cons
 
 		typed_data->text = string_duplicate(text);
 
+		vec2 string_size = vec2_one();
+		if (typed_data->type == FONT_TYPE_BITMAP) {
+			font_system_bitmap_font_measure_string(state->font_system, typed_data->bitmap_font, typed_data->text, &string_size);
+		} else {
+			font_system_system_font_measure_string(state->font_system, typed_data->system_font, typed_data->text, &string_size);
+		}
+
+		self->bounds.width = string_size.x;
+		self->bounds.height = string_size.y;
+
 		// NOTE: Only bother with verification and setting the dirty flag for non-empty strings.
 		typed_data->is_dirty = true; // string_length(typed_data->text) > 0;
 	}

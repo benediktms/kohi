@@ -10,6 +10,7 @@
 
 #include "renderer/standard_ui_renderer.h"
 #include "standard_ui_defines.h"
+#include "standard_ui_system.h"
 
 b8 sui_panel_control_create(standard_ui_state* state, const char* name, vec2 size, vec4 colour, struct sui_control* out_control) {
 	if (!sui_base_control_create(state, name, out_control)) {
@@ -109,6 +110,13 @@ vec2 sui_panel_size(standard_ui_state* state, struct sui_control* self) {
 	}
 
 	return (vec2){self->bounds.width, self->bounds.height};
+}
+
+void sui_panel_set_height(standard_ui_state* state, struct sui_control* self, f32 height) {
+	sui_panel_control_resize(state, self, (vec2){self->bounds.width, height});
+}
+void sui_panel_set_width(standard_ui_state* state, struct sui_control* self, f32 width) {
+	sui_panel_control_resize(state, self, (vec2){width, self->bounds.height});
 }
 
 b8 sui_panel_control_resize(standard_ui_state* state, struct sui_control* self, vec2 new_size) {

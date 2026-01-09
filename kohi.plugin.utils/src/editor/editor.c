@@ -10,6 +10,7 @@
 #include "input_types.h"
 #include "math/geometry_2d.h"
 #include "math/math_types.h"
+#include "memory/kmemory.h"
 #include "plugins/plugin_types.h"
 #include "renderer/renderer_frontend.h"
 #include "standard_ui_system.h"
@@ -23,6 +24,7 @@
 #include "systems/texture_system.h"
 #include "utils_plugin_defines.h"
 #include "world/kscene.h"
+#include "world/world_types.h"
 #include "world/world_utils.h"
 
 #include <containers/darray.h>
@@ -84,6 +86,7 @@ static void editor_unregister_commands(struct editor_state* state);
 static b8 save_button_clicked(struct standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
 static b8 mode_scene_button_clicked(struct standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
 static b8 mode_entity_button_clicked(struct standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
+static b8 mode_tree_button_clicked(struct standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
 
 static void scene_name_textbox_on_key(standard_ui_state* state, sui_control* self, sui_keyboard_event evt);
 
@@ -98,6 +101,9 @@ static void entity_orientation_w_textbox_on_key(standard_ui_state* state, sui_co
 static void entity_scale_x_textbox_on_key(standard_ui_state* state, sui_control* self, sui_keyboard_event evt);
 static void entity_scale_y_textbox_on_key(standard_ui_state* state, sui_control* self, sui_keyboard_event evt);
 static void entity_scale_z_textbox_on_key(standard_ui_state* state, sui_control* self, sui_keyboard_event evt);
+
+static void tree_refresh(editor_state* state);
+static b8 tree_label_clicked(struct standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
 
 b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 	*memory_requirement = sizeof(editor_state);
@@ -191,7 +197,7 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 			KASSERT(sui_label_control_create(sui_state, "save_button_label", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Save", &state->save_button_label));
 			KASSERT(standard_ui_system_register_control(sui_state, &state->save_button_label));
 			KASSERT(standard_ui_system_control_add_child(sui_state, &state->save_button, &state->save_button_label));
-			ktransform_position_set(state->save_button_label.ktransform, (vec3){10, state->font_size - 3, 0});
+			ktransform_position_set(state->save_button_label.ktransform, (vec3){10, -5.0f, 0});
 			state->save_button_label.is_active = true;
 			standard_ui_system_update_active(sui_state, &state->save_button_label);
 			state->save_button_label.is_visible = true;
@@ -214,7 +220,7 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 			KASSERT(sui_label_control_create(sui_state, "mode_scene_label", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Scene", &state->mode_scene_label));
 			KASSERT(standard_ui_system_register_control(sui_state, &state->mode_scene_label));
 			KASSERT(standard_ui_system_control_add_child(sui_state, &state->mode_scene_button, &state->mode_scene_label));
-			ktransform_position_set(state->mode_scene_label.ktransform, (vec3){10, state->font_size - 3, 0});
+			ktransform_position_set(state->mode_scene_label.ktransform, (vec3){10, -5.0f, 0});
 			state->mode_scene_label.is_active = true;
 			standard_ui_system_update_active(sui_state, &state->mode_scene_label);
 			state->mode_scene_label.is_visible = true;
@@ -239,7 +245,7 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 			KASSERT(sui_label_control_create(sui_state, "mode_entity_label", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Entity", &state->mode_entity_label));
 			KASSERT(standard_ui_system_register_control(sui_state, &state->mode_entity_label));
 			KASSERT(standard_ui_system_control_add_child(sui_state, &state->mode_entity_button, &state->mode_entity_label));
-			ktransform_position_set(state->mode_entity_label.ktransform, (vec3){10, state->font_size - 3, 0});
+			ktransform_position_set(state->mode_entity_label.ktransform, (vec3){10, -5.0f, 0});
 			state->mode_entity_label.is_active = true;
 			standard_ui_system_update_active(sui_state, &state->mode_entity_label);
 			state->mode_entity_label.is_visible = true;
@@ -247,6 +253,31 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 			state->mode_entity_button.user_data = state;
 			state->mode_entity_button.user_data_size = sizeof(*state);
 			state->mode_entity_button.on_click = mode_entity_button_clicked;
+		}
+
+		// Tree mode button.
+		{
+			KASSERT(sui_button_control_create(sui_state, "mode_tree_button", &state->mode_tree_button));
+			KASSERT(standard_ui_system_register_control(sui_state, &state->mode_tree_button));
+			KASSERT(standard_ui_system_control_add_child(sui_state, &state->main_bg_panel, &state->mode_tree_button));
+			sui_button_control_width_set(sui_state, &state->mode_tree_button, 100);
+			ktransform_position_set(state->mode_tree_button.ktransform, (vec3){0, 150, 0});
+			state->mode_tree_button.is_active = true;
+			standard_ui_system_update_active(sui_state, &state->mode_tree_button);
+			state->mode_tree_button.is_visible = true;
+
+			// Label
+			KASSERT(sui_label_control_create(sui_state, "mode_tree_label", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Tree", &state->mode_tree_label));
+			KASSERT(standard_ui_system_register_control(sui_state, &state->mode_tree_label));
+			KASSERT(standard_ui_system_control_add_child(sui_state, &state->mode_tree_button, &state->mode_tree_label));
+			ktransform_position_set(state->mode_tree_label.ktransform, (vec3){10, -5.0f, 0});
+			state->mode_tree_label.is_active = true;
+			standard_ui_system_update_active(sui_state, &state->mode_tree_label);
+			state->mode_tree_label.is_visible = true;
+
+			state->mode_tree_button.user_data = state;
+			state->mode_tree_button.user_data_size = sizeof(*state);
+			state->mode_tree_button.on_click = mode_tree_button_clicked;
 		}
 	}
 
@@ -266,7 +297,7 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 		KASSERT(sui_label_control_create(sui_state, "scene_inspector_title", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Scene", &state->scene_inspector_title));
 		KASSERT(standard_ui_system_register_control(sui_state, &state->scene_inspector_title));
 		KASSERT(standard_ui_system_control_add_child(sui_state, &state->scene_inspector_bg_panel, &state->scene_inspector_title));
-		ktransform_position_set(state->scene_inspector_title.ktransform, (vec3){10, state->font_size - 3, 0});
+		ktransform_position_set(state->scene_inspector_title.ktransform, (vec3){10, -5.0f, 0});
 		state->scene_inspector_title.is_active = true;
 		standard_ui_system_update_active(sui_state, &state->scene_inspector_title);
 		state->scene_inspector_title.is_visible = true;
@@ -277,7 +308,7 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 			KASSERT(sui_label_control_create(sui_state, "scene_name_label", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Name:", &state->scene_name_label));
 			KASSERT(standard_ui_system_register_control(sui_state, &state->scene_name_label));
 			KASSERT(standard_ui_system_control_add_child(sui_state, &state->scene_inspector_bg_panel, &state->scene_name_label));
-			ktransform_position_set(state->scene_name_label.ktransform, (vec3){10, 50 + state->font_size - 3, 0});
+			ktransform_position_set(state->scene_name_label.ktransform, (vec3){10, 50 + -5.0f, 0});
 			state->scene_name_label.is_active = true;
 			standard_ui_system_update_active(sui_state, &state->scene_name_label);
 			state->scene_name_label.is_visible = true;
@@ -316,7 +347,7 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 		KASSERT(sui_label_control_create(sui_state, "entity_inspector_title", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Entity (no selection)", &state->entity_inspector_title));
 		KASSERT(standard_ui_system_register_control(sui_state, &state->entity_inspector_title));
 		KASSERT(standard_ui_system_control_add_child(sui_state, &state->entity_inspector_bg_panel, &state->entity_inspector_title));
-		ktransform_position_set(state->entity_inspector_title.ktransform, (vec3){10, state->font_size - 3, 0});
+		ktransform_position_set(state->entity_inspector_title.ktransform, (vec3){10, -5.0f, 0});
 		state->entity_inspector_title.is_active = true;
 		standard_ui_system_update_active(sui_state, &state->entity_inspector_title);
 		state->entity_inspector_title.is_visible = true;
@@ -327,7 +358,7 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 			KASSERT(sui_label_control_create(sui_state, "entity_name_label", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Name:", &state->entity_name_label));
 			KASSERT(standard_ui_system_register_control(sui_state, &state->entity_name_label));
 			KASSERT(standard_ui_system_control_add_child(sui_state, &state->entity_inspector_bg_panel, &state->entity_name_label));
-			ktransform_position_set(state->entity_name_label.ktransform, (vec3){10, 50 + state->font_size - 3, 0});
+			ktransform_position_set(state->entity_name_label.ktransform, (vec3){10, 50 + -5.0f, 0});
 			state->entity_name_label.is_active = true;
 			standard_ui_system_update_active(sui_state, &state->entity_name_label);
 			state->entity_name_label.is_visible = true;
@@ -353,7 +384,7 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 			KASSERT(sui_label_control_create(sui_state, "entity_position_label", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Position", &state->entity_position_label));
 			KASSERT(standard_ui_system_register_control(sui_state, &state->entity_position_label));
 			KASSERT(standard_ui_system_control_add_child(sui_state, &state->entity_inspector_bg_panel, &state->entity_position_label));
-			ktransform_position_set(state->entity_position_label.ktransform, (vec3){10, 100 + state->font_size - 3, 0});
+			ktransform_position_set(state->entity_position_label.ktransform, (vec3){10, 100 + -5.0f, 0});
 			state->entity_position_label.is_active = true;
 			standard_ui_system_update_active(sui_state, &state->entity_position_label);
 			state->entity_position_label.is_visible = true;
@@ -410,7 +441,7 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 			KASSERT(sui_label_control_create(sui_state, "entity_orientation_label", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Orientation", &state->entity_orientation_label));
 			KASSERT(standard_ui_system_register_control(sui_state, &state->entity_orientation_label));
 			KASSERT(standard_ui_system_control_add_child(sui_state, &state->entity_inspector_bg_panel, &state->entity_orientation_label));
-			ktransform_position_set(state->entity_orientation_label.ktransform, (vec3){10, 150 + state->font_size - 3, 0});
+			ktransform_position_set(state->entity_orientation_label.ktransform, (vec3){10, 150 + -5.0f, 0});
 			state->entity_orientation_label.is_active = true;
 			standard_ui_system_update_active(sui_state, &state->entity_orientation_label);
 			state->entity_orientation_label.is_visible = true;
@@ -478,7 +509,7 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 			KASSERT(sui_label_control_create(sui_state, "entity_scale_label", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Scale", &state->entity_scale_label));
 			KASSERT(standard_ui_system_register_control(sui_state, &state->entity_scale_label));
 			KASSERT(standard_ui_system_control_add_child(sui_state, &state->entity_inspector_bg_panel, &state->entity_scale_label));
-			ktransform_position_set(state->entity_scale_label.ktransform, (vec3){10, 200 + state->font_size - 3, 0});
+			ktransform_position_set(state->entity_scale_label.ktransform, (vec3){10, 200 + -5.0f, 0});
 			state->entity_scale_label.is_active = true;
 			standard_ui_system_update_active(sui_state, &state->entity_scale_label);
 			state->entity_scale_label.is_visible = true;
@@ -528,6 +559,30 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 			state->entity_scale_z_textbox.user_data_size = sizeof(*state);
 			state->entity_scale_z_textbox.on_key = entity_scale_z_textbox_on_key;
 		}
+	}
+
+	// Tree window panel.
+	{
+		state->tree_inspector_width = 500.0f;
+		state->tree_inspector_right_col_x = 150.0f;
+		KASSERT(sui_panel_control_create(sui_state, "tree_inspector_bg_panel", (vec2){state->tree_inspector_width, 600.0f}, (vec4){0.0f, 0.0f, 0.0f, 0.75f}, &state->tree_inspector_bg_panel));
+		KASSERT(standard_ui_system_register_control(sui_state, &state->tree_inspector_bg_panel));
+		ktransform_translate(state->tree_inspector_bg_panel.ktransform, (vec3){1280 - (state->tree_inspector_width + 10)});
+		KASSERT(standard_ui_system_control_add_child(sui_state, &state->editor_root, &state->tree_inspector_bg_panel));
+		state->tree_inspector_bg_panel.is_active = false;
+		standard_ui_system_update_active(sui_state, &state->tree_inspector_bg_panel);
+		state->tree_inspector_bg_panel.is_visible = false;
+
+		// Window Label
+		KASSERT(sui_label_control_create(sui_state, "tree_inspector_title", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Tree", &state->tree_inspector_title));
+		KASSERT(standard_ui_system_register_control(sui_state, &state->tree_inspector_title));
+		KASSERT(standard_ui_system_control_add_child(sui_state, &state->tree_inspector_bg_panel, &state->tree_inspector_title));
+		ktransform_position_set(state->tree_inspector_title.ktransform, (vec3){10, -5.0f, 0});
+		state->tree_inspector_title.is_active = true;
+		standard_ui_system_update_active(sui_state, &state->tree_inspector_title);
+		state->tree_inspector_title.is_visible = true;
+
+		// TODO: more controls
 	}
 
 	state->is_running = true;
@@ -623,6 +678,8 @@ sui_control* get_inspector_base_for_mode(struct editor_state* state, editor_mode
 		return &state->scene_inspector_bg_panel;
 	case EDITOR_MODE_ENTITY:
 		return &state->entity_inspector_bg_panel;
+	case EDITOR_MODE_TREE:
+		return &state->tree_inspector_bg_panel;
 	case EDITOR_MODE_ASSETS:
 		// TODO: other types
 		return KNULL;
@@ -919,6 +976,9 @@ void editor_on_window_resize(struct editor_state* state, const struct kwindow* w
 	// UI elements
 	ktransform_position_set(state->scene_inspector_bg_panel.ktransform, (vec3){window->width - (state->scene_inspector_width + 10), 10});
 	ktransform_position_set(state->entity_inspector_bg_panel.ktransform, (vec3){window->width - (state->entity_inspector_width + 10), 10});
+
+	ktransform_position_set(state->tree_inspector_bg_panel.ktransform, (vec3){window->width - (state->tree_inspector_width + 10), 10});
+	sui_panel_set_height(state->sui_state, &state->tree_inspector_bg_panel, window->height - 120.0f);
 }
 
 void editor_setup_keymaps(struct editor_state* state) {
@@ -1406,6 +1466,14 @@ static b8 mode_scene_button_clicked(struct standard_ui_state* state, struct sui_
 static b8 mode_entity_button_clicked(struct standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event) {
 	KTRACE("Editor mode ENTITY button clicked.");
 	editor_set_mode(self->user_data, EDITOR_MODE_ENTITY);
+	// Don't allow the event to popagate.
+	return false;
+}
+static b8 mode_tree_button_clicked(struct standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event) {
+	KTRACE("Editor mode TREE button clicked.");
+	editor_set_mode(self->user_data, EDITOR_MODE_TREE);
+
+	tree_refresh(self->user_data);
 	// Don't allow the event to popagate.
 	return false;
 }
@@ -1897,4 +1965,69 @@ static void entity_scale_z_textbox_on_key(standard_ui_state* state, sui_control*
 			standard_ui_system_focus_control(state, &editor->entity_scale_x_textbox);
 		}
 	}
+}
+
+typedef struct hierarchy_node_context {
+	editor_state* editor;
+	kentity entity;
+} hierarchy_node_context;
+
+static void tree_refresh(editor_state* state) {
+	if (state->edit_scene) {
+		// TODO: destroy recursively when done.
+		u32 count = 0;
+		kscene_hierarchy_node* nodes = kscene_get_hierarchy(state->edit_scene, &count);
+
+		// Destroy all the current controls.
+		if (state->tree_element_count) {
+			for (u32 i = 0; i < count; ++i) {
+				KFREE_TYPE(state->tree_elements[i].user_data, hierarchy_node_context, MEMORY_TAG_ENGINE);
+				sui_label_control_destroy(state->sui_state, &state->tree_elements[i]);
+			}
+			KFREE_TYPE_CARRAY(state->tree_elements, sui_control, count);
+			state->tree_elements = KNULL;
+			state->tree_element_count = 0;
+		}
+
+		if (count) {
+
+			state->tree_element_count = count;
+			state->tree_elements = KALLOC_TYPE_CARRAY(sui_control, count);
+			standard_ui_state* sui_state = state->sui_state;
+
+			// Create all the new labels.
+			for (u32 i = 0; i < count; ++i) {
+				kscene_hierarchy_node* node = &nodes[i];
+				sui_control* label = &state->tree_elements[i];
+
+				kname name = kscene_get_entity_name(state->edit_scene, node->entity);
+
+				// TODO: make label names unique
+
+				KASSERT(sui_label_control_create(sui_state, "entity", FONT_TYPE_SYSTEM, state->font_name, state->font_size, kname_string_get(name), label));
+				KASSERT(standard_ui_system_register_control(sui_state, label));
+				KASSERT(standard_ui_system_control_add_child(sui_state, &state->tree_inspector_bg_panel, label));
+				ktransform_position_set(label->ktransform, (vec3){10, (35 * (i + 1)) + (-5.0f), 0});
+				label->is_active = true;
+				standard_ui_system_update_active(sui_state, label);
+				label->is_visible = true;
+
+				hierarchy_node_context* context = KALLOC_TYPE(hierarchy_node_context, MEMORY_TAG_ENGINE);
+				context->editor = state;
+				context->entity = node->entity;
+
+				label->user_data = (void*)context;
+				label->on_click = tree_label_clicked;
+			}
+		}
+	}
+}
+
+static b8 tree_label_clicked(struct standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event) {
+	hierarchy_node_context* context = (hierarchy_node_context*)self->user_data;
+
+	editor_clear_selected_entities(context->editor);
+	editor_add_to_selected_entities(context->editor, 1, &context->entity);
+
+	return true;
 }

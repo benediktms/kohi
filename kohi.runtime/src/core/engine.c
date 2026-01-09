@@ -542,7 +542,7 @@ b8 engine_create(application* app, const char* app_config_path, const char* game
 	// ktransform
 	{
 		ktransform_system_config ktransform_sys_config = {0};
-		ktransform_sys_config.initial_slot_count = 128;
+		ktransform_sys_config.initial_slot_count = 512;
 		ktransform_system_initialize(&systems->ktransform_system_memory_requirement, 0, &ktransform_sys_config);
 		systems->ktransform_system = kallocate(systems->ktransform_system_memory_requirement, MEMORY_TAG_ENGINE);
 		if (!ktransform_system_initialize(&systems->ktransform_system_memory_requirement, systems->ktransform_system, &ktransform_sys_config)) {

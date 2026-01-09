@@ -631,10 +631,10 @@ void application_on_window_resize(struct application* app, const struct kwindow*
 	kcamera_set_vp_rect(app->state->ui_camera, ui_vp_rect);
 
 	// Move debug text to new bottom of screen.
-	sui_control_position_set(app->state->sui_state, &app->state->debug_text, vec3_create(20, app->state->height - 105, 0));
-	sui_control_position_set(app->state->sui_state, &app->state->debug_text_shadow, vec3_create(21, app->state->height - 104, 0));
+	sui_control_position_set(app->state->sui_state, &app->state->debug_text, vec3_create(20, app->state->height - 136, 0));
+	sui_control_position_set(app->state->sui_state, &app->state->debug_text_shadow, vec3_create(21, app->state->height - 135, 0));
 
-	sui_control_position_set(app->state->sui_state, &app->state->context_sensitive_text, vec3_create(21, app->state->height - 150, 0));
+	sui_control_position_set(app->state->sui_state, &app->state->context_sensitive_text, vec3_create(21, app->state->height - 170, 0));
 }
 
 void application_shutdown(struct application* app) {

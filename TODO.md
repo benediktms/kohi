@@ -33,6 +33,7 @@ The items in this list are not in any particular order. This list will be update
 - [x] Bugfix: #268 Add app config renderer option for "require_discrete_gpu". Default to false and pass down to Vulkan
 - [x] Bugfix: #252 Fix/ensure macOS build script works as intended.
 - [x] Animation system/animated meshes.
+- [ ] Performance: Split back out static/animated model shaders.
 
 ## 0.12.0 Release
 

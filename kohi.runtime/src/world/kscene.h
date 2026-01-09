@@ -22,6 +22,7 @@ typedef enum kscene_state {
 	KSCENE_STATE_UNINITIALIZED,
 	KSCENE_STATE_PARSING_CONFIG,
 	KSCENE_STATE_LOADING,
+	KSCENE_STATE_PRE_LOADED,
 	KSCENE_STATE_LOADED,
 } kscene_state;
 
@@ -207,7 +208,7 @@ KAPI kwater_plane_render_data* kscene_get_water_plane_render_data(
 	u32 flags,
 	u16* out_water_plane_count);
 
-KAPI kspawn_point* kscene_get_spawn_points(
+KAPI kentity* kscene_get_spawn_points(
 	struct kscene* scene,
 	u32 flags,
 	u16* out_spawn_point_count);
@@ -221,3 +222,11 @@ KAPI klight_render_data* kscene_get_all_point_lights(
 KAPI const char* kscene_serialize(const struct kscene* scene);
 
 KAPI void kscene_dump_hierarchy(const struct kscene* scene);
+
+typedef struct kscene_hierarchy_node {
+	kentity entity;
+	u32 child_count;
+	struct kscene_hierarchy_node* children;
+} kscene_hierarchy_node;
+
+KAPI kscene_hierarchy_node* kscene_get_hierarchy(const struct kscene* scene, u32* out_count);

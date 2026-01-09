@@ -25,6 +25,7 @@ typedef struct keditor_gizmo_pass_render_data {
 typedef enum editor_mode {
 	EDITOR_MODE_SCENE,
 	EDITOR_MODE_ENTITY,
+	EDITOR_MODE_TREE,
 	EDITOR_MODE_ASSETS
 } editor_mode;
 
@@ -79,6 +80,8 @@ typedef struct editor_state {
 	sui_control mode_entity_label;
 	sui_control mode_scene_button;
 	sui_control mode_scene_label;
+	sui_control mode_tree_button;
+	sui_control mode_tree_label;
 
 	// Scene Inspector window
 	f32 scene_inspector_width;
@@ -112,6 +115,17 @@ typedef struct editor_state {
 	sui_control entity_scale_x_textbox;
 	sui_control entity_scale_y_textbox;
 	sui_control entity_scale_z_textbox;
+
+	// Tree window
+	f32 tree_inspector_width;
+	// Beginning position of the entity inspector right column.
+	f32 tree_inspector_right_col_x;
+	sui_control tree_inspector_bg_panel;
+	sui_control tree_inspector_title;
+
+	u32 tree_element_count;
+	sui_control* tree_elements;
+
 } editor_state;
 
 KAPI b8 editor_initialize(u64* memory_requirement, struct editor_state* state);

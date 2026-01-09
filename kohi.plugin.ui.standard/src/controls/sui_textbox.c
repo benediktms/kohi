@@ -264,7 +264,7 @@ b8 sui_textbox_control_create(standard_ui_state* state, const char* name, font_t
 		// TODO: Adjustable padding
 		typed_data->content_label.parent = out_control;
 		ktransform_parent_set(typed_data->content_label.ktransform, out_control->ktransform);
-		ktransform_position_set(typed_data->content_label.ktransform, (vec3){typed_data->nslice.corner_size.x, typed_data->label_line_height - 5.0f, 0.0f}); // padding/2 for y
+		ktransform_position_set(typed_data->content_label.ktransform, (vec3){typed_data->nslice.corner_size.x, -2.0f, 0.0f}); // padding/2 for y
 		typed_data->content_label.is_active = true;
 		if (!standard_ui_system_update_active(state, &typed_data->content_label)) {
 			KERROR("Unable to update active state for textbox system text.");

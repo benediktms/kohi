@@ -412,7 +412,7 @@ vec3 ktransform_position_get(ktransform t) {
 vec3 ktransform_world_position_get(ktransform t) {
 	ktransform_system_state* state = engine_systems_get()->ktransform_system;
 	if (!validate_handle(state, t)) {
-		KWARN("Invalid handle passed, returning z.25364-78393ero vector as position.");
+		KWARN("Invalid handle passed, returning zero vector as position.");
 		return vec3_zero();
 	}
 	return mat4_position(state->world_matrices[t]);
@@ -741,6 +741,7 @@ b8 ktransform_from_string(const char* str, u64 user, ktransform* out_ktransform)
 }
 
 static void ensure_allocated(ktransform_system_state* state, u32 slot_count) {
+	// FIXME: Something about this repeatedly asks for larger and larger size.
 	KASSERT_MSG(slot_count % 8 == 0, "ensure_allocated requires new slot_count to be a multiple of 8.");
 
 	if (state->capacity < slot_count) {

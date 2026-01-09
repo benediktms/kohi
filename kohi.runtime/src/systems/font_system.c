@@ -1220,7 +1220,7 @@ static b8 generate_font_geometry(const font_data* data, font_type type, const ch
 
 	// Generate new geometry for each character.
 	f32 x = 0;
-	f32 y = 0;
+	f32 y = data->line_height;
 
 	// Iterate the codepoints list.
 	for (u32 c = 0, q_idx = 0; c < text_length_utf8; ++c) {

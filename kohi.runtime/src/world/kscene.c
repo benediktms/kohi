@@ -783,10 +783,15 @@ b8 kscene_update(struct kscene* scene, struct frame_data* p_frame_data) {
 		if (scene->state == KSCENE_STATE_LOADING && scene->queued_initial_asset_loads < 1) {
 			scene->queued_initial_asset_loads = 0;
 			KINFO("All initial entity asset loads are complete. Scene is now loaded.");
-			scene->state = KSCENE_STATE_LOADED;
+			scene->state = KSCENE_STATE_PRE_LOADED;
+			return true;
+		}
+
+		if (scene->state == KSCENE_STATE_PRE_LOADED) {
 			if (scene->loaded_callback) {
 				scene->loaded_callback(scene, scene->load_context);
 			}
+			scene->state = KSCENE_STATE_LOADED;
 		}
 
 		if (scene->state == KSCENE_STATE_LOADED) {
@@ -2768,29 +2773,25 @@ kwater_plane_render_data* kscene_get_water_plane_render_data(
 	return prd;
 }
 
-kspawn_point* kscene_get_spawn_points(
+kentity* kscene_get_spawn_points(
 	struct kscene* scene,
 	u32 flags,
 	u16* out_spawn_point_count) {
 
 	KASSERT_DEBUG(scene);
 
-	*out_spawn_point_count = scene->spawn_points ? darray_length(scene->spawn_points) : KNULL;
+	*out_spawn_point_count = scene->spawn_points ? darray_length(scene->spawn_points) : 0;
 	if (*out_spawn_point_count) {
-		kspawn_point* points = KALLOC_TYPE_CARRAY(kspawn_point, *out_spawn_point_count);
+		kentity* entities = KALLOC_TYPE_CARRAY(kentity, *out_spawn_point_count);
 		for (u16 i = 0; i < *out_spawn_point_count; ++i) {
-			base_entity* base = &scene->spawn_points[i].base;
-			kspawn_point* point = &points[i];
-			point->entity = kentity_pack(
-				base->type,
+			entities[i] = kentity_pack(
+				KENTITY_TYPE_SPAWN_POINT,
 				i,
 				0,
 				0);
-			point->transform = base->transform;
-			point->name = base->name;
 		}
 
-		return points;
+		return entities;
 	}
 	return KNULL;
 }
@@ -3657,6 +3658,38 @@ void kscene_dump_hierarchy(const kscene* scene) {
 	for (u32 i = 0; i < entity_count; ++i) {
 		kscene_dump_hierarchy_entity_r(scene, scene->root_entities[i], 0);
 	}
+}
+
+kscene_hierarchy_node kscene_get_hierarchy_internal_r(const struct kscene* scene, kentity parent) {
+	base_entity* base = get_entity_base((kscene*)scene, parent);
+
+	u32 child_count = darray_length(base->children);
+
+	kscene_hierarchy_node node = {
+		.entity = parent,
+		.child_count = child_count,
+		.children = child_count ? KALLOC_TYPE_CARRAY(kscene_hierarchy_node, child_count) : KNULL};
+
+	for (u32 i = 0; i < child_count; ++i) {
+		node.children[i] = kscene_get_hierarchy_internal_r(scene, base->children[i]);
+	}
+
+	return node;
+}
+
+kscene_hierarchy_node* kscene_get_hierarchy(const struct kscene* scene, u32* out_count) {
+	u32 len = darray_length(scene->root_entities);
+	*out_count = len;
+	kscene_hierarchy_node* nodes = KNULL;
+	if (len) {
+		nodes = KALLOC_TYPE_CARRAY(kscene_hierarchy_node, len);
+
+		for (u32 i = 0; i < len; ++i) {
+			nodes[i] = kscene_get_hierarchy_internal_r(scene, scene->root_entities[i]);
+		}
+	}
+
+	return nodes;
 }
 
 static void notify_initial_load_entity_started(kscene* scene, kentity entity) {

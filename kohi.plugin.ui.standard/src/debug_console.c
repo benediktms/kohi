@@ -139,7 +139,7 @@ b8 debug_console_load(debug_console_state* state) {
 			return false;
 		}
 
-		sui_control_position_set(sui_state, &state->text_control, (vec3){3.0f, font_size, 0.0f});
+		sui_control_position_set(sui_state, &state->text_control, (vec3){3.0f, 0.0f, 0.0f});
 	}
 
 	// Textbox for command entry.

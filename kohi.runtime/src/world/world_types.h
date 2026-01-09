@@ -29,7 +29,7 @@ typedef struct kcollision_shape {
  * @description Memory layout:
  * u16 entity type. This could be reduced to a u8 if other data is needed in here.
  * u16 entity type index (or index into the type-specific array).
- * u16 hierarchy node index - index of the internal hierarchy node array.
+ * u16 unused/reserved - index of the internal hierarchy node array.
  * u16 unused/reserved for the future.
  */
 typedef u64 kentity;
@@ -63,9 +63,3 @@ typedef enum kentity_type {
 	KENTITY_TYPE_INVALID = INVALID_ID_U16
 
 } kentity_type;
-
-typedef struct kspawn_point {
-	kentity entity;
-	ktransform transform;
-	kname name;
-} kspawn_point;
