@@ -209,7 +209,6 @@ static void kasset_model_loaded(void* listener, kasset_model* asset) {
 
 	struct renderer_system_state* renderer_system = engine_systems_get()->renderer_system;
 	krenderbuffer standard_vertex_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_VERTEX_STANDARD));
-	krenderbuffer extended_vertex_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_VERTEX_EXTENDED));
 	krenderbuffer index_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_INDEX_STANDARD));
 
 	// Finally, the meshes
@@ -229,38 +228,11 @@ static void kasset_model_loaded(void* listener, kasset_model* asset) {
 			target->geo.generation = INVALID_ID_U16;
 			target->geo.type = is_animated ? KGEOMETRY_TYPE_3D_SKINNED : KGEOMETRY_TYPE_3D_STATIC;
 
-			target->geo.vertex_element_size = sizeof(vertex_3d);
+			target->geo.vertex_element_size = is_animated ? sizeof(skinned_vertex_3d) : sizeof(vertex_3d);
 			target->geo.vertex_count = source->vertex_count;
-			target->geo.vertices = KALLOC_TYPE_CARRAY(vertex_3d, source->vertex_count);
+			target->geo.vertices = kallocate(target->geo.vertex_element_size * source->vertex_count, MEMORY_TAG_ARRAY);
 
-			if (is_animated) {
-				// For animated/skinned meshes, vertex data needs to be split into 2 buffers - standard and extended.
-				target->geo.extended_vertex_element_size = sizeof(skinned_extended_vertex_3d);
-				target->geo.extended_vertices = KALLOC_TYPE_CARRAY(skinned_extended_vertex_3d, source->vertex_count);
-
-				kasset_skinned_vertex_3d* source_v = (kasset_skinned_vertex_3d*)source->vertices;
-				// Standard
-				vertex_3d* target_vs = (vertex_3d*)target->geo.vertices;
-				// Extended
-				skinned_extended_vertex_3d* target_ve = (skinned_extended_vertex_3d*)target->geo.extended_vertices;
-
-				// FIXME: May want to change the k3d format to split these out to make them quicker to read.
-				for (u32 v = 0; v < source->vertex_count; ++v) {
-					// Standard
-					target_vs[v].position = source_v[v].position;
-					target_vs[v].normal = source_v[v].normal;
-					target_vs[v].texcoord = source_v[v].texcoord;
-					target_vs[v].colour = source_v[v].colour;
-					target_vs[v].tangent = source_v[v].tangent;
-
-					// Extended
-					target_ve[v].bone_ids = source_v[v].bone_ids;
-					target_ve[v].weights = source_v[v].weights;
-				}
-			} else {
-				// Can just copy vertices as-is.
-				kcopy_memory(target->geo.vertices, source->vertices, sizeof(vertex_3d) * source->vertex_count);
-			}
+			kcopy_memory(target->geo.vertices, source->vertices, target->geo.vertex_element_size * source->vertex_count);
 
 			target->geo.index_element_size = sizeof(u32);
 			target->geo.index_count = source->index_count;
@@ -271,20 +243,26 @@ static void kasset_model_loaded(void* listener, kasset_model* asset) {
 			vec3 min_pos = vec3_create(99999999.9f, 99999999.9f, 99999999.9f);
 			vec3 max_pos = vec3_create(-99999999.9f, -99999999.9f, -99999999.9f);
 
-			vertex_3d* verts = (vertex_3d*)target->geo.vertices;
 			for (u32 v = 0; v < source->vertex_count; ++v) {
-				min_pos = vec3_min(min_pos, verts[v].position);
-				max_pos = vec3_max(max_pos, verts[v].position);
+				void* block = ((u8*)source->vertices) + (target->geo.vertex_element_size * source->vertex_count);
+				vertex_3d* vert = block;
+				min_pos = vec3_min(min_pos, vert->position);
+				max_pos = vec3_max(max_pos, vert->position);
 			}
 
 			target->geo.extents.min = min_pos;
 			target->geo.extents.max = max_pos;
 			target->geo.center = extents_3d_center(target->geo.extents);
 
+			if (extents_3d_is_zero(target->geo.extents)) {
+				KWARN("Zero extents detected. Overriding with one.");
+				target->geo.extents = extents_3d_one();
+			}
+
 			// Upload the geometry.
 
 			// Standard data first.
-			u64 standard_vertex_size = sizeof(vertex_3d) * source->vertex_count;
+			u64 standard_vertex_size = target->geo.vertex_element_size * source->vertex_count;
 			u64 standard_vertex_offset = 0;
 			if (!renderer_renderbuffer_allocate(renderer_system, standard_vertex_buffer, standard_vertex_size, &target->geo.vertex_buffer_offset)) {
 				KERROR("Model system failed to allocate from the renderer's vertex buffer! Submesh geometry won't be uploaded (skipped)");
@@ -299,27 +277,6 @@ static void kasset_model_loaded(void* listener, kasset_model* asset) {
 				continue;
 			}
 
-			// Extended vertex data, if used.
-			u64 extended_vertex_size = sizeof(skinned_extended_vertex_3d) * source->vertex_count;
-			u64 extended_vertex_offset = 0;
-			if (is_animated && source->type == KASSET_MODEL_MESH_TYPE_SKINNED) {
-				if (!renderer_renderbuffer_allocate(renderer_system, extended_vertex_buffer, extended_vertex_size, &target->geo.extended_vertex_buffer_offset)) {
-					KERROR("Model system failed to allocate from the extended vertex buffer! Submesh geometry won't be uploaded (skipped)");
-					if (!renderer_renderbuffer_free(renderer_system, extended_vertex_buffer, standard_vertex_size, target->geo.extended_vertex_buffer_offset)) {
-						KERROR("Failed to recover from vertex write failure while freeing extended vertex buffer range.");
-					}
-					continue;
-				}
-				// TODO: Passing false here produces a queue wait and should be offloaded to another queue.
-				if (!renderer_renderbuffer_load_range(renderer_system, extended_vertex_buffer, target->geo.extended_vertex_buffer_offset + extended_vertex_offset, extended_vertex_size, target->geo.extended_vertices + extended_vertex_offset, false)) {
-					KERROR("Model system failed to upload to the extended vertex buffer!");
-					if (!renderer_renderbuffer_free(renderer_system, extended_vertex_buffer, standard_vertex_size, target->geo.extended_vertex_buffer_offset)) {
-						KERROR("Failed to recover from vertex write failure while freeing extended vertex buffer range.");
-					}
-					continue;
-				}
-			}
-
 			// Index data, if applicable
 			u64 index_size = (u64)(sizeof(u32) * source->index_count);
 			u64 index_offset = 0;
@@ -331,11 +288,6 @@ static void kasset_model_loaded(void* listener, kasset_model* asset) {
 					if (!renderer_renderbuffer_free(renderer_system, standard_vertex_buffer, standard_vertex_size, target->geo.vertex_buffer_offset)) {
 						KERROR("Failed to recover from index allocation failure while freeing vertex buffer range.");
 					}
-					if (is_animated && source->type == KASSET_MODEL_MESH_TYPE_SKINNED) {
-						if (!renderer_renderbuffer_free(renderer_system, extended_vertex_buffer, extended_vertex_size, target->geo.extended_vertex_buffer_offset)) {
-							KERROR("Failed to recover from index allocation failure while freeing vertex buffer range.");
-						}
-					}
 					continue;
 				}
 
@@ -346,11 +298,6 @@ static void kasset_model_loaded(void* listener, kasset_model* asset) {
 					// Free vertex data
 					if (!renderer_renderbuffer_free(renderer_system, standard_vertex_buffer, standard_vertex_size, target->geo.vertex_buffer_offset)) {
 						KERROR("Failed to recover from index write failure while freeing vertex buffer range.");
-					}
-					if (is_animated && source->type == KASSET_MODEL_MESH_TYPE_SKINNED) {
-						if (!renderer_renderbuffer_free(renderer_system, extended_vertex_buffer, extended_vertex_size, target->geo.extended_vertex_buffer_offset)) {
-							KERROR("Failed to recover from index allocation failure while freeing vertex buffer range.");
-						}
 					}
 					// Free index data
 					if (!renderer_renderbuffer_free(renderer_system, index_buffer, index_size, target->geo.index_buffer_offset)) {
@@ -581,12 +528,8 @@ void kmodel_instance_release(struct kmodel_system_state* state, kmodel_instance*
 		base->asset_name = INVALID_KNAME;
 		base->package_name = INVALID_KNAME;
 
-		/* KFREE_TYPE_CARRAY(inst->materials, kmaterial_instance, base->submesh_count);
-		inst->materials = KNULL; */
-
 		struct renderer_system_state* renderer_system = engine_systems_get()->renderer_system;
 		krenderbuffer standard_vertex_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_VERTEX_STANDARD));
-		krenderbuffer extended_vertex_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_VERTEX_EXTENDED));
 		krenderbuffer index_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_INDEX_STANDARD));
 
 		// Unload submeshes from GPU.
@@ -599,23 +542,12 @@ void kmodel_instance_release(struct kmodel_system_state* state, kmodel_instance*
 					KWARN("Failed to release standard vertex data for animated mesh. See logs for details.");
 				}
 
-				u64 extended_vert_buf_size = 0;
-				if (m->geo.extended_vertex_element_size) {
-					extended_vert_buf_size = m->geo.extended_vertex_element_size * m->geo.vertex_count;
-					if (!renderer_renderbuffer_free(renderer_system, extended_vertex_buffer, extended_vert_buf_size, m->geo.extended_vertex_buffer_offset)) {
-						KWARN("Failed to release extended vertex data for animated mesh. See logs for details.");
-					}
-				}
-
 				u64 index_buf_size = m->geo.index_element_size * m->geo.index_count;
 				if (!renderer_renderbuffer_free(renderer_system, index_buffer, index_buf_size, m->geo.index_buffer_offset)) {
 					KWARN("Failed to release index data for animated mesh. See logs for details.");
 				}
 
 				kfree(m->geo.vertices, standard_vert_buf_size, MEMORY_TAG_ARRAY);
-				if (extended_vert_buf_size) {
-					kfree(m->geo.extended_vertices, extended_vert_buf_size, MEMORY_TAG_ARRAY);
-				}
 				kfree(m->geo.indices, index_buf_size, MEMORY_TAG_ARRAY);
 			}
 

@@ -31,7 +31,7 @@
 #include "strings/kstring.h"
 #include "systems/kmodel_system.h"
 
-static void skinned_vertex_3d_defaults(kasset_skinned_vertex_3d* vert);
+static void skinned_vertex_3d_defaults(skinned_vertex_3d* vert);
 static void get_material_texture_data_by_type(kname package_name, const struct aiMaterial* material, enum aiTextureType texture_type, kasset_material* new_material, kmaterial_texture_input_config* input);
 static mat4 mat4_from_ai(const struct aiMatrix4x4* source);
 static b8 materials_from_assimp(const struct aiScene* scene, kname package_name, const char* output_directory, b8 force_pbr);
@@ -84,7 +84,7 @@ ai_import_cleanup:
 	return success;
 }
 
-static void skinned_vertex_3d_defaults(kasset_skinned_vertex_3d* vert) {
+static void skinned_vertex_3d_defaults(skinned_vertex_3d* vert) {
 	for (u8 i = 0; i < 4; ++i) {
 		vert->bone_ids.elements[i] = -1;
 		vert->weights.elements[i] = 0.0f;
@@ -610,7 +610,7 @@ static b8 anim_asset_from_assimp(const struct aiScene* scene, kname package_name
 
 			target->vertex_count = mesh->mNumVertices;
 			if (mesh->mNumBones) {
-				target->vertices = KALLOC_TYPE_CARRAY(kasset_skinned_vertex_3d, target->vertex_count);
+				target->vertices = KALLOC_TYPE_CARRAY(skinned_vertex_3d, target->vertex_count);
 			} else {
 				target->vertices = KALLOC_TYPE_CARRAY(vertex_3d, target->vertex_count);
 			}
@@ -624,7 +624,7 @@ static b8 anim_asset_from_assimp(const struct aiScene* scene, kname package_name
 				// Extract base vertex properties first.
 				vertex_3d* target_vert = 0;
 				if (mesh->mNumBones) {
-					kasset_skinned_vertex_3d* sv = &((kasset_skinned_vertex_3d*)target->vertices)[i];
+					skinned_vertex_3d* sv = &((skinned_vertex_3d*)target->vertices)[i];
 					target_vert = (vertex_3d*)sv;
 				} else {
 					target_vert = &((vertex_3d*)target->vertices)[i];
@@ -659,7 +659,7 @@ static b8 anim_asset_from_assimp(const struct aiScene* scene, kname package_name
 
 				// Extract bone data, if it exists.
 				if (mesh->mNumBones) {
-					kasset_skinned_vertex_3d* out_v = &((kasset_skinned_vertex_3d*)target->vertices)[i];
+					skinned_vertex_3d* out_v = &((skinned_vertex_3d*)target->vertices)[i];
 					kcopy_memory(out_v->bone_ids.elements, bone_data[i].bone_ids, sizeof(i32) * 4);
 					kcopy_memory(out_v->weights.elements, bone_data[i].weights, sizeof(f32) * 4);
 

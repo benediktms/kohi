@@ -79,7 +79,6 @@ typedef struct kforward_renderer {
 #endif
 
 	krenderbuffer standard_vertex_buffer;
-	krenderbuffer extended_vertex_buffer;
 	krenderbuffer index_buffer;
 
 } kforward_renderer;

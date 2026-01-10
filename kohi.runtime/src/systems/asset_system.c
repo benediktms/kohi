@@ -25,7 +25,6 @@
 
 #include "core/engine.h"
 #include "core_render_types.h"
-#include "math/math_types.h"
 #include "platform/vfs.h"
 
 typedef struct asset_watch {
@@ -620,7 +619,7 @@ void asset_system_release_model(struct asset_system_state* state, kasset_model* 
 		if (asset->submeshes && asset->submesh_count) {
 			for (u32 i = 0; i < asset->submesh_count; ++i) {
 				kasset_model_submesh_data* submesh = &asset->submeshes[i];
-				u64 vs = submesh->type == KASSET_MODEL_MESH_TYPE_STATIC ? sizeof(vertex_3d) : (sizeof(vertex_3d) + sizeof(skinned_extended_vertex_3d));
+				u64 vs = submesh->type == KASSET_MODEL_MESH_TYPE_STATIC ? sizeof(vertex_3d) : sizeof(skinned_vertex_3d);
 				if (submesh->vertices && submesh->vertex_count) {
 					kfree(submesh->vertices, vs * submesh->vertex_count, MEMORY_TAG_BINARY_DATA);
 				}
@@ -997,34 +996,40 @@ kasset_shader* asset_system_request_shader_from_package_sync(struct asset_system
 void asset_system_release_shader(struct asset_system_state* state, kasset_shader* asset) {
 	if (state && asset) {
 		// Asset type-specific data cleanup
-		// Stages
-		if (asset->stages && asset->stage_count) {
-			for (u32 i = 0; i < asset->stage_count; ++i) {
-				kasset_shader_stage* stage = &asset->stages[i];
-				if (stage->source_asset_name) {
-					string_free(stage->source_asset_name);
-				}
-				if (stage->package_name) {
-					string_free(stage->package_name);
-				}
-			}
-			kfree(asset->stages, sizeof(kasset_shader_stage) * asset->stage_count, MEMORY_TAG_ARRAY);
-			asset->stages = 0;
-			asset->stage_count = 0;
-		}
 
-		// Attributes
-		if (asset->attributes && asset->attribute_count) {
-			for (u32 i = 0; i < asset->attribute_count; ++i) {
-				kasset_shader_attribute* attrib = &asset->attributes[i];
-				if (attrib->name) {
-					string_free(attrib->name);
+		// Vertex pipelines
+		for (u8 pi = 0; pi < asset->pipeline_count; ++pi) {
+			kasset_shader_pipeline* p = &asset->pipelines[pi];
+			// Stages
+			if (p->stages && p->stage_count) {
+				for (u32 i = 0; i < p->stage_count; ++i) {
+					kasset_shader_stage* stage = &p->stages[i];
+					if (stage->source_asset_name) {
+						string_free(stage->source_asset_name);
+					}
+					if (stage->package_name) {
+						string_free(stage->package_name);
+					}
 				}
+				kfree(p->stages, sizeof(kasset_shader_stage) * p->stage_count, MEMORY_TAG_ARRAY);
+				p->stages = 0;
+				p->stage_count = 0;
 			}
-			kfree(asset->attributes, sizeof(kasset_shader_attribute) * asset->attribute_count, MEMORY_TAG_ARRAY);
-			asset->attributes = 0;
-			asset->attribute_count = 0;
+
+			// Attributes
+			if (p->attributes && p->attribute_count) {
+				for (u32 i = 0; i < p->attribute_count; ++i) {
+					kasset_shader_attribute* attrib = &p->attributes[i];
+					if (attrib->name) {
+						string_free(attrib->name);
+					}
+				}
+				kfree(p->attributes, sizeof(kasset_shader_attribute) * p->attribute_count, MEMORY_TAG_ARRAY);
+				p->attributes = 0;
+				p->attribute_count = 0;
+			}
 		}
+		KFREE_TYPE_CARRAY(asset->pipelines, kasset_shader_pipeline, asset->pipeline_count);
 
 		// binding sets
 		if (asset->binding_sets && asset->binding_set_count) {

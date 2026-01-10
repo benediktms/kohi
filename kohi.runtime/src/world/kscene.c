@@ -215,7 +215,6 @@ typedef u32 kgeometry_data_flags;
 // Holds geometry data required for rendering later on
 typedef struct kgeometry_data {
 	u64 vertex_offset;
-	u64 extended_vertex_offset;
 	u32 vertex_count;
 	u64 index_offset;
 	u32 index_count;
@@ -2588,7 +2587,6 @@ static kmaterial_render_data* kscene_get_model_render_data(
 			kgeometry_render_data rd = {
 				.vertex_count = geo->vertex_count,
 				.vertex_offset = geo->vertex_offset,
-				.extended_vertex_offset = geo->extended_vertex_offset,
 				.index_count = geo->index_count,
 				.index_offset = geo->index_offset,
 				.material_instance_id = geo->material_instance_id,
@@ -2986,7 +2984,6 @@ static void map_model_submesh_geometries(kscene* scene, kentity entity, u16 subm
 
 	// Extract the required data into a new entry into the global flat list.
 	new_geo->vertex_count = geo->vertex_count;
-	new_geo->extended_vertex_offset = geo->extended_vertex_buffer_offset;
 	new_geo->vertex_offset = geo->vertex_buffer_offset;
 	new_geo->index_count = geo->index_count;
 	new_geo->index_offset = geo->index_buffer_offset;

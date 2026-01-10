@@ -75,7 +75,6 @@ b8 kforward_renderer_create(ktexture colour_buffer, ktexture depth_stencil_buffe
 	out_renderer->material_renderer = systems->material_renderer;
 
 	out_renderer->standard_vertex_buffer = renderer_renderbuffer_get(out_renderer->renderer_state, kname_create(KRENDERBUFFER_NAME_VERTEX_STANDARD));
-	out_renderer->extended_vertex_buffer = renderer_renderbuffer_get(out_renderer->renderer_state, kname_create(KRENDERBUFFER_NAME_VERTEX_EXTENDED));
 	out_renderer->index_buffer = renderer_renderbuffer_get(out_renderer->renderer_state, kname_create(KRENDERBUFFER_NAME_INDEX_STANDARD));
 
 	// Shadow pass data
@@ -187,6 +186,7 @@ static void draw_geo_list(kforward_renderer* renderer, frame_data* p_frame_data,
 				.instance_id = geo->material_instance_id};
 
 			b8 is_animated = geo->animation_id != INVALID_ID_U16;
+			kmaterial_renderer_set_animated(renderer->material_renderer, is_animated);
 
 			kmaterial_render_immediate_data immediate_data = {
 				.view_index = view_index,
@@ -237,10 +237,6 @@ static void draw_geo_list(kforward_renderer* renderer, frame_data* p_frame_data,
 
 			KASSERT_DEBUG_MSG(
 				renderer_renderbuffer_draw(renderer->renderer_state, renderer->standard_vertex_buffer, geo->vertex_offset, geo->vertex_count, 0, includes_index_data),
-				"renderer_renderbuffer_draw failed to draw vertex buffer");
-
-			KASSERT_DEBUG_MSG(
-				renderer_renderbuffer_draw(renderer->renderer_state, renderer->extended_vertex_buffer, geo->extended_vertex_offset, geo->vertex_count, 1, includes_index_data),
 				"renderer_renderbuffer_draw failed to draw vertex buffer");
 
 			if (includes_index_data) {
@@ -315,7 +311,7 @@ static b8 scene_pass(
 
 		set_render_state_defaults(vp_rect);
 
-		kshader_system_use(renderer->forward_pass.sb_shader);
+		kshader_system_use(renderer->forward_pass.sb_shader, 0);
 
 		renderer_cull_mode_set(RENDERER_CULL_MODE_FRONT);
 
@@ -402,6 +398,9 @@ static b8 scene_pass(
 	if (water_plane_count && water_planes) {
 		renderer_begin_debug_label("water planes", (vec3){0, 0, 1});
 
+		// Water planes do not use animated geometry.
+		kmaterial_renderer_set_animated(renderer->material_renderer, false);
+
 		// Draw each plane.
 		for (u32 i = 0; i < water_plane_count; ++i) {
 
@@ -451,10 +450,6 @@ static b8 scene_pass(
 			// Draw based on vert/index data.
 			if (!renderer_renderbuffer_draw(renderer->renderer_state, renderer->standard_vertex_buffer, plane->plane_render_data.vertex_buffer_offset, 4, 0, true)) {
 				KERROR("Failed to bind standard vertex buffer data for water plane.");
-				return false;
-			}
-			if (!renderer_renderbuffer_draw(renderer->renderer_state, renderer->extended_vertex_buffer, 0, 4, 1, true)) {
-				KERROR("Failed to bind extended vertex buffer data for water plane.");
 				return false;
 			}
 			if (!renderer_renderbuffer_draw(renderer->renderer_state, renderer->index_buffer, plane->plane_render_data.index_buffer_offset, 6, 0, false)) {
@@ -622,7 +617,7 @@ b8 kforward_renderer_render_frame(kforward_renderer* renderer, frame_data* p_fra
 
 			// Shadow cascade begin render
 			renderer_begin_rendering(renderer->renderer_state, p_frame_data, render_area, 0, 0, renderer->shadow_pass.shadow_tex, p);
-			renderer_shader_use(renderer->renderer_state, renderer->shadow_pass.staticmesh_shader);
+			renderer_shader_use(renderer->renderer_state, renderer->shadow_pass.staticmesh_shader, 0);
 			set_render_state_defaults(render_area);
 
 			// Don't cull for the shadow pass
@@ -671,6 +666,9 @@ b8 kforward_renderer_render_frame(kforward_renderer* renderer, frame_data* p_fra
 
 					b8 is_animated = geo_data->animation_id != INVALID_ID_U16;
 
+					// Ensure the right vertex layout index is used.
+					kshader_system_use(renderer->shadow_pass.staticmesh_shader, is_animated ? 1 : 0);
+
 					// Set immediate data.
 					shadow_staticmesh_immediate_data immediate_data = {
 						.transform_index = geo_data->transform,
@@ -693,9 +691,6 @@ b8 kforward_renderer_render_frame(kforward_renderer* renderer, frame_data* p_fra
 						KERROR("renderer_renderbuffer_draw failed to draw standard vertex buffer;");
 						return false;
 					}
-					KASSERT_DEBUG_MSG(
-						renderer_renderbuffer_draw(renderer->renderer_state, renderer->extended_vertex_buffer, geo_data->extended_vertex_offset, geo_data->vertex_count, 1, includes_index_data),
-						"renderer_renderbuffer_draw failed to draw extended vertex buffer");
 					if (includes_index_data) {
 						if (!renderer_renderbuffer_draw(renderer->renderer_state, renderer->index_buffer, geo_data->index_offset, geo_data->index_count, 0, !includes_index_data)) {
 							KERROR("renderer_renderbuffer_draw failed to draw index buffer;");
@@ -728,6 +723,9 @@ b8 kforward_renderer_render_frame(kforward_renderer* renderer, frame_data* p_fra
 
 					b8 is_animated = geo_data->animation_id != INVALID_ID_U16;
 
+					// Ensure the right vertex layout index is used.
+					kshader_system_use(renderer->shadow_pass.staticmesh_shader, is_animated ? 1 : 0);
+
 					// Set immediate data.
 					shadow_staticmesh_immediate_data immediate_data = {
 						.transform_index = geo_data->transform,
@@ -750,9 +748,6 @@ b8 kforward_renderer_render_frame(kforward_renderer* renderer, frame_data* p_fra
 						KERROR("renderer_renderbuffer_draw failed to draw standard vertex buffer;");
 						return false;
 					}
-					KASSERT_DEBUG_MSG(
-						renderer_renderbuffer_draw(renderer->renderer_state, renderer->extended_vertex_buffer, geo_data->extended_vertex_offset, geo_data->vertex_count, 1, includes_index_data),
-						"renderer_renderbuffer_draw failed to draw extended vertex buffer");
 					if (includes_index_data) {
 						if (!renderer_renderbuffer_draw(renderer->renderer_state, renderer->index_buffer, geo_data->index_offset, geo_data->index_count, 0, !includes_index_data)) {
 							KERROR("renderer_renderbuffer_draw failed to draw index buffer;");
@@ -768,7 +763,7 @@ b8 kforward_renderer_render_frame(kforward_renderer* renderer, frame_data* p_fra
 			}
 
 			// Heightmap Terrain - use the terrain shadowmap shader.
-			kshader_system_use(renderer->shadow_pass.hmt_shader);
+			kshader_system_use(renderer->shadow_pass.hmt_shader, 0);
 			renderer_cull_mode_set(RENDERER_CULL_MODE_NONE);
 
 			// Apply the global binding set.
@@ -792,10 +787,6 @@ b8 kforward_renderer_render_frame(kforward_renderer* renderer, frame_data* p_fra
 						KERROR("renderer_renderbuffer_draw failed to draw vertex buffer;");
 						return false;
 					}
-					// FIXME: split terrain vertices.
-					KASSERT_DEBUG_MSG(
-						renderer_renderbuffer_draw(renderer->renderer_state, renderer->extended_vertex_buffer, chunk->extended_vertex_offset, chunk->vertex_count, 1, true),
-						"renderer_renderbuffer_draw failed to draw extended vertex buffer");
 					if (!renderer_renderbuffer_draw(renderer->renderer_state, renderer->index_buffer, chunk->index_offset, chunk->index_count, 0, false)) {
 						KERROR("renderer_renderbuffer_draw failed to draw index buffer;");
 						return false;
@@ -996,7 +987,7 @@ b8 kforward_renderer_render_frame(kforward_renderer* renderer, frame_data* p_fra
 			renderer_set_depth_write_enabled(true);
 			renderer_set_stencil_test_enabled(false);
 
-			kshader_system_use_with_topology(renderer->world_debug_pass.debug_shader, PRIMITIVE_TOPOLOGY_TYPE_LINE_LIST_BIT);
+			kshader_system_use_with_topology(renderer->world_debug_pass.debug_shader, PRIMITIVE_TOPOLOGY_TYPE_LINE_LIST_BIT, 0);
 
 			// Global UBO data
 			world_debug_global_ubo global_ubo_data = {
@@ -1030,7 +1021,7 @@ b8 kforward_renderer_render_frame(kforward_renderer* renderer, frame_data* p_fra
 
 			// Render the grid, but using the colour shader.
 			{
-				kshader_system_use_with_topology(renderer->world_debug_pass.colour_shader, PRIMITIVE_TOPOLOGY_TYPE_LINE_LIST_BIT);
+				kshader_system_use_with_topology(renderer->world_debug_pass.colour_shader, PRIMITIVE_TOPOLOGY_TYPE_LINE_LIST_BIT, 0);
 				renderer_cull_mode_set(RENDERER_CULL_MODE_NONE);
 
 				// Global UBO data

@@ -195,8 +195,6 @@ typedef struct shader_attribute {
 	shader_attribute_type type;
 	/** @brief The attribute size in bytes. */
 	u32 size;
-	/** @brief The vertex binding index of this attribute. */
-	u32 binding_index;
 } shader_attribute;
 
 /**
@@ -236,34 +234,6 @@ typedef enum shader_state {
 	SHADER_STATE_INITIALIZED,
 } shader_state;
 
-struct kresource_text;
-
-/**
- * @brief The configuration for a single stage of the shader.
- */
-typedef struct shader_stage_config {
-	/** @brief The shader stage the config is for. */
-	shader_stage stage;
-	/** @brief A pointer to the text resource containing the shader source. */
-	struct kresource_text* resource;
-	/** @brief The name of the resource. */
-	kname resource_name;
-	/** @brief The name of the package containing the resource. */
-	kname package_name;
-} shader_stage_config;
-
-/** @brief Configuration for an attribute. */
-typedef struct shader_attribute_config {
-	/** @brief The name of the attribute. */
-	kname name;
-	/** @brief The size of the attribute. */
-	u8 size;
-	/** @brief The type of the attribute. */
-	shader_attribute_type type;
-	/** @brief The vertex binding index for this attribute. */
-	u32 binding_index;
-} shader_attribute_config;
-
 typedef enum shader_binding_type {
 	SHADER_BINDING_TYPE_UBO,
 	SHADER_BINDING_TYPE_SSBO,
@@ -296,6 +266,25 @@ typedef struct shader_binding_set_config {
 	u8 ssbo_count;
 	shader_binding_config* bindings;
 } shader_binding_set_config;
+
+typedef struct shader_pipeline_config {
+
+	u8 attribute_count;
+	/** @brief An array of attributes. */
+	shader_attribute* attributes;
+
+	/** @brief The size of all attributes combined, a.k.a. the size of a vertex. */
+	u16 attribute_stride;
+
+	u8 stage_count;
+
+	// Array of stages.
+	shader_stage* stages;
+	// Array of names of stage assets.
+	kname* stage_names;
+	// Array of source text for stages. Matches size of stage_source_text_resources;
+	const char** stage_sources;
+} shader_pipeline_config;
 
 /**
  * @brief Represents a texture to be used for rendering purposes,

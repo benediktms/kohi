@@ -57,6 +57,8 @@ Changelog
   - Moved renderer from game code to a newly-defined kforward_renderer in the runtime.
   - Moved scene from game code to a newly-defined kscene in the runtime.
   - Moved editor from game code to the kohi utils plugin.
+  - Added ability to have multiple vertex layouts per shader, with each specifying said layout in the shader config.
+    This allows for the same fragment shader to be used across multiple vertex layouts (i.e. for skinned vs static vs terrain/blended geometry).
 
 - 0.10.0
   - Combined asset_image_format and texture_format into a single kpixel_format which is used for both.

@@ -18,33 +18,16 @@
 #include "systems/asset_system.h"
 #include "systems/texture_system.h"
 
-/**
- * @brief Represents a shader on the frontend. This is internal to the shader system.
- */
-typedef struct kshader_data {
+typedef struct kshader_pipeline_data {
 
-	kname name;
-
-	shader_flag_bits flags;
-
-	/** @brief The types of topologies used by the shader and its pipeline. See primitive_topology_type. */
-	primitive_topology_type_bits topology_types;
-	primitive_topology_type default_topology;
-
-	/** @brief An array of attributes. Darray. */
+	u8 attribute_count;
+	/** @brief An array of attributes. */
 	shader_attribute* attributes;
 
 	/** @brief The size of all attributes combined, a.k.a. the size of a vertex. */
 	u16 attribute_stride;
 
 	u8 shader_stage_count;
-	shader_stage_config* stage_configs;
-
-	/** @brief The internal state of the shader. */
-	shader_state state;
-
-	// A constant pointer to the shader config asset.
-	const kasset_shader* shader_asset;
 
 	// Array of stages.
 	shader_stage* stages;
@@ -58,6 +41,29 @@ typedef struct kshader_data {
 	const char** stage_sources;
 	// Array of file watch ids, one per stage.
 	u32* watch_ids;
+} kshader_pipeline_data;
+
+/**
+ * @brief Represents a shader on the frontend. This is internal to the shader system.
+ */
+typedef struct kshader_data {
+
+	kname name;
+
+	shader_flag_bits flags;
+
+	/** @brief The types of topologies used by the shader and its pipeline. See primitive_topology_type. */
+	primitive_topology_type_bits topology_types;
+	primitive_topology_type default_topology;
+
+	/** @brief The internal state of the shader. */
+	shader_state state;
+
+	// A constant pointer to the shader config asset.
+	const kasset_shader* shader_asset;
+
+	u8 pipeline_count;
+	kshader_pipeline_data* pipelines;
 
 } kshader_data;
 
@@ -83,7 +89,6 @@ typedef struct kshader_system_state {
 // FIXME: Get rid of this and all references to it and use the engine_systems_get() instead where needed.
 static kshader_system_state* state_ptr = 0;
 
-static b8 internal_attribute_add(kshader_data* shader, const shader_attribute_config* config);
 static kshader generate_new_shader_handle(void);
 static kshader shader_create(const kasset_shader* asset);
 static b8 shader_reload(kshader_data* shader, kshader shader_handle);
@@ -107,18 +112,22 @@ static b8 file_watch_event(u16 code, void* sender, void* listener_inst, event_co
 
 			b8 reload_required = false;
 
-			for (u32 w = 0; w < shader->shader_stage_count; ++w) {
-				if (shader->watch_ids[w] == watch_id) {
-					// Replace the existing shader stage source with the new.
-					if (shader->stage_sources[w]) {
-						string_free(shader->stage_sources[w]);
-					}
-					shader->stage_sources[w] = string_duplicate(shader_source_asset->content);
+			for (u8 pi = 0; pi < shader->pipeline_count; ++pi) {
+				kshader_pipeline_data* pipeline = &shader->pipelines[pi];
 
-					// Release the asset.
-					asset_system_release_text(engine_systems_get()->asset_state, shader_source_asset);
-					reload_required = true;
-					break;
+				for (u32 w = 0; w < pipeline->shader_stage_count; ++w) {
+					if (pipeline->watch_ids[w] == watch_id) {
+						// Replace the existing shader stage source with the new.
+						if (pipeline->stage_sources[w]) {
+							string_free(pipeline->stage_sources[w]);
+						}
+						pipeline->stage_sources[w] = string_duplicate(shader_source_asset->content);
+
+						// Release the asset.
+						asset_system_release_text(engine_systems_get()->asset_state, shader_source_asset);
+						reload_required = true;
+						break;
+					}
 				}
 			}
 
@@ -300,26 +309,26 @@ b8 kshader_system_set_wireframe(kshader shader, b8 wireframe_enabled) {
 	return true;
 }
 
-b8 kshader_system_use(kshader shader) {
+b8 kshader_system_use(kshader shader, u8 vertex_layout_index) {
 	if (shader == KSHADER_INVALID) {
 		KERROR("Invalid shader passed.");
 		return false;
 	}
 	kshader_data* next_shader = &state_ptr->shaders[shader];
-	if (!renderer_shader_use(state_ptr->renderer, shader)) {
+	if (!renderer_shader_use(state_ptr->renderer, shader, vertex_layout_index)) {
 		KERROR("Failed to use shader '%s'.", next_shader->name);
 		return false;
 	}
 	return true;
 }
 
-b8 kshader_system_use_with_topology(kshader shader, primitive_topology_type topology) {
+b8 kshader_system_use_with_topology(kshader shader, primitive_topology_type topology, u8 vertex_layout_index) {
 	if (shader == KSHADER_INVALID) {
 		KERROR("Invalid shader passed.");
 		return false;
 	}
 	kshader_data* next_shader = &state_ptr->shaders[shader];
-	if (!renderer_shader_use_with_topology(state_ptr->renderer, shader, topology)) {
+	if (!renderer_shader_use_with_topology(state_ptr->renderer, shader, topology, vertex_layout_index)) {
 		KERROR("Failed to use shader '%s'.", next_shader->name);
 		return false;
 	}
@@ -362,21 +371,6 @@ static kshader generate_new_shader_handle(void) {
 	}
 	return KSHADER_INVALID;
 }
-static b8 internal_attribute_add(kshader_data* shader, const shader_attribute_config* config) {
-	u32 size = size_from_shader_attribute_type(config->type);
-
-	shader->attribute_stride += size;
-
-	// Create/push the attribute.
-	shader_attribute attrib = {};
-	attrib.name = config->name;
-	attrib.size = size;
-	attrib.type = config->type;
-	attrib.binding_index = config->binding_index;
-	darray_push(shader->attributes, attrib);
-
-	return true;
-}
 
 static kshader shader_create(const kasset_shader* asset) {
 	kshader new_handle = generate_new_shader_handle();
@@ -385,15 +379,13 @@ static kshader shader_create(const kasset_shader* asset) {
 		return new_handle;
 	}
 
+	struct asset_system_state* asset_state = engine_systems_get()->asset_state;
+
 	kshader_data* out_shader = &state_ptr->shaders[new_handle];
 	kzero_memory(out_shader, sizeof(kshader));
 	// Sync handle uniqueid
 	out_shader->state = SHADER_STATE_NOT_CREATED;
 	out_shader->name = asset->name;
-	out_shader->attribute_stride = 0;
-	out_shader->shader_stage_count = asset->stage_count;
-	out_shader->stage_configs = kallocate(sizeof(shader_stage_config) * asset->stage_count, MEMORY_TAG_ARRAY);
-	out_shader->attributes = darray_create(shader_attribute);
 
 	// Take a copy of the flags.
 	// Build up flags.
@@ -423,88 +415,138 @@ static kshader shader_create(const kasset_shader* asset) {
 		out_shader->flags = FLAG_SET(out_shader->flags, SHADER_FLAG_WIREFRAME_BIT, true);
 	}
 
-	// Save off a pointer to the config resource.
-	out_shader->shader_asset = asset;
-
-	// Create arrays to track stage "text" resources.
-	out_shader->stages = KALLOC_TYPE_CARRAY(shader_stage, out_shader->shader_stage_count);
-	out_shader->stage_source_text_assets = KALLOC_TYPE_CARRAY(kasset_text*, out_shader->shader_stage_count);
-	out_shader->stage_source_text_generations = KALLOC_TYPE_CARRAY(u32, out_shader->shader_stage_count);
-	out_shader->stage_names = KALLOC_TYPE_CARRAY(kname, out_shader->shader_stage_count);
-	out_shader->stage_sources = KALLOC_TYPE_CARRAY(const char*, out_shader->shader_stage_count);
-	out_shader->watch_ids = KALLOC_TYPE_CARRAY(u32, out_shader->shader_stage_count);
-
-	struct asset_system_state* asset_state = engine_systems_get()->asset_state;
-
-	// Process stages.
-	for (u8 i = 0; i < asset->stage_count; ++i) {
-		out_shader->stages[i] = asset->stages[i].type;
-		// Request the text asset for each stage synchronously.
-		out_shader->stage_source_text_assets[i] = asset_system_request_text_from_package_sync(asset_state, asset->stages[i].package_name, asset->stages[i].source_asset_name);
-		// Take a copy of the generation for later comparison.
-		out_shader->stage_source_text_generations[i] = 0; // TODO: generation? // out_shader->stage_source_text_assets[i].generation;
-
-		out_shader->stage_names[i] = kname_create(asset->stages[i].source_asset_name);
-		out_shader->stage_sources[i] = string_duplicate(out_shader->stage_source_text_assets[i]->content);
-
-		// Watch source file for hot-reload.
-		out_shader->watch_ids[i] = asset_system_watch_for_reload(asset_state, KASSET_TYPE_TEXT, out_shader->stage_names[i], kname_create(asset->stages[i].package_name));
-	}
-
 	// Keep a copy of the topology types.
 	out_shader->topology_types = asset->topology_types;
 	out_shader->default_topology = asset->default_topology;
 
+	// Save off a pointer to the config resource.
+	out_shader->shader_asset = asset;
+
+	out_shader->pipeline_count = asset->pipeline_count;
+	out_shader->pipelines = KALLOC_TYPE_CARRAY(kshader_pipeline_data, out_shader->pipeline_count);
+	shader_pipeline_config* pipeline_configs = KALLOC_TYPE_CARRAY(shader_pipeline_config, out_shader->pipeline_count);
+	for (u8 pi = 0; pi < out_shader->pipeline_count; ++pi) {
+		kasset_shader_pipeline* ap = &asset->pipelines[pi];
+		kshader_pipeline_data* p = &out_shader->pipelines[pi];
+		shader_pipeline_config* pc = &pipeline_configs[pi];
+
+		p->attribute_stride = 0;
+		p->attribute_count = ap->attribute_count;
+		p->attributes = KALLOC_TYPE_CARRAY(shader_attribute, p->attribute_count);
+
+		// Create arrays to track stage "text" resources.
+		p->shader_stage_count = ap->stage_count;
+		p->stages = KALLOC_TYPE_CARRAY(shader_stage, ap->stage_count);
+		p->stage_source_text_assets = KALLOC_TYPE_CARRAY(kasset_text*, ap->stage_count);
+		p->stage_source_text_generations = KALLOC_TYPE_CARRAY(u32, ap->stage_count);
+		p->stage_names = KALLOC_TYPE_CARRAY(kname, ap->stage_count);
+		p->stage_sources = KALLOC_TYPE_CARRAY(const char*, ap->stage_count);
+		p->watch_ids = KALLOC_TYPE_CARRAY(u32, ap->stage_count);
+
+		// Process stages.
+		for (u8 i = 0; i < ap->stage_count; ++i) {
+			p->stages[i] = ap->stages[i].type;
+			// Request the text asset for each stage synchronously.
+			p->stage_source_text_assets[i] = asset_system_request_text_from_package_sync(asset_state, ap->stages[i].package_name, ap->stages[i].source_asset_name);
+			// Take a copy of the generation for later comparison.
+			p->stage_source_text_generations[i] = 0; // TODO: generation? // out_shader->stage_source_text_assets[i].generation;
+
+			p->stage_names[i] = kname_create(ap->stages[i].source_asset_name);
+			p->stage_sources[i] = string_duplicate(p->stage_source_text_assets[i]->content);
+
+			// Watch source file for hot-reload.
+			p->watch_ids[i] = asset_system_watch_for_reload(asset_state, KASSET_TYPE_TEXT, p->stage_names[i], kname_create(ap->stages[i].package_name));
+		}
+
+		// Process attributes
+		for (u32 i = 0; i < p->attribute_count; ++i) {
+			kasset_shader_attribute* aa = &ap->attributes[i];
+
+			shader_attribute* a = &p->attributes[i];
+			a->name = kname_create(aa->name);
+			a->type = aa->type;
+			a->size = size_from_shader_attribute_type(a->type);
+
+			p->attribute_stride += a->size;
+		}
+
+		pc->attribute_count = p->attribute_count;
+		KDUPLICATE_TYPE_CARRAY(pc->attributes, p->attributes, shader_attribute, p->attribute_count);
+		pc->attribute_stride = p->attribute_stride;
+
+		pc->stage_count = p->shader_stage_count;
+		KDUPLICATE_TYPE_CARRAY(pc->stages, p->stages, shader_stage, p->shader_stage_count);
+		KDUPLICATE_TYPE_CARRAY(pc->stage_names, p->stage_names, kname, p->shader_stage_count);
+		// Shallow copy of the array of strings.
+		KDUPLICATE_TYPE_CARRAY(pc->stage_sources, p->stage_sources, const char*, p->shader_stage_count);
+	}
+
 	// Ready to be initialized.
 	out_shader->state = SHADER_STATE_UNINITIALIZED;
 
-	// Process attributes
-	for (u32 i = 0; i < asset->attribute_count; ++i) {
-		kasset_shader_attribute* a = &asset->attributes[i];
-		shader_attribute_config ac = {
-			.type = a->type,
-			.name = kname_create(a->name),
-			.size = size_from_shader_attribute_type(a->type),
-			.binding_index = a->binding_index};
-		if (!internal_attribute_add(out_shader, &ac)) {
-			KERROR("Failed to add attribute '%s' to shader '%s'.", ac.name, out_shader->name);
-			return KSHADER_INVALID;
-		}
-	}
-
 	// Create renderer-internal resources.
-	if (!renderer_shader_create(
-			state_ptr->renderer,
-			new_handle,
-			out_shader->name,
-			out_shader->flags,
-			out_shader->topology_types,
-			out_shader->default_topology,
-			out_shader->shader_stage_count,
-			out_shader->stages,
-			out_shader->stage_names,
-			out_shader->stage_sources,
-			darray_length(out_shader->attributes),
-			out_shader->attributes,
-			asset->binding_set_count,
-			asset->binding_sets)) {
-		KERROR("Error creating shader.");
-		return KSHADER_INVALID;
-	}
+	b8 result = renderer_shader_create(
+		state_ptr->renderer,
+		new_handle,
+		out_shader->name,
+		out_shader->flags,
+		out_shader->topology_types,
+		out_shader->default_topology,
+		out_shader->pipeline_count,
+		pipeline_configs,
+		asset->binding_set_count,
+		asset->binding_sets);
 
+	// Cleanup config.
+	for (u8 pi = 0; pi < out_shader->pipeline_count; ++pi) {
+		shader_pipeline_config* pc = &pipeline_configs[pi];
+		KFREE_TYPE_CARRAY(pc->attributes, shader_attribute, pc->attribute_count);
+
+		KFREE_TYPE_CARRAY(pc->stages, shader_stage, pc->stage_count);
+		KFREE_TYPE_CARRAY(pc->stage_names, kname, pc->stage_count);
+		// NOTE: was just a shallow copy of strings that need to be kept, so only get rid of the array.
+		KFREE_TYPE_CARRAY(pc->stage_sources, const char*, pc->stage_count);
+	}
+	KFREE_TYPE_CARRAY(pipeline_configs, shader_pipeline_config, out_shader->pipeline_count);
+
+	if (!result) {
+		KERROR("Error creating shader.");
+		new_handle = KSHADER_INVALID;
+	}
 	return new_handle;
 }
 
 static b8 shader_reload(kshader_data* shader, kshader shader_handle) {
 
-	// Check each shader stage generation for out-of-sync.
-	for (u8 i = 0; i < shader->shader_stage_count; ++i) {
-		// FIXME: shader generation sync.
-		/* if (shader->stage_source_text_generations[i] != shader->stage_source_text_assets[i]->base.generation) {
-			// Sync the generations.
-			shader->stage_source_text_generations[i] = shader->stage_source_text_assets[i]->base.generation;
-		} */
+	shader_pipeline_config* pipeline_configs = KALLOC_TYPE_CARRAY(shader_pipeline_config, shader->pipeline_count);
+	for (u8 pi = 0; pi < shader->pipeline_count; ++pi) {
+		kshader_pipeline_data* p = &shader->pipelines[pi];
+		shader_pipeline_config* pc = &pipeline_configs[pi];
+
+		pc->attribute_count = p->attribute_count;
+		KDUPLICATE_TYPE_CARRAY(pc->attributes, p->attributes, shader_attribute, p->attribute_count);
+		pc->attribute_stride = p->attribute_stride;
+
+		pc->stage_count = p->shader_stage_count;
+		KDUPLICATE_TYPE_CARRAY(pc->stages, p->stages, shader_stage, p->shader_stage_count);
+		KDUPLICATE_TYPE_CARRAY(pc->stage_names, p->stage_names, kname, p->shader_stage_count);
+		// Shallow copy of the array of strings.
+		KDUPLICATE_TYPE_CARRAY(pc->stage_sources, p->stage_sources, const char*, p->shader_stage_count);
 	}
 
-	return renderer_shader_reload(state_ptr->renderer, shader_handle, shader->shader_stage_count, shader->stages, shader->stage_names, shader->stage_sources);
+	b8 result = renderer_shader_reload(state_ptr->renderer, shader_handle, shader->pipeline_count, pipeline_configs);
+
+	// Cleanup config.
+	for (u8 pi = 0; pi < shader->pipeline_count; ++pi) {
+		shader_pipeline_config* pc = &pipeline_configs[pi];
+		KFREE_TYPE_CARRAY(pc->attributes, shader_attribute, pc->attribute_count);
+
+		KFREE_TYPE_CARRAY(pc->stages, shader_stage, pc->stage_count);
+		KFREE_TYPE_CARRAY(pc->stage_names, kname, pc->stage_count);
+		// NOTE: was just a shallow copy of strings that need to be kept, so only get rid of the array.
+		KFREE_TYPE_CARRAY(pc->stage_sources, const char*, pc->stage_count);
+	}
+	KFREE_TYPE_CARRAY(pipeline_configs, shader_pipeline_config, shader->pipeline_count);
+
+	return result;
 }

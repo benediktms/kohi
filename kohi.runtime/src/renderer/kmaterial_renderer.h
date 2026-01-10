@@ -157,6 +157,8 @@ typedef struct kmaterial_renderer {
 
 	// Runtime package name pre-hashed and kept here for convenience.
 	kname runtime_package_name;
+
+	b8 current_uses_animated;
 } kmaterial_renderer;
 
 KAPI b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material_count, u32 max_material_instance_count);
@@ -174,6 +176,7 @@ KAPI void kmaterial_renderer_apply_globals(kmaterial_renderer* state);
 
 // Updates and binds base material.
 KAPI void kmaterial_renderer_bind_base(kmaterial_renderer* state, kmaterial base);
+KAPI void kmaterial_renderer_set_animated(kmaterial_renderer* state, b8 is_animated);
 
 // Updates material instance immediates using the provided data.
 KAPI void kmaterial_renderer_apply_immediates(kmaterial_renderer* state, kmaterial_instance instance, const kmaterial_render_immediate_data* immediates);

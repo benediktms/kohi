@@ -20,6 +20,9 @@ layout(location = 1) in vec3 in_normal;
 layout(location = 2) in vec2 in_texcoord;
 layout(location = 3) in vec4 in_colour;
 layout(location = 4) in vec4 in_tangent;
+// Extended vertex data
+layout(location = 5) in ivec4 in_bone_ids;
+layout(location = 6) in vec4 in_weights;
 
 layout(set = 0, binding = 0) uniform global_ubo_data {
     mat4 view_projections[MAX_CASCADES];
@@ -53,7 +56,17 @@ layout(location = 1) out struct dto {
 
 void main() {
     mat4 model = global_transforms.transforms[immediate.transform_index];
+    animation_skin_data skin = global_animations.animations[immediate.animation_index];
+    mat4 bones[] = skin.bones;
     out_dto.tex_coord = in_texcoord;
 
-    gl_Position = global_ubo.view_projections[immediate.cascade_index] * model * vec4(in_position, 1.0);
+    // Accumulate bone transform.
+    mat4 bone_transform = mat4(1.0);
+    float gt = clamp(immediate.geo_type, 0.0, 1.0);
+    bone_transform += (bones[in_bone_ids[0]] * in_weights[0]) * gt;
+    bone_transform += (bones[in_bone_ids[1]] * in_weights[1]) * gt;
+    bone_transform += (bones[in_bone_ids[2]] * in_weights[2]) * gt;
+    bone_transform += (bones[in_bone_ids[3]] * in_weights[3]) * gt;
+
+    gl_Position = global_ubo.view_projections[immediate.cascade_index] * model * bone_transform * vec4(in_position, 1.0);
 }

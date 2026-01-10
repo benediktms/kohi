@@ -51,30 +51,6 @@ assets = [
         path = "assets/shaders/Shader.PBR_Terrain_vert.glsl"
     }
     {
-        name = "Shader.Pick_StaticMesh"
-        path = "assets/shaders/Shader.Pick_StaticMesh.ksc"
-    }
-    {
-        name = "Shader.Pick_StaticMesh_frag"
-        path = "assets/shaders/Shader.Pick_StaticMesh_frag.glsl"
-    }
-    {
-        name = "Shader.Pick_StaticMesh_vert"
-        path = "assets/shaders/Shader.Pick_StaticMesh_vert.glsl"
-    }
-    {
-        name = "Shader.Pick_Terrain"
-        path = "assets/shaders/Shader.Pick_Terrain.ksc"
-    }
-    {
-        name = "Shader.Pick_Terrain_frag"
-        path = "assets/shaders/Shader.Pick_Terrain_frag.glsl"
-    }
-    {
-        name = "Shader.Pick_Terrain_vert"
-        path = "assets/shaders/Shader.Pick_Terrain_vert.glsl"
-    }
-    {
         name = "Shader.Shadow_Model"
         path = "assets/shaders/Shader.Shadow_Model.ksc"
     }
@@ -85,6 +61,10 @@ assets = [
     {
         name = "Shader.Shadow_Model_vert"
         path = "assets/shaders/Shader.Shadow_Model_vert.glsl"
+    }
+    {
+        name = "Shader.Shadow_ModelSkinned_vert"
+        path = "assets/shaders/Shader.Shadow_ModelSkinned_vert.glsl"
     }
     {
         name = "Shader.Shadow_Terrain"
@@ -109,14 +89,6 @@ assets = [
     {
         name = "Shader.Skybox_vert"
         path = "assets/shaders/Shader.Skybox_vert.glsl"
-    }
-    {
-        name = "Shader.MaterialWater_frag"
-        path = "assets/shaders/Shader.MaterialWater_frag.glsl"
-    }
-    {
-        name = "Shader.MaterialWater_vert"
-        path = "assets/shaders/Shader.MaterialWater_vert.glsl"
     }
     {
         name = "Texture.DefaultWaterDUDV"

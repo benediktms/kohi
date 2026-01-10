@@ -292,6 +292,7 @@ typedef struct vulkan_command_buffer {
  * @brief Represents a single shader stage.
  */
 typedef struct vulkan_shader_stage {
+	shader_stage stage;
 	/** @brief The shader module creation info. */
 	VkShaderModuleCreateInfo create_info;
 	/** @brief The internal shader module handle. */
@@ -307,14 +308,42 @@ typedef enum vulkan_topology_class {
 	VULKAN_TOPOLOGY_CLASS_MAX = VULKAN_TOPOLOGY_CLASS_TRIANGLE + 1
 } vulkan_topology_class;
 
-typedef struct vulkan_vertex_binding_attrib_config {
+/**
+ * @brief Holds a Vulkan pipeline and its layout.
+ */
+typedef struct vulkan_pipeline {
+	/** @brief The internal pipeline handle. */
+	VkPipeline handle;
+	/** @brief The pipeline layout. */
+	VkPipelineLayout pipeline_layout;
+	/** @brief Indicates the topology types used by this pipeline. See primitive_topology_type.*/
+	primitive_topology_type_bits supported_topology_types;
+} vulkan_pipeline;
+
+typedef struct vulkan_vertex_layout_pipeline {
+	/** @brief The number of stages in this vertex layout (vertex, fragment, etc). */
+	u8 stage_count;
+	vulkan_shader_stage* stages;
+	VkPipelineShaderStageCreateInfo* stage_create_infos;
+	// Shallow copy of config'd stage sources.
+	const char** stage_sources;
+
 	/** @brief The stride of the vertex data to be used (ex: sizeof(vertex_3d)) */
-	u32 stride;
+	u32 attribute_stride;
 	/** @brief The number of attributes. */
 	u32 attribute_count;
 	/** @brief An array of attributes. */
 	VkVertexInputAttributeDescription* attributes;
-} vulkan_vertex_binding_attrib_config;
+
+	/** @brief An array of pipelines associated with this vertex layout (one per topology class). */
+	vulkan_pipeline* pipelines;
+	/** @brief An array of wireframe pipelines associated with this vertex layout (one per topology class). */
+	vulkan_pipeline* wireframe_pipelines;
+
+	/** @brief The currently bound pipeline index. */
+	u8 bound_pipeline_index;
+	u8 default_pipeline_index;
+} vulkan_vertex_layout_pipeline;
 
 /**
  * @brief A configuration structure for Vulkan pipelines.
@@ -322,19 +351,22 @@ typedef struct vulkan_vertex_binding_attrib_config {
 typedef struct vulkan_pipeline_config {
 	/** @brief The name of the pipeline. Used primarily for debugging purposes. */
 	char* name;
-	/** @brief The number of vertex bidings. */
-	u32 vertex_binding_count;
-	/** @brief The vertex biding configs. */
-	vulkan_vertex_binding_attrib_config* vertex_bindings;
+	/** @brief The number of stages in this vertex layout (vertex, fragment, etc). */
+	u8 stage_count;
+	vulkan_shader_stage* stages;
+	VkPipelineShaderStageCreateInfo* stage_create_infos;
+
+	/** @brief The stride of the vertex data to be used (ex: sizeof(vertex_3d)) */
+	u32 attribute_stride;
+	/** @brief The number of attributes. */
+	u32 attribute_count;
+	/** @brief An array of attributes. */
+	VkVertexInputAttributeDescription* attributes;
+
 	/** @brief The number of descriptor set layouts. */
 	u32 descriptor_set_layout_count;
 	/** @brief An array of descriptor set layouts. */
 	VkDescriptorSetLayout* descriptor_set_layouts;
-	/** @brief The number of stages (vertex, fragment, etc). */
-	u32 stage_count;
-	/** @brief An VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BITarray of stages. */
-	VkPipelineShaderStageCreateInfo* stages;
-	/** @brief The shader flags used for creating the pipeline. */
 	u32 shader_flags;
 	/** @brief The number of push constant data ranges. */
 	u32 push_constant_range_count;
@@ -350,18 +382,6 @@ typedef struct vulkan_pipeline_config {
 	VkFormat depth_attachment_format;
 	VkFormat stencil_attachment_format;
 } vulkan_pipeline_config;
-
-/**
- * @brief Holds a Vulkan pipeline and its layout.
- */
-typedef struct vulkan_pipeline {
-	/** @brief The internal pipeline handle. */
-	VkPipeline handle;
-	/** @brief The pipeline layout. */
-	VkPipelineLayout pipeline_layout;
-	/** @brief Indicates the topology types used by this pipeline. See primitive_topology_type.*/
-	primitive_topology_type_bits supported_topology_types;
-} vulkan_pipeline;
 
 /**
  * @brief Put some hard limits in place for the count of supported textures,
@@ -536,21 +556,11 @@ typedef struct vulkan_shader {
 	/** @brief Binding set states, matches binding set count. */
 	vulkan_shader_binding_set_state* binding_set_states;
 
-	/** @brief The number of vertex bindings in the shader. */
-	u32 vertex_binding_count;
-	vulkan_vertex_binding_attrib_config* vertex_bindings;
-
 	/** @brief The topology types for the shader pipeline. See primitive_topology_type. Defaults to "triangle list" if unspecified. */
 	primitive_topology_type topology_types;
 
 	// The size of the immediates block of memory
 	u8 immediate_size;
-
-	/** @brief The number of shader stages in this shader. */
-	u8 stage_count;
-
-	/** @brief An array of stages (such as vertex and fragment) for this shader. Count is located in config.*/
-	vulkan_shader_stage stages[VULKAN_SHADER_MAX_STAGES];
 
 	u32 pool_size_count;
 
@@ -563,15 +573,14 @@ typedef struct vulkan_shader {
 	/** @brief The uniform buffer used by this shader. Triple-buffered by default */
 	krenderbuffer uniform_buffer;
 
-	/** @brief An array of pointers to pipelines associated with this shader. */
-	vulkan_pipeline** pipelines;
-	/** @brief An array of pointers to wireframe pipelines associated with this shader. */
-	vulkan_pipeline** wireframe_pipelines;
+	u8 vertex_layout_pipeline_count;
+	// One per vertex layout
+	vulkan_vertex_layout_pipeline* vertex_layout_pipelines;
+	// Index into the vertex_layout_pipelines array.
+	u8 vertex_layout_index;
 
-	/** @brief The currently bound pipeline index. */
-	u8 bound_pipeline_index;
+	u16 renderer_frame_number;
 
-	u8 default_pipeline_index;
 	/** @brief The currently-selected topology. */
 	VkPrimitiveTopology default_topology;
 
@@ -741,15 +750,14 @@ typedef struct vulkan_context {
 	// The render hardware interface.
 	krhi_vulkan rhi;
 
-	/** @brief A pointer to the currently bound vulkan shader. */
-	vulkan_shader* bound_shader;
+	/** @brief Handle to the currently bound shader. */
+	kshader bound_shader;
 
 	// Darray of vulkan buffers, which matches up to the frontend's krenderbuffers.
 	vulkan_buffer* renderbuffers;
 
 	// Cached handles to renderbuffers.
 	kname standard_vertex_buffer_name;
-	kname extended_vertex_buffer_name;
 	kname index_buffer_name;
 
 	/**

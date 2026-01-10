@@ -128,7 +128,6 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 	state->renderer = engine_systems_get()->renderer_system;
 
 	state->standard_vertex_buffer = renderer_renderbuffer_get(state->renderer, kname_create(KRENDERBUFFER_NAME_VERTEX_STANDARD));
-	state->extended_vertex_buffer = renderer_renderbuffer_get(state->renderer, kname_create(KRENDERBUFFER_NAME_VERTEX_EXTENDED));
 	state->index_buffer = renderer_renderbuffer_get(state->renderer, kname_create(KRENDERBUFFER_NAME_INDEX_STANDARD));
 
 	// Editor gizmo pass state
@@ -922,7 +921,7 @@ b8 editor_render(struct editor_state* state, frame_data* p_frame_data, ktexture 
 			renderer_set_depth_write_enabled(false);
 			renderer_set_stencil_test_enabled(false);
 
-			kshader_system_use_with_topology(state->editor_gizmo_pass.gizmo_shader, PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_LIST_BIT);
+			kshader_system_use_with_topology(state->editor_gizmo_pass.gizmo_shader, PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_LIST_BIT, 0);
 			renderer_cull_mode_set(RENDERER_CULL_MODE_NONE);
 
 			// Global UBO data

@@ -83,8 +83,6 @@ typedef struct renderer_system_state {
 
 	/** @brief The standard data vertex buffer, used to hold vertex_3d data. */
 	krenderbuffer standard_vertex_buffer;
-	/** @brief The extended data vertex buffer, used to hold additional vertex data (i.e. bone weights, etc). */
-	krenderbuffer extended_vertex_buffer;
 	/** @brief The object index buffer, used to hold geometry indices. */
 	krenderbuffer geometry_index_buffer;
 
@@ -268,15 +266,6 @@ b8 renderer_system_initialize(u64* memory_requirement, renderer_system_state* st
 		return false;
 	}
 
-	// Extended vertex buffer
-	// TODO: make this configurable.
-	const u64 extended_vertex_buffer_size = MEBIBYTES(50);
-	state->extended_vertex_buffer = renderer_renderbuffer_create(state, kname_create(KRENDERBUFFER_NAME_VERTEX_EXTENDED), RENDERBUFFER_TYPE_VERTEX, extended_vertex_buffer_size, RENDERBUFFER_TRACK_TYPE_FREELIST, RENDERBUFFER_FLAG_NONE);
-	if (state->extended_vertex_buffer == KRENDERBUFFER_INVALID) {
-		KERROR("Error creating extended vertex buffer.");
-		return false;
-	}
-
 	// Geometry index buffer
 	// TODO: Make this configurable.
 	const u64 index_buffer_size = MEBIBYTES(50);
@@ -296,7 +285,6 @@ void renderer_system_shutdown(renderer_system_state* state) {
 
 		// Destroy buffers.
 		renderer_renderbuffer_destroy(state, state->standard_vertex_buffer);
-		renderer_renderbuffer_destroy(state, state->extended_vertex_buffer);
 		renderer_renderbuffer_destroy(state, state->geometry_index_buffer);
 
 		// Destroy generic samplers.
@@ -829,12 +817,8 @@ b8 renderer_shader_create(
 	shader_flags flags,
 	primitive_topology_type_bits topology_types,
 	primitive_topology_type default_topology,
-	u32 stage_count,
-	shader_stage* stages,
-	kname* stage_names,
-	const char** stage_sources,
-	u32 attribute_count,
-	const shader_attribute* attributes,
+	u8 pipeline_count,
+	shader_pipeline_config* pipelines,
 	u8 binding_set_count,
 	const shader_binding_set_config* binding_sets) {
 
@@ -845,12 +829,8 @@ b8 renderer_shader_create(
 		flags,
 		topology_types,
 		default_topology,
-		stage_count,
-		stages,
-		stage_names,
-		stage_sources,
-		attribute_count,
-		attributes,
+		pipeline_count,
+		pipelines,
 		binding_set_count,
 		binding_sets);
 }
@@ -859,16 +839,25 @@ void renderer_shader_destroy(struct renderer_system_state* state, kshader shader
 	state->backend->shader_destroy(state->backend, shader);
 }
 
-b8 renderer_shader_reload(struct renderer_system_state* state, kshader shader, u32 stage_count, shader_stage* stages, kname* names, const char** sources) {
-	return state->backend->shader_reload(state->backend, shader, stage_count, stages, names, sources);
+b8 renderer_shader_reload(
+	struct renderer_system_state* state,
+	kshader shader,
+	u8 pipeline_count,
+	shader_pipeline_config* pipelines) {
+
+	return state->backend->shader_reload(
+		state->backend,
+		shader,
+		pipeline_count,
+		pipelines);
 }
 
-b8 renderer_shader_use(struct renderer_system_state* state, kshader shader) {
-	return state->backend->shader_use(state->backend, shader);
+b8 renderer_shader_use(struct renderer_system_state* state, kshader shader, u8 vertex_layout_index) {
+	return state->backend->shader_use(state->backend, shader, vertex_layout_index);
 }
 
-b8 renderer_shader_use_with_topology(struct renderer_system_state* state, kshader shader, primitive_topology_type type) {
-	return state->backend->shader_use_with_topology(state->backend, shader, type);
+b8 renderer_shader_use_with_topology(struct renderer_system_state* state, kshader shader, primitive_topology_type type, u8 vertex_layout_index) {
+	return state->backend->shader_use_with_topology(state->backend, shader, type, vertex_layout_index);
 }
 
 b8 renderer_shader_supports_wireframe(struct renderer_system_state* state, kshader shader) {

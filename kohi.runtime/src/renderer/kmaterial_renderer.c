@@ -29,8 +29,7 @@
 #define MATERIAL_STANDARD_SKINNED_NAME_VERT "Shader.MaterialStandardSkinned_vert"
 // Use the same fragment shader for skinned materials.
 #define MATERIAL_STANDARD_SKINNED_NAME_FRAG MATERIAL_STANDARD_NAME_FRAG
-#define MATERIAL_WATER_NAME_FRAG "Shader.MaterialWater_frag"
-#define MATERIAL_WATER_NAME_VERT "Shader.MaterialWater_vert"
+
 #define MATERIAL_BLENDED_NAME_FRAG "Shader.MaterialBlended_frag"
 #define MATERIAL_BLENDED_NAME_VERT "Shader.MaterialBlended_vert"
 
@@ -96,57 +95,81 @@ b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material
 
 	// Standard Skinned material shader (skinned meshes).
 	{
-		kname mat_std_skinned_shader_name = kname_create(SHADER_NAME_RUNTIME_MATERIAL_STANDARD_SKINNED);
-		kasset_shader mat_std_skinned_shader = {0};
-		mat_std_skinned_shader.name = mat_std_skinned_shader_name;
-		mat_std_skinned_shader.depth_test = true;
-		mat_std_skinned_shader.depth_write = true;
-		mat_std_skinned_shader.stencil_test = false;
-		mat_std_skinned_shader.stencil_write = false;
-		mat_std_skinned_shader.colour_write = true;
-		mat_std_skinned_shader.colour_read = false;
-		mat_std_skinned_shader.supports_wireframe = true;
-		mat_std_skinned_shader.topology_types = PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_LIST_BIT;
+		kname mat_std_skinned_shader_name = kname_create(SHADER_NAME_RUNTIME_MATERIAL_STANDARD);
+		kasset_shader mat_std_shader = {0};
+		mat_std_shader.name = mat_std_skinned_shader_name;
+		mat_std_shader.depth_test = true;
+		mat_std_shader.depth_write = true;
+		mat_std_shader.stencil_test = false;
+		mat_std_shader.stencil_write = false;
+		mat_std_shader.colour_write = true;
+		mat_std_shader.colour_read = false;
+		mat_std_shader.supports_wireframe = true;
+		mat_std_shader.topology_types = PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_LIST_BIT;
 
-		mat_std_skinned_shader.stage_count = 2;
-		mat_std_skinned_shader.stages = KALLOC_TYPE_CARRAY(kasset_shader_stage, mat_std_skinned_shader.stage_count);
-		mat_std_skinned_shader.stages[0].type = SHADER_STAGE_VERTEX;
-		mat_std_skinned_shader.stages[0].package_name = PACKAGE_NAME_RUNTIME;
-		mat_std_skinned_shader.stages[0].source_asset_name = MATERIAL_STANDARD_SKINNED_NAME_VERT;
-		mat_std_skinned_shader.stages[1].type = SHADER_STAGE_FRAGMENT;
-		mat_std_skinned_shader.stages[1].package_name = PACKAGE_NAME_RUNTIME;
-		mat_std_skinned_shader.stages[1].source_asset_name = MATERIAL_STANDARD_SKINNED_NAME_FRAG;
+		mat_std_shader.pipeline_count = 2;
+		mat_std_shader.pipelines = KALLOC_TYPE_CARRAY(kasset_shader_pipeline, mat_std_shader.pipeline_count);
+		// Vertex layout for static geometry
+		{
+			kasset_shader_pipeline* static_pipeline = &mat_std_shader.pipelines[0];
 
-		mat_std_skinned_shader.attribute_count = 7;
-		mat_std_skinned_shader.attributes = KALLOC_TYPE_CARRAY(kasset_shader_attribute, mat_std_skinned_shader.attribute_count);
-		// Standard
-		mat_std_skinned_shader.attributes[0].name = "in_position";
-		mat_std_skinned_shader.attributes[0].type = SHADER_ATTRIB_TYPE_FLOAT32_3;
-		mat_std_skinned_shader.attributes[0].binding_index = 0;
-		mat_std_skinned_shader.attributes[1].name = "in_normal";
-		mat_std_skinned_shader.attributes[1].type = SHADER_ATTRIB_TYPE_FLOAT32_3;
-		mat_std_skinned_shader.attributes[1].binding_index = 0;
-		mat_std_skinned_shader.attributes[2].name = "in_texcoord";
-		mat_std_skinned_shader.attributes[2].type = SHADER_ATTRIB_TYPE_FLOAT32_2;
-		mat_std_skinned_shader.attributes[2].binding_index = 0;
-		mat_std_skinned_shader.attributes[3].name = "in_colour";
-		mat_std_skinned_shader.attributes[3].type = SHADER_ATTRIB_TYPE_FLOAT32_4;
-		mat_std_skinned_shader.attributes[3].binding_index = 0;
-		mat_std_skinned_shader.attributes[4].name = "in_tangent";
-		mat_std_skinned_shader.attributes[4].type = SHADER_ATTRIB_TYPE_FLOAT32_4;
-		mat_std_skinned_shader.attributes[4].binding_index = 0;
-		// Extended
-		mat_std_skinned_shader.attributes[5].name = "in_bone_ids";
-		mat_std_skinned_shader.attributes[5].type = SHADER_ATTRIB_TYPE_INT32_4;
-		mat_std_skinned_shader.attributes[5].binding_index = 1;
-		mat_std_skinned_shader.attributes[6].name = "in_weights";
-		mat_std_skinned_shader.attributes[6].type = SHADER_ATTRIB_TYPE_FLOAT32_4;
-		mat_std_skinned_shader.attributes[6].binding_index = 1;
+			static_pipeline->stage_count = 2;
+			static_pipeline->stages = KALLOC_TYPE_CARRAY(kasset_shader_stage, static_pipeline->stage_count);
+			static_pipeline->stages[0].type = SHADER_STAGE_VERTEX;
+			static_pipeline->stages[0].package_name = PACKAGE_NAME_RUNTIME;
+			static_pipeline->stages[0].source_asset_name = MATERIAL_STANDARD_NAME_VERT;
+			static_pipeline->stages[1].type = SHADER_STAGE_FRAGMENT;
+			static_pipeline->stages[1].package_name = PACKAGE_NAME_RUNTIME;
+			static_pipeline->stages[1].source_asset_name = MATERIAL_STANDARD_NAME_FRAG;
 
-		mat_std_skinned_shader.binding_set_count = 2;
-		mat_std_skinned_shader.binding_sets = KALLOC_TYPE_CARRAY(shader_binding_set_config, mat_std_skinned_shader.binding_set_count);
+			static_pipeline->attribute_count = 5;
+			static_pipeline->attributes = KALLOC_TYPE_CARRAY(kasset_shader_attribute, static_pipeline->attribute_count);
+			static_pipeline->attributes[0].name = "in_position";
+			static_pipeline->attributes[0].type = SHADER_ATTRIB_TYPE_FLOAT32_3;
+			static_pipeline->attributes[1].name = "in_normal";
+			static_pipeline->attributes[1].type = SHADER_ATTRIB_TYPE_FLOAT32_3;
+			static_pipeline->attributes[2].name = "in_texcoord";
+			static_pipeline->attributes[2].type = SHADER_ATTRIB_TYPE_FLOAT32_2;
+			static_pipeline->attributes[3].name = "in_colour";
+			static_pipeline->attributes[3].type = SHADER_ATTRIB_TYPE_FLOAT32_4;
+			static_pipeline->attributes[4].name = "in_tangent";
+			static_pipeline->attributes[4].type = SHADER_ATTRIB_TYPE_FLOAT32_4;
+		}
+		// Vertex layout for skinned geometry
+		{
+			kasset_shader_pipeline* skinned_pipeline = &mat_std_shader.pipelines[1];
 
-		shader_binding_set_config* set_0 = &mat_std_skinned_shader.binding_sets[0];
+			skinned_pipeline->stage_count = 2;
+			skinned_pipeline->stages = KALLOC_TYPE_CARRAY(kasset_shader_stage, skinned_pipeline->stage_count);
+			skinned_pipeline->stages[0].type = SHADER_STAGE_VERTEX;
+			skinned_pipeline->stages[0].package_name = PACKAGE_NAME_RUNTIME;
+			skinned_pipeline->stages[0].source_asset_name = MATERIAL_STANDARD_SKINNED_NAME_VERT;
+			skinned_pipeline->stages[1].type = SHADER_STAGE_FRAGMENT;
+			skinned_pipeline->stages[1].package_name = PACKAGE_NAME_RUNTIME;
+			skinned_pipeline->stages[1].source_asset_name = MATERIAL_STANDARD_SKINNED_NAME_FRAG;
+
+			skinned_pipeline->attribute_count = 7;
+			skinned_pipeline->attributes = KALLOC_TYPE_CARRAY(kasset_shader_attribute, skinned_pipeline->attribute_count);
+			skinned_pipeline->attributes[0].name = "in_position";
+			skinned_pipeline->attributes[0].type = SHADER_ATTRIB_TYPE_FLOAT32_3;
+			skinned_pipeline->attributes[1].name = "in_normal";
+			skinned_pipeline->attributes[1].type = SHADER_ATTRIB_TYPE_FLOAT32_3;
+			skinned_pipeline->attributes[2].name = "in_texcoord";
+			skinned_pipeline->attributes[2].type = SHADER_ATTRIB_TYPE_FLOAT32_2;
+			skinned_pipeline->attributes[3].name = "in_colour";
+			skinned_pipeline->attributes[3].type = SHADER_ATTRIB_TYPE_FLOAT32_4;
+			skinned_pipeline->attributes[4].name = "in_tangent";
+			skinned_pipeline->attributes[4].type = SHADER_ATTRIB_TYPE_FLOAT32_4;
+			skinned_pipeline->attributes[5].name = "in_bone_ids";
+			skinned_pipeline->attributes[5].type = SHADER_ATTRIB_TYPE_INT32_4;
+			skinned_pipeline->attributes[6].name = "in_weights";
+			skinned_pipeline->attributes[6].type = SHADER_ATTRIB_TYPE_FLOAT32_4;
+		}
+
+		mat_std_shader.binding_set_count = 2;
+		mat_std_shader.binding_sets = KALLOC_TYPE_CARRAY(shader_binding_set_config, mat_std_shader.binding_set_count);
+
+		shader_binding_set_config* set_0 = &mat_std_shader.binding_sets[0];
 		set_0->max_instance_count = 1;
 		set_0->name = kname_create("material skinned shader global binding set");
 		set_0->binding_count = 9;
@@ -211,7 +234,7 @@ b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material
 		KASSERT_DEBUG(bidx == set_0->binding_count);
 
 		// Set 1
-		shader_binding_set_config* set_1 = &mat_std_skinned_shader.binding_sets[1];
+		shader_binding_set_config* set_1 = &mat_std_shader.binding_sets[1];
 		set_1->max_instance_count = max_material_count;
 		set_1->name = kname_create("material skinned shader base material binding set");
 		set_1->binding_count = 2;
@@ -236,21 +259,26 @@ b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material
 		KASSERT_DEBUG(bidx == set_1->binding_count);
 
 		// Serialize
-		const char* config_source = kasset_shader_serialize(&mat_std_skinned_shader);
+		const char* config_source = kasset_shader_serialize(&mat_std_shader);
 
 		// Destroy the temp asset.
-		KFREE_TYPE_CARRAY(mat_std_skinned_shader.stages, kasset_shader_stage, mat_std_skinned_shader.stage_count);
-		KFREE_TYPE_CARRAY(mat_std_skinned_shader.attributes, kasset_shader_attribute, mat_std_skinned_shader.attribute_count);
-		if (mat_std_skinned_shader.binding_sets && mat_std_skinned_shader.binding_set_count) {
-			for (u8 bs = 0; bs < mat_std_skinned_shader.binding_set_count; ++bs) {
-				shader_binding_set_config* set = &mat_std_skinned_shader.binding_sets[bs];
+		for (u8 i = 0; i < mat_std_shader.pipeline_count; ++i) {
+			kasset_shader_pipeline* p = &mat_std_shader.pipelines[i];
+			KFREE_TYPE_CARRAY(p->stages, kasset_shader_stage, p->stage_count);
+			KFREE_TYPE_CARRAY(p->attributes, kasset_shader_attribute, p->attribute_count);
+		}
+		KFREE_TYPE_CARRAY(mat_std_shader.pipelines, kasset_shader_pipeline, mat_std_shader.pipeline_count);
+
+		if (mat_std_shader.binding_sets && mat_std_shader.binding_set_count) {
+			for (u8 bs = 0; bs < mat_std_shader.binding_set_count; ++bs) {
+				shader_binding_set_config* set = &mat_std_shader.binding_sets[bs];
 				if (set->bindings && set->binding_count) {
 					KFREE_TYPE_CARRAY(set->bindings, shader_binding_config, set->binding_count);
 				}
 			}
-			KFREE_TYPE_CARRAY(mat_std_skinned_shader.binding_sets, shader_binding_set_config, mat_std_skinned_shader.binding_set_count);
+			KFREE_TYPE_CARRAY(mat_std_shader.binding_sets, shader_binding_set_config, mat_std_shader.binding_set_count);
 		}
-		kzero_memory(&mat_std_skinned_shader, sizeof(kasset_shader));
+		kzero_memory(&mat_std_shader, sizeof(kasset_shader));
 
 		// Create/load the shader from the serialized source.
 		out_state->material_standard_skinned_shader = kshader_system_get_from_source(mat_std_skinned_shader_name, config_source);
@@ -371,7 +399,7 @@ void kmaterial_renderer_apply_globals(kmaterial_renderer* state) {
 	// Set standard shader UBO globals
 	{
 		kshader shader = state->material_standard_skinned_shader;
-		KASSERT_DEBUG(kshader_system_use(shader));
+		KASSERT_DEBUG(kshader_system_use(shader, state->current_uses_animated ? 1 : 0));
 
 		// Ensure wireframe mode is (un)set.
 		KASSERT_DEBUG(kshader_system_set_wireframe(shader, is_wireframe));
@@ -401,6 +429,10 @@ void kmaterial_renderer_apply_globals(kmaterial_renderer* state) {
 	// TODO: Set blended shader globals
 }
 
+void kmaterial_renderer_set_animated(kmaterial_renderer* state, b8 is_animated) {
+	state->current_uses_animated = is_animated;
+}
+
 // Updates and binds base material.
 void kmaterial_renderer_bind_base(kmaterial_renderer* state, kmaterial base_material) {
 	KASSERT_DEBUG(state);
@@ -423,7 +455,7 @@ void kmaterial_renderer_bind_base(kmaterial_renderer* state, kmaterial base_mate
 		break;
 	case KMATERIAL_TYPE_STANDARD: {
 		shader = state->material_standard_skinned_shader;
-		kshader_system_use(shader);
+		kshader_system_use(shader, state->current_uses_animated ? 1 : 0);
 
 		// --------------------------------------------
 		// Texture inputs - bind each texture if used.
@@ -510,7 +542,7 @@ void kmaterial_renderer_bind_base(kmaterial_renderer* state, kmaterial base_mate
 	case KMATERIAL_TYPE_WATER: {
 
 		shader = state->material_standard_skinned_shader;
-		KASSERT_DEBUG(kshader_system_use(shader));
+		KASSERT_DEBUG(kshader_system_use(shader, state->current_uses_animated ? 1 : 0));
 
 		ktexture reflection_colour_tex = texture_is_loaded(material->reflection_texture) ? material->reflection_texture : state->default_texture;
 		ktexture refraction_colour_tex = texture_is_loaded(material->refraction_texture) ? material->refraction_texture : state->default_texture;
@@ -561,7 +593,7 @@ void kmaterial_renderer_apply_immediates(kmaterial_renderer* state, kmaterial_in
 	case KMATERIAL_TYPE_STANDARD:
 	case KMATERIAL_TYPE_WATER: {
 		shader = state->material_standard_skinned_shader;
-		KASSERT_DEBUG(kshader_system_use(shader));
+		KASSERT_DEBUG(kshader_system_use(shader, state->current_uses_animated ? 1 : 0));
 
 		kshader_set_immediate_data(shader, immediates, sizeof(kmaterial_render_immediate_data));
 	} break;

@@ -220,6 +220,9 @@ void kallocate_report(u64 size, memory_tag tag) {
 }
 
 void* _kreallocate(void* block, u64 old_size, u64 new_size, memory_tag tag, const char* filename, u32 line) {
+	/* if (block) {
+		validate_block(block);
+	} */
 	return kreallocate_aligned(block, old_size, new_size, 1, tag);
 }
 

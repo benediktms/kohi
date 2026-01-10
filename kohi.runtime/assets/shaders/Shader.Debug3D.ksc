@@ -9,24 +9,28 @@ topology_types = [
     "triangle_list"
 ]
 
-stages = [
-    {
-        type = "vertex"
-        source_asset_name = "Shader.Debug3D_vert"
-        package_name = "Kohi.Runtime"
-    }
-    {
-        type = "fragment"
-        source_asset_name = "Shader.Debug3D_frag"
-        package_name = "Kohi.Runtime"
-    }
-]
-
-attributes = [
-    {
-        name = "in_position"
-        type = "vec4"
-    }
+pipelines = [
+	{
+		name = "static geometry"
+		stages = [
+			{
+				type = "vertex"
+				source_asset_name = "Shader.Debug3D_vert"
+				package_name = "Kohi.Runtime"
+			}
+			{
+				type = "fragment"
+				source_asset_name = "Shader.Debug3D_frag"
+				package_name = "Kohi.Runtime"
+			}
+		]
+		attributes = [
+			{
+				name = "in_position"
+				type = "vec4"
+			}
+		]
+	}
 ]
 
 binding_sets = [

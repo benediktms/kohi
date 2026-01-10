@@ -65,7 +65,7 @@ b8 sui_renderer_render_frame(sui_renderer* renderer, frame_data* p_frame_data, s
 	set_render_state_defaults(vp_rect);
 
 	// Renderables
-	if (!kshader_system_use(renderer->sui_pass.sui_shader)) {
+	if (!kshader_system_use(renderer->sui_pass.sui_shader, 0)) {
 		KERROR("Failed to use StandardUI shader. Render frame failed.");
 		return false;
 	}

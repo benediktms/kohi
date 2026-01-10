@@ -56,7 +56,6 @@ typedef struct editor_state {
 	keditor_gizmo_pass_data editor_gizmo_pass;
 	struct renderer_system_state* renderer;
 	krenderbuffer standard_vertex_buffer;
-	krenderbuffer extended_vertex_buffer;
 	krenderbuffer index_buffer;
 
 	keditor_gizmo_pass_render_data* editor_gizmo_render_data;

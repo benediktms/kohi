@@ -6,42 +6,45 @@ depth_write=false
 max_groups=2
 max_draw_ids=2
 
-stages = [
-    {
-        type = "vertex"
-        source_asset_name = "Shader.Skybox_vert"
-        package_name = "Kohi.Runtime"
-    }
-    {
-        type = "fragment"
-        source_asset_name = "Shader.Skybox_frag"
-        package_name = "Kohi.Runtime"
-    }
+pipelines = [
+	{
+		name = "static geometry"
+		stages = [
+			{
+				type = "vertex"
+				source_asset_name = "Shader.Skybox_vert"
+				package_name = "Kohi.Runtime"
+			}
+			{
+				type = "fragment"
+				source_asset_name = "Shader.Skybox_frag"
+				package_name = "Kohi.Runtime"
+			}
+		]
+		attributes = [
+			{
+				name = "in_position"
+				type = "vec3"
+			}
+			{
+				name = "in_normal"
+				type = "vec3"
+			}
+			{
+				name = "in_texcoord"
+				type = "vec2"
+			}
+			{
+				name = "in_colour"
+				type = "vec4"
+			}
+			{
+				name = "in_tangent"
+				type = "vec4"
+			}
+		]
+	}
 ]
-
-attributes = [
-    {
-        name = "in_position"
-        type = "vec3"
-    }
-    {
-        name = "in_normal"
-        type = "vec3"
-    }
-    {
-        name = "in_texcoord"
-        type = "vec2"
-    }
-    {
-        name = "in_colour"
-        type = "vec4"
-    }
-    {
-        name = "in_tangent"
-        type = "vec4"
-    }
-]
-
 binding_sets = [
     {
         name = "skybox global set"

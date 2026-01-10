@@ -22,7 +22,7 @@ const char* kasset_shader_serialize(const kasset_shader* asset) {
 	kasset_shader* typed_asset = (kasset_shader*)asset;
 
 	// Validate that there are actual stages, because these are required.
-	if (!typed_asset->stage_count) {
+	if (!typed_asset->pipelines || !typed_asset->pipeline_count || !typed_asset->pipelines[0].stage_count) {
 		KERROR("kasset_shader_serializer requires at least one stage to serialize. Otherwise it's an invalid shader, ya dingus.");
 		return 0;
 	}
@@ -95,41 +95,51 @@ const char* kasset_shader_serialize(const kasset_shader* asset) {
 
 	kson_object_value_add_string(&tree.root, "default_topology", topology_type_to_string(typed_asset->default_topology));
 
-	// Stages
-	{
-		kson_array stages_array = kson_array_create();
-		for (u32 i = 0; i < typed_asset->stage_count; ++i) {
-			kson_object stage_obj = kson_object_create();
-			kasset_shader_stage* stage = &typed_asset->stages[i];
+	// Vertex layout pipelines
+	kson_array pipelines_array = kson_array_create();
+	for (u8 pi = 0; pi < typed_asset->pipeline_count; ++pi) {
+		kasset_shader_pipeline* pipeline = &typed_asset->pipelines[pi];
 
-			kson_object_value_add_string(&stage_obj, "type", shader_stage_to_string(stage->type));
-			if (stage->source_asset_name) {
-				kson_object_value_add_string(&stage_obj, "source_asset_name", stage->source_asset_name);
+		kson_object pipeline_obj = kson_object_create();
+
+		// Stages
+		{
+			kson_array stages_array = kson_array_create();
+			for (u32 i = 0; i < pipeline->stage_count; ++i) {
+				kson_object stage_obj = kson_object_create();
+				kasset_shader_stage* stage = &pipeline->stages[i];
+
+				kson_object_value_add_string(&stage_obj, "type", shader_stage_to_string(stage->type));
+				if (stage->source_asset_name) {
+					kson_object_value_add_string(&stage_obj, "source_asset_name", stage->source_asset_name);
+				}
+				if (stage->package_name) {
+					kson_object_value_add_string(&stage_obj, "package_name", stage->package_name);
+				}
+
+				kson_array_value_add_object(&stages_array, stage_obj);
 			}
-			if (stage->package_name) {
-				kson_object_value_add_string(&stage_obj, "package_name", stage->package_name);
+			kson_object_value_add_array(&pipeline_obj, "stages", stages_array);
+		}
+
+		// Attributes
+		if (pipeline->attribute_count > 0) {
+			kson_array attributes_array = kson_array_create();
+			for (u32 i = 0; i < pipeline->attribute_count; ++i) {
+				kson_object attribute_obj = kson_object_create();
+				kasset_shader_attribute* attribute = &pipeline->attributes[i];
+
+				kson_object_value_add_string(&attribute_obj, "type", shader_attribute_type_to_string(attribute->type));
+				kson_object_value_add_string(&attribute_obj, "name", attribute->name);
+
+				kson_array_value_add_object(&attributes_array, attribute_obj);
 			}
-
-			kson_array_value_add_object(&stages_array, stage_obj);
+			kson_object_value_add_array(&pipeline_obj, "attributes", attributes_array);
 		}
-		kson_object_value_add_array(&tree.root, "stages", stages_array);
+
+		kson_array_value_add_object(&pipelines_array, pipeline_obj);
 	}
-
-	// Attributes
-	if (typed_asset->attribute_count > 0) {
-		kson_array attributes_array = kson_array_create();
-		for (u32 i = 0; i < typed_asset->attribute_count; ++i) {
-			kson_object attribute_obj = kson_object_create();
-			kasset_shader_attribute* attribute = &typed_asset->attributes[i];
-
-			kson_object_value_add_string(&attribute_obj, "type", shader_attribute_type_to_string(attribute->type));
-			kson_object_value_add_string(&attribute_obj, "name", attribute->name);
-			kson_object_value_add_int(&attribute_obj, "binding_index", attribute->binding_index);
-
-			kson_array_value_add_object(&attributes_array, attribute_obj);
-		}
-		kson_object_value_add_array(&tree.root, "attributes", attributes_array);
-	}
+	kson_object_value_add_array(&tree.root, "pipelines", pipelines_array);
 
 	// Binding sets
 	if (typed_asset->binding_set_count > 0) {
@@ -294,62 +304,77 @@ b8 kasset_shader_deserialize(const char* file_text, kasset_shader* out_asset) {
 			string_free(default_topology_type_str);
 		}
 
-		// Stages
-		kson_array stages_array;
-		if (kson_object_property_value_get_array(&tree.root, "stages", &stages_array)) {
-			u32 stage_count = 0;
-			if (!kson_array_element_count_get(&stages_array, &stage_count) || stage_count == 0) {
-				KERROR("Stages are required for shader configurations. Make sure at least one exists.");
+		// Pipelines, one per vertex layout.
+		kson_array pipelines_array;
+		if (kson_object_property_value_get_array(&tree.root, "pipelines", &pipelines_array)) {
+			u32 pipeline_count = 0;
+			if (!kson_array_element_count_get(&pipelines_array, &pipeline_count) || pipeline_count == 0) {
+				KERROR("Pipelines are required for shader configurations. Make sure at least one exists.");
 				goto cleanup_kson;
 			}
 
-			typed_asset->stage_count = stage_count;
-			typed_asset->stages = kallocate(sizeof(kasset_shader_stage) * typed_asset->stage_count, MEMORY_TAG_ARRAY);
-			for (u8 i = 0; i < typed_asset->stage_count; ++i) {
-				kson_object stage_obj = {0};
-				kson_array_element_value_get_object(&stages_array, i, &stage_obj);
+			typed_asset->pipeline_count = (u8)pipeline_count;
+			typed_asset->pipelines = KALLOC_TYPE_CARRAY(kasset_shader_pipeline, typed_asset->pipeline_count);
 
-				kasset_shader_stage* stage = &typed_asset->stages[i];
-				const char* temp = 0;
+			for (u8 pi = 0; pi < typed_asset->pipeline_count; ++pi) {
+				kasset_shader_pipeline* pipeline = &typed_asset->pipelines[pi];
+				kson_object pipeline_obj;
+				kson_array_element_value_get_object(&pipelines_array, pi, &pipeline_obj);
 
-				kson_object_property_value_get_string(&stage_obj, "type", &temp);
-				stage->type = string_to_shader_stage(temp);
-				string_free(temp);
+				// Stages
+				kson_array stages_array;
+				if (kson_object_property_value_get_array(&pipeline_obj, "stages", &stages_array)) {
+					u32 stage_count = 0;
+					if (!kson_array_element_count_get(&stages_array, &stage_count) || stage_count == 0) {
+						KERROR("Stages are required for shader configurations. Make sure at least one exists.");
+						goto cleanup_kson;
+					}
 
-				kson_object_property_value_get_string(&stage_obj, "source_asset_name", &stage->source_asset_name);
-				kson_object_property_value_get_string(&stage_obj, "package_name", &stage->package_name);
-			}
-		} else {
-			KERROR("Stages are required for shader configurations. Make sure at least one exists.");
-			goto cleanup_kson;
-		}
+					pipeline->stage_count = stage_count;
+					pipeline->stages = KALLOC_TYPE_CARRAY(kasset_shader_stage, pipeline->stage_count);
+					for (u8 i = 0; i < pipeline->stage_count; ++i) {
+						kson_object stage_obj = {0};
+						kson_array_element_value_get_object(&stages_array, i, &stage_obj);
 
-		// Attributes
-		kson_array attributes_array = {0};
-		if (kson_object_property_value_get_array(&tree.root, "attributes", &attributes_array)) {
-			u32 attribute_count = 0;
-			if (!kson_array_element_count_get(&attributes_array, &attribute_count)) {
-				KERROR("Failed to get attributes_array count. See logs for details.");
-				goto cleanup_kson;
-			}
+						kasset_shader_stage* stage = &pipeline->stages[i];
+						const char* temp = 0;
 
-			typed_asset->attribute_count = attribute_count;
-			typed_asset->attributes = kallocate(sizeof(kasset_shader_attribute) * typed_asset->attribute_count, MEMORY_TAG_ARRAY);
-			for (u32 i = 0; i < typed_asset->attribute_count; ++i) {
-				kson_object attribute_obj = {0};
-				kson_array_element_value_get_object(&attributes_array, i, &attribute_obj);
-				kasset_shader_attribute* attribute = &typed_asset->attributes[i];
+						kson_object_property_value_get_string(&stage_obj, "type", &temp);
+						stage->type = string_to_shader_stage(temp);
+						string_free(temp);
 
-				const char* temp = 0;
-				kson_object_property_value_get_string(&attribute_obj, "type", &temp);
-				attribute->type = string_to_shader_attribute_type(temp);
-				string_free(temp);
+						kson_object_property_value_get_string(&stage_obj, "source_asset_name", &stage->source_asset_name);
+						kson_object_property_value_get_string(&stage_obj, "package_name", &stage->package_name);
+					}
+				} else {
+					KERROR("Stages are required for shader configurations. Make sure at least one exists.");
+					goto cleanup_kson;
+				}
 
-				kson_object_property_value_get_string(&attribute_obj, "name", &attribute->name);
+				// Attributes
+				kson_array attributes_array = {0};
+				if (kson_object_property_value_get_array(&pipeline_obj, "attributes", &attributes_array)) {
+					u32 attribute_count = 0;
+					if (!kson_array_element_count_get(&attributes_array, &attribute_count)) {
+						KERROR("Failed to get attributes_array count. See logs for details.");
+						goto cleanup_kson;
+					}
 
-				i64 ibinding_idx = 0;
-				kson_object_property_value_get_int(&attribute_obj, "binding_index", &ibinding_idx);
-				attribute->binding_index = (u32)ibinding_idx;
+					pipeline->attribute_count = attribute_count;
+					pipeline->attributes = KALLOC_TYPE_CARRAY(kasset_shader_attribute, pipeline->attribute_count);
+					for (u32 i = 0; i < pipeline->attribute_count; ++i) {
+						kson_object attribute_obj = {0};
+						kson_array_element_value_get_object(&attributes_array, i, &attribute_obj);
+						kasset_shader_attribute* attribute = &pipeline->attributes[i];
+
+						const char* temp = 0;
+						kson_object_property_value_get_string(&attribute_obj, "type", &temp);
+						attribute->type = string_to_shader_attribute_type(temp);
+						string_free(temp);
+
+						kson_object_property_value_get_string(&attribute_obj, "name", &attribute->name);
+					}
+				}
 			}
 		}
 

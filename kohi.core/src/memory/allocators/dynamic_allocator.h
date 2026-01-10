@@ -112,3 +112,11 @@ KAPI u64 dynamic_allocator_total_space(dynamic_allocator* allocator);
 
 /** Obtains the size of the internal allocation header. This is really only used for unit testing purposes. */
 KAPI u64 dynamic_allocator_header_size(void);
+
+#if MEM_DEBUG_TRACE
+KAPI void _validate_block(void* block);
+
+#	define validate_block(block) _validate_block(block)
+#else
+#	define validate_block(block)
+#endif

@@ -13,6 +13,16 @@ typedef struct dynamic_allocator_state {
 	void* memory_block;
 } dynamic_allocator_state;
 
+#if MEM_DEBUG_TRACE
+#	define MEM_GUARD_MAGIC_0 0xF00DF00DF00DF00D
+#	define MEM_GUARD_MAGIC_1 0xBAD0BAD0BAD0BAD0
+
+typedef struct memory_guard {
+	u64 magic0;
+	u64 magic1;
+} memory_guard;
+#endif
+
 typedef struct alloc_header {
 	void* start;
 #if KOHI_DEBUG
@@ -91,6 +101,11 @@ void* dynamic_allocator_allocate_aligned(dynamic_allocator* allocator, u64 size,
 		u64 header_size = sizeof(alloc_header);
 		u64 storage_size = KSIZE_STORAGE;
 		u64 required_size = alignment + header_size + storage_size + size;
+#if MEM_DEBUG_TRACE
+		// Account for memory guards.
+		required_size += (sizeof(memory_guard) * 2);
+#endif
+
 		// NOTE: This cast will really only be an issue on allocations over ~4GiB, so... don't do that.
 		KASSERT_MSG(required_size < 4294967295U, "dynamic_allocator_allocate_aligned called with required size > 4 GiB. Don't do that.");
 
@@ -100,21 +115,65 @@ void* dynamic_allocator_allocate_aligned(dynamic_allocator* allocator, u64 size,
 			Memory layout:
 			x bytes/void padding
 			4 bytes/u32 user block size
+		#if MEM_DEBUG_TRACE
+			sizeof(memory_guard) Before guard
+		#endif
 			x bytes/void user memory block
+		#if MEM_DEBUG_TRACE
+			sizeof(memory_guard) After guard
+		#endif
 			alloc_header
 
 			*/
+
 			// Get the base pointer, or the unaligned memory block.
 			void* ptr = (void*)((u64)state->memory_block + base_offset);
 			// Start the alignment after enough space to hold a u32. This allows for the u32 to be stored
 			// immediately before the user block, while maintaining alignment on said user block.
 			u64 aligned_block_offset = get_aligned((u64)ptr + KSIZE_STORAGE, alignment);
+			KASSERT(aligned_block_offset >= (u64)state->memory_block);
+			KASSERT(aligned_block_offset < ((u64)state->memory_block + state->total_size));
 			// Store the size just before the user data block
 			u32* block_size = (u32*)(aligned_block_offset - KSIZE_STORAGE);
 			*block_size = (u32)size;
 			KASSERT_MSG(size, "dynamic_allocator_allocate_aligned got a size of 0. Memory corruption likely as this should always be nonzero.");
-			// Store the header immediately after the user block.
-			alloc_header* header = (alloc_header*)(aligned_block_offset + size);
+
+#if MEM_DEBUG_TRACE
+			{
+				// If tracing, store a new guard just before the user data, but after the size.
+				memory_guard before_guard = {
+					.magic0 = MEM_GUARD_MAGIC_0,
+					.magic1 = MEM_GUARD_MAGIC_1};
+				u8* source = (u8*)&before_guard;
+				u8* target = (u8*)aligned_block_offset;
+				for (u64 i = 0; i < sizeof(before_guard); ++i) {
+					target[i] = source[i];
+				}
+
+				// Move the aligned block offset to account for the guard.
+				aligned_block_offset += sizeof(before_guard);
+			}
+#endif
+
+			u64 after_guard_offset = 0;
+#if MEM_DEBUG_TRACE
+			{
+				// If tracing, store a new guard just after the user data, but before the header data.
+				memory_guard after_guard = {
+					.magic0 = MEM_GUARD_MAGIC_0,
+					.magic1 = MEM_GUARD_MAGIC_1};
+				u8* source = (u8*)&after_guard;
+				u8* target = (u8*)(aligned_block_offset + size);
+				for (u64 i = 0; i < sizeof(after_guard); ++i) {
+					target[i] = source[i];
+				}
+
+				after_guard_offset = sizeof(after_guard);
+			}
+#endif
+
+			// Store the header immediately after the user block (or guard, if tracing).
+			alloc_header* header = (alloc_header*)(aligned_block_offset + after_guard_offset + size);
 			header->start = ptr;
 			KASSERT_MSG(header->start, "dynamic_allocator_allocate_aligned got a null pointer (0x0). Memory corruption likely as this should always be nonzero.");
 			header->alignment = alignment;
@@ -150,6 +209,8 @@ b8 dynamic_allocator_free_aligned(dynamic_allocator* allocator, void* block, u8 
 		return false;
 	}
 
+	validate_block(block);
+
 	dynamic_allocator_state* state = allocator->memory;
 	if (block < state->memory_block || block > state->memory_block + state->total_size) {
 		void* end_of_block = (void*)(state->memory_block + state->total_size);
@@ -157,9 +218,21 @@ b8 dynamic_allocator_free_aligned(dynamic_allocator* allocator, void* block, u8 
 		return false;
 	}
 
-	u32* block_size = (u32*)((u64)block - KSIZE_STORAGE);
-	alloc_header* header = (alloc_header*)((u64)block + *block_size);
+	u64 guard_offset = 0;
+#if MEM_DEBUG_TRACE
+	guard_offset = sizeof(memory_guard);
+#endif
+
+	u32* block_size = (u32*)((u64)block - guard_offset - KSIZE_STORAGE);
+
+	alloc_header* header = (alloc_header*)((u64)block + guard_offset + *block_size);
 	u64 required_size = header->alignment + sizeof(alloc_header) + KSIZE_STORAGE + *block_size;
+
+#if MEM_DEBUG_TRACE
+	// Take guards into account on free.
+	required_size += (sizeof(memory_guard) * 2);
+#endif
+
 	u64 offset = (u64)header->start - (u64)state->memory_block;
 	if (!freelist_free_block(&state->list, required_size, offset)) {
 		KERROR("dynamic_allocator_free_aligned failed.");
@@ -176,10 +249,17 @@ b8 dynamic_allocator_get_size_alignment(dynamic_allocator* allocator, void* bloc
 		return false;
 	}
 
+	validate_block(block);
+
+	u64 guard_offset = 0;
+#if MEM_DEBUG_TRACE
+	guard_offset = sizeof(memory_guard);
+#endif
+
 	// Get the header.
-	*out_size = *(u32*)((u64)block - KSIZE_STORAGE);
+	*out_size = *(u32*)((u64)block - guard_offset - KSIZE_STORAGE);
 	KASSERT_MSG(*out_size, "dynamic_allocator_get_size_alignment found an out_size of 0. Memory corruption likely.");
-	alloc_header* header = (alloc_header*)((u64)block + *out_size);
+	alloc_header* header = (alloc_header*)(((u64)block) + guard_offset + *out_size);
 	*out_alignment = header->alignment;
 	KASSERT_MSG(header->start, "dynamic_allocator_get_size_alignment found a header->start of 0. Memory corruption likely as this should always be at least 1.");
 	KASSERT_MSG(header->alignment, "dynamic_allocator_get_size_alignment found a header->alignment of 0. Memory corruption likely as this should always be at least 1.");
@@ -195,9 +275,16 @@ const char* dynamic_allocator_get_file(dynamic_allocator* allocator, void* block
 		return false;
 	}
 
+	validate_block(block);
+
+	u64 guard_offset = 0;
+#	if MEM_DEBUG_TRACE
+	guard_offset = sizeof(memory_guard);
+#	endif
+
 	// Get the header.
-	u32 size = *(u32*)((u64)block - KSIZE_STORAGE);
-	alloc_header* header = (alloc_header*)((u64)block + size);
+	u32 size = *(u32*)((u64)block - guard_offset - KSIZE_STORAGE);
+	alloc_header* header = (alloc_header*)((u64)block + size + guard_offset);
 
 	return header->file;
 }
@@ -208,9 +295,16 @@ u32 dynamic_allocator_get_line(dynamic_allocator* allocator, void* block) {
 		return false;
 	}
 
+	validate_block(block);
+
+	u64 guard_offset = 0;
+#	if MEM_DEBUG_TRACE
+	guard_offset = sizeof(memory_guard);
+#	endif
+
 	// Get the header.
-	u32 size = *(u32*)((u64)block - KSIZE_STORAGE);
-	alloc_header* header = (alloc_header*)((u64)block + size);
+	u32 size = *(u32*)((u64)block - guard_offset - KSIZE_STORAGE);
+	alloc_header* header = (alloc_header*)((u64)block + guard_offset + size);
 
 	return header->line;
 }
@@ -230,3 +324,27 @@ u64 dynamic_allocator_header_size(void) {
 	// Enough space for a header and size storage.
 	return sizeof(alloc_header) + KSIZE_STORAGE;
 }
+
+#if MEM_DEBUG_TRACE
+void _validate_block(void* block) {
+	u64 guard_offset = 0;
+	guard_offset = sizeof(memory_guard);
+
+	u32* block_size = (u32*)((u64)block - guard_offset - KSIZE_STORAGE);
+
+	// Get the header.
+	alloc_header* header = (alloc_header*)((u64)block + *block_size + guard_offset);
+	if(header) {
+
+	}
+
+	// If tracing, verify the guards weren't clobbered.
+	memory_guard* before_guard = (memory_guard*)(((u8*)block) - sizeof(memory_guard));
+	KASSERT(before_guard->magic0 == MEM_GUARD_MAGIC_0);
+	KASSERT(before_guard->magic1 == MEM_GUARD_MAGIC_1);
+
+	memory_guard* after_guard = (memory_guard*)(((u8*)block) + *block_size);
+	KASSERT(after_guard->magic0 == MEM_GUARD_MAGIC_0);
+	KASSERT(after_guard->magic1 == MEM_GUARD_MAGIC_1);
+}
+#endif

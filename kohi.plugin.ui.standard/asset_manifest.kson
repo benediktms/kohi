@@ -19,18 +19,6 @@ assets = [
         path = "./assets/shaders/Shader.UI_vert.glsl"
     }
     {
-        name = "Shader.Pick_UI"
-        path = "./assets/shaders/Shader.Pick_UI.ksc"
-    }
-    {
-        name = "Shader.Pick_UI_frag"
-        path = "./assets/shaders/Shader.Pick_UI_frag.glsl"
-    }
-    {
-        name = "Shader.Pick_UI_vert"
-        path = "./assets/shaders/Shader.Pick_UI_vert.glsl"
-    }
-    {
         name = "Texture.StandardUIAtlas"
         path = "./assets/images/Texture.StandardUIAtlas.kbi"
         source_path = "./assets/images/source/Texture.StandardUIAtlas.png"

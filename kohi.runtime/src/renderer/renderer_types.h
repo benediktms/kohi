@@ -176,7 +176,6 @@ typedef u16 krenderbuffer;
 #define KRENDERBUFFER_INVALID INVALID_ID_U16
 
 #define KRENDERBUFFER_NAME_VERTEX_STANDARD "Kohi.RenderBuffer.VertexStandard"
-#define KRENDERBUFFER_NAME_VERTEX_EXTENDED "Kohi.RenderBuffer.VertexExtended"
 #define KRENDERBUFFER_NAME_INDEX_STANDARD "Kohi.RenderBuffer.IndexStandard"
 
 #define KRENDERBUFFER_BIND_INDEX_VERTEX_STANDARD 0
@@ -514,12 +513,8 @@ typedef struct renderer_backend_interface {
 		shader_flags flags,
 		primitive_topology_type_bits topology_types,
 		primitive_topology_type default_type,
-		u32 stage_count,
-		shader_stage* stages,
-		kname* stage_names,
-		const char** stage_sources,
-		u8 attribute_count,
-		const shader_attribute* attributes,
+		u8 pipeline_count,
+		shader_pipeline_config* pipelines,
 		u8 binding_set_count,
 		const shader_binding_set_config* binding_sets);
 
@@ -540,7 +535,11 @@ typedef struct renderer_backend_interface {
 	 * @param shader_stages An array of shader stages configs.
 	 * @return True on success; otherwise false.
 	 */
-	b8 (*shader_reload)(struct renderer_backend_interface* backend, kshader shader, u32 stage_count, shader_stage* stages, kname* names, const char** sources);
+	b8 (*shader_reload)(
+		struct renderer_backend_interface* backend,
+		kshader shader,
+		u8 pipeline_count,
+		shader_pipeline_config* pipelines);
 
 	/**
 	 * @brief Uses the given shader, activating it for updates to attributes, uniforms and such,
@@ -550,7 +549,7 @@ typedef struct renderer_backend_interface {
 	 * @param shader A handle to the shader to be used.
 	 * @return True on success; otherwise false.
 	 */
-	b8 (*shader_use)(struct renderer_backend_interface* backend, kshader shader);
+	b8 (*shader_use)(struct renderer_backend_interface* backend, kshader shader, u8 vertex_layout_index);
 
 	/**
 	 * @brief Uses the given shader, activating it for updates to attributes, uniforms and such,
@@ -561,7 +560,7 @@ typedef struct renderer_backend_interface {
 	 * @param type The primitive topology type to use.
 	 * @return True on success; otherwise false.
 	 */
-	b8 (*shader_use_with_topology)(struct renderer_backend_interface* backend, kshader shader, primitive_topology_type type);
+	b8 (*shader_use_with_topology)(struct renderer_backend_interface* backend, kshader shader, primitive_topology_type type, u8 vertex_layout_index);
 
 	/**
 	 * @brief Indicates if the supplied shader supports wireframe mode.

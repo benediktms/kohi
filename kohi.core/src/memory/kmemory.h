@@ -17,6 +17,10 @@
 
 #include "defines.h"
 
+// Turn on for per-allocation verification of memory. Has both a performance and memory impact,
+// so only leave on when troubleshooting.
+#define MEM_DEBUG_TRACE 1
+
 // Interface for a frame allocator.
 typedef struct frame_allocator_int {
 	void* (*allocate)(u64 size);
@@ -287,6 +291,10 @@ KAPI void* kcopy_memory(void* dest, const void* source, u64 size);
 
 #define KCOPY_TYPE(dest, source, type) kcopy_memory(dest, source, sizeof(type))
 #define KCOPY_TYPE_CARRAY(dest, source, type, count) kcopy_memory(dest, source, sizeof(type) * count)
+
+#define KDUPLICATE_TYPE_CARRAY(dest, source, type, count) \
+	dest = KALLOC_TYPE_CARRAY(type, count);               \
+	KCOPY_TYPE_CARRAY(dest, source, type, count);
 
 /**
  * @brief Sets the bytes of memory located at dest to value over the given size.
