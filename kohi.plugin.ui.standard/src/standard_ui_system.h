@@ -93,6 +93,8 @@ typedef struct sui_control {
 	b8 is_hovered;
 	b8 is_pressed;
 	b8 is_focusable;
+	b8 is_dragging;
+	b8 can_mouse_interact;
 
 	// How deep in the hierarchy the control is.
 	u32 depth;

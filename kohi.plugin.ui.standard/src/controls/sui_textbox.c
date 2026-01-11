@@ -406,13 +406,7 @@ b8 sui_textbox_control_render(standard_ui_state* state, struct sui_control* self
 
 	typed_data->cursor.is_visible = is_focused;
 
-	// Only attach clipping mask if the content label actually has... content.
-	if (string_utf8_length(sui_label_text_get(state, &typed_data->content_label))) {
-		// Attach clipping mask to text, which would be the last element added.
-		u32 renderable_count = darray_length(render_data->renderables);
-		typed_data->clip_mask.render_data.model = ktransform_world_get(typed_data->clip_mask.clip_ktransform);
-		render_data->renderables[renderable_count - 1].clip_mask_render_data = &typed_data->clip_mask.render_data;
-	}
+	typed_data->clip_mask.render_data.model = ktransform_world_get(typed_data->clip_mask.clip_ktransform);
 
 	// Only perform highlight_box logic if it is visible.
 	if (typed_data->highlight_box.is_visible) {

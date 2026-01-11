@@ -223,6 +223,7 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 			state->mode_scene_label.is_active = true;
 			standard_ui_system_update_active(sui_state, &state->mode_scene_label);
 			state->mode_scene_label.is_visible = true;
+			state->mode_scene_label.can_mouse_interact = false;
 
 			state->mode_scene_button.user_data = state;
 			state->mode_scene_button.user_data_size = sizeof(*state);
@@ -248,6 +249,7 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 			state->mode_entity_label.is_active = true;
 			standard_ui_system_update_active(sui_state, &state->mode_entity_label);
 			state->mode_entity_label.is_visible = true;
+			state->mode_entity_label.can_mouse_interact = false;
 
 			state->mode_entity_button.user_data = state;
 			state->mode_entity_button.user_data_size = sizeof(*state);
@@ -273,6 +275,7 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 			state->mode_tree_label.is_active = true;
 			standard_ui_system_update_active(sui_state, &state->mode_tree_label);
 			state->mode_tree_label.is_visible = true;
+			state->mode_tree_label.can_mouse_interact = false;
 
 			state->mode_tree_button.user_data = state;
 			state->mode_tree_button.user_data_size = sizeof(*state);
@@ -316,7 +319,7 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 			KASSERT(sui_textbox_control_create(sui_state, "scene_name_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", SUI_TEXTBOX_TYPE_STRING, &state->scene_name_textbox));
 			KASSERT(standard_ui_system_register_control(sui_state, &state->scene_name_textbox));
 			KASSERT(standard_ui_system_control_add_child(sui_state, &state->scene_inspector_bg_panel, &state->scene_name_textbox));
-			KASSERT(sui_textbox_control_width_set(sui_state, &state->scene_name_textbox, 380));
+			KASSERT(sui_textbox_control_width_set(sui_state, &state->scene_name_textbox, 350));
 			ktransform_position_set(state->scene_name_textbox.ktransform, (vec3){state->scene_inspector_right_col_x, 50, 0});
 			state->scene_name_textbox.is_active = true;
 			standard_ui_system_update_active(sui_state, &state->scene_name_textbox);

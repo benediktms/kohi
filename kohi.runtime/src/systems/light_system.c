@@ -22,7 +22,7 @@ b8 light_system_initialize(u64* memory_requirement, light_system_state* memory, 
 	state->lights = KALLOC_TYPE_CARRAY(klight_data, MAX_GLOBAL_SSBO_LIGHTS);
 	// Global lighting storage buffer
 	u64 buffer_size = sizeof(light_global_ssbo_data);
-	state->lighting_global_ssbo = renderer_renderbuffer_create(engine_systems_get()->renderer_system, kname_create(KRENDERBUFFER_NAME_LIGHTING_GLOBAL), RENDERBUFFER_TYPE_STORAGE, buffer_size, RENDERBUFFER_TRACK_TYPE_NONE, RENDERBUFFER_FLAG_AUTO_MAP_MEMORY_BIT);
+	state->lighting_global_ssbo = renderer_renderbuffer_create(engine_systems_get()->renderer_system, kname_create(KRENDERBUFFER_NAME_LIGHTING_GLOBAL), RENDERBUFFER_TYPE_STORAGE, buffer_size, RENDERBUFFER_TRACK_TYPE_NONE, RENDERBUFFER_FLAG_AUTO_MAP_MEMORY_BIT | RENDERBUFFER_FLAG_TRIPLE_BUFFERED_BIT);
 	KASSERT(state->lighting_global_ssbo != KRENDERBUFFER_INVALID);
 	KDEBUG("Created lighting global storage buffer.");
 

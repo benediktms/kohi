@@ -19,6 +19,9 @@
 #include <systems/light_system.h>
 #include <systems/texture_system.h>
 
+#define VERTEX_LAYOUT_INDEX_STATIC 0
+#define VERTEX_LAYOUT_INDEX_SKINNED 1
+
 // per frame UBO FIXME: This should probably be located with the skybox files, or shader, or somewhere other than here...
 typedef struct skybox_global_ubo_data {
 	mat4 views[KMATERIAL_UBO_MAX_VIEWS];
@@ -311,7 +314,7 @@ static b8 scene_pass(
 
 		set_render_state_defaults(vp_rect);
 
-		kshader_system_use(renderer->forward_pass.sb_shader, 0);
+		kshader_system_use(renderer->forward_pass.sb_shader, VERTEX_LAYOUT_INDEX_STATIC);
 
 		renderer_cull_mode_set(RENDERER_CULL_MODE_FRONT);
 
@@ -506,10 +509,6 @@ b8 kforward_renderer_render_frame(kforward_renderer* renderer, frame_data* p_fra
 	settings->shadow_fade_distance = render_data->forward_data.shadow_fade_distance;
 	settings->shadow_split_mult = render_data->forward_data.shadow_split_mult;
 
-	// FIXME: For some reason this fixes the flickering issue that we have at the beginning of some frames
-	// of the water plane and transparent textures. This likely means there's a resource hazard here somewhere
-	// that needs resolving.
-	/* renderer_wait_for_idle(); */
 	// Begin frame
 	{
 
@@ -617,7 +616,7 @@ b8 kforward_renderer_render_frame(kforward_renderer* renderer, frame_data* p_fra
 
 			// Shadow cascade begin render
 			renderer_begin_rendering(renderer->renderer_state, p_frame_data, render_area, 0, 0, renderer->shadow_pass.shadow_tex, p);
-			renderer_shader_use(renderer->renderer_state, renderer->shadow_pass.staticmesh_shader, 0);
+			renderer_shader_use(renderer->renderer_state, renderer->shadow_pass.staticmesh_shader, VERTEX_LAYOUT_INDEX_STATIC);
 			set_render_state_defaults(render_area);
 
 			// Don't cull for the shadow pass
@@ -667,7 +666,8 @@ b8 kforward_renderer_render_frame(kforward_renderer* renderer, frame_data* p_fra
 					b8 is_animated = geo_data->animation_id != INVALID_ID_U16;
 
 					// Ensure the right vertex layout index is used.
-					kshader_system_use(renderer->shadow_pass.staticmesh_shader, is_animated ? 1 : 0);
+					kshader_system_use(renderer->shadow_pass.staticmesh_shader, is_animated ? VERTEX_LAYOUT_INDEX_SKINNED : VERTEX_LAYOUT_INDEX_STATIC);
+					renderer_cull_mode_set(RENDERER_CULL_MODE_NONE);
 
 					// Set immediate data.
 					shadow_staticmesh_immediate_data immediate_data = {
@@ -724,7 +724,7 @@ b8 kforward_renderer_render_frame(kforward_renderer* renderer, frame_data* p_fra
 					b8 is_animated = geo_data->animation_id != INVALID_ID_U16;
 
 					// Ensure the right vertex layout index is used.
-					kshader_system_use(renderer->shadow_pass.staticmesh_shader, is_animated ? 1 : 0);
+					kshader_system_use(renderer->shadow_pass.staticmesh_shader, is_animated ? VERTEX_LAYOUT_INDEX_SKINNED : VERTEX_LAYOUT_INDEX_STATIC);
 
 					// Set immediate data.
 					shadow_staticmesh_immediate_data immediate_data = {
@@ -763,7 +763,7 @@ b8 kforward_renderer_render_frame(kforward_renderer* renderer, frame_data* p_fra
 			}
 
 			// Heightmap Terrain - use the terrain shadowmap shader.
-			kshader_system_use(renderer->shadow_pass.hmt_shader, 0);
+			kshader_system_use(renderer->shadow_pass.hmt_shader, VERTEX_LAYOUT_INDEX_STATIC);
 			renderer_cull_mode_set(RENDERER_CULL_MODE_NONE);
 
 			// Apply the global binding set.
@@ -987,7 +987,7 @@ b8 kforward_renderer_render_frame(kforward_renderer* renderer, frame_data* p_fra
 			renderer_set_depth_write_enabled(true);
 			renderer_set_stencil_test_enabled(false);
 
-			kshader_system_use_with_topology(renderer->world_debug_pass.debug_shader, PRIMITIVE_TOPOLOGY_TYPE_LINE_LIST_BIT, 0);
+			kshader_system_use_with_topology(renderer->world_debug_pass.debug_shader, PRIMITIVE_TOPOLOGY_TYPE_LINE_LIST_BIT, VERTEX_LAYOUT_INDEX_STATIC);
 
 			// Global UBO data
 			world_debug_global_ubo global_ubo_data = {
@@ -1021,7 +1021,7 @@ b8 kforward_renderer_render_frame(kforward_renderer* renderer, frame_data* p_fra
 
 			// Render the grid, but using the colour shader.
 			{
-				kshader_system_use_with_topology(renderer->world_debug_pass.colour_shader, PRIMITIVE_TOPOLOGY_TYPE_LINE_LIST_BIT, 0);
+				kshader_system_use_with_topology(renderer->world_debug_pass.colour_shader, PRIMITIVE_TOPOLOGY_TYPE_LINE_LIST_BIT, VERTEX_LAYOUT_INDEX_STATIC);
 				renderer_cull_mode_set(RENDERER_CULL_MODE_NONE);
 
 				// Global UBO data

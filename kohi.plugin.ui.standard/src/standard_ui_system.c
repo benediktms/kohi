@@ -345,6 +345,8 @@ b8 sui_base_control_create(standard_ui_state* state, const char* name, struct su
 
 	// Set all controls to visible by default.
 	out_control->is_visible = true;
+	// Mouse can interact by default.
+	out_control->can_mouse_interact = true;
 	out_control->depth = 0;
 
 	// Assign function pointers.
@@ -499,12 +501,14 @@ static b8 sui_base_internal_mouse_drag_begin(standard_ui_state* state, struct su
 		return true;
 	}
 
+	self->is_dragging = true;
+
 	// Block event propagation by default. User events can override this.
 	return self->on_mouse_drag_begin ? self->on_mouse_drag_begin(state, self, event) : false;
 }
 
 static b8 sui_base_internal_mouse_drag(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event) {
-	if (!self) {
+	if (!self || !self->is_dragging) {
 		return true;
 	}
 
@@ -513,9 +517,11 @@ static b8 sui_base_internal_mouse_drag(standard_ui_state* state, struct sui_cont
 }
 
 static b8 sui_base_internal_mouse_drag_end(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event) {
-	if (!self) {
+	if (!self || !self->is_dragging) {
 		return true;
 	}
+
+	self->is_dragging = false;
 
 	// Block event propagation by default. User events can override this.
 	return self->on_mouse_drag_end ? self->on_mouse_drag_end(state, self, event) : false;
@@ -588,6 +594,9 @@ static b8 standard_ui_system_mouse_down(u16 code, void* sender, void* listener_i
 	sui_control** intersecting_controls = darray_create(sui_control*);
 	for (u32 i = 0; i < typed_state->active_control_count; ++i) {
 		sui_control* control = typed_state->active_controls[i];
+		if (!control->can_mouse_interact) {
+			continue; // Skip controls that are turned off for mouse interactions.
+		}
 		if (control_event_intersects(typed_state, control, evt)) {
 			darray_push(intersecting_controls, control);
 		}
@@ -598,7 +607,9 @@ static b8 standard_ui_system_mouse_down(u16 code, void* sender, void* listener_i
 	kquick_sort(sizeof(sui_control*), intersecting_controls, 0, hit_count - 1, sui_control_depth_compare_desc);
 	for (u32 i = 0; i < hit_count; ++i) {
 		sui_control* control = intersecting_controls[i];
-
+		if (!control->can_mouse_interact) {
+			continue; // Skip controls that are turned off for mouse interactions.
+		}
 		if (control->internal_mouse_down) {
 			if (!control->internal_mouse_down(typed_state, control, evt)) {
 				block_propagation = true;
@@ -633,6 +644,9 @@ static b8 standard_ui_system_mouse_up(u16 code, void* sender, void* listener_ins
 	sui_control** intersecting_controls = darray_create(sui_control*);
 	for (u32 i = 0; i < typed_state->active_control_count; ++i) {
 		sui_control* control = typed_state->active_controls[i];
+		if (!control->can_mouse_interact) {
+			continue; // Skip controls that are turned off for mouse interactions.
+		}
 		if (control_event_intersects(typed_state, control, evt)) {
 			darray_push(intersecting_controls, control);
 		}
@@ -643,6 +657,9 @@ static b8 standard_ui_system_mouse_up(u16 code, void* sender, void* listener_ins
 	kquick_sort(sizeof(sui_control*), intersecting_controls, 0, hit_count - 1, sui_control_depth_compare_desc);
 	for (u32 i = 0; i < hit_count; ++i) {
 		sui_control* control = intersecting_controls[i];
+		if (!control->can_mouse_interact) {
+			continue; // Skip controls that are turned off for mouse interactions.
+		}
 
 		if (control->internal_mouse_up) {
 			if (!control->internal_mouse_up(typed_state, control, evt)) {
@@ -678,6 +695,9 @@ static b8 standard_ui_system_click(u16 code, void* sender, void* listener_inst, 
 	sui_control** intersecting_controls = darray_create(sui_control*);
 	for (u32 i = 0; i < typed_state->active_control_count; ++i) {
 		sui_control* control = typed_state->active_controls[i];
+		if (!control->can_mouse_interact) {
+			continue; // Skip controls that are turned off for mouse interactions.
+		}
 		if (control_event_intersects(typed_state, control, evt)) {
 			darray_push(intersecting_controls, control);
 		}
@@ -688,6 +708,9 @@ static b8 standard_ui_system_click(u16 code, void* sender, void* listener_inst, 
 	kquick_sort(sizeof(sui_control*), intersecting_controls, 0, hit_count - 1, sui_control_depth_compare_desc);
 	for (u32 i = 0; i < hit_count; ++i) {
 		sui_control* control = intersecting_controls[i];
+		if (!control->can_mouse_interact) {
+			continue; // Skip controls that are turned off for mouse interactions.
+		}
 
 		if (control->internal_click) {
 			if (!control->internal_click(typed_state, control, evt)) {
@@ -724,6 +747,9 @@ static b8 standard_ui_system_mouse_move(u16 code, void* sender, void* listener_i
 	sui_control** non_intersecting_controls = darray_create(sui_control*);
 	for (u32 i = 0; i < typed_state->active_control_count; ++i) {
 		sui_control* control = typed_state->active_controls[i];
+		if (!control->can_mouse_interact) {
+			continue; // Skip controls that are turned off for mouse interactions.
+		}
 		if (control_event_intersects(typed_state, control, evt)) {
 			darray_push(intersecting_controls, control);
 		} else {
@@ -736,6 +762,9 @@ static b8 standard_ui_system_mouse_move(u16 code, void* sender, void* listener_i
 	kquick_sort(sizeof(sui_control*), intersecting_controls, 0, hit_count - 1, sui_control_depth_compare_desc);
 	for (u32 i = 0; i < hit_count; ++i) {
 		sui_control* control = intersecting_controls[i];
+		if (!control->can_mouse_interact) {
+			continue; // Skip controls that are turned off for mouse interactions.
+		}
 
 		if (!control->is_hovered && control->internal_mouse_over) {
 			control->is_hovered = true;
@@ -762,6 +791,9 @@ static b8 standard_ui_system_mouse_move(u16 code, void* sender, void* listener_i
 	kquick_sort(sizeof(sui_control*), non_intersecting_controls, 0, non_hit_count - 1, sui_control_depth_compare_desc);
 	for (u32 i = 0; i < non_hit_count; ++i) {
 		sui_control* control = non_intersecting_controls[i];
+		if (!control->can_mouse_interact) {
+			continue; // Skip controls that are turned off for mouse interactions.
+		}
 
 		if (control->is_hovered && control->internal_mouse_out) {
 			control->is_hovered = false;
@@ -794,6 +826,9 @@ static b8 standard_ui_system_drag(u16 code, void* sender, void* listener_inst, e
 	sui_control** non_intersecting_controls = darray_create(sui_control*);
 	for (u32 i = 0; i < typed_state->active_control_count; ++i) {
 		sui_control* control = typed_state->active_controls[i];
+		if (!control->can_mouse_interact) {
+			continue; // Skip controls that are turned off for mouse interactions.
+		}
 		if (control_event_intersects(typed_state, control, evt)) {
 			darray_push(intersecting_controls, control);
 		} else {
@@ -806,6 +841,9 @@ static b8 standard_ui_system_drag(u16 code, void* sender, void* listener_inst, e
 	kquick_sort(sizeof(sui_control*), intersecting_controls, 0, hit_count - 1, sui_control_depth_compare_desc);
 	for (u32 i = 0; i < hit_count; ++i) {
 		sui_control* control = intersecting_controls[i];
+		if (!control->can_mouse_interact) {
+			continue; // Skip controls that are turned off for mouse interactions.
+		}
 
 		if (code == EVENT_CODE_MOUSE_DRAG_BEGIN) {
 			// Drag begin must start within the control.
@@ -838,10 +876,13 @@ static b8 standard_ui_system_drag(u16 code, void* sender, void* listener_inst, e
 	darray_destroy(intersecting_controls);
 
 	// Outside functions don't block propagation... for now.
-	u32 non_hit_count = darray_length(intersecting_controls);
+	u32 non_hit_count = darray_length(non_intersecting_controls);
 	kquick_sort(sizeof(sui_control*), non_intersecting_controls, 0, non_hit_count - 1, sui_control_depth_compare_desc);
 	for (u32 i = 0; i < non_hit_count; ++i) {
 		sui_control* control = non_intersecting_controls[i];
+		if (!control->can_mouse_interact) {
+			continue; // Skip controls that are turned off for mouse interactions.
+		}
 
 		if (code == EVENT_CODE_MOUSE_DRAGGED) {
 			// Drag event can occur inside or outside the control.

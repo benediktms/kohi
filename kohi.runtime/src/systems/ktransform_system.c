@@ -116,7 +116,7 @@ b8 ktransform_system_initialize(u64* memory_requirement, void* state, void* conf
 
 	// Global transform storage buffer
 	u64 buffer_size = sizeof(mat4) * 16384; // TODO: configurable?
-	typed_state->transform_global_ssbo = renderer_renderbuffer_create(engine_systems_get()->renderer_system, kname_create(KRENDERBUFFER_NAME_TRANSFORMS_GLOBAL), RENDERBUFFER_TYPE_STORAGE, buffer_size, RENDERBUFFER_TRACK_TYPE_NONE, RENDERBUFFER_FLAG_AUTO_MAP_MEMORY_BIT);
+	typed_state->transform_global_ssbo = renderer_renderbuffer_create(engine_systems_get()->renderer_system, kname_create(KRENDERBUFFER_NAME_TRANSFORMS_GLOBAL), RENDERBUFFER_TYPE_STORAGE, buffer_size, RENDERBUFFER_TRACK_TYPE_NONE, RENDERBUFFER_FLAG_AUTO_MAP_MEMORY_BIT | RENDERBUFFER_FLAG_TRIPLE_BUFFERED_BIT);
 	KASSERT(typed_state->transform_global_ssbo != KRENDERBUFFER_INVALID);
 	KDEBUG("Created transforms global storage buffer.");
 

@@ -254,8 +254,7 @@ static void debug_console_entry_box_on_key(standard_ui_state* state, sui_control
 		/* b8 shift_held = input_is_key_down(KEY_LSHIFT) || input_is_key_down(KEY_RSHIFT) || input_is_key_down(KEY_SHIFT); */
 
 		if (key_code == KEY_ENTER) {
-			debug_console_state* state = self->internal_data;
-			const char* entry_control_text = sui_textbox_text_get(state->sui_state, self);
+			const char* entry_control_text = sui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {
 				// Keep the command in the history list.
@@ -270,7 +269,7 @@ static void debug_console_entry_box_on_key(standard_ui_state* state, sui_control
 					}
 				}
 				// Clear the text.
-				sui_textbox_text_set(state->sui_state, self, "");
+				sui_textbox_text_set(state, self, "");
 			}
 		}
 	}

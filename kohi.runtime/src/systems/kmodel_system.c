@@ -46,7 +46,7 @@ b8 kmodel_system_initialize(u64* memory_requirement, kmodel_system_state* memory
 
 	// Global lighting storage buffer
 	u64 buffer_size = sizeof(kmodel_animation_shader_data) * state->max_instance_count;
-	state->global_animation_ssbo = renderer_renderbuffer_create(engine_systems_get()->renderer_system, kname_create(KRENDERBUFFER_NAME_ANIMATIONS_GLOBAL), RENDERBUFFER_TYPE_STORAGE, buffer_size, RENDERBUFFER_TRACK_TYPE_NONE, RENDERBUFFER_FLAG_AUTO_MAP_MEMORY_BIT);
+	state->global_animation_ssbo = renderer_renderbuffer_create(engine_systems_get()->renderer_system, kname_create(KRENDERBUFFER_NAME_ANIMATIONS_GLOBAL), RENDERBUFFER_TYPE_STORAGE, buffer_size, RENDERBUFFER_TRACK_TYPE_NONE, RENDERBUFFER_FLAG_AUTO_MAP_MEMORY_BIT | RENDERBUFFER_FLAG_TRIPLE_BUFFERED_BIT);
 	KASSERT(state->global_animation_ssbo != KRENDERBUFFER_INVALID);
 	KDEBUG("Created kanimation global storage buffer.");
 
@@ -230,9 +230,9 @@ static void kasset_model_loaded(void* listener, kasset_model* asset) {
 
 			target->geo.vertex_element_size = is_animated ? sizeof(skinned_vertex_3d) : sizeof(vertex_3d);
 			target->geo.vertex_count = source->vertex_count;
-			target->geo.vertices = kallocate(target->geo.vertex_element_size * source->vertex_count, MEMORY_TAG_ARRAY);
+			target->geo.vertices = kallocate(target->geo.vertex_element_size * target->geo.vertex_count, MEMORY_TAG_ARRAY);
 
-			kcopy_memory(target->geo.vertices, source->vertices, target->geo.vertex_element_size * source->vertex_count);
+			kcopy_memory(target->geo.vertices, source->vertices, target->geo.vertex_element_size * target->geo.vertex_count);
 
 			target->geo.index_element_size = sizeof(u32);
 			target->geo.index_count = source->index_count;
@@ -243,11 +243,10 @@ static void kasset_model_loaded(void* listener, kasset_model* asset) {
 			vec3 min_pos = vec3_create(99999999.9f, 99999999.9f, 99999999.9f);
 			vec3 max_pos = vec3_create(-99999999.9f, -99999999.9f, -99999999.9f);
 
-			for (u32 v = 0; v < source->vertex_count; ++v) {
-				void* block = ((u8*)source->vertices) + (target->geo.vertex_element_size * source->vertex_count);
-				vertex_3d* vert = block;
-				min_pos = vec3_min(min_pos, vert->position);
-				max_pos = vec3_max(max_pos, vert->position);
+			for (u32 v = 0; v < target->geo.vertex_count; ++v) {
+				vec3* position = (vec3*)(((u8*)source->vertices) + (target->geo.vertex_element_size * v));
+				min_pos = vec3_min(min_pos, *position);
+				max_pos = vec3_max(max_pos, *position);
 			}
 
 			target->geo.extents.min = min_pos;
@@ -262,7 +261,7 @@ static void kasset_model_loaded(void* listener, kasset_model* asset) {
 			// Upload the geometry.
 
 			// Standard data first.
-			u64 standard_vertex_size = target->geo.vertex_element_size * source->vertex_count;
+			u64 standard_vertex_size = target->geo.vertex_element_size * target->geo.vertex_count;
 			u64 standard_vertex_offset = 0;
 			if (!renderer_renderbuffer_allocate(renderer_system, standard_vertex_buffer, standard_vertex_size, &target->geo.vertex_buffer_offset)) {
 				KERROR("Model system failed to allocate from the renderer's vertex buffer! Submesh geometry won't be uploaded (skipped)");

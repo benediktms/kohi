@@ -874,7 +874,7 @@ b8 kscene_update(struct kscene* scene, struct frame_data* p_frame_data) {
 #if KOHI_DEBUG
 
 			// Recalculate boxes for every BVH node
-			for (u16 i = 0; i < scene->bvh_debug_pool_size; ++i) {
+			for (u16 i = 0; i < scene->bvh_tree.count; ++i) {
 				bvh_node* n = &scene->bvh_tree.nodes[i];
 				if (n->height >= 0) {
 					scene_bvh_debug_data* dd = &scene->bvh_debug_pool[i];

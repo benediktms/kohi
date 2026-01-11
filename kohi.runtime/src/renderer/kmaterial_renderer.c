@@ -21,6 +21,9 @@
 #include "systems/light_system.h"
 #include "systems/texture_system.h"
 
+#define VERTEX_LAYOUT_INDEX_STATIC 0
+#define VERTEX_LAYOUT_INDEX_SKINNED 1
+
 #define MATERIAL_BINDING_SET_GLOBAL 0
 #define MATERIAL_BINDING_SET_INSTANCE 1
 
@@ -87,7 +90,7 @@ b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material
 
 	// Global material storage buffer
 	u64 buffer_size = sizeof(base_material_shader_data) * max_material_count;
-	out_state->material_global_ssbo = renderer_renderbuffer_create(out_state->renderer, kname_create(KRENDERBUFFER_NAME_MATERIALS_GLOBAL), RENDERBUFFER_TYPE_STORAGE, buffer_size, RENDERBUFFER_TRACK_TYPE_NONE, RENDERBUFFER_FLAG_AUTO_MAP_MEMORY_BIT);
+	out_state->material_global_ssbo = renderer_renderbuffer_create(out_state->renderer, kname_create(KRENDERBUFFER_NAME_MATERIALS_GLOBAL), RENDERBUFFER_TYPE_STORAGE, buffer_size, RENDERBUFFER_TRACK_TYPE_NONE, RENDERBUFFER_FLAG_AUTO_MAP_MEMORY_BIT | RENDERBUFFER_FLAG_TRIPLE_BUFFERED_BIT);
 	KASSERT(out_state->material_global_ssbo != KRENDERBUFFER_INVALID);
 	KDEBUG("Created material global storage buffer.");
 
@@ -399,7 +402,7 @@ void kmaterial_renderer_apply_globals(kmaterial_renderer* state) {
 	// Set standard shader UBO globals
 	{
 		kshader shader = state->material_standard_skinned_shader;
-		KASSERT_DEBUG(kshader_system_use(shader, state->current_uses_animated ? 1 : 0));
+		KASSERT_DEBUG(kshader_system_use(shader, state->current_uses_animated ? VERTEX_LAYOUT_INDEX_SKINNED : VERTEX_LAYOUT_INDEX_STATIC));
 
 		// Ensure wireframe mode is (un)set.
 		KASSERT_DEBUG(kshader_system_set_wireframe(shader, is_wireframe));
@@ -455,7 +458,7 @@ void kmaterial_renderer_bind_base(kmaterial_renderer* state, kmaterial base_mate
 		break;
 	case KMATERIAL_TYPE_STANDARD: {
 		shader = state->material_standard_skinned_shader;
-		kshader_system_use(shader, state->current_uses_animated ? 1 : 0);
+		kshader_system_use(shader, state->current_uses_animated ? VERTEX_LAYOUT_INDEX_SKINNED : VERTEX_LAYOUT_INDEX_STATIC);
 
 		// --------------------------------------------
 		// Texture inputs - bind each texture if used.
@@ -542,7 +545,7 @@ void kmaterial_renderer_bind_base(kmaterial_renderer* state, kmaterial base_mate
 	case KMATERIAL_TYPE_WATER: {
 
 		shader = state->material_standard_skinned_shader;
-		KASSERT_DEBUG(kshader_system_use(shader, state->current_uses_animated ? 1 : 0));
+		KASSERT_DEBUG(kshader_system_use(shader, state->current_uses_animated ? VERTEX_LAYOUT_INDEX_SKINNED : VERTEX_LAYOUT_INDEX_STATIC));
 
 		ktexture reflection_colour_tex = texture_is_loaded(material->reflection_texture) ? material->reflection_texture : state->default_texture;
 		ktexture refraction_colour_tex = texture_is_loaded(material->refraction_texture) ? material->refraction_texture : state->default_texture;
@@ -593,7 +596,7 @@ void kmaterial_renderer_apply_immediates(kmaterial_renderer* state, kmaterial_in
 	case KMATERIAL_TYPE_STANDARD:
 	case KMATERIAL_TYPE_WATER: {
 		shader = state->material_standard_skinned_shader;
-		KASSERT_DEBUG(kshader_system_use(shader, state->current_uses_animated ? 1 : 0));
+		KASSERT_DEBUG(kshader_system_use(shader, state->current_uses_animated ? VERTEX_LAYOUT_INDEX_SKINNED : VERTEX_LAYOUT_INDEX_STATIC));
 
 		kshader_set_immediate_data(shader, immediates, sizeof(kmaterial_render_immediate_data));
 	} break;
