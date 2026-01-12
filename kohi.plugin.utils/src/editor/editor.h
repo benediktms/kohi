@@ -74,13 +74,9 @@ typedef struct editor_state {
 	// Main window
 	sui_control main_bg_panel;
 	sui_control save_button;
-	sui_control save_button_label;
 	sui_control mode_entity_button;
-	sui_control mode_entity_label;
 	sui_control mode_scene_button;
-	sui_control mode_scene_label;
 	sui_control mode_tree_button;
-	sui_control mode_tree_label;
 
 	// Scene Inspector window
 	f32 scene_inspector_width;

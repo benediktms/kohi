@@ -182,9 +182,8 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 
 		// Save button.
 		{
-			KASSERT(sui_button_control_create(sui_state, "save_button", &state->save_button));
+			KASSERT(sui_button_control_create_with_text(sui_state, "save_button", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Save", &state->save_button));
 			KASSERT(standard_ui_system_register_control(sui_state, &state->save_button));
-
 			KASSERT(standard_ui_system_control_add_child(sui_state, &state->main_bg_panel, &state->save_button));
 			sui_button_control_width_set(sui_state, &state->save_button, 200);
 			ktransform_position_set(state->save_button.ktransform, (vec3){0, 50, 0});
@@ -192,21 +191,12 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 			standard_ui_system_update_active(sui_state, &state->save_button);
 			state->save_button.is_visible = true;
 
-			// Label
-			KASSERT(sui_label_control_create(sui_state, "save_button_label", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Save", &state->save_button_label));
-			KASSERT(standard_ui_system_register_control(sui_state, &state->save_button_label));
-			KASSERT(standard_ui_system_control_add_child(sui_state, &state->save_button, &state->save_button_label));
-			ktransform_position_set(state->save_button_label.ktransform, (vec3){10, -5.0f, 0});
-			state->save_button_label.is_active = true;
-			standard_ui_system_update_active(sui_state, &state->save_button_label);
-			state->save_button_label.is_visible = true;
-
 			state->save_button.on_click = save_button_clicked;
 		}
 
 		// Scene mode button.
 		{
-			KASSERT(sui_button_control_create(sui_state, "mode_scene_button", &state->mode_scene_button));
+			KASSERT(sui_button_control_create_with_text(sui_state, "mode_scene_button", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Scene", &state->mode_scene_button));
 			KASSERT(standard_ui_system_register_control(sui_state, &state->mode_scene_button));
 			KASSERT(standard_ui_system_control_add_child(sui_state, &state->main_bg_panel, &state->mode_scene_button));
 			sui_button_control_width_set(sui_state, &state->mode_scene_button, 100);
@@ -215,16 +205,6 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 			standard_ui_system_update_active(sui_state, &state->mode_scene_button);
 			state->mode_scene_button.is_visible = true;
 
-			// Label
-			KASSERT(sui_label_control_create(sui_state, "mode_scene_label", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Scene", &state->mode_scene_label));
-			KASSERT(standard_ui_system_register_control(sui_state, &state->mode_scene_label));
-			KASSERT(standard_ui_system_control_add_child(sui_state, &state->mode_scene_button, &state->mode_scene_label));
-			ktransform_position_set(state->mode_scene_label.ktransform, (vec3){10, -5.0f, 0});
-			state->mode_scene_label.is_active = true;
-			standard_ui_system_update_active(sui_state, &state->mode_scene_label);
-			state->mode_scene_label.is_visible = true;
-			state->mode_scene_label.can_mouse_interact = false;
-
 			state->mode_scene_button.user_data = state;
 			state->mode_scene_button.user_data_size = sizeof(*state);
 			state->mode_scene_button.on_click = mode_scene_button_clicked;
@@ -232,7 +212,7 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 
 		// Entity mode button.
 		{
-			KASSERT(sui_button_control_create(sui_state, "mode_entity_button", &state->mode_entity_button));
+			KASSERT(sui_button_control_create_with_text(sui_state, "mode_entity_button", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Entity", &state->mode_entity_button));
 			KASSERT(standard_ui_system_register_control(sui_state, &state->mode_entity_button));
 			KASSERT(standard_ui_system_control_add_child(sui_state, &state->main_bg_panel, &state->mode_entity_button));
 			sui_button_control_width_set(sui_state, &state->mode_entity_button, 100);
@@ -241,16 +221,6 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 			standard_ui_system_update_active(sui_state, &state->mode_entity_button);
 			state->mode_entity_button.is_visible = true;
 
-			// Label
-			KASSERT(sui_label_control_create(sui_state, "mode_entity_label", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Entity", &state->mode_entity_label));
-			KASSERT(standard_ui_system_register_control(sui_state, &state->mode_entity_label));
-			KASSERT(standard_ui_system_control_add_child(sui_state, &state->mode_entity_button, &state->mode_entity_label));
-			ktransform_position_set(state->mode_entity_label.ktransform, (vec3){10, -5.0f, 0});
-			state->mode_entity_label.is_active = true;
-			standard_ui_system_update_active(sui_state, &state->mode_entity_label);
-			state->mode_entity_label.is_visible = true;
-			state->mode_entity_label.can_mouse_interact = false;
-
 			state->mode_entity_button.user_data = state;
 			state->mode_entity_button.user_data_size = sizeof(*state);
 			state->mode_entity_button.on_click = mode_entity_button_clicked;
@@ -258,7 +228,7 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 
 		// Tree mode button.
 		{
-			KASSERT(sui_button_control_create(sui_state, "mode_tree_button", &state->mode_tree_button));
+			KASSERT(sui_button_control_create_with_text(sui_state, "mode_tree_button", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Tree", &state->mode_tree_button));
 			KASSERT(standard_ui_system_register_control(sui_state, &state->mode_tree_button));
 			KASSERT(standard_ui_system_control_add_child(sui_state, &state->main_bg_panel, &state->mode_tree_button));
 			sui_button_control_width_set(sui_state, &state->mode_tree_button, 100);
@@ -266,16 +236,6 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 			state->mode_tree_button.is_active = true;
 			standard_ui_system_update_active(sui_state, &state->mode_tree_button);
 			state->mode_tree_button.is_visible = true;
-
-			// Label
-			KASSERT(sui_label_control_create(sui_state, "mode_tree_label", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Tree", &state->mode_tree_label));
-			KASSERT(standard_ui_system_register_control(sui_state, &state->mode_tree_label));
-			KASSERT(standard_ui_system_control_add_child(sui_state, &state->mode_tree_button, &state->mode_tree_label));
-			ktransform_position_set(state->mode_tree_label.ktransform, (vec3){10, -5.0f, 0});
-			state->mode_tree_label.is_active = true;
-			standard_ui_system_update_active(sui_state, &state->mode_tree_label);
-			state->mode_tree_label.is_visible = true;
-			state->mode_tree_label.can_mouse_interact = false;
 
 			state->mode_tree_button.user_data = state;
 			state->mode_tree_button.user_data_size = sizeof(*state);
@@ -319,7 +279,7 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 			KASSERT(sui_textbox_control_create(sui_state, "scene_name_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", SUI_TEXTBOX_TYPE_STRING, &state->scene_name_textbox));
 			KASSERT(standard_ui_system_register_control(sui_state, &state->scene_name_textbox));
 			KASSERT(standard_ui_system_control_add_child(sui_state, &state->scene_inspector_bg_panel, &state->scene_name_textbox));
-			KASSERT(sui_textbox_control_width_set(sui_state, &state->scene_name_textbox, 350));
+			KASSERT(sui_textbox_control_width_set(sui_state, &state->scene_name_textbox, 340));
 			ktransform_position_set(state->scene_name_textbox.ktransform, (vec3){state->scene_inspector_right_col_x, 50, 0});
 			state->scene_name_textbox.is_active = true;
 			standard_ui_system_update_active(sui_state, &state->scene_name_textbox);

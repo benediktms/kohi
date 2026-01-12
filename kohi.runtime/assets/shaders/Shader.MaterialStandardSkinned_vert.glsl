@@ -8,9 +8,6 @@ const uint KMATERIAL_UBO_MAX_PROJECTIONS = 4;
 
 const uint KANIMATION_SSBO_MAX_BONES_PER_MESH = 64;
 
-const uint KANIMATION_MAX_BONES = 64;
-const uint KANIMATION_MAX_VERTEX_BONE_WEIGHTS = 4;
-
 struct light_data {
     // Directional light: .rgb = colour, .w = ignored - Point lights: .rgb = colour, .a = linear 
     vec4 colour;
@@ -63,7 +60,6 @@ layout(location = 1) in vec3 in_normal;
 layout(location = 2) in vec2 in_texcoord;
 layout(location = 3) in vec4 in_colour;
 layout(location = 4) in vec4 in_tangent;
-// Extended vertex data
 layout(location = 5) in ivec4 in_bone_ids;
 layout(location = 6) in vec4 in_weights;
 
@@ -185,12 +181,11 @@ void main() {
     out_dto.vertex_colour = in_colour;
 
     // Accumulate bone transform.
-    mat4 bone_transform = mat4(1.0);
-	float gt = clamp(immediate.geo_type, 0.0, 1.0);
-	bone_transform += (bones[in_bone_ids[0]] * in_weights[0]) * gt;
-	bone_transform += (bones[in_bone_ids[1]] * in_weights[1]) * gt;
-	bone_transform += (bones[in_bone_ids[2]] * in_weights[2]) * gt;
-	bone_transform += (bones[in_bone_ids[3]] * in_weights[3]) * gt;
+    mat4 bone_transform = mat4(0.0);
+	bone_transform += (bones[in_bone_ids[0]] * in_weights[0]);
+	bone_transform += (bones[in_bone_ids[1]] * in_weights[1]);
+	bone_transform += (bones[in_bone_ids[2]] * in_weights[2]);
+	bone_transform += (bones[in_bone_ids[3]] * in_weights[3]);
 	// Fragment position in world space.
 	out_dto.frag_position = model * bone_transform * vec4(in_position, 1.0);
 	// Copy the normal over.

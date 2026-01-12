@@ -8,16 +8,20 @@
 #include <strings/kstring.h>
 #include <systems/kshader_system.h>
 
+#include "controls/sui_label.h"
+#include "debug/kassert.h"
 #include "renderer/nine_slice.h"
 #include "renderer/standard_ui_renderer.h"
 #include "standard_ui_defines.h"
 #include "standard_ui_system.h"
 #include "strings/kname.h"
+#include "systems/ktransform_system.h"
 
 static b8 sui_button_internal_mouse_out(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
 static b8 sui_button_internal_mouse_over(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
 static b8 sui_button_internal_mouse_down(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
 static b8 sui_button_internal_mouse_up(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
+static void recenter_text(standard_ui_state* state, struct sui_control* self);
 
 b8 sui_button_control_create(standard_ui_state* state, const char* name, struct sui_control* out_control) {
 	if (!sui_base_control_create(state, name, out_control)) {
@@ -69,6 +73,34 @@ b8 sui_button_control_create(standard_ui_state* state, const char* name, struct 
 		return false;
 	}
 
+	typed_data->button_type = SUI_BUTTON_TYPE_BASIC;
+
+	return true;
+}
+
+b8 sui_button_control_create_with_text(standard_ui_state* state, const char* name, font_type type, kname font_name, u16 font_size, const char* text_content, struct sui_control* out_control) {
+	if (!sui_button_control_create(state, name, out_control)) {
+		KERROR("%s - Failed to create base button.", __FUNCTION__);
+		return false;
+	}
+
+	sui_button_internal_data* typed_data = out_control->internal_data;
+
+	typed_data->button_type = SUI_BUTTON_TYPE_TEXT;
+
+	// Add a label control.
+	char* buffer = string_format("%s_text_label", name);
+	b8 result = sui_label_control_create(state, buffer, type, font_name, font_size, text_content, &typed_data->label);
+	string_free(buffer);
+	KASSERT(result);
+
+	typed_data->label.is_active = true;
+	standard_ui_system_update_active(state, &typed_data->label);
+	typed_data->label.can_mouse_interact = false;
+	standard_ui_system_control_add_child(state, out_control, &typed_data->label);
+
+	recenter_text(state, out_control);
+
 	return true;
 }
 
@@ -88,6 +120,8 @@ b8 sui_button_control_height_set(standard_ui_state* state, struct sui_control* s
 
 	nine_slice_update(&typed_data->nslice, 0);
 
+	recenter_text(state, self);
+
 	return true;
 }
 
@@ -102,6 +136,25 @@ b8 sui_button_control_width_set(standard_ui_state* state, struct sui_control* se
 	self->bounds.width = width;
 
 	nine_slice_update(&typed_data->nslice, 0);
+
+	recenter_text(state, self);
+
+	return true;
+}
+
+b8 sui_button_control_text_set(standard_ui_state* state, struct sui_control* self, const char* text) {
+	if (!self) {
+		return false;
+	}
+
+	sui_button_internal_data* typed_data = self->internal_data;
+	if (typed_data->button_type == SUI_BUTTON_TYPE_TEXT) {
+		sui_label_text_set(state, &typed_data->label, text);
+		recenter_text(state, self);
+	} else {
+		KWARN("%s - called on a non-text button. Nothing to do.");
+		return false;
+	}
 
 	return true;
 }
@@ -140,6 +193,13 @@ b8 sui_button_control_render(standard_ui_state* state, struct sui_control* self,
 		renderable.atlas_override = INVALID_KTEXTURE;
 
 		darray_push(render_data->renderables, renderable);
+	}
+
+	if (typed_data->button_type == SUI_BUTTON_TYPE_TEXT) {
+		if (!typed_data->label.render(state, &typed_data->label, p_frame_data, render_data)) {
+			KERROR("Failed to render content label for button '%s'", self->name);
+			return false;
+		}
 	}
 
 	return true;
@@ -214,4 +274,21 @@ static b8 sui_button_internal_mouse_up(standard_ui_state* state, struct sui_cont
 	}
 	// Block event propagation by default. User events can override this.
 	return self->on_mouse_up ? self->on_mouse_up(state, self, event) : false;
+}
+
+static void recenter_text(standard_ui_state* state, struct sui_control* self) {
+	sui_button_internal_data* typed_data = self->internal_data;
+
+	if (typed_data->button_type == SUI_BUTTON_TYPE_TEXT) {
+		// Center the text. If the text is larger than the button, left-justify and clip it.
+		// Also retain the z position, if set.
+		vec2 text_size = sui_label_measure_string(state, &typed_data->label);
+		f32 offsetx = KMAX(0.0f, (self->bounds.width - text_size.x) * 0.5f);
+		f32 offsety = KMAX(0.0f, (self->bounds.height - text_size.y) * 0.5f);
+		// FIXME: This shouldn't be needed, but works for now...
+		offsety *= -1.0f;
+
+		vec3 pos = ktransform_position_get(typed_data->label.ktransform);
+		ktransform_position_set(typed_data->label.ktransform, (vec3){offsetx, offsety, pos.z});
+	}
 }

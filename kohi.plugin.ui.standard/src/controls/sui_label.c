@@ -341,6 +341,20 @@ f32 sui_label_line_height_get(standard_ui_state* state, struct sui_control* self
 	return 0;
 }
 
+vec2 sui_label_measure_string(standard_ui_state* state, struct sui_control* self) {
+	if (self && self->internal_data) {
+		sui_label_internal_data* typed_data = self->internal_data;
+		vec2 string_size = vec2_one();
+		if (typed_data->type == FONT_TYPE_BITMAP) {
+			font_system_bitmap_font_measure_string(state->font_system, typed_data->bitmap_font, typed_data->text, &string_size);
+		} else {
+			font_system_system_font_measure_string(state->font_system, typed_data->system_font, typed_data->text, &string_size);
+		}
+		return string_size;
+	}
+	return vec2_zero();
+}
+
 static b8 regenerate_label_geometry(standard_ui_state* state, const sui_control* self, font_geometry* pending_data) {
 	sui_label_internal_data* typed_data = self->internal_data;
 

@@ -8,12 +8,6 @@ const uint KMATERIAL_UBO_MAX_PROJECTIONS = 4;
 
 const uint KANIMATION_SSBO_MAX_BONES_PER_MESH = 64;
 
-const uint KMATERIAL_DATA_INDEX_VIEW = 0;
-const uint KMATERIAL_DATA_INDEX_PROJECTION = 1;
-
-const uint KMATERIAL_DATA_INDEX2_ANIMATION = 0;
-const uint KMATERIAL_DATA_INDEX2_BASE_MATERIAL = 1;
-
 struct light_data {
     // Directional light: .rgb = colour, .w = ignored - Point lights: .rgb = colour, .a = linear 
     vec4 colour;
@@ -136,7 +130,8 @@ layout(push_constant) uniform immediate_data {
 
     // bytes 64-79
     uint transform_index;
-    vec3 padding;
+    uint geo_type; // 0=static, 1=animated
+    vec2 padding;
     // 80-128 available
 } immediate;
 
@@ -154,8 +149,6 @@ layout(location = 0) out dto {
 	vec3 normal;
     vec3 world_to_camera;
 	vec2 tex_coord;
-    uint geo_type; // 0 = static, 1 = animated
-    float padding2;
 } out_dto;
 
 /** 
@@ -171,7 +164,6 @@ const mat4 ndc_to_uvw = mat4(
 );
 
 void main() {
-    out_dto.geo_type = 0;
     mat4 model = global_transforms.transforms[immediate.transform_index];
     mat4 view = global_settings.views[immediate.view_index];
     mat4 projection = global_settings.projections[immediate.projection_index];

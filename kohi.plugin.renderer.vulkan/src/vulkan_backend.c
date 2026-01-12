@@ -4223,9 +4223,9 @@ static b8 shader_create_modules_and_pipelines(renderer_backend_interface* backen
 
 	// Create a module for each stage.
 	vulkan_shader_stage new_stages[VULKAN_SHADER_MAX_STAGES] = {0};
-	for (u32 s = 0; s < p->stage_count; ++s) {
-		const char* stage_name = shader_stage_to_string(p->stages[s].stage);
-		if (!create_shader_module(context, internal_shader, p->stages[s].stage, p->stage_sources[s], stage_name, &new_stages[s])) {
+	for (u32 s = 0; s < config->stage_count; ++s) {
+		const char* stage_name = shader_stage_to_string(config->stages[s]);
+		if (!create_shader_module(context, internal_shader, config->stages[s], config->stage_sources[s], stage_name, &new_stages[s])) {
 			KERROR("Unable to create %s shader module for '%k'. Shader will be destroyed.", stage_name, internal_shader->name);
 			has_error = true;
 			goto shader_module_pipeline_cleanup;

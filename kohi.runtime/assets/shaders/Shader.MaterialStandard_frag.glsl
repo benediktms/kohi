@@ -288,7 +288,7 @@ void main() {
         } else {
             // Use base colour texture if provided; otherwise use the colour.
             if(flag_get(base_material.tex_flags, MATERIAL_STANDARD_FLAG_USE_BASE_COLOUR_TEX)) {
-                /* base_colour_samp = texture(sampler2D(material_textures[MAT_STANDARD_IDX_BASE_COLOUR], material_samplers[MAT_STANDARD_IDX_BASE_COLOUR]), in_dto.tex_coord); */
+                // base_colour_samp = texture(sampler2D(material_textures[MAT_STANDARD_IDX_BASE_COLOUR], material_samplers[MAT_STANDARD_IDX_BASE_COLOUR]), in_dto.tex_coord);
                 base_colour_samp = textureLod(sampler2D(material_textures[MAT_STANDARD_IDX_BASE_COLOUR], material_samplers[MAT_STANDARD_IDX_BASE_COLOUR]), in_dto.tex_coord, 0.0);
             } else {
                 base_colour_samp = base_material.base_colour;
@@ -409,7 +409,7 @@ void main() {
         // Calculate the fresnel effect.
         float fresnel_factor = dot(normalize(in_dto.world_to_camera), normal);
         fresnel_factor = clamp(fresnel_factor, 0.0, 1.0);
-        /* fresnel_factor = 0.03 + (1.0 - 0.03) * pow(1.0 - fresnel_factor, 5.0); */
+        // fresnel_factor = 0.03 + (1.0 - 0.03) * pow(1.0 - fresnel_factor, 5.0);
 
         out_colour = mix(reflect_colour, refract_colour, fresnel_factor);
         vec4 tint = vec4(0.0, 0.3, 0.5, 1.0); // TODO: configurable.
@@ -676,10 +676,10 @@ float geometry_schlick_ggx(float normal_dot_direction, float roughness) {
 }
 
 void unpack_u32_u8s(uint n, out uint x, out uint y, out uint z, out uint w) {
-    x = (n >> 24) & 0xFF;
-    y = (n >> 16) & 0xFF;
-    z = (n >> 8) & 0xFF;
-    w = n & 0xFF;
+    x = (n >> 24) & 0xFFu;
+    y = (n >> 16) & 0xFFu;
+    z = (n >> 8) & 0xFFu;
+    w = n & 0xFFu;
 }
 
 void unpack_u32_u16s(uint n, out uint x, out uint y) {

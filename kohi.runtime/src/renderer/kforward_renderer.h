@@ -252,8 +252,6 @@ typedef struct kforward_pass_render_data {
 	f32 shadow_split_mult;
 
 	kdirectional_light_data dir_light;
-	u16 point_light_count;
-	klight_render_data* point_lights;
 
 	// Water planes
 	u16 water_plane_count;

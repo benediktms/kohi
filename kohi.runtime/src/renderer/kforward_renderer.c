@@ -204,20 +204,22 @@ static void draw_geo_list(kforward_renderer* renderer, frame_data* p_frame_data,
 				.geo_type = (u32)is_animated};
 
 			// Pack the point light indices
-			u8 written = 0;
+			immediate_data.packed_point_light_indices.elements[0] = pack_u8_into_u32(geo->bound_point_light_indices[0], geo->bound_point_light_indices[1], geo->bound_point_light_indices[2], geo->bound_point_light_indices[3]);
+			immediate_data.packed_point_light_indices.elements[1] = pack_u8_into_u32(geo->bound_point_light_indices[4], geo->bound_point_light_indices[5], geo->bound_point_light_indices[6], geo->bound_point_light_indices[7]);
+			/* u8 written = 0;
 			for (u8 i = 0; i < 2 && written < geo->bound_point_light_count; ++i) {
 				u32 vi = 0;
 
 				for (u8 p = 0; p < 4 && written < geo->bound_point_light_count; ++p) {
 
 					// Pack the u8 into the given u32
-					vi |= ((u32)geo->bound_point_light_indices[written] << ((3 - p) * 8));
+					vi |= ((u32)geo->bound_point_light_indices[p] << ((3 - p) * 8));
 					++written;
 				}
 
 				// Store the packed u32
 				immediate_data.packed_point_light_indices.elements[i] = vi;
-			}
+			} */
 
 			// Apply material-instance-level immediate data.
 			kmaterial_renderer_apply_immediates(renderer->material_renderer, inst, &immediate_data);
@@ -432,7 +434,9 @@ static b8 scene_pass(
 				.geo_type = 0};
 
 			// Pack the point light indices
-			u8 written = 0;
+			immediate_data.packed_point_light_indices.elements[0] = pack_u8_into_u32(plane->plane_render_data.bound_point_light_indices[0], plane->plane_render_data.bound_point_light_indices[1], plane->plane_render_data.bound_point_light_indices[2], plane->plane_render_data.bound_point_light_indices[3]);
+			immediate_data.packed_point_light_indices.elements[1] = pack_u8_into_u32(plane->plane_render_data.bound_point_light_indices[4], plane->plane_render_data.bound_point_light_indices[5], plane->plane_render_data.bound_point_light_indices[6], plane->plane_render_data.bound_point_light_indices[7]);
+			/* u8 written = 0;
 			for (u8 i = 0; i < 2 && written < plane->plane_render_data.bound_point_light_count; ++i) {
 				u32 vi = 0;
 
@@ -445,7 +449,7 @@ static b8 scene_pass(
 
 				// Store the packed u32
 				immediate_data.packed_point_light_indices.elements[i] = vi;
-			}
+			} */
 
 			// Apply material-instance-level (i.e. per-draw-level) data.
 			kmaterial_renderer_apply_immediates(renderer->material_renderer, plane->plane_render_data.material, &immediate_data);

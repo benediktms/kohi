@@ -930,10 +930,6 @@ b8 kscene_frame_prepare(struct kscene* scene, struct frame_data* p_frame_data, u
 			.light = scene->directional_light,
 			.direction = directional_light_get_direction(engine_systems_get()->light_system, scene->directional_light)};
 
-		// FIXME: This probably should be done per object based on proximity...
-		u16 point_light_count = 0;
-		klight_render_data* point_lights = kscene_get_all_point_lights(scene, p_frame_data, 0, &point_light_count);
-
 		// Shadow pass data
 		{
 			// Shadowmap pass - only runs if there is a directional light.
@@ -1190,8 +1186,6 @@ b8 kscene_frame_prepare(struct kscene* scene, struct frame_data* p_frame_data, u
 
 			// Lighting
 			render_data->forward_data.dir_light = dir_light;
-			render_data->forward_data.point_light_count = point_light_count;
-			render_data->forward_data.point_lights = point_lights;
 
 			// Get a list of geometries from the "standard" camera perspective.
 			// These get reused for the water planes' refraction passes.

@@ -44,3 +44,5 @@ KAPI const char* sui_label_text_get(standard_ui_state* state, struct sui_control
 KAPI void sui_label_colour_set(standard_ui_state* state, struct sui_control* self, vec4 colour);
 
 KAPI f32 sui_label_line_height_get(standard_ui_state* state, struct sui_control* self);
+
+KAPI vec2 sui_label_measure_string(standard_ui_state* state, struct sui_control* self);
