@@ -6,6 +6,15 @@ depth_write=false
 max_groups=2
 max_draw_ids=2
 
+attachments = {
+	colour = [
+		{
+			name = "colour_buffer"
+			format = "RGBA32"
+		}
+	]
+}
+
 pipelines = [
 	{
 		name = "static geometry"

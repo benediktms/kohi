@@ -6,6 +6,19 @@ depth_write=false
 stencil_test=true
 stencil_write=true
 
+attachments = {
+	colour = [
+		{
+			name = "colour_buffer"
+			format = "RGBA32"
+		}
+	]
+	stencil = {
+		name = "stencil_buffer"
+		format = "S8"
+	}
+}
+
 pipelines = [
 	{
 		name = "static geometry"

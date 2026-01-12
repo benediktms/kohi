@@ -328,9 +328,6 @@ b8 pixel_data_has_transparency(const void* pixels, u32 pixel_count, kpixel_forma
 
 	switch (format) {
 	case KPIXEL_FORMAT_UNKNOWN:
-	default:
-		KWARN("%s - Unknown pixel format provided. Cannot determine pixel transparency. Defaulting to false.", __FUNCTION__);
-		return false;
 
 	case KPIXEL_FORMAT_RGBA8: {
 		PX_ALPHA_LESS_THAN_MAX(u8, pixels, pixel_count, U8_MAX, 4, 3);
@@ -351,6 +348,9 @@ b8 pixel_data_has_transparency(const void* pixels, u32 pixel_count, kpixel_forma
 	case KPIXEL_FORMAT_RGB32:
 	case KPIXEL_FORMAT_RG32:
 	case KPIXEL_FORMAT_R32:
+	case KPIXEL_FORMAT_D32:
+	case KPIXEL_FORMAT_D24:
+	case KPIXEL_FORMAT_S8:
 		// No alpha channel, return false.
 		return false;
 	}
@@ -359,16 +359,15 @@ b8 pixel_data_has_transparency(const void* pixels, u32 pixel_count, kpixel_forma
 u8 channel_count_from_pixel_format(kpixel_format format) {
 	switch (format) {
 	case KPIXEL_FORMAT_UNKNOWN:
-	default:
-		KWARN("%s - Unknown pixel format provided. Cannot determine channel count. Returning INVALID_ID_U8.", __FUNCTION__);
-		return INVALID_ID_U8;
 	case KPIXEL_FORMAT_RGBA8:
 	case KPIXEL_FORMAT_RGBA16:
 	case KPIXEL_FORMAT_RGBA32:
+	case KPIXEL_FORMAT_D32:
 		return 4;
 	case KPIXEL_FORMAT_RGB8:
 	case KPIXEL_FORMAT_RGB16:
 	case KPIXEL_FORMAT_RGB32:
+	case KPIXEL_FORMAT_D24:
 		return 3;
 	case KPIXEL_FORMAT_RG8:
 	case KPIXEL_FORMAT_RG16:
@@ -377,6 +376,7 @@ u8 channel_count_from_pixel_format(kpixel_format format) {
 	case KPIXEL_FORMAT_R8:
 	case KPIXEL_FORMAT_R16:
 	case KPIXEL_FORMAT_R32:
+	case KPIXEL_FORMAT_S8:
 		return 1;
 	}
 }
@@ -384,8 +384,6 @@ u8 channel_count_from_pixel_format(kpixel_format format) {
 const char* string_from_kpixel_format(kpixel_format format) {
 	switch (format) {
 	case KPIXEL_FORMAT_UNKNOWN:
-	default:
-		return 0;
 	case KPIXEL_FORMAT_RGBA8:
 		return "rgba8";
 	case KPIXEL_FORMAT_RGBA16:
@@ -410,6 +408,12 @@ const char* string_from_kpixel_format(kpixel_format format) {
 		return "r16";
 	case KPIXEL_FORMAT_R32:
 		return "r2";
+	case KPIXEL_FORMAT_D32:
+		return "d32";
+	case KPIXEL_FORMAT_D24:
+		return "d24";
+	case KPIXEL_FORMAT_S8:
+		return "s8";
 	}
 }
 
@@ -442,6 +446,12 @@ kpixel_format string_to_kpixel_format(const char* str) {
 		return KPIXEL_FORMAT_R16;
 	} else if (strings_equali(str, "r32")) {
 		return KPIXEL_FORMAT_R32;
+	} else if (strings_equali(str, "d32")) {
+		return KPIXEL_FORMAT_D32;
+	} else if (strings_equali(str, "d24")) {
+		return KPIXEL_FORMAT_D24;
+	} else if (strings_equali(str, "s8")) {
+		return KPIXEL_FORMAT_S8;
 	}
 
 	// Fall back to unknown.

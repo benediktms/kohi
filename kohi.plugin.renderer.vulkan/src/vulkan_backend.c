@@ -2155,6 +2155,10 @@ b8 vulkan_renderer_shader_create(
 	shader_flags flags,
 	primitive_topology_type_bits topology_types,
 	primitive_topology_type default_topology,
+	u8 colour_attachment_count,
+	kpixel_format* colour_attachment_formats,
+	kpixel_format depth_attachment_format,
+	kpixel_format stencil_attachment_format,
 	u8 pipeline_count,
 	shader_pipeline_config* pipelines,
 	u8 binding_set_count,
@@ -2453,6 +2457,55 @@ b8 vulkan_renderer_shader_create(
 				KERROR("vulkan_shader_initialize failed descriptor set layout: '%s'", vulkan_result_string(result, true));
 				return false;
 			}
+		}
+	}
+
+	// Attachments.
+	{
+		// Static lookup table for our attribute types->Vulkan ones.
+		static VkFormat* types = 0;
+		static VkFormat t[16];
+		if (!types) {
+			t[KPIXEL_FORMAT_R8] = VK_FORMAT_R32_SFLOAT;
+			t[KPIXEL_FORMAT_RG8] = VK_FORMAT_R32G32_SFLOAT;
+			t[KPIXEL_FORMAT_RGB8] = VK_FORMAT_R32G32B32_SFLOAT;
+			t[KPIXEL_FORMAT_RGBA8] = VK_FORMAT_R32G32B32A32_SFLOAT;
+
+			t[KPIXEL_FORMAT_RGBA16] = VK_FORMAT_R16_SFLOAT;
+			t[KPIXEL_FORMAT_RGBA16] = VK_FORMAT_R16G16_SFLOAT;
+			t[KPIXEL_FORMAT_RGBA16] = VK_FORMAT_R16G16_SFLOAT;
+			t[KPIXEL_FORMAT_RGBA16] = VK_FORMAT_R16G16B16_SFLOAT;
+
+			t[KPIXEL_FORMAT_RGBA32] = VK_FORMAT_R32_SFLOAT;
+			t[KPIXEL_FORMAT_RGBA32] = VK_FORMAT_R32G32_SFLOAT;
+			t[KPIXEL_FORMAT_RGBA32] = VK_FORMAT_R32G32B32_SFLOAT;
+			t[KPIXEL_FORMAT_RGBA32] = VK_FORMAT_R32G32B32A32_SFLOAT;
+
+			t[KPIXEL_FORMAT_D32] = VK_FORMAT_D32_SFLOAT;
+			t[KPIXEL_FORMAT_D24] = VK_FORMAT_D24_UNORM_S8_UINT;
+			t[KPIXEL_FORMAT_S8] = VK_FORMAT_S8_UINT;
+			t[KPIXEL_FORMAT_UNKNOWN] = VK_FORMAT_UNDEFINED;
+			types = t;
+		}
+
+		internal_shader->colour_attachment_count = colour_attachment_count;
+		if (colour_attachment_count) {
+			internal_shader->colour_attachments = KALLOC_TYPE_CARRAY(VkFormat, colour_attachment_count);
+			for (u8 c = 0; c < colour_attachment_count; ++c) {
+				internal_shader->colour_attachments[c] = types[colour_attachment_formats[c]];
+			}
+		}
+
+		// If both depth and stencil are set, use the combined format for the attachment and assign to both.
+		if (depth_attachment_format == KPIXEL_FORMAT_D24 && stencil_attachment_format == KPIXEL_FORMAT_S8) {
+			internal_shader->depth_attachment = VK_FORMAT_D24_UNORM_S8_UINT;
+			internal_shader->stencil_attachment = VK_FORMAT_D24_UNORM_S8_UINT;
+		} else if (depth_attachment_format == KPIXEL_FORMAT_D32) {
+			internal_shader->depth_attachment = VK_FORMAT_D32_SFLOAT;
+			if (stencil_attachment_format != KPIXEL_FORMAT_UNKNOWN) {
+				KWARN("KPIXEL_FORMAT_D32 is used, but a stencil format is also defined. Pick one, ya dangus.");
+			}
+			internal_shader->depth_attachment = VK_FORMAT_D24_UNORM_S8_UINT;
 		}
 	}
 
@@ -4280,28 +4333,17 @@ static b8 shader_create_modules_and_pipelines(renderer_backend_interface* backen
 		pipeline_config.name = string_duplicate(kname_string_get(internal_shader->name));
 		pipeline_config.topology_types = internal_shader->topology_types;
 
-		// Always use this format since the render targets will be in this format.
-		// TODO: May want to extract this from the attachment resources themselves?
-		VkFormat colour_attachment_format = VK_FORMAT_R8G8B8A8_UNORM;
-
 		if ((internal_shader->flags & SHADER_FLAG_COLOUR_READ_BIT) || (internal_shader->flags & SHADER_FLAG_COLOUR_WRITE_BIT)) {
-			// TODO: Figure out the format(s) of the colour attachments (if they exist) and pass them along here.
-			// This just assumes the same format as the default render target/swapchain. This will work
-			// until there is a shader with more than 1 colour attachment, in which case either the
-			// shader configuration itself will have to be amended to indicate this directly and/or the
-			// shader configuration can specify some known "pipeline type" (i.e. "forward"), and that
-			// type contains the image format information needed here. Putting a pin in this for now
-			// until the eventual shader refactoring.
-			pipeline_config.colour_attachment_count = 1;
-			pipeline_config.colour_attachment_formats = &colour_attachment_format; // &context->current_window->renderer_state->backend_state->swapchain.image_format.format;
+			pipeline_config.colour_attachment_count = internal_shader->colour_attachment_count;
+			pipeline_config.colour_attachment_formats = internal_shader->colour_attachments;
 		} else {
 			pipeline_config.colour_attachment_count = 0;
 			pipeline_config.colour_attachment_formats = 0;
 		}
 
 		if ((internal_shader->flags & SHADER_FLAG_DEPTH_TEST_BIT) || (internal_shader->flags & SHADER_FLAG_DEPTH_WRITE_BIT) || (internal_shader->flags & SHADER_FLAG_STENCIL_TEST_BIT) || (internal_shader->flags & SHADER_FLAG_STENCIL_WRITE_BIT)) {
-			pipeline_config.depth_attachment_format = context->device.depth_format;
-			pipeline_config.stencil_attachment_format = context->device.depth_format;
+			pipeline_config.depth_attachment_format = internal_shader->depth_attachment;	 // context->device.depth_format;
+			pipeline_config.stencil_attachment_format = internal_shader->stencil_attachment; // context->device.depth_format;
 		} else {
 			pipeline_config.depth_attachment_format = VK_FORMAT_UNDEFINED;
 			pipeline_config.stencil_attachment_format = VK_FORMAT_UNDEFINED;

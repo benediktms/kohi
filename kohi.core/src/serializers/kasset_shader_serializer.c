@@ -95,6 +95,52 @@ const char* kasset_shader_serialize(const kasset_shader* asset) {
 
 	kson_object_value_add_string(&tree.root, "default_topology", topology_type_to_string(typed_asset->default_topology));
 
+	// Attachments. Required.
+	kson_object attachments_obj = kson_object_create();
+	// Colour attachments
+	if (typed_asset->colour_attachment_count) {
+		kson_array colour_attachments_array = kson_array_create();
+		for (u8 i = 0; i < typed_asset->colour_attachment_count; ++i) {
+			kasset_shader_attachment* att = &typed_asset->colour_attachments[i];
+
+			kson_object att_obj = kson_object_create();
+			if (att->name) {
+				kson_object_value_add_string(&att_obj, "name", att->name);
+				kson_object_value_add_string(&att_obj, "format", string_from_kpixel_format(att->format));
+			}
+
+			kson_array_value_add_object(&colour_attachments_array, att_obj);
+		}
+
+		kson_object_value_add_array(&attachments_obj, "colour", colour_attachments_array);
+	}
+
+	// Depth attachment
+	if (typed_asset->depth_attachment.format != KPIXEL_FORMAT_UNKNOWN) {
+		kasset_shader_attachment* att = &typed_asset->depth_attachment;
+		kson_object att_obj = kson_object_create();
+		if (att->name) {
+			kson_object_value_add_string(&att_obj, "name", att->name);
+		}
+		kson_object_value_add_string(&att_obj, "format", string_from_kpixel_format(att->format));
+
+		kson_object_value_add_object(&attachments_obj, "depth", att_obj);
+	}
+
+	// Stencil attachment
+	if (typed_asset->stencil_attachment.format != KPIXEL_FORMAT_UNKNOWN) {
+		kasset_shader_attachment* att = &typed_asset->stencil_attachment;
+		kson_object att_obj = kson_object_create();
+		if (att->name) {
+			kson_object_value_add_string(&att_obj, "name", att->name);
+		}
+		kson_object_value_add_string(&att_obj, "format", string_from_kpixel_format(att->format));
+
+		kson_object_value_add_object(&attachments_obj, "stencil", att_obj);
+	}
+
+	kson_object_value_add_object(&tree.root, "attachments", attachments_obj);
+
 	// Vertex layout pipelines
 	kson_array pipelines_array = kson_array_create();
 	for (u8 pi = 0; pi < typed_asset->pipeline_count; ++pi) {
@@ -302,6 +348,95 @@ b8 kasset_shader_deserialize(const char* file_text, kasset_shader* out_asset) {
 		if (default_topology_type_str) {
 			typed_asset->default_topology = string_to_topology_type(default_topology_type_str);
 			string_free(default_topology_type_str);
+		}
+
+		// Attachments. Required.
+		kson_object attachments_obj;
+		if (!kson_object_property_value_get_object(&tree.root, "attachments", &attachments_obj)) {
+			KERROR("Property ;'attachments' is required at the root level for shader configurations. At least one attachment is required.");
+			goto cleanup_kson;
+		}
+		u8 attachment_count = 0;
+		kson_array colour_attachments_array;
+		if (kson_object_property_value_get_array(&attachments_obj, "colour", &colour_attachments_array)) {
+			u32 count = 0;
+			kson_array_element_count_get(&colour_attachments_array, &count);
+
+			out_asset->colour_attachment_count = (u8)count;
+			out_asset->colour_attachments = KALLOC_TYPE_CARRAY(kasset_shader_attachment, count);
+
+			for (u32 i = 0; i < count; ++i) {
+				kasset_shader_attachment* att = &out_asset->colour_attachments[i];
+				kson_object att_obj;
+				kson_array_element_value_get_object(&colour_attachments_array, i, &att_obj);
+
+				kson_object_property_value_get_string(&att_obj, "name", &att->name);
+
+				const char* tmp_format = 0;
+				kson_object_property_value_get_string(&att_obj, "format", &tmp_format);
+				att->format = string_to_kpixel_format(tmp_format);
+				string_free(tmp_format);
+			}
+
+			attachment_count += (u8)count;
+		}
+
+		// depth attachment
+		{
+			kson_object att_obj;
+			if (kson_object_property_value_get_object(&attachments_obj, "depth", &att_obj)) {
+				kasset_shader_attachment* att = &out_asset->depth_attachment;
+
+				kson_object_property_value_get_string(&att_obj, "name", &att->name);
+
+				const char* tmp_format = 0;
+				kson_object_property_value_get_string(&att_obj, "format", &tmp_format);
+				att->format = string_to_kpixel_format(tmp_format);
+				string_free(tmp_format);
+
+				attachment_count++;
+
+				// Ensure format is valid for the attachment type.
+				if (att->format != KPIXEL_FORMAT_D32 && att->format != KPIXEL_FORMAT_D24) {
+					KERROR("Invalid depth format - must either be d32 or d24.");
+					goto cleanup_kson;
+				}
+
+				// If a depth attachment is set, ensure that it is either being written to or read from.
+				if (!out_asset->depth_test && !out_asset->depth_write) {
+					KERROR("Depth attachment configured, but shader not set to read or write from it.");
+					goto cleanup_kson;
+				}
+			}
+		}
+
+		// stencil attachment
+		{
+			kson_object att_obj;
+			if (kson_object_property_value_get_object(&attachments_obj, "stencil", &att_obj)) {
+				kasset_shader_attachment* att = &out_asset->stencil_attachment;
+
+				kson_object_property_value_get_string(&att_obj, "name", &att->name);
+
+				const char* tmp_format = 0;
+				kson_object_property_value_get_string(&att_obj, "format", &tmp_format);
+				att->format = string_to_kpixel_format(tmp_format);
+				string_free(tmp_format);
+
+				attachment_count++;
+
+				// Ensure format is valid for the attachment type.
+				if (att->format != KPIXEL_FORMAT_S8) {
+					KERROR("Invalid stencil format - must either be s8.");
+					goto cleanup_kson;
+				}
+			}
+		}
+
+		// Ensure there is at least one attachment.
+		if (!attachment_count) {
+			KERROR("A minimum of one attachment must exist in shader config.");
+			goto cleanup_kson;
 		}
 
 		// Pipelines, one per vertex layout.

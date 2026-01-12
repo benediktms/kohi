@@ -44,9 +44,6 @@ typedef struct kforward_pass_data {
 	u32 sb_shader_set0_instance_id;
 
 	ktexture default_cube_texture;
-
-	// Water shader
-	kshader water_shader;
 } kforward_pass_data;
 
 #if KOHI_DEBUG

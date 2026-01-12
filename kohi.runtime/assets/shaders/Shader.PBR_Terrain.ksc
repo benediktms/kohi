@@ -6,6 +6,23 @@ supports_wireframe = true
 max_instances = 5
 cull_mode = "back"
 
+attachments = {
+	colour = [
+		{
+			name = "colour_buffer"
+			format = "RGBA32"
+		}
+	]
+	depth = {
+		name = "depth_buffer"
+		format = "D24"
+	}
+	stencil = {
+		name = "stencil_buffer"
+		format = "S8"
+	}
+}
+
 pipelines = [
 	{
 		name = "static geometry"

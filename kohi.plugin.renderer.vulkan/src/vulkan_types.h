@@ -573,6 +573,12 @@ typedef struct vulkan_shader {
 	/** @brief The uniform buffer used by this shader. Triple-buffered by default */
 	krenderbuffer uniform_buffer;
 
+	u8 colour_attachment_count;
+	VkFormat* colour_attachments;
+
+	VkFormat depth_attachment;
+	VkFormat stencil_attachment;
+
 	u8 vertex_layout_pipeline_count;
 	// One per vertex layout
 	vulkan_vertex_layout_pipeline* vertex_layout_pipelines;

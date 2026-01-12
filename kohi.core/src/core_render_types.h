@@ -58,6 +58,12 @@ typedef enum kpixel_format {
 	KPIXEL_FORMAT_RGB32,
 	KPIXEL_FORMAT_RG32,
 	KPIXEL_FORMAT_R32,
+	// Depth buffer format, 4 channels, 8 bits each
+	KPIXEL_FORMAT_D32,
+	// Depth buffer format, 3 channels, 8 bits each
+	KPIXEL_FORMAT_D24,
+	// Stencil buffer format, 1 channel, 8 bits
+	KPIXEL_FORMAT_S8
 } kpixel_format;
 
 /** @brief Represents supported texture filtering modes. */

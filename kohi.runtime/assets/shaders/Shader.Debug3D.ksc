@@ -9,6 +9,23 @@ topology_types = [
     "triangle_list"
 ]
 
+attachments = {
+	colour = [
+		{
+			name = "colour_buffer"
+			format = "RGBA32"
+		}
+	]
+	depth = {
+		name = "depth_buffer"
+		format = "D24"
+	}
+	stencil = {
+		name = "stencil_buffer"
+		format = "S8"
+	}
+}
+
 pipelines = [
 	{
 		name = "static geometry"

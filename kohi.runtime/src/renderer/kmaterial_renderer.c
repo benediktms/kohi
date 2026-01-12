@@ -14,6 +14,7 @@
 #include "runtime_defines.h"
 #include "serializers/kasset_shader_serializer.h"
 #include "strings/kname.h"
+#include "strings/kstring.h"
 #include "systems/kmaterial_system.h"
 #include "systems/kmodel_system.h"
 #include "systems/kshader_system.h"
@@ -109,6 +110,17 @@ b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material
 		mat_std_shader.colour_read = false;
 		mat_std_shader.supports_wireframe = true;
 		mat_std_shader.topology_types = PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_LIST_BIT;
+
+		mat_std_shader.colour_attachment_count = 1;
+		mat_std_shader.colour_attachments = KALLOC_TYPE_CARRAY(kasset_shader_attachment, mat_std_shader.colour_attachment_count);
+		mat_std_shader.colour_attachments[0].name = string_duplicate("standard material colour attachment 0");
+		mat_std_shader.colour_attachments[0].format = KPIXEL_FORMAT_RGB8;
+
+		mat_std_shader.depth_attachment.name = string_duplicate("standard material depth attachment");
+		mat_std_shader.depth_attachment.format = KPIXEL_FORMAT_D24;
+
+		mat_std_shader.stencil_attachment.name = string_duplicate("standard material stencil attachment");
+		mat_std_shader.stencil_attachment.format = KPIXEL_FORMAT_S8;
 
 		mat_std_shader.pipeline_count = 2;
 		mat_std_shader.pipelines = KALLOC_TYPE_CARRAY(kasset_shader_pipeline, mat_std_shader.pipeline_count);
@@ -263,6 +275,7 @@ b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material
 
 		// Serialize
 		const char* config_source = kasset_shader_serialize(&mat_std_shader);
+		KTRACE(config_source);
 
 		// Destroy the temp asset.
 		for (u8 i = 0; i < mat_std_shader.pipeline_count; ++i) {

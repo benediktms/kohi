@@ -323,6 +323,11 @@ typedef struct kasset_shader_pipeline {
 	kasset_shader_attribute* attributes;
 } kasset_shader_pipeline;
 
+typedef struct kasset_shader_attachment {
+	const char* name;
+	kpixel_format format;
+} kasset_shader_attachment;
+
 /**
  * @brief Represents a shader asset, typically loaded from disk.
  */
@@ -338,6 +343,12 @@ typedef struct kasset_shader {
 	b8 supports_wireframe;
 	primitive_topology_type_bits topology_types;
 	primitive_topology_type default_topology;
+
+	u8 colour_attachment_count;
+	kasset_shader_attachment* colour_attachments;
+
+	kasset_shader_attachment depth_attachment;
+	kasset_shader_attachment stencil_attachment;
 
 	u8 pipeline_count;
 	kasset_shader_pipeline* pipelines;

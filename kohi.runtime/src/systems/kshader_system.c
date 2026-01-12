@@ -43,6 +43,11 @@ typedef struct kshader_pipeline_data {
 	u32* watch_ids;
 } kshader_pipeline_data;
 
+typedef struct kshader_attachment {
+	kname name;
+	kpixel_format format;
+} kshader_attachment;
+
 /**
  * @brief Represents a shader on the frontend. This is internal to the shader system.
  */
@@ -61,6 +66,12 @@ typedef struct kshader_data {
 
 	// A constant pointer to the shader config asset.
 	const kasset_shader* shader_asset;
+
+	u8 colour_attachment_count;
+	kshader_attachment* colour_attachments;
+
+	kshader_attachment depth_attachment;
+	kshader_attachment stencil_attachment;
 
 	u8 pipeline_count;
 	kshader_pipeline_data* pipelines;
@@ -422,6 +433,25 @@ static kshader shader_create(const kasset_shader* asset) {
 	// Save off a pointer to the config resource.
 	out_shader->shader_asset = asset;
 
+	// Attachments
+	// Colour
+	if (asset->colour_attachment_count && asset->colour_attachments) {
+		out_shader->colour_attachment_count = asset->colour_attachment_count;
+		out_shader->colour_attachments = KALLOC_TYPE_CARRAY(kshader_attachment, out_shader->colour_attachment_count);
+		for (u8 i = 0; i < out_shader->colour_attachment_count; ++i) {
+			out_shader->colour_attachments[i].format = asset->colour_attachments[i].format;
+			out_shader->colour_attachments[i].name = kname_create(asset->colour_attachments[i].name);
+		}
+	}
+
+	// Depth attachment
+	out_shader->depth_attachment.format = asset->depth_attachment.format;
+	out_shader->depth_attachment.name = kname_create(asset->depth_attachment.name);
+
+	// Stencil attachment
+	out_shader->stencil_attachment.format = asset->stencil_attachment.format;
+	out_shader->stencil_attachment.name = kname_create(asset->stencil_attachment.name);
+
 	out_shader->pipeline_count = asset->pipeline_count;
 	out_shader->pipelines = KALLOC_TYPE_CARRAY(kshader_pipeline_data, out_shader->pipeline_count);
 	shader_pipeline_config* pipeline_configs = KALLOC_TYPE_CARRAY(shader_pipeline_config, out_shader->pipeline_count);
@@ -484,6 +514,14 @@ static kshader shader_create(const kasset_shader* asset) {
 	// Ready to be initialized.
 	out_shader->state = SHADER_STATE_UNINITIALIZED;
 
+	kpixel_format* colour_formats = 0;
+	if (out_shader->colour_attachment_count) {
+		colour_formats = KALLOC_TYPE_CARRAY(kpixel_format, out_shader->colour_attachment_count);
+		for (u8 i = 0; i < out_shader->colour_attachment_count; ++i) {
+			colour_formats[i] = out_shader->colour_attachments[i].format;
+		}
+	}
+
 	// Create renderer-internal resources.
 	b8 result = renderer_shader_create(
 		state_ptr->renderer,
@@ -492,10 +530,16 @@ static kshader shader_create(const kasset_shader* asset) {
 		out_shader->flags,
 		out_shader->topology_types,
 		out_shader->default_topology,
+		out_shader->colour_attachment_count,
+		colour_formats,
+		out_shader->depth_attachment.format,
+		out_shader->stencil_attachment.format,
 		out_shader->pipeline_count,
 		pipeline_configs,
 		asset->binding_set_count,
 		asset->binding_sets);
+
+	KFREE_TYPE_CARRAY(colour_formats, kpixel_format, out_shader->colour_attachment_count);
 
 	// Cleanup config.
 	for (u8 pi = 0; pi < out_shader->pipeline_count; ++pi) {

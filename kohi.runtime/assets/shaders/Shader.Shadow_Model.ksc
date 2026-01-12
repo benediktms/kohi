@@ -7,6 +7,17 @@ cull_mode="none"
 max_groups=256
 max_draw_ids=1024
 
+attachments = {
+	depth = {
+		name = "depth_buffer"
+		format = "D24"
+	}
+	stencil = {
+		name = "stencil_buffer"
+		format = "S8"
+	}
+}
+
 pipelines = [
 	{
 		name = "static geometry"
