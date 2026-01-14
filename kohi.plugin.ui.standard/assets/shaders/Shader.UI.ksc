@@ -10,9 +10,13 @@ attachments = {
 	colour = [
 		{
 			name = "colour_buffer"
-			format = "RGBA32"
+			format = "RGBA8"
 		}
 	]
+	depth = {
+		name = "depth_buffer"
+		format = "D24"
+	}
 	stencil = {
 		name = "stencil_buffer"
 		format = "S8"

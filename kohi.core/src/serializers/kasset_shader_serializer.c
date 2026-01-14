@@ -401,12 +401,6 @@ b8 kasset_shader_deserialize(const char* file_text, kasset_shader* out_asset) {
 					KERROR("Invalid depth format - must either be d32 or d24.");
 					goto cleanup_kson;
 				}
-
-				// If a depth attachment is set, ensure that it is either being written to or read from.
-				if (!out_asset->depth_test && !out_asset->depth_write) {
-					KERROR("Depth attachment configured, but shader not set to read or write from it.");
-					goto cleanup_kson;
-				}
 			}
 		}
 

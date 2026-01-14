@@ -9,6 +9,9 @@ shadow_distance = 100.000000
 shadow_fade_distance = 5.000000
 shadow_split_mult = 0.750000
 shadow_bias = 0.000700
+fog_colour = "0.6 0.7 0.8"
+fog_near = 1.0 
+fog_far = 100.0
 entities = [
 	{
 		name = "sponza"

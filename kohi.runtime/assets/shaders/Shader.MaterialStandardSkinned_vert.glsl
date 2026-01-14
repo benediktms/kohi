@@ -83,6 +83,11 @@ layout(std140, set = 0, binding = 0) uniform kmaterial_settings_ubo {
     float shadow_distance;
     float shadow_fade_distance;
     float shadow_split_mult;
+
+    vec3 fog_colour;
+    float fog_start;
+    vec3 padding;
+    float fog_end;
 } global_settings;
 
 // All transforms
@@ -149,6 +154,7 @@ layout(location = 0) out dto {
     vec4 vertex_colour;
 	vec4 tangent;
 	vec3 normal;
+    float view_depth;
     vec3 world_to_camera;
 	vec2 tex_coord;
 } out_dto;
@@ -194,7 +200,9 @@ void main() {
 	out_dto.normal = normalize(m3_model * normal4.xyz);
 	out_dto.tangent.xyz = normalize(m3_model * vec3(in_tangent));
     out_dto.tangent.w = in_tangent.w;
-    out_dto.clip_space = projection * view * out_dto.frag_position;
+    vec4 view_position = view * out_dto.frag_position;
+    out_dto.view_depth = -view_position.z;
+    out_dto.clip_space = projection * view_position;
     gl_Position = out_dto.clip_space;
 
 	// Apply clipping plane

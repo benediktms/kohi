@@ -11,6 +11,14 @@ assets = [
         path = "assets/shaders/Shader.Colour3D_frag.glsl"
     }
     {
+        name = "Shader.Depth_Prepass"
+        path = "assets/shaders/Shader.Depth_Prepass.ksc"
+    }
+    {
+        name = "Shader.Depth_Prepass_vert"
+        path = "assets/shaders/Shader.Depth_Prepass_vert.glsl"
+    }
+    {
         name = "Shader.Colour3D_vert"
         path = "assets/shaders/Shader.Colour3D_vert.glsl"
     }

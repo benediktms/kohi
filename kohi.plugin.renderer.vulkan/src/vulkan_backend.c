@@ -2466,20 +2466,20 @@ b8 vulkan_renderer_shader_create(
 		static VkFormat* types = 0;
 		static VkFormat t[16];
 		if (!types) {
-			t[KPIXEL_FORMAT_R8] = VK_FORMAT_R32_SFLOAT;
-			t[KPIXEL_FORMAT_RG8] = VK_FORMAT_R32G32_SFLOAT;
-			t[KPIXEL_FORMAT_RGB8] = VK_FORMAT_R32G32B32_SFLOAT;
-			t[KPIXEL_FORMAT_RGBA8] = VK_FORMAT_R32G32B32A32_SFLOAT;
+			t[KPIXEL_FORMAT_R8] = VK_FORMAT_R8_UNORM;
+			t[KPIXEL_FORMAT_RG8] = VK_FORMAT_R8G8_UNORM;
+			t[KPIXEL_FORMAT_RGB8] = VK_FORMAT_R8G8B8_UNORM;
+			t[KPIXEL_FORMAT_RGBA8] = VK_FORMAT_R8G8B8A8_UNORM;
 
-			t[KPIXEL_FORMAT_RGBA16] = VK_FORMAT_R16_SFLOAT;
-			t[KPIXEL_FORMAT_RGBA16] = VK_FORMAT_R16G16_SFLOAT;
-			t[KPIXEL_FORMAT_RGBA16] = VK_FORMAT_R16G16_SFLOAT;
-			t[KPIXEL_FORMAT_RGBA16] = VK_FORMAT_R16G16B16_SFLOAT;
+			t[KPIXEL_FORMAT_R16] = VK_FORMAT_R16_UNORM;
+			t[KPIXEL_FORMAT_RG16] = VK_FORMAT_R16G16_UNORM;
+			t[KPIXEL_FORMAT_RGB16] = VK_FORMAT_R16G16B16_UNORM;
+			t[KPIXEL_FORMAT_RGBA16] = VK_FORMAT_R16G16B16A16_UNORM;
 
-			t[KPIXEL_FORMAT_RGBA32] = VK_FORMAT_R32_SFLOAT;
-			t[KPIXEL_FORMAT_RGBA32] = VK_FORMAT_R32G32_SFLOAT;
-			t[KPIXEL_FORMAT_RGBA32] = VK_FORMAT_R32G32B32_SFLOAT;
-			t[KPIXEL_FORMAT_RGBA32] = VK_FORMAT_R32G32B32A32_SFLOAT;
+			t[KPIXEL_FORMAT_RGBA32] = VK_FORMAT_R32_UINT;
+			t[KPIXEL_FORMAT_RGBA32] = VK_FORMAT_R32G32_UINT;
+			t[KPIXEL_FORMAT_RGBA32] = VK_FORMAT_R32G32B32_UINT;
+			t[KPIXEL_FORMAT_RGBA32] = VK_FORMAT_R32G32B32A32_UINT;
 
 			t[KPIXEL_FORMAT_D32] = VK_FORMAT_D32_SFLOAT;
 			t[KPIXEL_FORMAT_D24] = VK_FORMAT_D24_UNORM_S8_UINT;
@@ -2501,11 +2501,20 @@ b8 vulkan_renderer_shader_create(
 			internal_shader->depth_attachment = VK_FORMAT_D24_UNORM_S8_UINT;
 			internal_shader->stencil_attachment = VK_FORMAT_D24_UNORM_S8_UINT;
 		} else if (depth_attachment_format == KPIXEL_FORMAT_D32) {
-			internal_shader->depth_attachment = VK_FORMAT_D32_SFLOAT;
-			if (stencil_attachment_format != KPIXEL_FORMAT_UNKNOWN) {
-				KWARN("KPIXEL_FORMAT_D32 is used, but a stencil format is also defined. Pick one, ya dangus.");
+			if (stencil_attachment_format == KPIXEL_FORMAT_S8) {
+				internal_shader->depth_attachment = VK_FORMAT_D32_SFLOAT_S8_UINT;
+			} else {
+				internal_shader->depth_attachment = VK_FORMAT_D32_SFLOAT;
 			}
-			internal_shader->depth_attachment = VK_FORMAT_D24_UNORM_S8_UINT;
+
+			internal_shader->stencil_attachment = internal_shader->depth_attachment;
+		}
+
+		// HACK: Use the supported depth type regardless of what's defined on the frontend. Eventually should figure out
+		// the lowest common denominator of what's supported and just expose that.
+		if (depth_attachment_format != KPIXEL_FORMAT_UNKNOWN) {
+			internal_shader->depth_attachment = context->device.depth_format;
+			internal_shader->stencil_attachment = context->device.depth_format;
 		}
 	}
 
@@ -3997,7 +4006,7 @@ static b8 vulkan_graphics_pipeline_create(vulkan_context* context, const vulkan_
 		if (config->shader_flags & SHADER_FLAG_DEPTH_WRITE_BIT) {
 			depth_stencil.depthWriteEnable = VK_TRUE;
 		}
-		depth_stencil.depthCompareOp = VK_COMPARE_OP_LESS;
+		depth_stencil.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL; // VK_COMPARE_OP_LESS;
 		depth_stencil.depthBoundsTestEnable = VK_FALSE;
 	}
 	depth_stencil.stencilTestEnable = (config->shader_flags & SHADER_FLAG_STENCIL_TEST_BIT) ? VK_TRUE : VK_FALSE;

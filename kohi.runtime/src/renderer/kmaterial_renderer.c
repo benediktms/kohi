@@ -21,6 +21,7 @@
 #include "systems/ktransform_system.h"
 #include "systems/light_system.h"
 #include "systems/texture_system.h"
+#include "utils/kcolour.h"
 
 #define VERTEX_LAYOUT_INDEX_STATIC 0
 #define VERTEX_LAYOUT_INDEX_SKINNED 1
@@ -95,6 +96,11 @@ b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material
 	KASSERT(out_state->material_global_ssbo != KRENDERBUFFER_INVALID);
 	KDEBUG("Created material global storage buffer.");
 
+	// Some default settings.
+	out_state->settings.fog_colour = (colour3){0.6f, 0.7f, 0.8f};
+	out_state->settings.fog_start = 1.0f;
+	out_state->settings.fog_end = 1000.0f;
+
 	// Get default material shaders.
 
 	// Standard Skinned material shader (skinned meshes).
@@ -114,7 +120,7 @@ b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material
 		mat_std_shader.colour_attachment_count = 1;
 		mat_std_shader.colour_attachments = KALLOC_TYPE_CARRAY(kasset_shader_attachment, mat_std_shader.colour_attachment_count);
 		mat_std_shader.colour_attachments[0].name = string_duplicate("standard material colour attachment 0");
-		mat_std_shader.colour_attachments[0].format = KPIXEL_FORMAT_RGB8;
+		mat_std_shader.colour_attachments[0].format = KPIXEL_FORMAT_RGBA8;
 
 		mat_std_shader.depth_attachment.name = string_duplicate("standard material depth attachment");
 		mat_std_shader.depth_attachment.format = KPIXEL_FORMAT_D24;
@@ -328,6 +334,15 @@ void kmaterial_renderer_update(kmaterial_renderer* state) {
 		kvar_i32_get("use_pcf", &iuse_pcf);
 		state->settings.use_pcf = (b8)iuse_pcf;
 	}
+}
+
+void kmaterial_renderer_set_fog_colour(kmaterial_renderer* state, colour3 colour) {
+	state->settings.fog_colour = colour;
+}
+
+void kmaterial_renderer_set_fog_near_far(kmaterial_renderer* state, f32 near, f32 far) {
+	state->settings.fog_start = near;
+	state->settings.fog_end = far;
 }
 
 static kshader get_shader_for_material_type(kmaterial_renderer* state, kmaterial_type type) {

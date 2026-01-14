@@ -13,7 +13,7 @@ attachments = {
 	colour = [
 		{
 			name = "colour_buffer"
-			format = "RGBA32"
+			format = "RGBA8"
 		}
 	]
 	depth = {

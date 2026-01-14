@@ -46,6 +46,11 @@ typedef struct kforward_pass_data {
 	ktexture default_cube_texture;
 } kforward_pass_data;
 
+typedef struct kdepth_prepass_data {
+	kshader depth_prepass_shader;
+	u32 shader_set0_instance_id;
+} kdepth_prepass_data;
+
 #if KOHI_DEBUG
 
 typedef struct kworld_debug_pass_data {
@@ -69,6 +74,7 @@ typedef struct kforward_renderer {
 	struct kmaterial_renderer* material_renderer;
 	struct texture_system_state* texture_system;
 
+	kdepth_prepass_data depth_prepass;
 	kshadow_pass_data shadow_pass;
 	kforward_pass_data forward_pass;
 #if KOHI_DEBUG
@@ -247,6 +253,10 @@ typedef struct kforward_pass_render_data {
 	f32 shadow_distance;
 	f32 shadow_fade_distance;
 	f32 shadow_split_mult;
+
+	colour3 fog_colour;
+	f32 fog_near;
+	f32 fog_far;
 
 	kdirectional_light_data dir_light;
 

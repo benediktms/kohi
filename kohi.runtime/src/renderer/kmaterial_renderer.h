@@ -5,6 +5,7 @@
 
 #include "renderer/renderer_types.h"
 #include "systems/kmaterial_system.h"
+#include "utils/kcolour.h"
 
 #define KMATERIAL_UBO_MAX_VIEWS 16
 #define KMATERIAL_UBO_MAX_PROJECTIONS 4
@@ -78,6 +79,12 @@ typedef struct kmaterial_settings_ubo {
 	f32 shadow_distance;
 	f32 shadow_fade_distance;
 	f32 shadow_split_mult;
+
+	// Fog settings
+	colour3 fog_colour;
+	f32 fog_start;
+	vec3 padding; // TODO: available
+	f32 fog_end;
 } kmaterial_settings_ubo;
 
 typedef enum kmaterial_data_index {
@@ -165,6 +172,9 @@ KAPI b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_mat
 KAPI void kmaterial_renderer_shutdown(kmaterial_renderer* state);
 
 KAPI void kmaterial_renderer_update(kmaterial_renderer* state);
+
+KAPI void kmaterial_renderer_set_fog_colour(kmaterial_renderer* state, colour3 colour);
+KAPI void kmaterial_renderer_set_fog_near_far(kmaterial_renderer* state, f32 near, f32 far);
 
 // Sets material_data->group_id;
 KAPI void kmaterial_renderer_register_base(kmaterial_renderer* state, kmaterial_data* material_data);

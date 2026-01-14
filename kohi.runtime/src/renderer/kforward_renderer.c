@@ -65,6 +65,15 @@ typedef struct colour_3d_immediate_data {
 	mat4 model;
 } colour_3d_immediate_data;
 
+typedef struct depth_prepass_global_ubo {
+	mat4 projection;
+	mat4 view;
+} depth_prepass_global_ubo;
+
+typedef struct depth_prepass_immediate_data {
+	u32 transform_index;
+} depth_prepass_immediate_data;
+
 b8 kforward_renderer_create(ktexture colour_buffer, ktexture depth_stencil_buffer, kforward_renderer* out_renderer) {
 	KASSERT_DEBUG(out_renderer);
 
@@ -137,6 +146,12 @@ b8 kforward_renderer_create(ktexture colour_buffer, ktexture depth_stencil_buffe
 			KERROR("Failed to request layered shadow map texture for shadow pass.");
 			return false;
 		}
+	}
+
+	// Depth prepass data
+	{
+		out_renderer->depth_prepass.depth_prepass_shader = kshader_system_get(kname_create(SHADER_NAME_RUNTIME_DEPTH_PREPASS), kname_create(PACKAGE_NAME_RUNTIME));
+		out_renderer->depth_prepass.shader_set0_instance_id = kshader_acquire_binding_set_instance(out_renderer->depth_prepass.depth_prepass_shader, 0);
 	}
 
 	// Forward pass data
@@ -301,11 +316,102 @@ static b8 scene_pass(
 	const kskybox_render_data* skybox_data,
 	const kscene_pass_render_data* pass_data,
 	u32 water_plane_count,
-	const kforward_pass_water_plane_render_data* water_planes) {
+	const kforward_pass_water_plane_render_data* water_planes,
+	b8 do_depth_prepass) {
 
 	// Clear the textures
 	renderer_clear_colour(renderer->renderer_state, colour_handle);
 	renderer_clear_depth_stencil(renderer->renderer_state, depth_handle);
+
+	// Depth Pre-pass
+	if (do_depth_prepass) {
+		renderer_begin_debug_label("depth prepass", vec3_zero());
+
+		renderer_begin_rendering(renderer->renderer_state, p_frame_data, vp_rect, 0, 0, depth_handle, 0);
+		set_render_state_defaults(vp_rect);
+
+		kshader_system_use(renderer->depth_prepass.depth_prepass_shader, VERTEX_LAYOUT_INDEX_STATIC);
+
+		renderer_cull_mode_set(RENDERER_CULL_MODE_NONE);
+
+		renderer_set_depth_test_enabled(true);
+		renderer_set_depth_write_enabled(true);
+
+		// Apply global UBO.
+		depth_prepass_global_ubo prepass_global_settings = {
+			.projection = projection,
+			.view = views[0]}; // view_index ?
+		kshader_set_binding_data(renderer->depth_prepass.depth_prepass_shader, 0, renderer->depth_prepass.shader_set0_instance_id, 0, 0, &prepass_global_settings, sizeof(prepass_global_settings));
+		kshader_apply_binding_set(renderer->depth_prepass.depth_prepass_shader, 0, renderer->depth_prepass.shader_set0_instance_id);
+
+		// Render water planes first, this can eliminate a lot of overdraw afterward.
+		if (water_plane_count && water_planes) {
+
+			// Draw each plane.
+			for (u32 i = 0; i < water_plane_count; ++i) {
+
+				const kforward_pass_water_plane_render_data* plane = &water_planes[i];
+
+				depth_prepass_immediate_data immediate_data = {
+					.transform_index = plane->plane_render_data.transform};
+
+				kshader_set_immediate_data(renderer->depth_prepass.depth_prepass_shader, &immediate_data, sizeof(immediate_data));
+
+				// Draw based on vert/index data.
+				if (!renderer_renderbuffer_draw(renderer->renderer_state, renderer->standard_vertex_buffer, plane->plane_render_data.vertex_buffer_offset, 4, 0, true)) {
+					KERROR("Failed to bind standard vertex buffer data for water plane.");
+					return false;
+				}
+				if (!renderer_renderbuffer_draw(renderer->renderer_state, renderer->index_buffer, plane->plane_render_data.index_buffer_offset, 6, 0, false)) {
+					KERROR("Failed to draw water plane using index data.");
+					return false;
+				}
+			}
+		}
+
+		// Render only opaque objects in the "standard" forward pass. Just static for now, too.
+		for (u32 m = 0; m < pass_data->opaque_meshes_by_material_count; ++m) {
+			kmaterial_render_data* material = &pass_data->opaque_meshes_by_material[m];
+
+			// Each geometry
+			for (u32 g = 0; g < material->geometry_count; ++g) {
+				kgeometry_render_data* geo = &material->geometries[g];
+
+				depth_prepass_immediate_data immediate_data = {
+					.transform_index = geo->transform};
+
+				kshader_set_immediate_data(renderer->depth_prepass.depth_prepass_shader, &immediate_data, sizeof(immediate_data));
+
+				// Invert winding if needed
+				b8 winding_inverted = FLAG_GET(geo->flags, KGEOMETRY_RENDER_DATA_FLAG_WINDING_INVERTED_BIT);
+				if (winding_inverted) {
+					renderer_winding_set(RENDERER_WINDING_CLOCKWISE);
+				}
+
+				// Draw it.
+				b8 includes_index_data = geo->index_count > 0;
+
+				KASSERT_DEBUG_MSG(
+					renderer_renderbuffer_draw(renderer->renderer_state, renderer->standard_vertex_buffer, geo->vertex_offset, geo->vertex_count, 0, includes_index_data),
+					"renderer_renderbuffer_draw failed to draw vertex buffer");
+
+				if (includes_index_data) {
+					KASSERT_DEBUG_MSG(
+						renderer_renderbuffer_draw(renderer->renderer_state, renderer->index_buffer, geo->index_offset, geo->index_count, 0, !includes_index_data),
+						"renderer_renderbuffer_draw failed to draw index buffer");
+				}
+
+				// Change back if needed
+				if (winding_inverted) {
+					renderer_winding_set(RENDERER_WINDING_COUNTER_CLOCKWISE);
+				}
+			}
+		}
+
+		renderer_end_rendering(renderer->renderer_state, p_frame_data);
+
+		renderer_end_debug_label();
+	}
 
 	// Render skybox. Assume no vertex count means not skybox.
 	if (skybox_data->sb_vertex_count) {
@@ -392,10 +498,19 @@ static b8 scene_pass(
 	}
 
 	// Opaque geometies by material first.
-
+	if (do_depth_prepass) {
+		// Don't need to write these again.
+		renderer_set_depth_write_enabled(false);
+		renderer_set_depth_test_enabled(true);
+	}
 	// static geometries
 	draw_geo_list(renderer, p_frame_data, directional_light, view_index, clipping_plane, pass_data->opaque_meshes_by_material_count, pass_data->opaque_meshes_by_material);
 
+	if (do_depth_prepass) {
+		// Switch back on.
+		renderer_set_depth_write_enabled(true);
+		renderer_set_depth_test_enabled(true);
+	}
 	// animated geometries
 	draw_geo_list(renderer, p_frame_data, directional_light, view_index, clipping_plane, pass_data->animated_opaque_meshes_by_material_count, pass_data->animated_opaque_meshes_by_material);
 
@@ -512,6 +627,10 @@ b8 kforward_renderer_render_frame(kforward_renderer* renderer, frame_data* p_fra
 	settings->shadow_distance = render_data->forward_data.shadow_distance;
 	settings->shadow_fade_distance = render_data->forward_data.shadow_fade_distance;
 	settings->shadow_split_mult = render_data->forward_data.shadow_split_mult;
+
+	settings->fog_colour = render_data->forward_data.fog_colour;
+	settings->fog_start = render_data->forward_data.fog_near;
+	settings->fog_end = render_data->forward_data.fog_far;
 
 	// Begin frame
 	{
@@ -882,8 +1001,9 @@ b8 kforward_renderer_render_frame(kforward_renderer* renderer, frame_data* p_fra
 					render_data->forward_data.irradiance_cubemap_textures,
 					&render_data->forward_data.skybox,
 					&plane->refraction_pass,
-					0,	// water_plane_count
-					0); // water_planes
+					0, // water_plane_count
+					0,
+					false); // water_planes
 
 				renderer_end_debug_label();
 			} // end refract
@@ -921,7 +1041,8 @@ b8 kforward_renderer_render_frame(kforward_renderer* renderer, frame_data* p_fra
 					&render_data->forward_data.skybox,
 					&plane->reflection_pass,
 					0,
-					0);
+					0,
+					false);
 
 				renderer_end_debug_label();
 			} // end reflect
@@ -944,7 +1065,7 @@ b8 kforward_renderer_render_frame(kforward_renderer* renderer, frame_data* p_fra
 			// Finally, draw the scene normally with no clipping. Include the water plane rendering. Uses bound camera.
 			vec4 clipping_plane = vec4_zero(); // NOTE: w is distance from origin, in this case the y-coord. Setting this to vec4_zero() effectively disables this.
 
-			renderer_begin_debug_label("standard scene pass", (vec3){0.3f, 0.3f, 0.1f});
+			renderer_begin_debug_label("standard scene pass", (vec3){1.0f, 0.5f, 1.0f});
 			scene_pass(
 				renderer,
 				p_frame_data,
@@ -962,7 +1083,8 @@ b8 kforward_renderer_render_frame(kforward_renderer* renderer, frame_data* p_fra
 				&render_data->forward_data.skybox,
 				&render_data->forward_data.standard_pass,
 				render_data->forward_data.water_plane_count,
-				render_data->forward_data.water_planes);
+				render_data->forward_data.water_planes,
+				true);
 
 			renderer_end_debug_label();
 		} // end 'standard' pass

@@ -125,6 +125,11 @@ layout(std140, set = 0, binding = 0) uniform kmaterial_settings_ubo {
     float shadow_distance;
     float shadow_fade_distance;
     float shadow_split_mult;
+
+    vec3 fog_colour;
+    float fog_start;
+    vec3 padding;
+    float fog_end;
 } global_settings;
 
 // All transforms
@@ -195,6 +200,7 @@ layout(location = 0) in dto {
     vec4 vertex_colour;
 	vec4 tangent;
 	vec3 normal;
+    float view_depth;
     vec3 world_to_camera;
 	vec2 tex_coord;
 } in_dto;
@@ -389,8 +395,12 @@ void main() {
         float water_distance = 2.0 * near * far / (far + near - (2.0 * depth - 1.0) * (far - near));
         water_depth = floor_distance - water_distance;
 
+        float edge_depth_falloff = 0.25;
+        float depth_influence = clamp((water_depth / edge_depth_falloff), 0.0, 1.0);
+
         // Distort further
         vec2 distortion_total = (texture(sampler2D(material_textures[MAT_WATER_IDX_DUDV], material_samplers[MAT_WATER_IDX_DUDV]), distorted_texcoords).rg * 2.0 - 1.0) * immediate.wave_strength;
+        distortion_total *= depth_influence;
 
         reflect_texcoord += distortion_total;
         // Avoid edge artifacts by clamping slightly inward to prevent texture wrapping.
@@ -404,23 +414,28 @@ void main() {
         vec4 reflect_colour = texture(sampler2D(material_textures[MAT_WATER_IDX_REFLECTION], material_samplers[MAT_WATER_IDX_REFLECTION]), reflect_texcoord);
         vec4 refract_colour = texture(sampler2D(material_textures[MAT_WATER_IDX_REFRACTION], material_samplers[MAT_WATER_IDX_REFRACTION]), refract_texcoord);
         // Refract should be slightly darker since it's wet.
-        refract_colour.rgb = clamp(refract_colour.rgb - vec3(0.2), vec3(0.0), vec3(1.0));
+        // refract_colour.rgb = clamp(refract_colour.rgb - vec3(0.2), vec3(0.0), vec3(1.0));
 
         // Calculate the fresnel effect.
         float fresnel_factor = dot(normalize(in_dto.world_to_camera), normal);
         fresnel_factor = clamp(fresnel_factor, 0.0, 1.0);
         // fresnel_factor = 0.03 + (1.0 - 0.03) * pow(1.0 - fresnel_factor, 5.0);
+        // float edge_depth_falloff = 0.75;
+        // float depth_influence = clamp((water_depth / edge_depth_falloff), 0.0, 1.0);
 
         out_colour = mix(reflect_colour, refract_colour, fresnel_factor);
+
+        
+        // out_colour = mix(reflect_colour, refract_colour, clamp(1.0 - (water_depth / edge_depth_falloff), 0.0, 1.0));
         vec4 tint = vec4(0.0, 0.3, 0.5, 1.0); // TODO: configurable.
         float tint_strength = 0.5; // TODO: configurable.
-        out_colour = mix(out_colour, tint, tint_strength);
+        out_colour = mix(out_colour, tint, tint_strength * (depth_influence));
 
         albedo = out_colour.rgb;
 
         // Falloff depth of the water at the edge.
-        float edge_depth_falloff = 0.5; // TODO: configurable
-        alpha = clamp(water_depth / edge_depth_falloff, 0.0, 1.0);
+        // float edge_depth_falloff = 0.5; // TODO: configurable
+        // alpha = 1.0;//clamp(water_depth / edge_depth_falloff, 0.0, 1.0);
     }
 
     // Shadows: 1.0 means NOT in shadow, which is the default.
@@ -543,6 +558,10 @@ void main() {
 
         // Apply emissive at the end.
         colour.rgb += (emissive * 1.0); // adjust for intensity
+
+        // Apply fog
+        float f = clamp((in_dto.view_depth - global_settings.fog_start) / (global_settings.fog_end - global_settings.fog_start), 0.0, 1.0);
+        colour = mix(colour.rgb, global_settings.fog_colour, f);
 
         out_colour = vec4(colour, alpha);
     } else if(global_settings.render_mode == 2) {

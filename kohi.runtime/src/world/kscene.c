@@ -288,6 +288,11 @@ typedef struct kscene {
 	f32 shadow_split_mult;
 	f32 shadow_bias;
 
+	// Fog settings
+	colour3 fog_colour;
+	f32 fog_near;
+	f32 fog_far;
+
 	// Used for rendering reflections in the world.
 	kcamera world_inv_camera;
 
@@ -893,6 +898,10 @@ b8 kscene_frame_prepare(struct kscene* scene, struct frame_data* p_frame_data, u
 
 		frame_allocator_int* frame_allocator = &p_frame_data->allocator;
 		kforward_renderer_render_data* render_data = p_frame_data->render_data;
+
+		render_data->forward_data.fog_colour = scene->fog_colour;
+		render_data->forward_data.fog_near = scene->fog_near;
+		render_data->forward_data.fog_far = scene->fog_far;
 
 		// "Global" items used by multiple passes.
 		mat4 view = kcamera_get_view(current_camera);
@@ -3426,6 +3435,14 @@ static b8 deserialize(const char* file_content, kscene* out_scene) {
 	out_scene->shadow_bias = DEFAULT_SHADOW_BIAS;
 	kson_object_property_value_get_float(&tree.root, "shadow_bias", &out_scene->shadow_bias);
 
+	// Fog settings.
+	out_scene->fog_colour = (colour3){1, 1, 1};
+	kson_object_property_value_get_vec3(&tree.root, "fog_colour", &out_scene->fog_colour);
+	out_scene->fog_near = 10.0f;
+	kson_object_property_value_get_float(&tree.root, "fog_near", &out_scene->fog_near);
+	out_scene->fog_far = 1000.0f;
+	kson_object_property_value_get_float(&tree.root, "fog_far", &out_scene->fog_far);
+
 	// Parse entities.
 	kson_array entities = {0};
 	if (kson_object_property_value_get_array(&tree.root, "entities", &entities)) {
@@ -3608,6 +3625,11 @@ const char* kscene_serialize(const kscene* scene) {
 	kson_object_value_add_float(&tree.root, "shadow_fade_distance", scene->shadow_fade_dist);
 	kson_object_value_add_float(&tree.root, "shadow_split_mult", scene->shadow_split_mult);
 	kson_object_value_add_float(&tree.root, "shadow_bias", scene->shadow_bias);
+
+	// Fog settings.
+	kson_object_value_add_vec3(&tree.root, "fog_colour", scene->fog_colour);
+	kson_object_value_add_float(&tree.root, "fog_near", scene->fog_near);
+	kson_object_value_add_float(&tree.root, "fog_far", scene->fog_far);
 
 	kson_array entities_array = kson_array_create();
 
