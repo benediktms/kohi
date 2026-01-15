@@ -246,16 +246,12 @@ b8 application_initialize(struct application* app) {
 		return false;
 	} else {
 		sui_label_colour_set(sui_state, &app->state->debug_text_shadow, (vec4){0, 0, 0, 1});
-		if (!standard_ui_system_register_control(sui_state, &app->state->debug_text_shadow)) {
-			KERROR("Unable to register control.");
+		if (!standard_ui_system_control_add_child(sui_state, 0, &app->state->debug_text_shadow)) {
+			KERROR("Failed to parent test text.");
 		} else {
-			if (!standard_ui_system_control_add_child(sui_state, 0, &app->state->debug_text_shadow)) {
-				KERROR("Failed to parent test text.");
-			} else {
-				app->state->debug_text_shadow.is_active = true;
-				if (!standard_ui_system_update_active(sui_state, &app->state->debug_text_shadow)) {
-					KERROR("Unable to update active state.");
-				}
+			app->state->debug_text_shadow.is_active = true;
+			if (!standard_ui_system_update_active(sui_state, &app->state->debug_text_shadow)) {
+				KERROR("Unable to update active state.");
 			}
 		}
 	}
@@ -264,16 +260,12 @@ b8 application_initialize(struct application* app) {
 		KERROR("Failed to load basic ui bitmap text.");
 		return false;
 	} else {
-		if (!standard_ui_system_register_control(sui_state, &app->state->debug_text)) {
-			KERROR("Unable to register control.");
+		if (!standard_ui_system_control_add_child(sui_state, 0, &app->state->debug_text)) {
+			KERROR("Failed to parent test text.");
 		} else {
-			if (!standard_ui_system_control_add_child(sui_state, 0, &app->state->debug_text)) {
-				KERROR("Failed to parent test text.");
-			} else {
-				app->state->debug_text.is_active = true;
-				if (!standard_ui_system_update_active(sui_state, &app->state->debug_text)) {
-					KERROR("Unable to update active state.");
-				}
+			app->state->debug_text.is_active = true;
+			if (!standard_ui_system_update_active(sui_state, &app->state->debug_text)) {
+				KERROR("Unable to update active state.");
 			}
 		}
 	}
@@ -287,16 +279,12 @@ b8 application_initialize(struct application* app) {
 		return false;
 	} else {
 		sui_label_colour_set(sui_state, &app->state->context_sensitive_text, (vec4){0, 1, 0, 1});
-		if (!standard_ui_system_register_control(sui_state, &app->state->context_sensitive_text)) {
-			KERROR("Unable to register control.");
+		if (!standard_ui_system_control_add_child(sui_state, 0, &app->state->context_sensitive_text)) {
+			KERROR("Failed to parent test text.");
 		} else {
-			if (!standard_ui_system_control_add_child(sui_state, 0, &app->state->context_sensitive_text)) {
-				KERROR("Failed to parent test text.");
-			} else {
-				app->state->context_sensitive_text.is_active = true;
-				if (!standard_ui_system_update_active(sui_state, &app->state->context_sensitive_text)) {
-					KERROR("Unable to update active state.");
-				}
+			app->state->context_sensitive_text.is_active = true;
+			if (!standard_ui_system_update_active(sui_state, &app->state->context_sensitive_text)) {
+				KERROR("Unable to update active state.");
 			}
 		}
 	}
@@ -323,7 +311,6 @@ b8 application_initialize(struct application* app) {
 	kaudio_channel_volume_set(app->state->audio_system, 3, 1.0f);
 	kaudio_channel_volume_set(app->state->audio_system, 4, 1.0f);
 	kaudio_channel_volume_set(app->state->audio_system, 7, 0.9f);
-
 
 	app->state->scene_name = kname_create("test_scene");
 	app->state->scene_package_name = kname_create("Testbed");

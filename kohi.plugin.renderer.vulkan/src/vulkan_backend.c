@@ -43,7 +43,7 @@
 
 // NOTE: To disable the custom allocator, comment this out or set to 0.
 #ifndef KVULKAN_USE_CUSTOM_ALLOCATOR
-#	define KVULKAN_USE_CUSTOM_ALLOCATOR 1
+#	define KVULKAN_USE_CUSTOM_ALLOCATOR 0
 #endif
 
 VKAPI_ATTR VkBool32 VKAPI_CALL vk_debug_callback(
@@ -2676,6 +2676,10 @@ void vulkan_renderer_shader_destroy(renderer_backend_interface* backend, kshader
 			return;
 		}
 
+		if (internal_shader->colour_attachment_count && internal_shader->colour_attachments) {
+			KFREE_TYPE_CARRAY(internal_shader->colour_attachments, VkFormat, internal_shader->colour_attachment_count);
+		}
+
 		// Descriptor set layouts.
 		for (u32 i = 0; i < internal_shader->descriptor_set_count; ++i) {
 			// Destroy descriptor set configs.
@@ -2695,10 +2699,20 @@ void vulkan_renderer_shader_destroy(renderer_backend_interface* backend, kshader
 					}
 
 					if (binding_set_state->sampler_binding_count && instance_state->sampler_states) {
+						for (u8 s = 0; s < binding_set_state->sampler_binding_count; ++s) {
+							vulkan_sampler_state* samp_state = &instance_state->sampler_states[s];
+							KFREE_TYPE_CARRAY(samp_state->sampler_handles, ksampler_backend, samp_state->array_size);
+							KFREE_TYPE_CARRAY(samp_state->descriptor_states, vulkan_descriptor_state, samp_state->array_size);
+						}
 						KFREE_TYPE_CARRAY(instance_state->sampler_states, vulkan_sampler_state, binding_set_state->sampler_binding_count);
 					}
 
 					if (binding_set_state->texture_binding_count && instance_state->texture_states) {
+						for (u8 t = 0; t < binding_set_state->texture_binding_count; ++t) {
+							vulkan_texture_state* tex_state = &instance_state->texture_states[t];
+							KFREE_TYPE_CARRAY(tex_state->texture_handles, ktexture, tex_state->array_size);
+							KFREE_TYPE_CARRAY(tex_state->descriptor_states, vulkan_descriptor_state, tex_state->array_size);
+						}
 						KFREE_TYPE_CARRAY(instance_state->texture_states, vulkan_texture_state, binding_set_state->texture_binding_count);
 					}
 				}

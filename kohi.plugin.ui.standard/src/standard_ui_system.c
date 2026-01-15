@@ -51,6 +51,9 @@ static b8 standard_ui_system_click(u16 code, void* sender, void* listener_inst, 
 static b8 standard_ui_system_mouse_move(u16 code, void* sender, void* listener_inst, event_context context);
 static b8 standard_ui_system_drag(u16 code, void* sender, void* listener_inst, event_context context);
 
+static void register_control(standard_ui_state* state, sui_control* control);
+static void unregister_control(standard_ui_state* state, sui_control* control);
+
 b8 standard_ui_system_initialize(u64* memory_requirement, standard_ui_state* state, standard_ui_system_config* config) {
 	if (!memory_requirement) {
 		KERROR("standard_ui_system_initialize requires a valid pointer to memory_requirement.");
@@ -63,9 +66,7 @@ b8 standard_ui_system_initialize(u64* memory_requirement, standard_ui_state* sta
 
 	// Memory layout: struct + active control array + inactive_control_array
 	u64 struct_requirement = sizeof(standard_ui_state);
-	u64 active_array_requirement = sizeof(sui_control) * config->max_control_count;
-	u64 inactive_array_requirement = sizeof(sui_control) * config->max_control_count;
-	*memory_requirement = struct_requirement + active_array_requirement + inactive_array_requirement;
+	*memory_requirement = struct_requirement;
 
 	if (!state) {
 		return true;
@@ -85,13 +86,12 @@ b8 standard_ui_system_initialize(u64* memory_requirement, standard_ui_state* sta
 	KASSERT(state->shader_set0_binding_instance_id != INVALID_ID);
 
 	state->config = *config;
-	state->active_controls = (void*)((u8*)state + struct_requirement);
-	kzero_memory(state->active_controls, sizeof(sui_control) * config->max_control_count);
-	state->inactive_controls = (void*)((u8*)state->active_controls + active_array_requirement);
-	kzero_memory(state->inactive_controls, sizeof(sui_control) * config->max_control_count);
+	state->max_control_count = config->max_control_count;
+	state->active_controls = KALLOC_TYPE_CARRAY(sui_control*, config->max_control_count);
+	state->inactive_controls = KALLOC_TYPE_CARRAY(sui_control*, config->max_control_count);
 
 	sui_base_control_create(state, "__ROOT__", &state->root);
-	standard_ui_system_register_control(state, &state->root);
+	register_control(state, &state->root);
 	state->root.is_active = true;
 	standard_ui_system_update_active(state, &state->root);
 
@@ -116,6 +116,8 @@ b8 standard_ui_system_initialize(u64* memory_requirement, standard_ui_state* sta
 	state->vertex_buffer = renderer_renderbuffer_get(state->renderer, kname_create(KRENDERBUFFER_NAME_VERTEX_STANDARD));
 	state->index_buffer = renderer_renderbuffer_get(state->renderer, kname_create(KRENDERBUFFER_NAME_INDEX_STANDARD));
 
+	state->running = true;
+
 	KTRACE("Initialized standard UI system (%s).", KVERSION);
 
 	return true;
@@ -123,6 +125,9 @@ b8 standard_ui_system_initialize(u64* memory_requirement, standard_ui_state* sta
 
 void standard_ui_system_shutdown(standard_ui_state* state) {
 	if (state) {
+
+		state->running = false;
+
 		// Stop listening for input events.
 		event_unregister(EVENT_CODE_BUTTON_CLICKED, state, standard_ui_system_click);
 		event_unregister(EVENT_CODE_MOUSE_MOVED, state, standard_ui_system_mouse_move);
@@ -133,21 +138,43 @@ void standard_ui_system_shutdown(standard_ui_state* state) {
 		event_unregister(EVENT_CODE_BUTTON_RELEASED, state, standard_ui_system_mouse_up);
 
 		// Unload and destroy inactive controls.
-		for (u32 i = 0; i < state->inactive_control_count; ++i) {
+		for (u32 i = 0; i < state->max_control_count; ++i) {
 			sui_control* c = state->inactive_controls[i];
-			c->destroy(state, c);
+			if (c) {
+				if (c->destroy) {
+					c->destroy(state, c);
+				} else {
+					sui_base_control_destroy(state, c);
+				}
+				state->inactive_controls[i] = KNULL;
+				KTRACE("Destroyed inactive #%u", i);
+			}
 		}
+		state->inactive_controls = KNULL;
+
 		// Unload and destroy active controls.
-		for (u32 i = 0; i < state->active_control_count; ++i) {
+		for (u32 i = 0; i < state->max_control_count; ++i) {
 			sui_control* c = state->active_controls[i];
-			c->destroy(state, c);
+			if (c) {
+				if (c->destroy) {
+					c->destroy(state, c);
+				} else {
+					sui_base_control_destroy(state, c);
+				}
+				state->active_controls[i] = KNULL;
+				KTRACE("Destroyed active #%u", i);
+			}
 		}
+		state->active_controls = KNULL;
 
 		// Release texture for UI atlas.
 		if (state->atlas_texture) {
 			texture_release(state->atlas_texture);
 			state->atlas_texture = INVALID_KTEXTURE;
 		}
+
+		KFREE_TYPE_CARRAY(state->active_controls, sui_control*, state->max_control_count);
+		KFREE_TYPE_CARRAY(state->inactive_controls, sui_control*, state->max_control_count);
 	}
 }
 
@@ -233,23 +260,6 @@ b8 standard_ui_system_update_active(standard_ui_state* state, sui_control* contr
 
 	KERROR("Unable to find control to update active on, maybe control is not registered?");
 	return false;
-}
-
-b8 standard_ui_system_register_control(standard_ui_state* state, sui_control* control) {
-	if (!state) {
-		return false;
-	}
-
-	if (state->total_control_count >= state->config.max_control_count) {
-		KERROR("Unable to find free space to register sui control. Registration failed.");
-		return false;
-	}
-
-	state->total_control_count++;
-	// Found available space, put it there.
-	state->inactive_controls[state->inactive_control_count] = control;
-	state->inactive_control_count++;
-	return true;
 }
 
 b8 standard_ui_system_control_add_child(standard_ui_state* state, sui_control* parent, sui_control* child) {
@@ -345,6 +355,9 @@ b8 sui_base_control_create(standard_ui_state* state, const char* name, struct su
 
 	// Set all controls to visible by default.
 	out_control->is_visible = true;
+	// Activate all controls by default.
+	out_control->is_active = true;
+
 	// Mouse can interact by default.
 	out_control->can_mouse_interact = true;
 	out_control->depth = 0;
@@ -370,17 +383,29 @@ b8 sui_base_control_create(standard_ui_state* state, const char* name, struct su
 	out_control->internal_mouse_drag = sui_base_internal_mouse_drag;
 	out_control->internal_mouse_drag_end = sui_base_internal_mouse_drag_end;
 
+	register_control(state, out_control);
+
 	return true;
 }
+
 void sui_base_control_destroy(standard_ui_state* state, struct sui_control* self) {
 	if (self) {
+		if (state->running) {
+			unregister_control(state, self);
+		}
 		// TODO: recurse children/unparent?
 
 		if (self->internal_data && self->internal_data_size) {
 			kfree(self->internal_data, self->internal_data_size, MEMORY_TAG_UI);
+			self->internal_data = KNULL;
+			self->internal_data_size = 0;
 		}
 		if (self->name) {
 			string_free(self->name);
+			self->name = KNULL;
+		}
+		if (self->children) {
+			darray_destroy(self->children);
 		}
 		kzero_memory(self, sizeof(sui_control));
 	}
@@ -916,4 +941,55 @@ static b8 standard_ui_system_drag(u16 code, void* sender, void* listener_inst, e
 
 	// If a control was hit, block the event from going any futher.
 	return block_propagation;
+}
+
+static void register_control(standard_ui_state* state, sui_control* control) {
+	KASSERT(state && state->total_control_count <= state->config.max_control_count);
+
+	state->total_control_count++;
+
+	if (control->is_active) {
+		for (u32 i = 0; i < state->max_control_count; ++i) {
+			if (state->active_controls[i] == KNULL) {
+				state->active_controls[i] = control;
+				state->active_control_count++;
+				return;
+			}
+		}
+	} else {
+		for (u32 i = 0; i < state->max_control_count; ++i) {
+			if (state->inactive_controls[i] == KNULL) {
+				state->inactive_controls[i] = control;
+				state->inactive_control_count++;
+				return;
+			}
+		}
+	}
+}
+
+static void unregister_control(standard_ui_state* state, sui_control* control) {
+
+	state->total_control_count--;
+
+	if (control->is_active) {
+		for (u32 i = 0; i < state->max_control_count; ++i) {
+			if (state->active_controls[i] == control) {
+				// Copy the rest of the array inward.
+				kcopy_memory(((u8*)state->active_controls) + (i * sizeof(sui_control*)), ((u8*)state->active_controls) + ((i + 1) * sizeof(sui_control*)), sizeof(sui_control*) * ((state->active_control_count) - i));
+				state->active_controls[state->active_control_count] = KNULL;
+				return;
+			}
+		}
+	} else {
+		for (u32 i = 0; i < state->max_control_count; ++i) {
+			if (state->inactive_controls[i] == control) {
+				state->inactive_controls[i] = KNULL;
+				state->inactive_control_count--;
+				// Copy the rest of the array inward.
+				kcopy_memory(((u8*)state->inactive_controls) + (i * sizeof(sui_control*)), ((u8*)state->inactive_controls) + ((i + 1) * sizeof(sui_control*)), sizeof(sui_control*) * ((state->inactive_control_count) - i));
+				state->inactive_controls[state->inactive_control_count] = KNULL;
+				return;
+			}
+		}
+	}
 }

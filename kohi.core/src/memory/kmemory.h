@@ -321,6 +321,10 @@ KAPI char* get_memory_usage_str(void);
  */
 KAPI u64 get_memory_alloc_count(void);
 
+KAPI u64 get_total_memory_space(void);
+KAPI u64 get_free_memory_space(void);
+KAPI u64 get_used_memory_space(void);
+
 /**
  * @brief Packs the values of 4 u8s into a single u32.
  *

@@ -64,3 +64,11 @@ KAPI const bt_node* u64_bst_find(const bt_node* root, u64 key);
  * @param node A pointer to the node to cleanup.
  */
 KAPI void u64_bst_cleanup(bt_node* node);
+
+/**
+ * Performs cleanup operations on the given node and its branches.
+ * Recursive. Treats all values as strings and frees them.
+ *
+ * @param node A pointer to the node to cleanup.
+ */
+KAPI void u64_bst_cleanup_with_strings(bt_node* node);

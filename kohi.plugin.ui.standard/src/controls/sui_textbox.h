@@ -20,6 +20,7 @@ typedef struct sui_textbox_internal_data {
 	vec4 colour;
 	sui_textbox_type type;
 	nine_slice nslice;
+	nine_slice focused_nslice;
 	u32 binding_instance_id;
 	sui_control content_label;
 	sui_control cursor;

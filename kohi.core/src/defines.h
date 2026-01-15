@@ -409,3 +409,5 @@ KINLINE krange get_aligned_range(u64 offset, u64 size, u64 granularity) {
  * @param index The index to pack at (0-1).
  */
 #define PACK_U32_U16_AT(target, n, index) (target = (target | ((u32)n << ((1 - index) * 16))))
+
+#define IS_IN_RANGE(val, from, to) ((from < to) ? (val >= from && val <= to) : (val <= from && val >= to))

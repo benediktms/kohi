@@ -32,6 +32,8 @@
 #include "renderer/renderer_frontend.h"
 
 // systems
+#include "strings/kname.h"
+#include "strings/kstring_id.h"
 #include "systems/asset_system.h"
 #include "systems/font_system.h"
 #include "systems/job_system.h"
@@ -984,6 +986,10 @@ b8 engine_run(application* app) {
 		vfs_shutdown(systems->vfs_system_state);
 		console_shutdown(systems->console_system);
 		platform_system_shutdown(systems->platform_system);
+
+		kstring_id_shutdown();
+		kname_shutdown();
+
 		memory_system_shutdown();
 	}
 

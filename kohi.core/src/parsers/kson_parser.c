@@ -48,6 +48,14 @@ void kson_parser_destroy(kson_parser* parser) {
 			parser->file_content = 0;
 		}
 		if (parser->tokens) {
+#ifdef KOHI_DEBUG
+			u32 len = darray_length(parser->tokens);
+			for (u32 i = 0; i < len; ++i) {
+				if (parser->tokens[i].content) {
+					string_free(parser->tokens[i].content);
+				}
+			}
+#endif
 			darray_destroy(parser->tokens);
 			parser->tokens = 0;
 		}
@@ -903,6 +911,8 @@ b8 kson_parser_parse(kson_parser* parser, kson_tree* out_tree) {
 		current_token = &parser->tokens[index];
 	}
 
+	stack_destroy(&scope);
+
 	return true;
 }
 
@@ -1107,6 +1117,12 @@ void kson_object_cleanup(kson_object* obj) {
 				KWARN("Ensure the same object wasn't added more than once somewhere in code.");
 			} break;
 			}
+
+#ifdef KOHI_DEBUG
+			if (p->name_str) {
+				string_free(p->name_str);
+			}
+#endif
 		}
 		darray_destroy(obj->properties);
 		kzero_memory(obj, sizeof(kson_object));

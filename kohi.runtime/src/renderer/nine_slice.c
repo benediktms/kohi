@@ -348,3 +348,23 @@ b8 nine_slice_create(const char* name, vec2i size, vec2i atlas_px_size, vec2i at
 
 	return true;
 }
+
+void nine_slice_destroy(nine_slice* nslice) {
+	if (!nslice) {
+		return;
+	}
+
+	const u32 vert_size = sizeof(vertex_2d);
+	const u32 vert_count = 4 * 9;
+	kfree(nslice->vertex_data.elements, vert_size * vert_count, MEMORY_TAG_ARRAY);
+	const u32 idx_size = sizeof(u32);
+	const u32 idx_count = 6 * 9;
+	kfree(nslice->index_data.elements, idx_size * idx_count, MEMORY_TAG_ARRAY);
+
+	struct renderer_system_state* renderer_system = engine_systems_get()->renderer_system;
+
+	krenderbuffer vertex_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_VERTEX_STANDARD));
+	renderer_renderbuffer_free(renderer_system, vertex_buffer, vert_size * vert_count, nslice->vertex_data.buffer_offset);
+	krenderbuffer index_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_INDEX_STANDARD));
+	renderer_renderbuffer_free(renderer_system, index_buffer, idx_size * idx_count, nslice->index_data.buffer_offset);
+}

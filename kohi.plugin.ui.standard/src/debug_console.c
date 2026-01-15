@@ -113,10 +113,6 @@ b8 debug_console_load(debug_console_state* state) {
 			KERROR("Failed to create background panel.");
 			return false;
 		}
-		if (!standard_ui_system_register_control(sui_state, &state->bg_panel)) {
-			KERROR("Unable to register control.");
-			return false;
-		}
 		/* transform_translate(&state->bg_panel.ktransform, (vec3){500, 100}); */
 		if (!standard_ui_system_control_add_child(sui_state, 0, &state->bg_panel)) {
 			KERROR("Failed to parent background panel.");
@@ -128,10 +124,6 @@ b8 debug_console_load(debug_console_state* state) {
 	{
 		if (!sui_label_control_create(sui_state, "debug_console_log_text", FONT_TYPE_SYSTEM, kname_create("Noto Sans Mono CJK JP"), font_size, "", &state->text_control)) {
 			KFATAL("Unable to create text control for debug console.");
-			return false;
-		}
-		if (!standard_ui_system_register_control(sui_state, &state->text_control)) {
-			KERROR("Unable to register console text label control.");
 			return false;
 		}
 		if (!standard_ui_system_control_add_child(sui_state, &state->bg_panel, &state->text_control)) {
@@ -152,10 +144,6 @@ b8 debug_console_load(debug_console_state* state) {
 		state->entry_textbox.user_data = state;
 		state->entry_textbox.user_data_size = sizeof(debug_console_state*);
 		state->entry_textbox.on_key = debug_console_entry_box_on_key;
-		if (!standard_ui_system_register_control(state->sui_state, &state->entry_textbox)) {
-			KERROR("Unable to register control.");
-			return false;
-		}
 		if (!standard_ui_system_control_add_child(sui_state, &state->bg_panel, &state->entry_textbox)) {
 			KERROR("Failed to parent textbox control to background panel of debug console.");
 			return false;

@@ -154,8 +154,11 @@ typedef struct standard_ui_state {
 	struct font_system_state* font_system;
 	standard_ui_system_config config;
 
+	b8 running;
+
 	kshader shader;
 	u32 shader_set0_binding_instance_id;
+	u32 max_control_count;
 	// Array of pointers to controls, the system does not own these. The application does.
 	u32 total_control_count;
 	u32 active_control_count;
@@ -203,8 +206,6 @@ struct standard_ui_render_data;
 KAPI b8 standard_ui_system_render(standard_ui_state* state, sui_control* root, struct frame_data* p_frame_data, struct standard_ui_render_data* render_data);
 
 KAPI b8 standard_ui_system_update_active(standard_ui_state* state, sui_control* control);
-
-KAPI b8 standard_ui_system_register_control(standard_ui_state* state, sui_control* control);
 
 KAPI b8 standard_ui_system_control_add_child(standard_ui_state* state, sui_control* parent, sui_control* child);
 

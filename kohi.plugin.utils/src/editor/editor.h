@@ -86,6 +86,10 @@ typedef struct editor_state {
 	sui_control scene_inspector_title;
 	sui_control scene_name_label;
 	sui_control scene_name_textbox;
+	sui_control scene_fog_colour_label;
+	sui_control scene_fog_colour_r_textbox;
+	sui_control scene_fog_colour_g_textbox;
+	sui_control scene_fog_colour_b_textbox;
 
 	// Entity Inspector window
 	f32 entity_inspector_width;

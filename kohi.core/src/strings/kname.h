@@ -57,3 +57,5 @@ KAPI kname kname_create(const char* str);
  * @returns A constant pointer to the string if found, otherwise 0/null. NOTE: Do *NOT* free this string!
  */
 KAPI const char* kname_string_get(kname name);
+
+KAPI void kname_shutdown(void);

@@ -12,7 +12,7 @@
 #include <stdio.h>
 #include <string.h>
 // NOTE: If this is disabled, C11 must be used to enable aligned_alloc.
-#define K_USE_CUSTOM_MEMORY_ALLOCATOR 1
+#define K_USE_CUSTOM_MEMORY_ALLOCATOR 0
 
 #if !K_USE_CUSTOM_MEMORY_ALLOCATOR
 #	if _MSC_VER
@@ -421,6 +421,16 @@ u64 get_memory_alloc_count(void) {
 		return state_ptr->alloc_count;
 	}
 	return 0;
+}
+
+u64 get_total_memory_space(void) {
+	return state_ptr ? dynamic_allocator_total_space(&state_ptr->allocator) : 0;
+}
+u64 get_free_memory_space(void) {
+	return state_ptr ? dynamic_allocator_free_space(&state_ptr->allocator) : 0;
+}
+u64 get_used_memory_space(void) {
+	return get_total_memory_space() - get_free_memory_space();
 }
 
 u32 pack_u8_into_u32(u8 x, u8 y, u8 z, u8 w) {

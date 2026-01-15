@@ -10,6 +10,7 @@
 #include "systems/kcamera_system.h"
 #include "systems/kmodel_system.h"
 #include "systems/light_system.h"
+#include "utils/kcolour.h"
 #include "world/world_types.h"
 
 struct kscene;
@@ -59,8 +60,14 @@ KAPI b8 kscene_frame_prepare(struct kscene* scene, struct frame_data* p_frame_da
 
 KAPI kscene_state kscene_state_get(const struct kscene* scene);
 
-KAPI const char* kscene_get_name(struct kscene* scene);
+KAPI const char* kscene_get_name(const struct kscene* scene);
 KAPI void kscene_set_name(struct kscene* scene, const char* name);
+KAPI vec3 kscene_get_fog_colour(const struct kscene* scene);
+KAPI void kscene_set_fog_colour(struct kscene* scene, colour3 colour);
+KAPI f32 kscene_get_fog_near(const struct kscene* scene);
+KAPI void kscene_set_fog_near(struct kscene* scene, f32 near);
+KAPI f32 kscene_get_fog_far(const struct kscene* scene);
+KAPI void kscene_set_fog_far(struct kscene* scene, f32 far);
 
 KAPI void kscene_set_active_camera(struct kscene* scene, kcamera camera);
 

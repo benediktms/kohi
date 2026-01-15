@@ -1030,6 +1030,7 @@ void asset_system_release_shader(struct asset_system_state* state, kasset_shader
 			}
 		}
 		KFREE_TYPE_CARRAY(asset->pipelines, kasset_shader_pipeline, asset->pipeline_count);
+		asset->pipelines = KNULL;
 
 		// binding sets
 		if (asset->binding_sets && asset->binding_set_count) {
@@ -1041,6 +1042,24 @@ void asset_system_release_shader(struct asset_system_state* state, kasset_shader
 			KFREE_TYPE_CARRAY(asset->binding_sets, shader_binding_set_config, asset->binding_set_count);
 			asset->binding_sets = 0;
 			asset->binding_set_count = 0;
+		}
+
+		// attachments
+		if (asset->colour_attachment_count && asset->colour_attachments) {
+			for (u8 c = 0; c < asset->colour_attachment_count; c++) {
+				if (asset->colour_attachments[c].name) {
+					string_free(asset->colour_attachments[c].name);
+				}
+			}
+			KFREE_TYPE_CARRAY(asset->colour_attachments, kasset_shader_attachment, asset->colour_attachment_count);
+			asset->colour_attachments = KNULL;
+		}
+
+		if (asset->depth_attachment.name) {
+			string_free(asset->depth_attachment.name);
+		}
+		if (asset->stencil_attachment.name) {
+			string_free(asset->stencil_attachment.name);
 		}
 
 		KFREE_TYPE(asset, kasset_shader, MEMORY_TAG_ASSET);

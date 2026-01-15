@@ -105,6 +105,9 @@ b8 sui_button_control_create_with_text(standard_ui_state* state, const char* nam
 }
 
 void sui_button_control_destroy(standard_ui_state* state, struct sui_control* self) {
+	sui_button_internal_data* typed_data = self->internal_data;
+	nine_slice_destroy(&typed_data->nslice);
+
 	sui_base_control_destroy(state, self);
 }
 

@@ -15,12 +15,8 @@ kstring_id kstring_id_create(const char* str) {
 		return INVALID_KSTRING_ID;
 	}
 
-	// Take a copy in case it was dynamically allocated and might later be freed.
-	// This copy of the original string is stored for reference and can later be looked up.
-	char* copy = string_duplicate(str);
-
-	// Hash the copy of the string.
-	kstring_id new_string_id = crc64(0, (const u8*)copy, string_length(copy));
+	// Hash the string.
+	kstring_id new_string_id = crc64(0, (const u8*)str, string_length(str));
 	// NOTE: A hash of 0 is never allowed.
 	KASSERT_MSG(new_string_id != 0, string_format("kstring_id_create - provided string '%s' hashed to 0, an invalid value. Please change the string to something else to avoid this.", str));
 
@@ -28,7 +24,7 @@ kstring_id kstring_id_create(const char* str) {
 	const bt_node* entry = u64_bst_find(kstring_id_lookup, new_string_id);
 	if (!entry) {
 		bt_node_value value;
-		value.str = copy;
+		value.str = string_duplicate(str);
 		bt_node* inserted = u64_bst_insert(kstring_id_lookup, new_string_id, value);
 		if (!inserted) {
 			KERROR("Failed to save kstring_id string '%s' to global lookup table.");
@@ -48,4 +44,8 @@ const char* kstring_id_string_get(kstring_id stringid) {
 	}
 
 	return 0;
+}
+
+void kstring_id_shutdown(void) {
+	u64_bst_cleanup_with_strings(kstring_id_lookup);
 }

@@ -1,6 +1,7 @@
 #include "u64_bst.h"
 #include "defines.h"
 #include "memory/kmemory.h"
+#include "strings/kstring.h"
 
 static bt_node* node_create(u64 key, bt_node_value value) {
 	bt_node* node = kallocate(sizeof(bt_node), MEMORY_TAG_BST);
@@ -80,6 +81,23 @@ void u64_bst_cleanup(bt_node* node) {
 		if (node->right) {
 			u64_bst_cleanup(node->right);
 			node->right = 0;
+		}
+		kfree(node, sizeof(bt_node), MEMORY_TAG_BST);
+	}
+}
+
+void u64_bst_cleanup_with_strings(bt_node* node) {
+	if (node) {
+		if (node->left) {
+			u64_bst_cleanup_with_strings(node->left);
+			node->left = 0;
+		}
+		if (node->right) {
+			u64_bst_cleanup_with_strings(node->right);
+			node->right = 0;
+		}
+		if (node->value.str) {
+			string_free(node->value.str);
 		}
 		kfree(node, sizeof(bt_node), MEMORY_TAG_BST);
 	}

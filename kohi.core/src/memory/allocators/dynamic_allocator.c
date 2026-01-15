@@ -312,11 +312,17 @@ u32 dynamic_allocator_get_line(dynamic_allocator* allocator, void* block) {
 
 u64 dynamic_allocator_free_space(dynamic_allocator* allocator) {
 	dynamic_allocator_state* state = allocator->memory;
+	if (!state) {
+		return 0;
+	}
 	return freelist_free_space(&state->list);
 }
 
 u64 dynamic_allocator_total_space(dynamic_allocator* allocator) {
 	dynamic_allocator_state* state = allocator->memory;
+	if (!state) {
+		return 0;
+	}
 	return state->total_size;
 }
 
@@ -334,8 +340,7 @@ void _validate_block(void* block) {
 
 	// Get the header.
 	alloc_header* header = (alloc_header*)((u64)block + *block_size + guard_offset);
-	if(header) {
-
+	if (header) {
 	}
 
 	// If tracing, verify the guards weren't clobbered.

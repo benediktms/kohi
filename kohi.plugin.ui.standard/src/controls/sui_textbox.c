@@ -21,9 +21,11 @@
 
 #include "controls/sui_label.h"
 #include "controls/sui_panel.h"
+#include "math/math_types.h"
 #include "renderer/standard_ui_renderer.h"
 #include "standard_ui_defines.h"
 #include "standard_ui_system.h"
+#include "systems/texture_system.h"
 
 static b8 sui_textbox_on_key(u16 code, void* sender, void* listener_inst, event_context context);
 static b8 sui_textbox_on_paste(u16 code, void* sender, void* listener_inst, event_context context);
@@ -199,16 +201,28 @@ b8 sui_textbox_control_create(standard_ui_state* state, const char* name, font_t
 	// load
 
 	// HACK: TODO: remove hardcoded stuff.
-	/* vec2i atlas_size = (vec2i){state->ui_atlas.texture->width, state->ui_atlas.texture->height}; */
-	vec2i atlas_size = (vec2i){512, 512};
-	vec2i atlas_min = (vec2i){180, 31};
-	vec2i atlas_max = (vec2i){193, 43};
+	u32 atlas_x, atlas_y;
+	texture_dimensions_get(state->atlas_texture, &atlas_x, &atlas_y);
+	vec2i atlas_size = (vec2i){atlas_x, atlas_y};
+
 	vec2i corner_px_size = (vec2i){3, 3};
 	vec2i corner_size = (vec2i){10, 10};
-	// NOTE: Also uploads to the GPU.
-	if (!nine_slice_create(out_control->name, typed_data->size, atlas_size, atlas_min, atlas_max, corner_px_size, corner_size, &typed_data->nslice)) {
-		KERROR("Failed to generate nine slice.");
-		return false;
+	{
+		vec2i atlas_min = (vec2i){180, 31};
+		vec2i atlas_max = (vec2i){193, 43};
+		if (!nine_slice_create(out_control->name, typed_data->size, atlas_size, atlas_min, atlas_max, corner_px_size, corner_size, &typed_data->nslice)) {
+			KERROR("Failed to generate nine slice.");
+			return false;
+		}
+	}
+
+	{
+		vec2i atlas_min = (vec2i){180, 31 + 13};
+		vec2i atlas_max = (vec2i){193, 43 + 13};
+		if (!nine_slice_create(out_control->name, typed_data->size, atlas_size, atlas_min, atlas_max, corner_px_size, corner_size, &typed_data->focused_nslice)) {
+			KERROR("Failed to generate nine slice.");
+			return false;
+		}
 	}
 
 	out_control->bounds.x = 0.0f;
@@ -256,34 +270,26 @@ b8 sui_textbox_control_create(standard_ui_state* state, const char* name, font_t
 		return false;
 	}
 
-	if (!standard_ui_system_register_control(state, &typed_data->content_label)) {
-		KERROR("Unable to register control.");
-	} else {
-		// NOTE: Only parenting the transform, the control. This is to have control over how the
-		// clipping mask is attached and drawn. See the render function for the other half of this.
-		// TODO: Adjustable padding
-		typed_data->content_label.parent = out_control;
-		ktransform_parent_set(typed_data->content_label.ktransform, out_control->ktransform);
-		ktransform_position_set(typed_data->content_label.ktransform, (vec3){typed_data->nslice.corner_size.x, -2.0f, 0.0f}); // padding/2 for y
-		typed_data->content_label.is_active = true;
-		if (!standard_ui_system_update_active(state, &typed_data->content_label)) {
-			KERROR("Unable to update active state for textbox system text.");
-		}
+	// NOTE: Only parenting the transform, the control. This is to have control over how the
+	// clipping mask is attached and drawn. See the render function for the other half of this.
+	// TODO: Adjustable padding
+	typed_data->content_label.parent = out_control;
+	ktransform_parent_set(typed_data->content_label.ktransform, out_control->ktransform);
+	ktransform_position_set(typed_data->content_label.ktransform, (vec3){typed_data->nslice.corner_size.x, -2.0f, 0.0f}); // padding/2 for y
+	typed_data->content_label.is_active = true;
+	if (!standard_ui_system_update_active(state, &typed_data->content_label)) {
+		KERROR("Unable to update active state for textbox system text.");
 	}
 
 	// Create the cursor and attach it as a child.
-	if (!standard_ui_system_register_control(state, &typed_data->cursor)) {
-		KERROR("Unable to register control.");
+	if (!standard_ui_system_control_add_child(state, out_control, &typed_data->cursor)) {
+		KERROR("Failed to parent textbox system text.");
 	} else {
-		if (!standard_ui_system_control_add_child(state, out_control, &typed_data->cursor)) {
-			KERROR("Failed to parent textbox system text.");
-		} else {
-			// Set an initial position.
-			ktransform_position_set(typed_data->cursor.ktransform, (vec3){typed_data->nslice.corner_size.x, typed_data->label_line_height - 4.0f, 0.0f});
-			typed_data->cursor.is_active = true;
-			if (!standard_ui_system_update_active(state, &typed_data->cursor)) {
-				KERROR("Unable to update active state for textbox cursor.");
-			}
+		// Set an initial position.
+		ktransform_position_set(typed_data->cursor.ktransform, (vec3){typed_data->nslice.corner_size.x, typed_data->label_line_height - 4.0f, 0.0f});
+		typed_data->cursor.is_active = true;
+		if (!standard_ui_system_update_active(state, &typed_data->cursor)) {
+			KERROR("Unable to update active state for textbox cursor.");
 		}
 	}
 
@@ -291,21 +297,17 @@ b8 sui_textbox_control_create(standard_ui_state* state, const char* name, font_t
 	sui_textbox_update_cursor_position(state, out_control);
 
 	// Create the highlight box and attach it as a child.
-	if (!standard_ui_system_register_control(state, &typed_data->highlight_box)) {
-		KERROR("Unable to register control.");
-	} else {
-		// NOTE: Only parenting the transform, the control. This is to have control over how the
-		// clipping mask is attached and drawn. See the render function for the other half of this.
+	// NOTE: Only parenting the transform, the control. This is to have control over how the
+	// clipping mask is attached and drawn. See the render function for the other half of this.
 
-		// Set an initial position.
-		typed_data->highlight_box.is_active = true;
-		typed_data->highlight_box.is_visible = false;
-		/* typed_data->highlight_box.parent = self; */
-		ktransform_parent_set(typed_data->highlight_box.ktransform, out_control->ktransform);
-		/* ktransform_position_set(typed_data->highlight_box.ktransform, (vec3){typed_data->nslice.corner_size.x, typed_data->label_line_height - 4.0f, 0.0f}); */
-		if (!standard_ui_system_update_active(state, &typed_data->highlight_box)) {
-			KERROR("Unable to update active state for textbox highlight box.");
-		}
+	// Set an initial position.
+	typed_data->highlight_box.is_active = true;
+	typed_data->highlight_box.is_visible = false;
+	/* typed_data->highlight_box.parent = self; */
+	ktransform_parent_set(typed_data->highlight_box.ktransform, out_control->ktransform);
+	/* ktransform_position_set(typed_data->highlight_box.ktransform, (vec3){typed_data->nslice.corner_size.x, typed_data->label_line_height - 4.0f, 0.0f}); */
+	if (!standard_ui_system_update_active(state, &typed_data->highlight_box)) {
+		KERROR("Unable to update active state for textbox highlight box.");
 	}
 
 	// Ensure the highlight box size and position is correct.
@@ -336,11 +338,14 @@ b8 sui_textbox_control_size_set(standard_ui_state* state, struct sui_control* se
 	typed_data->size.y = height;
 	typed_data->nslice.size.x = width;
 	typed_data->nslice.size.y = height;
+	typed_data->focused_nslice.size.x = width;
+	typed_data->focused_nslice.size.y = height;
 
 	self->bounds.height = height;
 	self->bounds.width = width;
 
 	nine_slice_update(&typed_data->nslice, 0);
+	nine_slice_update(&typed_data->focused_nslice, 0);
 
 	kgeometry* vg = &typed_data->clip_mask.clip_geometry;
 	// HACK: TODO: remove hardcoded stuff.
@@ -373,6 +378,7 @@ b8 sui_textbox_control_update(standard_ui_state* state, struct sui_control* self
 
 	sui_textbox_internal_data* typed_data = self->internal_data;
 	nine_slice_render_frame_prepare(&typed_data->nslice, p_frame_data);
+	nine_slice_render_frame_prepare(&typed_data->focused_nslice, p_frame_data);
 
 	return true;
 }
@@ -386,15 +392,22 @@ b8 sui_textbox_control_render(standard_ui_state* state, struct sui_control* self
 
 	// Render the nine-slice.
 	sui_textbox_internal_data* typed_data = self->internal_data;
-	if (typed_data->nslice.vertex_data.elements) {
+	nine_slice* ns = 0;
+	if (state->focused == self) {
+		ns = &typed_data->focused_nslice;
+	} else {
+		ns = &typed_data->nslice;
+	}
+
+	if (ns->vertex_data.elements) {
 		standard_ui_renderable nineslice_renderable = {0};
 		nineslice_renderable.render_data.unique_id = self->id.uniqueid;
-		nineslice_renderable.render_data.vertex_count = typed_data->nslice.vertex_data.element_count;
-		nineslice_renderable.render_data.vertex_element_size = typed_data->nslice.vertex_data.element_size;
-		nineslice_renderable.render_data.vertex_buffer_offset = typed_data->nslice.vertex_data.buffer_offset;
-		nineslice_renderable.render_data.index_count = typed_data->nslice.index_data.element_count;
-		nineslice_renderable.render_data.index_element_size = typed_data->nslice.index_data.element_size;
-		nineslice_renderable.render_data.index_buffer_offset = typed_data->nslice.index_data.buffer_offset;
+		nineslice_renderable.render_data.vertex_count = ns->vertex_data.element_count;
+		nineslice_renderable.render_data.vertex_element_size = ns->vertex_data.element_size;
+		nineslice_renderable.render_data.vertex_buffer_offset = ns->vertex_data.buffer_offset;
+		nineslice_renderable.render_data.index_count = ns->index_data.element_count;
+		nineslice_renderable.render_data.index_element_size = ns->index_data.element_size;
+		nineslice_renderable.render_data.index_buffer_offset = ns->index_data.buffer_offset;
 		nineslice_renderable.render_data.model = ktransform_world_get(self->ktransform);
 		nineslice_renderable.render_data.diffuse_colour = vec4_mul(is_focused ? state->focused_base_colour : state->unfocused_base_colour, typed_data->colour);
 
@@ -781,26 +794,33 @@ static b8 sui_textbox_on_key(u16 code, void* sender, void* listener_inst, event_
 
 			if (char_code != 0) {
 				const char* entry_control_text = sui_label_text_get(state, &typed_data->content_label);
+				u32 len = string_length(entry_control_text);
 
 				// Need to verify that the input is valid before doing it. Otherwise boot.
 				if (typed_data->type == SUI_TEXTBOX_TYPE_INT || typed_data->type == SUI_TEXTBOX_TYPE_FLOAT) {
-					if (!codepoint_is_numeric(char_code)) {
+					if (!codepoint_is_numeric(char_code) && (char_code != '.' && char_code != '-' && char_code != '+')) {
+						KWARN("not numeric or .-+");
 						return true;
 					}
 
 					// Each of these is only allowed once.
 					if (char_code == '.' || char_code == '-' || char_code == '+') {
-						if (string_index_of(entry_control_text, char_code)) {
-							return true;
+						i32 index = string_index_of(entry_control_text, char_code);
+						if (index != -1) {
+							// Only if not about to be replaced.
+							if (typed_data->highlight_range.size == 0 || !IS_IN_RANGE((u32)index, typed_data->cursor_position, (u32)typed_data->highlight_range.offset)) {
+								KWARN("duplicate found: '%c'", char_code);
+								return true;
+							}
 						}
 					}
 
 					// Decimals are only allowed for float types.
 					if (char_code == '.' && typed_data->type == SUI_TEXTBOX_TYPE_INT) {
+						KWARN("Decimal not allowed on int textboxes.");
 						return true;
 					}
 				}
-				u32 len = string_length(entry_control_text);
 				char* str = kallocate(sizeof(char) * (len + 2), MEMORY_TAG_STRING);
 
 				// If text is highlighted, delete highlighted text, then insert at cursor position.
@@ -909,13 +929,9 @@ static b8 sui_textbox_on_paste(u16 code, void* sender, void* listener_inst, even
 }
 
 static void sui_textbox_on_focus(struct standard_ui_state* state, sui_control* self) {
-	KTRACE("Focused textbox '%s'.", self->name);
-
 	sui_textbox_select_all(state, self);
 }
 
 static void sui_textbox_on_unfocus(struct standard_ui_state* state, sui_control* self) {
-	KTRACE("Unfocused textbox '%s'.", self->name);
-
 	sui_textbox_select_none(state, self);
 }

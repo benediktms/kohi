@@ -1455,7 +1455,7 @@ kscene_state kscene_state_get(const struct kscene* scene) {
 	KASSERT_DEBUG(scene);
 	return scene->state;
 }
-const char* kscene_get_name(struct kscene* scene) {
+const char* kscene_get_name(const struct kscene* scene) {
 	return scene->name;
 }
 void kscene_set_name(struct kscene* scene, const char* name) {
@@ -1463,6 +1463,25 @@ void kscene_set_name(struct kscene* scene, const char* name) {
 		string_free(scene->name);
 	}
 	scene->name = string_duplicate(name);
+}
+
+vec3 kscene_get_fog_colour(const struct kscene* scene) {
+	return scene->fog_colour;
+}
+void kscene_set_fog_colour(struct kscene* scene, colour3 colour) {
+	scene->fog_colour = colour;
+}
+f32 kscene_get_fog_near(const struct kscene* scene) {
+	return scene->fog_near;
+}
+void kscene_set_fog_near(struct kscene* scene, f32 near) {
+	scene->fog_near = near;
+}
+f32 kscene_get_fog_far(const struct kscene* scene) {
+	return scene->fog_far;
+}
+void kscene_set_fog_far(struct kscene* scene, f32 far) {
+	scene->fog_far = far;
 }
 
 void kscene_set_active_camera(struct kscene* scene, kcamera camera) {

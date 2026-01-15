@@ -59,3 +59,7 @@ const char* kname_string_get(kname name) {
 
 	return 0;
 }
+
+void kname_shutdown(void) {
+	u64_bst_cleanup_with_strings(string_lookup);
+}

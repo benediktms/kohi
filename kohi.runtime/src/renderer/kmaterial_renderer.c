@@ -300,6 +300,20 @@ b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material
 			}
 			KFREE_TYPE_CARRAY(mat_std_shader.binding_sets, shader_binding_set_config, mat_std_shader.binding_set_count);
 		}
+		if (mat_std_shader.stencil_attachment.name) {
+			string_free(mat_std_shader.stencil_attachment.name);
+		}
+		if (mat_std_shader.depth_attachment.name) {
+			string_free(mat_std_shader.depth_attachment.name);
+		}
+		if (mat_std_shader.colour_attachment_count && mat_std_shader.colour_attachments) {
+			for (u8 c = 0; c < mat_std_shader.colour_attachment_count; c++) {
+				if (mat_std_shader.colour_attachments[c].name) {
+					string_free(mat_std_shader.colour_attachments[c].name);
+				}
+			}
+			KFREE_TYPE_CARRAY(mat_std_shader.colour_attachments, kasset_shader_attachment, mat_std_shader.colour_attachment_count);
+		}
 		kzero_memory(&mat_std_shader, sizeof(kasset_shader));
 
 		// Create/load the shader from the serialized source.
