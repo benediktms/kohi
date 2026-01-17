@@ -461,7 +461,7 @@ static kaudio internal_load_from_package(struct kaudio_system_state* state, knam
 	kaudio base = create_base_audio(state, is_streaming, auto_release);
 
 	// Listener for the request.
-	audio_asset_request_listener* listener = KALLOC_TYPE(audio_asset_request_listener, MEMORY_TAG_RESOURCE);
+	audio_asset_request_listener* listener = KALLOC_TYPE(audio_asset_request_listener, MEMORY_TAG_AUDIO);
 	listener->state = state;
 	listener->base = base;
 
@@ -469,7 +469,7 @@ static kaudio internal_load_from_package(struct kaudio_system_state* state, knam
 	kasset_audio* asset = asset_system_request_audio_from_package(engine_systems_get()->asset_state, kname_string_get(package_name), kname_string_get(asset_name), listener, kasset_audio_loaded_callback);
 	if (!asset) {
 		KERROR("Failed to request kaudio asset. See logs for details.");
-		kfree(listener, sizeof(audio_asset_request_listener), MEMORY_TAG_RESOURCE);
+		kfree(listener, sizeof(audio_asset_request_listener), MEMORY_TAG_AUDIO);
 		return INVALID_KAUDIO;
 	}
 
@@ -1226,7 +1226,7 @@ static void kasset_audio_loaded_callback(void* listener, kasset_audio* asset) {
 	asset_system_release_audio(engine_systems_get()->asset_state, asset);
 
 	// Cleanup the listener.
-	KFREE_TYPE(listener, audio_asset_request_listener, MEMORY_TAG_RESOURCE);
+	KFREE_TYPE(listener, audio_asset_request_listener, MEMORY_TAG_AUDIO);
 }
 
 static u16 get_active_instance_count(kaudio_system_state* state, kaudio base) {

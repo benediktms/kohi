@@ -2,9 +2,9 @@
 
 #include <core/frame_data.h>
 #include <core/keymap.h>
+#include <kui_system.h>
 #include <platform/platform.h>
 #include <renderer/kforward_renderer.h>
-#include <standard_ui_system.h>
 #include <world/world_types.h>
 
 #include "editor/editor_gizmo.h"
@@ -68,62 +68,60 @@ typedef struct editor_state {
 	kname textbox_font_name;
 
 	// UI elements
-	standard_ui_state* sui_state;
-	sui_control editor_root;
+	kui_state* kui_state;
+	kui_control editor_root;
 
 	// Main window
-	sui_control main_bg_panel;
-	sui_control save_button;
-	sui_control mode_entity_button;
-	sui_control mode_scene_button;
-	sui_control mode_tree_button;
+	kui_control main_bg_panel;
+	kui_control save_button;
+	kui_control mode_entity_button;
+	kui_control mode_scene_button;
+	kui_control mode_tree_button;
 
 	// Scene Inspector window
 	f32 scene_inspector_width;
 	// Beginning position of the entity inspector right column.
 	f32 scene_inspector_right_col_x;
-	sui_control scene_inspector_bg_panel;
-	sui_control scene_inspector_title;
-	sui_control scene_name_label;
-	sui_control scene_name_textbox;
-	sui_control scene_fog_colour_label;
-	sui_control scene_fog_colour_r_textbox;
-	sui_control scene_fog_colour_g_textbox;
-	sui_control scene_fog_colour_b_textbox;
+	kui_control scene_inspector_bg_panel;
+	kui_control scene_inspector_title;
+	kui_control scene_name_label;
+	kui_control scene_name_textbox;
+	kui_control scene_fog_colour_label;
+	kui_control scene_fog_colour_r_textbox;
+	kui_control scene_fog_colour_g_textbox;
+	kui_control scene_fog_colour_b_textbox;
 
 	// Entity Inspector window
 	f32 entity_inspector_width;
 	// Beginning position of the entity inspector right column.
 	f32 entity_inspector_right_col_x;
-	sui_control entity_inspector_bg_panel;
-	sui_control entity_inspector_title;
-	sui_control entity_name_label;
-	sui_control entity_name_textbox;
-	sui_control entity_position_label;
-	sui_control entity_position_x_textbox;
-	sui_control entity_position_y_textbox;
-	sui_control entity_position_z_textbox;
+	kui_control entity_inspector_bg_panel;
+	kui_control entity_inspector_title;
+	kui_control entity_name_label;
+	kui_control entity_name_textbox;
+	kui_control entity_position_label;
+	kui_control entity_position_x_textbox;
+	kui_control entity_position_y_textbox;
+	kui_control entity_position_z_textbox;
 
-	sui_control entity_orientation_label;
-	sui_control entity_orientation_x_textbox;
-	sui_control entity_orientation_y_textbox;
-	sui_control entity_orientation_z_textbox;
-	sui_control entity_orientation_w_textbox;
+	kui_control entity_orientation_label;
+	kui_control entity_orientation_x_textbox;
+	kui_control entity_orientation_y_textbox;
+	kui_control entity_orientation_z_textbox;
+	kui_control entity_orientation_w_textbox;
 
-	sui_control entity_scale_label;
-	sui_control entity_scale_x_textbox;
-	sui_control entity_scale_y_textbox;
-	sui_control entity_scale_z_textbox;
+	kui_control entity_scale_label;
+	kui_control entity_scale_x_textbox;
+	kui_control entity_scale_y_textbox;
+	kui_control entity_scale_z_textbox;
 
 	// Tree window
 	f32 tree_inspector_width;
 	// Beginning position of the entity inspector right column.
 	f32 tree_inspector_right_col_x;
-	sui_control tree_inspector_bg_panel;
-	sui_control tree_inspector_title;
-
-	u32 tree_element_count;
-	sui_control* tree_elements;
+	kui_control tree_inspector_bg_panel;
+	kui_control tree_inspector_title;
+	kui_control tree_base_control;
 
 } editor_state;
 

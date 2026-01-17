@@ -179,16 +179,6 @@ typedef struct audio_emitter_entity {
 	b8 is_looping;
 } audio_emitter_entity;
 
-typedef struct avatar_entity {
-	base_entity base;
-
-	kentity model;
-	kname current_animation_name;
-
-	f32 movement_speed_modifier;
-
-} avatar_entity;
-
 // Map material id to geometry references.
 typedef struct kmaterial_geometry_list {
 	kmaterial base_material;
@@ -3722,6 +3712,22 @@ kscene_hierarchy_node* kscene_get_hierarchy(const struct kscene* scene, u32* out
 	}
 
 	return nodes;
+}
+
+static void cleanup_hierarchy_node_r(kscene_hierarchy_node* node) {
+	if (node->child_count && node->children) {
+		for (u32 i = 0; i < node->child_count; ++i) {
+			cleanup_hierarchy_node_r(&node->children[i]);
+		}
+		KFREE_TYPE_CARRAY(node->children, kscene_hierarchy_node, node->child_count);
+	}
+}
+
+void kscene_cleanup_hierarchy(kscene_hierarchy_node* nodes, u32 count) {
+	for (u32 i = 0; i < count; ++i) {
+		cleanup_hierarchy_node_r(&nodes[i]);
+	}
+	KFREE_TYPE_CARRAY(nodes, kscene_hierarchy_node, count);
 }
 
 static void notify_initial_load_entity_started(kscene* scene, kentity entity) {

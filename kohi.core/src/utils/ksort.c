@@ -49,6 +49,41 @@ void kquick_sort(u64 type_size, void* data, i32 low_index, i32 high_index, PFN_k
 	}
 }
 
+static i32 kquick_sort_partition_with_context(void* scratch_mem, u64 size, void* data, i32 low_index, i32 high_index, PFN_kquicksort_compare_with_context compare_pfn, void* context) {
+	void* pivot = data_at_index(data, size, high_index);
+	i32 i = (low_index - 1);
+
+	for (i32 j = low_index; j <= high_index - 1; ++j) {
+		void* dataj = data_at_index(data, size, j);
+		i32 result = compare_pfn(dataj, pivot, context);
+		if (result > 0) {
+			++i;
+			void* datai = data_at_index(data, size, i);
+			ptr_swap(scratch_mem, size, datai, dataj);
+		}
+	}
+	ptr_swap(scratch_mem, size, data_at_index(data, size, i + 1), data_at_index(data, size, high_index));
+	return i + 1;
+}
+
+static void kquick_sort_internal_with_context(void* scratch_mem, u64 size, void* data, i32 low_index, i32 high_index, PFN_kquicksort_compare_with_context compare_pfn, void* context) {
+	if (low_index < high_index) {
+		i32 partition_index = kquick_sort_partition_with_context(scratch_mem, size, data, low_index, high_index, compare_pfn, context);
+		kquick_sort_internal_with_context(scratch_mem, size, data, low_index, partition_index - 1, compare_pfn, context);
+		kquick_sort_internal_with_context(scratch_mem, size, data, partition_index + 1, high_index, compare_pfn, context);
+	}
+}
+
+void kquick_sort_with_context(u64 type_size, void* data, i32 low_index, i32 high_index, PFN_kquicksort_compare_with_context compare_pfn, void* context) {
+	if (low_index < high_index) {
+		void* scratch_mem = kallocate(type_size, MEMORY_TAG_ARRAY);
+		i32 partition_index = kquick_sort_partition_with_context(scratch_mem, type_size, data, low_index, high_index, compare_pfn, context);
+		kquick_sort_internal_with_context(scratch_mem, type_size, data, low_index, partition_index - 1, compare_pfn, context);
+		kquick_sort_internal_with_context(scratch_mem, type_size, data, partition_index + 1, high_index, compare_pfn, context);
+		kfree(scratch_mem, type_size, MEMORY_TAG_ARRAY);
+	}
+}
+
 i32 kquicksort_compare_u32_desc(void* a, void* b) {
 	u32 a_typed = *(u32*)a;
 	u32 b_typed = *(u32*)b;

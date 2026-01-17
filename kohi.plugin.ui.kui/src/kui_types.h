@@ -1,0 +1,262 @@
+#pragma once
+
+#include <core_resource_types.h>
+#include <defines.h>
+#include <input_types.h>
+#include <math/geometry.h>
+#include <math/math_types.h>
+#include <renderer/nine_slice.h>
+#include <renderer/renderer_types.h>
+#include <systems/font_system.h>
+
+struct kui_state;
+struct kui_render_data;
+
+// Encodes both the control type as well as an index into the array of that type.
+typedef struct {
+	u32 val;
+} kui_control;
+
+#define INVALID_KUI_CONTROL ((kui_control){U32_MAX})
+
+typedef struct kui_renderable {
+	// The per-control instance binding id for binding set 1.
+	u32 binding_instance_id;
+	ktexture atlas_override;
+	geometry_render_data render_data;
+	geometry_render_data* clip_mask_render_data;
+} kui_renderable;
+
+typedef struct kui_render_data {
+	ktexture colour_buffer;
+	ktexture depth_stencil_buffer;
+	mat4 view;
+	mat4 projection;
+
+	ktexture ui_atlas;
+	u32 shader_set0_binding_instance_id;
+
+	u32 renderable_count;
+	kui_renderable* renderables;
+} kui_render_data;
+
+// Global UBO data for the KUI shader.
+typedef struct kui_global_ubo {
+	mat4 projection;
+	mat4 view;
+} kui_global_ubo;
+
+// Immediate (i.e. every draw) data for the KUI shader.
+typedef struct kui_immediate_data {
+	mat4 model;
+	vec4 diffuse_colour;
+} kui_immediate_data;
+
+typedef struct kui_mouse_event {
+	mouse_buttons mouse_button;
+	i16 x;
+	i16 y;
+} kui_mouse_event;
+
+typedef enum kui_keyboard_event_type {
+	KUI_KEYBOARD_EVENT_TYPE_PRESS,
+	KUI_KEYBOARD_EVENT_TYPE_RELEASE,
+} kui_keyboard_event_type;
+
+typedef struct kui_keyboard_event {
+	keys key;
+	kui_keyboard_event_type type;
+} kui_keyboard_event;
+
+typedef struct kui_clip_mask {
+	u32 reference_id;
+	ktransform clip_ktransform;
+	kgeometry clip_geometry;
+	geometry_render_data render_data;
+} kui_clip_mask;
+
+typedef enum kui_control_flag_bits {
+	KUI_CONTROL_FLAG_NONE = 0,
+	KUI_CONTROL_FLAG_ACTIVE_BIT = 1 << 0,
+	KUI_CONTROL_FLAG_VISIBLE_BIT = 1 << 1,
+	KUI_CONTROL_FLAG_HOVERED_BIT = 1 << 2,
+	KUI_CONTROL_FLAG_PRESSED_BIT = 1 << 3,
+	KUI_CONTROL_FLAG_FOCUSABLE_BIT = 1 << 4,
+	KUI_CONTROL_FLAG_IS_DRAGGING_BIT = 1 << 5,
+	KUI_CONTROL_FLAG_CAN_MOUSE_INTERACT_BIT = 1 << 6
+} kui_control_flag_bits;
+
+typedef u32 kui_control_flags;
+
+/**
+ * The mouse event handler callback for a control.
+ * @returns True if the event should be allowed to propagate to other controls; otherwise false.
+ */
+typedef b8 (*PFN_mouse_event_callback)(struct kui_state* state, kui_control self, struct kui_mouse_event event);
+
+typedef enum kui_control_type {
+	KUI_CONTROL_TYPE_BASE,
+	KUI_CONTROL_TYPE_PANEL,
+	KUI_CONTROL_TYPE_LABEL,
+	KUI_CONTROL_TYPE_BUTTON,
+	KUI_CONTROL_TYPE_TEXTBOX,
+	KUI_CONTROL_TYPE_TREE_ITEM,
+
+	KUI_CONTROL_TYPE_MAX = 64
+} kui_control_type;
+
+typedef struct kui_base_control {
+	kui_control_type type;
+	// A copy of the handle for reverse lookups.
+	kui_control handle;
+	ktransform ktransform;
+	char* name;
+
+	kui_control_flags flags;
+
+	// How deep in the hierarchy the control is.
+	u32 depth;
+
+	rect_2d bounds;
+
+	kui_control parent;
+	// darray
+	kui_control* children;
+
+	void* user_data;
+	u64 user_data_size;
+
+	void (*destroy)(struct kui_state* state, kui_control* self);
+
+	b8 (*update)(struct kui_state* state, kui_control self, struct frame_data* p_frame_data);
+	b8 (*render)(struct kui_state* state, kui_control self, struct frame_data* p_frame_data, struct kui_render_data* reneder_data);
+
+	/**
+	 * The click handler for a control.
+	 * @param self A pointer to the control.
+	 * @param event The mouse event.
+	 * @returns True if the event should be allowed to propagate to other controls; otherwise false.
+	 */
+	PFN_mouse_event_callback on_click;
+	PFN_mouse_event_callback on_mouse_down;
+	PFN_mouse_event_callback on_mouse_up;
+	PFN_mouse_event_callback on_mouse_over;
+	PFN_mouse_event_callback on_mouse_out;
+	PFN_mouse_event_callback on_mouse_move;
+	PFN_mouse_event_callback on_mouse_drag_begin;
+	PFN_mouse_event_callback on_mouse_drag;
+	PFN_mouse_event_callback on_mouse_drag_end;
+
+	void (*on_focus)(struct kui_state* state, kui_control self);
+	void (*on_unfocus)(struct kui_state* state, kui_control self);
+
+	PFN_mouse_event_callback internal_click;
+	PFN_mouse_event_callback internal_mouse_over;
+	PFN_mouse_event_callback internal_mouse_out;
+	PFN_mouse_event_callback internal_mouse_down;
+	PFN_mouse_event_callback internal_mouse_up;
+	PFN_mouse_event_callback internal_mouse_move;
+	PFN_mouse_event_callback internal_mouse_drag_begin;
+	PFN_mouse_event_callback internal_mouse_drag;
+	PFN_mouse_event_callback internal_mouse_drag_end;
+
+	void (*on_key)(struct kui_state* state, kui_control self, struct kui_keyboard_event event);
+
+} kui_base_control;
+
+typedef struct kui_panel_control {
+	kui_base_control base;
+	vec4 colour;
+	kgeometry g;
+	u32 binding_instance_id;
+	b8 is_dirty;
+} kui_panel_control;
+
+typedef struct kui_label_control {
+	kui_base_control base;
+	vec2i size;
+	vec4 colour;
+	u32 binding_instance_id;
+
+	font_type type;
+	// Only used when set to use a bitmap font.
+	khandle bitmap_font;
+	// Only used when set to use a system font.
+	system_font_variant system_font;
+
+	u64 vertex_buffer_offset;
+	u64 index_buffer_offset;
+	u64 vertex_buffer_size;
+	u64 index_buffer_size;
+	char* text;
+	u32 max_text_length;
+	u32 quad_count;
+	u32 max_quad_count;
+
+	b8 is_dirty;
+} kui_label_control;
+
+typedef enum kui_button_type {
+	// Just a regular button - no content like text or image.
+	KUI_BUTTON_TYPE_BASIC,
+	KUI_BUTTON_TYPE_TEXT,
+} kui_button_type;
+
+typedef struct kui_button_control {
+	kui_base_control base;
+	kui_button_type button_type;
+
+	vec4 colour;
+	nine_slice nslice;
+	u32 binding_instance_id;
+
+	kui_control label;
+} kui_button_control;
+
+typedef enum kui_textbox_type {
+	KUI_TEXTBOX_TYPE_STRING,
+	KUI_TEXTBOX_TYPE_INT,
+	KUI_TEXTBOX_TYPE_FLOAT
+} kui_textbox_type;
+
+typedef struct kui_textbox_control {
+	kui_base_control base;
+	vec2i size;
+	vec4 colour;
+	kui_textbox_type type;
+	nine_slice nslice;
+	nine_slice focused_nslice;
+	u32 binding_instance_id;
+	kui_control content_label;
+	kui_control cursor;
+	kui_control highlight_box;
+	range32 highlight_range;
+	u32 cursor_position;
+	f32 text_view_offset;
+	kui_clip_mask clip_mask;
+
+	// Cached copy of the internal label's line height (taken in turn from its font.)
+	f32 label_line_height;
+
+	// HACK: Need to store a pointer to the standard ui state here because
+	// the event system can only pass a single pointer, which is already occupied
+	// by "self". Should probably re-think this before adding too many more controls.
+	struct kui_state* state;
+} kui_textbox_control;
+
+typedef struct kui_tree_item_control {
+	kui_base_control base;
+	vec2i size;
+	vec4 colour;
+	u32 binding_instance_id;
+
+	kui_control toggle_button;
+	kui_control label;
+
+	kui_control child_container;
+
+	u64 context;
+
+	// darray
+	struct kui_tree_item_control* children;
+} kui_tree_item_control;

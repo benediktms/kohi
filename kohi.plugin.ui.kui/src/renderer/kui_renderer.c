@@ -1,14 +1,14 @@
-#include "standard_ui_renderer.h"
-#include "core/engine.h"
-#include "logger.h"
-#include "math/kmath.h"
-#include "renderer/renderer_frontend.h"
-#include "standard_ui_defines.h"
-#include "standard_ui_system.h"
-#include "systems/kshader_system.h"
-#include "systems/texture_system.h"
+#include "kui_renderer.h"
+#include "kui_defines.h"
 
-b8 sui_renderer_create(sui_renderer* out_renderer) {
+#include <core/engine.h>
+#include <logger.h>
+#include <math/kmath.h>
+#include <renderer/renderer_frontend.h>
+#include <systems/kshader_system.h>
+#include <systems/texture_system.h>
+
+b8 kui_renderer_create(kui_renderer* out_renderer) {
 
 	// Pointer to the renderer system state.
 	const engine_system_states* systems = engine_systems_get();
@@ -19,13 +19,13 @@ b8 sui_renderer_create(sui_renderer* out_renderer) {
 
 	// SUI pass state.
 	{
-		out_renderer->sui_pass.sui_shader = kshader_system_get(kname_create(STANDARD_UI_SHADER_NAME), kname_create(PACKAGE_NAME_STANDARD_UI));
+		out_renderer->kui_pass.kui_shader = kshader_system_get(kname_create(KUI_SHADER_NAME), kname_create(PACKAGE_NAME_KUI));
 	}
 
 	return true;
 }
 
-void sui_renderer_destroy(sui_renderer* renderer) {
+void kui_renderer_destroy(kui_renderer* renderer) {
 	if (renderer) {
 		// TODO: do the thing
 	}
@@ -52,7 +52,7 @@ static void set_render_state_defaults(rect_2di vp_rect) {
 	renderer_end_debug_label();
 }
 
-b8 sui_renderer_render_frame(sui_renderer* renderer, frame_data* p_frame_data, standard_ui_render_data* render_data) {
+b8 kui_renderer_render_frame(kui_renderer* renderer, frame_data* p_frame_data, kui_render_data* render_data) {
 	renderer_begin_debug_label("sui", (vec3){0.5f, 0.5f, 0.5});
 
 	rect_2di vp_rect = {0};
@@ -65,7 +65,7 @@ b8 sui_renderer_render_frame(sui_renderer* renderer, frame_data* p_frame_data, s
 	set_render_state_defaults(vp_rect);
 
 	// Renderables
-	if (!kshader_system_use(renderer->sui_pass.sui_shader, 0)) {
+	if (!kshader_system_use(renderer->kui_pass.kui_shader, 0)) {
 		KERROR("Failed to use StandardUI shader. Render frame failed.");
 		return false;
 	}
@@ -86,23 +86,23 @@ b8 sui_renderer_render_frame(sui_renderer* renderer, frame_data* p_frame_data, s
 	renderer_set_stencil_test_enabled(false);
 
 	// Global UBO data.
-	sui_global_ubo global_ubo_data = {
+	kui_global_ubo global_ubo_data = {
 		.projection = render_data->projection,
 		.view = render_data->view};
-	kshader_set_binding_data(renderer->sui_pass.sui_shader, 0, render_data->shader_set0_binding_instance_id, 0, 0, &global_ubo_data, sizeof(sui_global_ubo));
-	kshader_apply_binding_set(renderer->sui_pass.sui_shader, 0, render_data->shader_set0_binding_instance_id);
+	kshader_set_binding_data(renderer->kui_pass.kui_shader, 0, render_data->shader_set0_binding_instance_id, 0, 0, &global_ubo_data, sizeof(kui_global_ubo));
+	kshader_apply_binding_set(renderer->kui_pass.kui_shader, 0, render_data->shader_set0_binding_instance_id);
 
 	u32 renderable_count = render_data->renderable_count;
 	for (u32 i = 0; i < renderable_count; ++i) {
-		standard_ui_renderable* renderable = &render_data->renderables[i];
+		kui_renderable* renderable = &render_data->renderables[i];
 
 		// Per-control binding set.
 		ktexture atlas = renderable->atlas_override != INVALID_KTEXTURE ? renderable->atlas_override : render_data->ui_atlas;
-		kshader_set_binding_texture(renderer->sui_pass.sui_shader, 1, renderable->binding_instance_id, 0, 0, atlas);
+		kshader_set_binding_texture(renderer->kui_pass.kui_shader, 1, renderable->binding_instance_id, 0, 0, atlas);
 		// HACK: Use nearest neighbor sampler for UI
 		ksampler_backend samp = renderer_generic_sampler_get(renderer->renderer_state, SHADER_GENERIC_SAMPLER_NEAREST_CLAMP);
-		kshader_set_binding_sampler(renderer->sui_pass.sui_shader, 1, renderable->binding_instance_id, 1, 0, samp);
-		kshader_apply_binding_set(renderer->sui_pass.sui_shader, 1, renderable->binding_instance_id);
+		kshader_set_binding_sampler(renderer->kui_pass.kui_shader, 1, renderable->binding_instance_id, 1, 0, samp);
+		kshader_apply_binding_set(renderer->kui_pass.kui_shader, 1, renderable->binding_instance_id);
 
 		// Render clipping mask geometry if it exists.
 		if (renderable->clip_mask_render_data) {
@@ -124,10 +124,10 @@ b8 sui_renderer_render_frame(sui_renderer* renderer, frame_data* p_frame_data, s
 
 			// Immediates
 			{
-				sui_immediate_data immediate_data = {
+				kui_immediate_data immediate_data = {
 					.model = renderable->clip_mask_render_data->model,
 					.diffuse_colour = renderable->render_data.diffuse_colour};
-				kshader_set_immediate_data(renderer->sui_pass.sui_shader, &immediate_data, sizeof(sui_immediate_data));
+				kshader_set_immediate_data(renderer->kui_pass.kui_shader, &immediate_data, sizeof(kui_immediate_data));
 			}
 
 			// Draw the clip mask geometry.
@@ -152,10 +152,10 @@ b8 sui_renderer_render_frame(sui_renderer* renderer, frame_data* p_frame_data, s
 
 		// Immediates
 		{
-			sui_immediate_data immediate_data = {
+			kui_immediate_data immediate_data = {
 				.model = renderable->render_data.model,
 				.diffuse_colour = renderable->render_data.diffuse_colour};
-			kshader_set_immediate_data(renderer->sui_pass.sui_shader, &immediate_data, sizeof(sui_immediate_data));
+			kshader_set_immediate_data(renderer->kui_pass.kui_shader, &immediate_data, sizeof(kui_immediate_data));
 		}
 
 		// Draw

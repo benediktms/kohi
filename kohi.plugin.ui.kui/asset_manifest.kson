@@ -1,0 +1,27 @@
+package_name = "Kohi.Plugin.Ui.Kui"
+references = [
+    {
+        name = "Kohi.Runtime"
+        path = "../kohi.runtime/"
+    }
+]
+assets = [
+    {
+        name = "Shader.Kui"
+        path = "./assets/shaders/Shader.Kui.ksc"
+    }
+    {
+        name = "Shader.Kui_frag"
+        path = "./assets/shaders/Shader.Kui_frag.glsl"
+    }
+    {
+        name = "Shader.Kui_vert"
+        path = "./assets/shaders/Shader.Kui_vert.glsl"
+    }
+    {
+        name = "Texture.KuiDefaultAtlas"
+        path = "./assets/images/Texture.KuiDefaultAtlas.kbi"
+        source_path = "./assets/images/source/Texture.KuiDefaultAtlas.png"
+    }
+    
+]

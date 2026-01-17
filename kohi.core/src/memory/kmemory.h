@@ -52,7 +52,7 @@ typedef enum memory_tag {
 	MEMORY_TAG_BINARY_STRING_TABLE,
 	MEMORY_TAG_BINARY_DATA,
 	MEMORY_TAG_SCENE,
-	MEMORY_TAG_RESOURCE,
+	MEMORY_TAG_PACKAGE,
 	MEMORY_TAG_VULKAN,
 	// "External" vulkan allocations, for reporting purposes only.
 	MEMORY_TAG_VULKAN_EXT,
@@ -71,6 +71,7 @@ typedef enum memory_tag {
 	MEMORY_TAG_PLATFORM,
 	MEMORY_TAG_SERIALIZER,
 	MEMORY_TAG_ASSET,
+	MEMORY_TAG_EDITOR,
 
 	MEMORY_TAG_MAX_TAGS
 } memory_tag;

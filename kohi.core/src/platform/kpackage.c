@@ -44,7 +44,7 @@ b8 kpackage_create_from_manifest(const asset_manifest* manifest, kpackage* out_p
 
 	out_package->is_binary = false;
 
-	out_package->internal_data = kallocate(sizeof(kpackage_internal), MEMORY_TAG_RESOURCE);
+	out_package->internal_data = kallocate(sizeof(kpackage_internal), MEMORY_TAG_PACKAGE);
 
 	// Process manifest
 	u32 asset_count = darray_length(manifest->assets);
@@ -98,7 +98,7 @@ void kpackage_destroy(kpackage* package) {
 		}
 
 		if (package->internal_data) {
-			kfree(package->internal_data, sizeof(kpackage_internal), MEMORY_TAG_RESOURCE);
+			kfree(package->internal_data, sizeof(kpackage_internal), MEMORY_TAG_PACKAGE);
 		}
 
 		kzero_memory(package, sizeof(kpackage_internal));

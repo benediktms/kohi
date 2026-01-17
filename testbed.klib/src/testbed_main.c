@@ -248,11 +248,6 @@ b8 application_initialize(struct application* app) {
 		sui_label_colour_set(sui_state, &app->state->debug_text_shadow, (vec4){0, 0, 0, 1});
 		if (!standard_ui_system_control_add_child(sui_state, 0, &app->state->debug_text_shadow)) {
 			KERROR("Failed to parent test text.");
-		} else {
-			app->state->debug_text_shadow.is_active = true;
-			if (!standard_ui_system_update_active(sui_state, &app->state->debug_text_shadow)) {
-				KERROR("Unable to update active state.");
-			}
 		}
 	}
 
@@ -262,11 +257,6 @@ b8 application_initialize(struct application* app) {
 	} else {
 		if (!standard_ui_system_control_add_child(sui_state, 0, &app->state->debug_text)) {
 			KERROR("Failed to parent test text.");
-		} else {
-			app->state->debug_text.is_active = true;
-			if (!standard_ui_system_update_active(sui_state, &app->state->debug_text)) {
-				KERROR("Unable to update active state.");
-			}
 		}
 	}
 	// Move debug text to new bottom of screen.
@@ -281,11 +271,6 @@ b8 application_initialize(struct application* app) {
 		sui_label_colour_set(sui_state, &app->state->context_sensitive_text, (vec4){0, 1, 0, 1});
 		if (!standard_ui_system_control_add_child(sui_state, 0, &app->state->context_sensitive_text)) {
 			KERROR("Failed to parent test text.");
-		} else {
-			app->state->context_sensitive_text.is_active = true;
-			if (!standard_ui_system_update_active(sui_state, &app->state->context_sensitive_text)) {
-				KERROR("Unable to update active state.");
-			}
 		}
 	}
 	sui_control_position_set(sui_state, &app->state->context_sensitive_text, vec3_create(20, app->state->height - 50, 0));

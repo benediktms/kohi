@@ -237,3 +237,4 @@ typedef struct kscene_hierarchy_node {
 } kscene_hierarchy_node;
 
 KAPI kscene_hierarchy_node* kscene_get_hierarchy(const struct kscene* scene, u32* out_count);
+KAPI void kscene_cleanup_hierarchy(kscene_hierarchy_node* nodes, u32 count);

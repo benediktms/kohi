@@ -2,19 +2,20 @@
 
 #include "assets/kasset_types.h"
 #include "audio/audio_frontend.h"
-#include "controls/sui_tree_item.h"
+#include "controls/kui_tree_item.h"
 #include "core/event.h"
 #include "core_resource_types.h"
 #include "debug/kassert.h"
 #include "defines.h"
 #include "editor/editor_gizmo.h"
 #include "input_types.h"
+#include "kui_system.h"
+#include "kui_types.h"
 #include "math/geometry_2d.h"
 #include "math/math_types.h"
 #include "memory/kmemory.h"
 #include "plugins/plugin_types.h"
 #include "renderer/renderer_frontend.h"
-#include "standard_ui_system.h"
 #include "strings/kname.h"
 #include "strings/kstring.h"
 #include "systems/asset_system.h"
@@ -30,15 +31,15 @@
 #include "world/world_utils.h"
 
 #include <containers/darray.h>
-#include <controls/sui_button.h>
-#include <controls/sui_label.h>
-#include <controls/sui_panel.h>
-#include <controls/sui_textbox.h>
+#include <controls/kui_button.h>
+#include <controls/kui_label.h>
+#include <controls/kui_panel.h>
+#include <controls/kui_textbox.h>
 #include <core/console.h>
 #include <core/engine.h>
+#include <kui_plugin_main.h>
 #include <math/kmath.h>
 #include <platform/platform.h>
-#include <standard_ui_plugin_main.h>
 #include <systems/ktimeline_system.h>
 #include <utils/ksort.h>
 
@@ -85,30 +86,30 @@ static void editor_unregister_events(struct editor_state* state);
 static void editor_register_commands(struct editor_state* state);
 static void editor_unregister_commands(struct editor_state* state);
 
-static b8 save_button_clicked(struct standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
-static b8 mode_scene_button_clicked(struct standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
-static b8 mode_entity_button_clicked(struct standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
-static b8 mode_tree_button_clicked(struct standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
+static b8 save_button_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event);
+static b8 mode_scene_button_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event);
+static b8 mode_entity_button_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event);
+static b8 mode_tree_button_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event);
 
-static void scene_name_textbox_on_key(standard_ui_state* state, sui_control* self, sui_keyboard_event evt);
-static void scene_fog_colour_r_textbox_on_key(standard_ui_state* state, sui_control* self, sui_keyboard_event evt);
-static void scene_fog_colour_g_textbox_on_key(standard_ui_state* state, sui_control* self, sui_keyboard_event evt);
-static void scene_fog_colour_b_textbox_on_key(standard_ui_state* state, sui_control* self, sui_keyboard_event evt);
+static void scene_name_textbox_on_key(kui_state* state, kui_control* self, kui_keyboard_event evt);
+static void scene_fog_colour_r_textbox_on_key(kui_state* state, kui_control* self, kui_keyboard_event evt);
+static void scene_fog_colour_g_textbox_on_key(kui_state* state, kui_control* self, kui_keyboard_event evt);
+static void scene_fog_colour_b_textbox_on_key(kui_state* state, kui_control* self, kui_keyboard_event evt);
 
-static void entity_name_textbox_on_key(standard_ui_state* state, sui_control* self, sui_keyboard_event evt);
-static void entity_position_x_textbox_on_key(standard_ui_state* state, sui_control* self, sui_keyboard_event evt);
-static void entity_position_y_textbox_on_key(standard_ui_state* state, sui_control* self, sui_keyboard_event evt);
-static void entity_position_z_textbox_on_key(standard_ui_state* state, sui_control* self, sui_keyboard_event evt);
-static void entity_orientation_x_textbox_on_key(standard_ui_state* state, sui_control* self, sui_keyboard_event evt);
-static void entity_orientation_y_textbox_on_key(standard_ui_state* state, sui_control* self, sui_keyboard_event evt);
-static void entity_orientation_z_textbox_on_key(standard_ui_state* state, sui_control* self, sui_keyboard_event evt);
-static void entity_orientation_w_textbox_on_key(standard_ui_state* state, sui_control* self, sui_keyboard_event evt);
-static void entity_scale_x_textbox_on_key(standard_ui_state* state, sui_control* self, sui_keyboard_event evt);
-static void entity_scale_y_textbox_on_key(standard_ui_state* state, sui_control* self, sui_keyboard_event evt);
-static void entity_scale_z_textbox_on_key(standard_ui_state* state, sui_control* self, sui_keyboard_event evt);
+static void entity_name_textbox_on_key(kui_state* state, kui_control* self, kui_keyboard_event evt);
+static void entity_position_x_textbox_on_key(kui_state* state, kui_control* self, kui_keyboard_event evt);
+static void entity_position_y_textbox_on_key(kui_state* state, kui_control* self, kui_keyboard_event evt);
+static void entity_position_z_textbox_on_key(kui_state* state, kui_control* self, kui_keyboard_event evt);
+static void entity_orientation_x_textbox_on_key(kui_state* state, kui_control* self, kui_keyboard_event evt);
+static void entity_orientation_y_textbox_on_key(kui_state* state, kui_control* self, kui_keyboard_event evt);
+static void entity_orientation_z_textbox_on_key(kui_state* state, kui_control* self, kui_keyboard_event evt);
+static void entity_orientation_w_textbox_on_key(kui_state* state, kui_control* self, kui_keyboard_event evt);
+static void entity_scale_x_textbox_on_key(kui_state* state, kui_control* self, kui_keyboard_event evt);
+static void entity_scale_y_textbox_on_key(kui_state* state, kui_control* self, kui_keyboard_event evt);
+static void entity_scale_z_textbox_on_key(kui_state* state, kui_control* self, kui_keyboard_event evt);
 
 static void tree_refresh(editor_state* state);
-static b8 tree_label_clicked(struct standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event);
+static b8 tree_item_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event);
 
 b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 	*memory_requirement = sizeof(editor_state);
@@ -154,9 +155,9 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 
 	state->selection_list = darray_create(kentity);
 
-	kruntime_plugin* sui_plugin = plugin_system_get(engine_systems_get()->plugin_system, "kohi.plugin.ui.standard");
-	standard_ui_state* sui_state = ((standard_ui_plugin_state*)sui_plugin->plugin_state)->state;
-	state->sui_state = sui_state;
+	kruntime_plugin* kui_plugin = plugin_system_get(engine_systems_get()->plugin_system, "kohi.plugin.ui.standard");
+	kui_state* kui_state = ((kui_plugin_state*)kui_plugin->plugin_state)->state;
+	state->kui_state = kui_state;
 
 	// UI elements. Create/load them all up here.
 	state->font_name = kname_create("Noto Sans CJK JP");
@@ -166,34 +167,37 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 
 	// Main root control for everything else to belong to.
 	{
-		KASSERT(sui_base_control_create(sui_state, "editor_root", &state->editor_root));
-		KASSERT(standard_ui_system_control_add_child(sui_state, KNULL, &state->editor_root));
-		state->editor_root.is_visible = false;
+		state->editor_root = kui_base_control_create(kui_state, "editor_root", KUI_CONTROL_TYPE_BASE);
+		KASSERT(kui_system_control_add_child(kui_state, INVALID_KUI_CONTROL, state->editor_root));
+
+		kui_control_set_is_visible(kui_state, state->editor_root, false);
 	}
 
 	// Main window
 	{
 		// Main background panel.
-		KASSERT(sui_panel_control_create(sui_state, "main_bg_panel", (vec2){200.0f, 600.0f}, (vec4){0.0f, 0.0f, 0.0f, 0.75f}, &state->main_bg_panel));
-		KASSERT(standard_ui_system_control_add_child(sui_state, &state->editor_root, &state->main_bg_panel));
-		ktransform_position_set(state->main_bg_panel.ktransform, (vec3){10, 10, 0});
+		state->main_bg_panel = kui_panel_control_create(kui_state, "main_bg_panel", (vec2){200.0f, 600.0f}, (vec4){0.0f, 0.0f, 0.0f, 0.75f});
+		KASSERT(kui_system_control_add_child(kui_state, state->editor_root, state->main_bg_panel));
+		kui_control_position_set(kui_state, state->main_bg_panel, (vec3){10, 10, 0});
 
 		// Save button.
 		{
-			KASSERT(sui_button_control_create_with_text(sui_state, "save_button", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Save", &state->save_button));
-			KASSERT(standard_ui_system_control_add_child(sui_state, &state->main_bg_panel, &state->save_button));
-			sui_button_control_width_set(sui_state, &state->save_button, 200);
-			ktransform_position_set(state->save_button.ktransform, (vec3){0, 50, 0});
+			state->save_button = kui_button_control_create_with_text(kui_state, "save_button", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Save");
+			KASSERT(kui_system_control_add_child(kui_state, state->main_bg_panel, state->save_button));
+			kui_button_control_width_set(kui_state, state->save_button, 200);
+			kui_control_position_set(kui_state, state->save_button, (vec3){0, 50, 0});
 
-			state->save_button.on_click = save_button_clicked;
+			// LEFTOFF: Should probably expose functions to set these instead of having to reach for the base struct.
+			kui_base_control* base = kui_system_get_base(kui_state, state->save_button);
+			base->on_click = save_button_clicked;
 		}
 
 		// Scene mode button.
 		{
-			KASSERT(sui_button_control_create_with_text(sui_state, "mode_scene_button", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Scene", &state->mode_scene_button));
-			KASSERT(standard_ui_system_control_add_child(sui_state, &state->main_bg_panel, &state->mode_scene_button));
-			sui_button_control_width_set(sui_state, &state->mode_scene_button, 100);
-			ktransform_position_set(state->mode_scene_button.ktransform, (vec3){0, 100, 0});
+			state->mode_scene_button = kui_button_control_create_with_text(kui_state, "mode_scene_button", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Scene");
+			KASSERT(kui_system_control_add_child(kui_state, state->main_bg_panel, state->mode_scene_button));
+			kui_button_control_width_set(kui_state, state->mode_scene_button, 100);
+			kui_control_position_set(kui_state, state->mode_scene_button, (vec3){0, 100, 0});
 
 			state->mode_scene_button.user_data = state;
 			state->mode_scene_button.user_data_size = sizeof(*state);
@@ -202,10 +206,10 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 
 		// Entity mode button.
 		{
-			KASSERT(sui_button_control_create_with_text(sui_state, "mode_entity_button", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Entity", &state->mode_entity_button));
-			KASSERT(standard_ui_system_control_add_child(sui_state, &state->main_bg_panel, &state->mode_entity_button));
-			sui_button_control_width_set(sui_state, &state->mode_entity_button, 100);
-			ktransform_position_set(state->mode_entity_button.ktransform, (vec3){100, 100, 0});
+			state->mode_entity_button = kui_button_control_create_with_text(kui_state, "mode_entity_button", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Entity");
+			KASSERT(kui_system_control_add_child(kui_state, state->main_bg_panel, state->mode_entity_button));
+			kui_button_control_width_set(kui_state, state->mode_entity_button, 100);
+			kui_control_position_set(kui_state, state->mode_entity_button, (vec3){100, 100, 0});
 
 			state->mode_entity_button.user_data = state;
 			state->mode_entity_button.user_data_size = sizeof(*state);
@@ -214,10 +218,10 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 
 		// Tree mode button.
 		{
-			KASSERT(sui_button_control_create_with_text(sui_state, "mode_tree_button", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Tree", &state->mode_tree_button));
-			KASSERT(standard_ui_system_control_add_child(sui_state, &state->main_bg_panel, &state->mode_tree_button));
-			sui_button_control_width_set(sui_state, &state->mode_tree_button, 100);
-			ktransform_position_set(state->mode_tree_button.ktransform, (vec3){0, 150, 0});
+			state->mode_tree_button = kui_button_control_create_with_text(kui_state, "mode_tree_button", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Tree");
+			KASSERT(kui_system_control_add_child(kui_state, state->main_bg_panel, state->mode_tree_button));
+			kui_button_control_width_set(kui_state, state->mode_tree_button, 100);
+			kui_control_position_set(kui_state, state->mode_tree_button, (vec3){0, 150, 0});
 
 			state->mode_tree_button.user_data = state;
 			state->mode_tree_button.user_data_size = sizeof(*state);
@@ -229,30 +233,29 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 	{
 		state->scene_inspector_width = 540.0f;
 		state->scene_inspector_right_col_x = 150.0f;
-		KASSERT(sui_panel_control_create(sui_state, "scene_inspector_bg_panel", (vec2){state->scene_inspector_width, 400.0f}, (vec4){0.0f, 0.0f, 0.0f, 0.75f}, &state->scene_inspector_bg_panel));
-		ktransform_translate(state->scene_inspector_bg_panel.ktransform, (vec3){1280 - (state->scene_inspector_width + 10)});
-		KASSERT(standard_ui_system_control_add_child(sui_state, &state->editor_root, &state->scene_inspector_bg_panel));
-		state->scene_inspector_bg_panel.is_active = false;
-		standard_ui_system_update_active(sui_state, &state->scene_inspector_bg_panel);
-		state->scene_inspector_bg_panel.is_visible = false;
+		state->scene_inspector_bg_panel = kui_panel_control_create(kui_state, "scene_inspector_bg_panel", (vec2){state->scene_inspector_width, 400.0f}, (vec4){0.0f, 0.0f, 0.0f, 0.75f});
+		KASSERT(kui_system_control_add_child(kui_state, state->editor_root, state->scene_inspector_bg_panel));
+		kui_control_position_set(kui_state, state->scene_inspector_bg_panel, (vec3){1280 - (state->scene_inspector_width + 10)});
+		kui_control_set_is_active(kui_state, state->scene_inspector_bg_panel, false);
+		kui_control_set_is_visible(kui_state, state->scene_inspector_bg_panel, false);
 
 		// Window Label
-		KASSERT(sui_label_control_create(sui_state, "scene_inspector_title", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Scene", &state->scene_inspector_title));
-		KASSERT(standard_ui_system_control_add_child(sui_state, &state->scene_inspector_bg_panel, &state->scene_inspector_title));
-		ktransform_position_set(state->scene_inspector_title.ktransform, (vec3){10, -5.0f, 0});
+		state->scene_inspector_title = kui_label_control_create(kui_state, "scene_inspector_title", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Scene");
+		KASSERT(kui_system_control_add_child(kui_state, state->scene_inspector_bg_panel, state->scene_inspector_title));
+		kui_control_position_set(kui_state, state->scene_inspector_title, (vec3){10, -5.0f, 0});
 
 		// scene name
 		{
 			// Name label.
-			KASSERT(sui_label_control_create(sui_state, "scene_name_label", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Name", &state->scene_name_label));
-			KASSERT(standard_ui_system_control_add_child(sui_state, &state->scene_inspector_bg_panel, &state->scene_name_label));
-			ktransform_position_set(state->scene_name_label.ktransform, (vec3){10, 50 + -5.0f, 0});
+			state->scene_name_label = kui_label_control_create(kui_state, "scene_name_label", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Name");
+			KASSERT(kui_system_control_add_child(kui_state, state->scene_inspector_bg_panel, state->scene_name_label));
+			kui_control_position_set(kui_state, state->scene_name_label, (vec3){10, 50 + -5.0f, 0});
 
 			// Name textbox.
-			KASSERT(sui_textbox_control_create(sui_state, "scene_name_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", SUI_TEXTBOX_TYPE_STRING, &state->scene_name_textbox));
-			KASSERT(standard_ui_system_control_add_child(sui_state, &state->scene_inspector_bg_panel, &state->scene_name_textbox));
-			KASSERT(sui_textbox_control_width_set(sui_state, &state->scene_name_textbox, 380));
-			ktransform_position_set(state->scene_name_textbox.ktransform, (vec3){state->scene_inspector_right_col_x, 50, 0});
+			state->scene_name_textbox = kui_textbox_control_create(kui_state, "scene_name_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_STRING);
+			KASSERT(kui_system_control_add_child(kui_state, state->scene_inspector_bg_panel, state->scene_name_textbox));
+			KASSERT(kui_textbox_control_width_set(kui_state, state->scene_name_textbox, 380));
+			kui_control_position_set(kui_state, state->scene_name_textbox, (vec3){state->scene_inspector_right_col_x, 50, 0});
 			// Store a pointer to the editor state for use in the handler.
 			state->scene_name_textbox.user_data = state;
 			state->scene_name_textbox.user_data_size = sizeof(*state);
@@ -262,38 +265,41 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 		// Fog colour
 		{
 			// Fog colour label
-			KASSERT(sui_label_control_create(sui_state, "scene_fog_colour_label", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Fog colour", &state->scene_fog_colour_label));
-			KASSERT(standard_ui_system_control_add_child(sui_state, &state->scene_inspector_bg_panel, &state->scene_fog_colour_label));
-			ktransform_position_set(state->scene_fog_colour_label.ktransform, (vec3){10, 100 + -5.0f, 0});
+			state->scene_fog_colour_label = kui_label_control_create(kui_state, "scene_fog_colour_label", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Fog colour");
+			KASSERT(kui_system_control_add_child(kui_state, state->scene_inspector_bg_panel, state->scene_fog_colour_label));
+			kui_control_position_set(kui_state, state->scene_fog_colour_label, (vec3){10, 100 + -5.0f, 0});
 
 			// Fog colour R textbox.
-			KASSERT(sui_textbox_control_create(sui_state, "scene_fog_colour_r_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", SUI_TEXTBOX_TYPE_FLOAT, &state->scene_fog_colour_r_textbox));
-			KASSERT(standard_ui_system_control_add_child(sui_state, &state->scene_inspector_bg_panel, &state->scene_fog_colour_r_textbox));
-			ktransform_position_set(state->scene_fog_colour_r_textbox.ktransform, (vec3){state->scene_inspector_right_col_x, 100, 0});
-			KASSERT(sui_textbox_control_width_set(sui_state, &state->scene_fog_colour_r_textbox, 120));
-			((sui_textbox_internal_data*)state->scene_fog_colour_r_textbox.internal_data)->colour = (colour4){1.0f, 0.5f, 0.5f, 1.0f};
+			state->scene_fog_colour_r_textbox = kui_textbox_control_create(kui_state, "scene_fog_colour_r_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_FLOAT);
+			KASSERT(kui_system_control_add_child(kui_state, state->scene_inspector_bg_panel, state->scene_fog_colour_r_textbox));
+			kui_control_position_set(kui_state, state->scene_fog_colour_r_textbox, (vec3){state->scene_inspector_right_col_x, 100, 0});
+			KASSERT(kui_textbox_control_width_set(kui_state, state->scene_fog_colour_r_textbox, 120));
+
+			((kui_textbox_internal_data*)state->scene_fog_colour_r_textbox.internal_data)->colour = (colour4){1.0f, 0.5f, 0.5f, 1.0f};
 			// Store a pointer to the editor state for use in the handler.
 			state->scene_fog_colour_r_textbox.user_data = state;
 			state->scene_fog_colour_r_textbox.user_data_size = sizeof(*state);
 			state->scene_fog_colour_r_textbox.on_key = scene_fog_colour_r_textbox_on_key;
 
 			// Fog colour g textbox.
-			KASSERT(sui_textbox_control_create(sui_state, "scene_fog_colour_g_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", SUI_TEXTBOX_TYPE_FLOAT, &state->scene_fog_colour_g_textbox));
-			KASSERT(standard_ui_system_control_add_child(sui_state, &state->scene_inspector_bg_panel, &state->scene_fog_colour_g_textbox));
-			ktransform_position_set(state->scene_fog_colour_g_textbox.ktransform, (vec3){state->scene_inspector_right_col_x + 130, 100, 0});
-			KASSERT(sui_textbox_control_width_set(sui_state, &state->scene_fog_colour_g_textbox, 120));
-			((sui_textbox_internal_data*)state->scene_fog_colour_g_textbox.internal_data)->colour = (colour4){0.5f, 1.0f, 0.5f, 1.0f};
+			state->scene_fog_colour_g_textbox = kui_textbox_control_create(kui_state, "scene_fog_colour_g_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_FLOAT);
+			KASSERT(kui_system_control_add_child(kui_state, state->scene_inspector_bg_panel, state->scene_fog_colour_g_textbox));
+			kui_control_position_set(kui_state, state->scene_fog_colour_g_textbox, (vec3){state->scene_inspector_right_col_x + 130, 100, 0});
+			KASSERT(kui_textbox_control_width_set(kui_state, state->scene_fog_colour_g_textbox, 120));
+
+			((kui_textbox_internal_data*)state->scene_fog_colour_g_textbox.internal_data)->colour = (colour4){0.5f, 1.0f, 0.5f, 1.0f};
 			// Store a pointer to the editor state for use in the handler.
 			state->scene_fog_colour_g_textbox.user_data = state;
 			state->scene_fog_colour_g_textbox.user_data_size = sizeof(*state);
 			state->scene_fog_colour_g_textbox.on_key = scene_fog_colour_g_textbox_on_key;
 
 			// Fog colour b textbox.
-			KASSERT(sui_textbox_control_create(sui_state, "scene_fog_colour_b_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", SUI_TEXTBOX_TYPE_FLOAT, &state->scene_fog_colour_b_textbox));
-			KASSERT(standard_ui_system_control_add_child(sui_state, &state->scene_inspector_bg_panel, &state->scene_fog_colour_b_textbox));
-			ktransform_position_set(state->scene_fog_colour_b_textbox.ktransform, (vec3){state->scene_inspector_right_col_x + 260, 100, 0});
-			KASSERT(sui_textbox_control_width_set(sui_state, &state->scene_fog_colour_b_textbox, 120));
-			((sui_textbox_internal_data*)state->scene_fog_colour_b_textbox.internal_data)->colour = (colour4){0.5f, 0.5f, 1.0f, 1.0f};
+			state->scene_fog_colour_b_textbox = kui_textbox_control_create(kui_state, "scene_fog_colour_b_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_FLOAT);
+			KASSERT(kui_system_control_add_child(kui_state, state->scene_inspector_bg_panel, state->scene_fog_colour_b_textbox));
+			kui_control_position_set(kui_state, state->scene_fog_colour_b_textbox, (vec3){state->scene_inspector_right_col_x + 260, 100, 0});
+			KASSERT(kui_textbox_control_width_set(kui_state, state->scene_fog_colour_b_textbox, 120));
+
+			((kui_textbox_internal_data*)state->scene_fog_colour_b_textbox.internal_data)->colour = (colour4){0.5f, 0.5f, 1.0f, 1.0f};
 			// Store a pointer to the editor state for use in the handler.
 			state->scene_fog_colour_b_textbox.user_data = state;
 			state->scene_fog_colour_b_textbox.user_data_size = sizeof(*state);
@@ -307,30 +313,29 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 	{
 		state->entity_inspector_width = 650.0f;
 		state->entity_inspector_right_col_x = 130.0f;
-		KASSERT(sui_panel_control_create(sui_state, "entity_inspector_bg_panel", (vec2){state->entity_inspector_width, 400.0f}, (vec4){0.0f, 0.0f, 0.0f, 0.75f}, &state->entity_inspector_bg_panel));
-		ktransform_translate(state->entity_inspector_bg_panel.ktransform, (vec3){1280 - (state->entity_inspector_width + 10)});
-		KASSERT(standard_ui_system_control_add_child(sui_state, &state->editor_root, &state->entity_inspector_bg_panel));
-		state->entity_inspector_bg_panel.is_active = false;
-		standard_ui_system_update_active(sui_state, &state->entity_inspector_bg_panel);
-		state->entity_inspector_bg_panel.is_visible = false;
+		state->entity_inspector_bg_panel = kui_panel_control_create(kui_state, "entity_inspector_bg_panel", (vec2){state->entity_inspector_width, 400.0f}, (vec4){0.0f, 0.0f, 0.0f, 0.75f});
+		KASSERT(kui_system_control_add_child(kui_state, state->editor_root, state->entity_inspector_bg_panel));
+		kui_control_position_set(kui_state, state->entity_inspector_bg_panel, (vec3){1280 - (state->entity_inspector_width + 10)});
+		kui_control_set_is_active(kui_state, state->entity_inspector_bg_panel, false);
+		kui_control_set_is_visible(kui_state, state->entity_inspector_bg_panel, false);
 
 		// Window Label
-		KASSERT(sui_label_control_create(sui_state, "entity_inspector_title", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Entity (no selection)", &state->entity_inspector_title));
-		KASSERT(standard_ui_system_control_add_child(sui_state, &state->entity_inspector_bg_panel, &state->entity_inspector_title));
-		ktransform_position_set(state->entity_inspector_title.ktransform, (vec3){10, -5.0f, 0});
+		state->entity_inspector_title = kui_label_control_create(kui_state, "entity_inspector_title", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Entity (no selection)");
+		KASSERT(kui_system_control_add_child(kui_state, state->entity_inspector_bg_panel, state->entity_inspector_title));
+		kui_control_position_set(kui_state, state->entity_inspector_title, (vec3){10, -5.0f, 0});
 
 		// Entity name
 		{
 			// Name label.
-			KASSERT(sui_label_control_create(sui_state, "entity_name_label", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Name:", &state->entity_name_label));
-			KASSERT(standard_ui_system_control_add_child(sui_state, &state->entity_inspector_bg_panel, &state->entity_name_label));
-			ktransform_position_set(state->entity_name_label.ktransform, (vec3){10, 50 + -5.0f, 0});
+			state->entity_name_label = kui_label_control_create(kui_state, "entity_name_label", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Name:");
+			KASSERT(kui_system_control_add_child(kui_state, state->entity_inspector_bg_panel, state->entity_name_label));
+			kui_control_position_set(kui_state, state->entity_name_label, (vec3){10, 50 + -5.0f, 0});
 
 			// Name textbox.
-			KASSERT(sui_textbox_control_create(sui_state, "entity_name_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", SUI_TEXTBOX_TYPE_STRING, &state->entity_name_textbox));
-			KASSERT(standard_ui_system_control_add_child(sui_state, &state->entity_inspector_bg_panel, &state->entity_name_textbox));
-			KASSERT(sui_textbox_control_width_set(sui_state, &state->entity_name_textbox, 380));
-			ktransform_position_set(state->entity_name_textbox.ktransform, (vec3){state->entity_inspector_right_col_x, 50, 0});
+			state->entity_name_textbox = kui_textbox_control_create(kui_state, "entity_name_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_STRING);
+			KASSERT(kui_system_control_add_child(kui_state, state->entity_inspector_bg_panel, state->entity_name_textbox));
+			KASSERT(kui_textbox_control_width_set(kui_state, state->entity_name_textbox, 380));
+			kui_control_position_set(kui_state, state->entity_name_textbox, (vec3){state->entity_inspector_right_col_x, 50, 0});
 			// Store a pointer to the editor state for use in the handler.
 			state->entity_name_textbox.user_data = state;
 			state->entity_name_textbox.user_data_size = sizeof(*state);
@@ -340,38 +345,38 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 		// Entity position
 		{
 			// Position label
-			KASSERT(sui_label_control_create(sui_state, "entity_position_label", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Position", &state->entity_position_label));
-			KASSERT(standard_ui_system_control_add_child(sui_state, &state->entity_inspector_bg_panel, &state->entity_position_label));
-			ktransform_position_set(state->entity_position_label.ktransform, (vec3){10, 100 + -5.0f, 0});
+			state->entity_position_label = kui_label_control_create(kui_state, "entity_position_label", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Position");
+			KASSERT(kui_system_control_add_child(kui_state, state->entity_inspector_bg_panel, state->entity_position_label));
+			kui_control_position_set(kui_state, state->entity_position_label, (vec3){10, 100 + -5.0f, 0});
 
 			// Position x textbox.
-			KASSERT(sui_textbox_control_create(sui_state, "entity_position_x_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", SUI_TEXTBOX_TYPE_FLOAT, &state->entity_position_x_textbox));
-			KASSERT(standard_ui_system_control_add_child(sui_state, &state->entity_inspector_bg_panel, &state->entity_position_x_textbox));
-			ktransform_position_set(state->entity_position_x_textbox.ktransform, (vec3){state->entity_inspector_right_col_x, 100, 0});
-			KASSERT(sui_textbox_control_width_set(sui_state, &state->entity_position_x_textbox, 120));
-			((sui_textbox_internal_data*)state->entity_position_x_textbox.internal_data)->colour = (colour4){1.0f, 0.5f, 0.5f, 1.0f};
+			state->entity_position_x_textbox = kui_textbox_control_create(kui_state, "entity_position_x_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_FLOAT);
+			KASSERT(kui_system_control_add_child(kui_state, state->entity_inspector_bg_panel, state->entity_position_x_textbox));
+			kui_control_position_set(kui_state, state->entity_position_x_textbox, (vec3){state->entity_inspector_right_col_x, 100, 0});
+			KASSERT(kui_textbox_control_width_set(kui_state, state->entity_position_x_textbox, 120));
+			((kui_textbox_internal_data*)state->entity_position_x_textbox.internal_data)->colour = (colour4){1.0f, 0.5f, 0.5f, 1.0f};
 			// Store a pointer to the editor state for use in the handler.
 			state->entity_position_x_textbox.user_data = state;
 			state->entity_position_x_textbox.user_data_size = sizeof(*state);
 			state->entity_position_x_textbox.on_key = entity_position_x_textbox_on_key;
 
 			// Position y textbox.
-			KASSERT(sui_textbox_control_create(sui_state, "entity_position_y_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", SUI_TEXTBOX_TYPE_FLOAT, &state->entity_position_y_textbox));
-			KASSERT(standard_ui_system_control_add_child(sui_state, &state->entity_inspector_bg_panel, &state->entity_position_y_textbox));
-			ktransform_position_set(state->entity_position_y_textbox.ktransform, (vec3){state->entity_inspector_right_col_x + 130, 100, 0});
-			KASSERT(sui_textbox_control_width_set(sui_state, &state->entity_position_y_textbox, 120));
-			((sui_textbox_internal_data*)state->entity_position_y_textbox.internal_data)->colour = (colour4){0.5f, 1.0f, 0.5f, 1.0f};
+			state->entity_position_y_textbox = kui_textbox_control_create(kui_state, "entity_position_y_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_FLOAT);
+			KASSERT(kui_system_control_add_child(kui_state, state->entity_inspector_bg_panel, state->entity_position_y_textbox));
+			kui_control_position_set(kui_state, state->entity_position_y_textbox, (vec3){state->entity_inspector_right_col_x + 130, 100, 0});
+			KASSERT(kui_textbox_control_width_set(kui_state, state->entity_position_y_textbox, 120));
+			((kui_textbox_internal_data*)state->entity_position_y_textbox.internal_data)->colour = (colour4){0.5f, 1.0f, 0.5f, 1.0f};
 			// Store a pointer to the editor state for use in the handler.
 			state->entity_position_y_textbox.user_data = state;
 			state->entity_position_y_textbox.user_data_size = sizeof(*state);
 			state->entity_position_y_textbox.on_key = entity_position_y_textbox_on_key;
 
 			// Position z textbox.
-			KASSERT(sui_textbox_control_create(sui_state, "entity_position_z_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", SUI_TEXTBOX_TYPE_FLOAT, &state->entity_position_z_textbox));
-			KASSERT(standard_ui_system_control_add_child(sui_state, &state->entity_inspector_bg_panel, &state->entity_position_z_textbox));
-			ktransform_position_set(state->entity_position_z_textbox.ktransform, (vec3){state->entity_inspector_right_col_x + 260, 100, 0});
-			KASSERT(sui_textbox_control_width_set(sui_state, &state->entity_position_z_textbox, 120));
-			((sui_textbox_internal_data*)state->entity_position_z_textbox.internal_data)->colour = (colour4){0.5f, 0.5f, 1.0f, 1.0f};
+			state->entity_position_z_textbox = kui_textbox_control_create(kui_state, "entity_position_z_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_FLOAT);
+			KASSERT(kui_system_control_add_child(kui_state, state->entity_inspector_bg_panel, state->entity_position_z_textbox));
+			kui_control_position_set(kui_state, state->entity_position_z_textbox, (vec3){state->entity_inspector_right_col_x + 260, 100, 0});
+			KASSERT(kui_textbox_control_width_set(kui_state, state->entity_position_z_textbox, 120));
+			((kui_textbox_internal_data*)state->entity_position_z_textbox.internal_data)->colour = (colour4){0.5f, 0.5f, 1.0f, 1.0f};
 			// Store a pointer to the editor state for use in the handler.
 			state->entity_position_z_textbox.user_data = state;
 			state->entity_position_z_textbox.user_data_size = sizeof(*state);
@@ -381,45 +386,45 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 		// Entity rotation
 		{
 			// Position label
-			KASSERT(sui_label_control_create(sui_state, "entity_orientation_label", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Orientation", &state->entity_orientation_label));
-			KASSERT(standard_ui_system_control_add_child(sui_state, &state->entity_inspector_bg_panel, &state->entity_orientation_label));
-			ktransform_position_set(state->entity_orientation_label.ktransform, (vec3){10, 150 + -5.0f, 0});
+			state->entity_orientation_label = kui_label_control_create(kui_state, "entity_orientation_label", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Orientation");
+			KASSERT(kui_system_control_add_child(kui_state, state->entity_inspector_bg_panel, state->entity_orientation_label));
+			kui_control_position_set(kui_state, state->entity_orientation_label, (vec3){10, 150 + -5.0f, 0});
 
-			// Orientation x textbox.
-			KASSERT(sui_textbox_control_create(sui_state, "entity_orientation_x_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", SUI_TEXTBOX_TYPE_FLOAT, &state->entity_orientation_x_textbox));
-			KASSERT(standard_ui_system_control_add_child(sui_state, &state->entity_inspector_bg_panel, &state->entity_orientation_x_textbox));
-			ktransform_position_set(state->entity_orientation_x_textbox.ktransform, (vec3){state->entity_inspector_right_col_x, 150, 0});
-			KASSERT(sui_textbox_control_width_set(sui_state, &state->entity_orientation_x_textbox, 120));
+			// Orientatiohttps://music.youtube.com/playlist?list=OLAK5uy_lW21dMR_nuKQOOxBTKzKpvzJCjP3hqtzw&si=pgXjcRP9HzglQh4Cn x textbox.
+			state->entity_orientation_x_textbox = kui_textbox_control_create(kui_state, "entity_orientation_x_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_FLOAT);
+			KASSERT(kui_system_control_add_child(kui_state, state->entity_inspector_bg_panel, state->entity_orientation_x_textbox));
+			kui_control_position_set(kui_state, state->entity_orientation_x_textbox, (vec3){state->entity_inspector_right_col_x, 150, 0});
+			KASSERT(kui_textbox_control_width_set(kui_state, state->entity_orientation_x_textbox, 120));
 			// Store a pointer to the editor state for use in the handler.
 			state->entity_orientation_x_textbox.user_data = state;
 			state->entity_orientation_x_textbox.user_data_size = sizeof(*state);
 			state->entity_orientation_x_textbox.on_key = entity_orientation_x_textbox_on_key;
 
 			// Orientation y textbox.
-			KASSERT(sui_textbox_control_create(sui_state, "entity_orientation_y_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", SUI_TEXTBOX_TYPE_FLOAT, &state->entity_orientation_y_textbox));
-			KASSERT(standard_ui_system_control_add_child(sui_state, &state->entity_inspector_bg_panel, &state->entity_orientation_y_textbox));
-			ktransform_position_set(state->entity_orientation_y_textbox.ktransform, (vec3){state->entity_inspector_right_col_x + 130, 150, 0});
-			KASSERT(sui_textbox_control_width_set(sui_state, &state->entity_orientation_y_textbox, 120));
+			state->entity_orientation_y_textbox = kui_textbox_control_create(kui_state, "entity_orientation_y_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_FLOAT);
+			KASSERT(kui_system_control_add_child(kui_state, state->entity_inspector_bg_panel, state->entity_orientation_y_textbox));
+			kui_control_position_set(kui_state, state->entity_orientation_y_textbox, (vec3){state->entity_inspector_right_col_x + 130, 150, 0});
+			KASSERT(kui_textbox_control_width_set(kui_state, state->entity_orientation_y_textbox, 120));
 			// Store a pointer to the editor state for use in the handler.
 			state->entity_orientation_y_textbox.user_data = state;
 			state->entity_orientation_y_textbox.user_data_size = sizeof(*state);
 			state->entity_orientation_y_textbox.on_key = entity_orientation_y_textbox_on_key;
 
 			// Orientation z textbox.
-			KASSERT(sui_textbox_control_create(sui_state, "entity_orientation_z_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", SUI_TEXTBOX_TYPE_FLOAT, &state->entity_orientation_z_textbox));
-			KASSERT(standard_ui_system_control_add_child(sui_state, &state->entity_inspector_bg_panel, &state->entity_orientation_z_textbox));
-			ktransform_position_set(state->entity_orientation_z_textbox.ktransform, (vec3){state->entity_inspector_right_col_x + 260, 150, 0});
-			KASSERT(sui_textbox_control_width_set(sui_state, &state->entity_orientation_z_textbox, 120));
+			state->entity_orientation_z_textbox = kui_textbox_control_create(kui_state, "entity_orientation_z_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_FLOAT);
+			KASSERT(kui_system_control_add_child(kui_state, state->entity_inspector_bg_panel, state->entity_orientation_z_textbox));
+			kui_control_position_set(kui_state, state->entity_orientation_z_textbox, (vec3){state->entity_inspector_right_col_x + 260, 150, 0});
+			KASSERT(kui_textbox_control_width_set(kui_state, state->entity_orientation_z_textbox, 120));
 			// Store a pointer to the editor state for use in the handler.
 			state->entity_orientation_z_textbox.user_data = state;
 			state->entity_orientation_z_textbox.user_data_size = sizeof(*state);
 			state->entity_orientation_z_textbox.on_key = entity_orientation_z_textbox_on_key;
 
 			// Orientation z textbox.
-			KASSERT(sui_textbox_control_create(sui_state, "entity_orientation_w_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", SUI_TEXTBOX_TYPE_FLOAT, &state->entity_orientation_w_textbox));
-			KASSERT(standard_ui_system_control_add_child(sui_state, &state->entity_inspector_bg_panel, &state->entity_orientation_w_textbox));
-			ktransform_position_set(state->entity_orientation_w_textbox.ktransform, (vec3){state->entity_inspector_right_col_x + 390, 150, 0});
-			KASSERT(sui_textbox_control_width_set(sui_state, &state->entity_orientation_w_textbox, 120));
+			state->entity_orientation_w_textbox = kui_textbox_control_create(kui_state, "entity_orientation_w_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_FLOAT);
+			KASSERT(kui_system_control_add_child(kui_state, state->entity_inspector_bg_panel, state->entity_orientation_w_textbox));
+			kui_control_position_set(kui_state, state->entity_orientation_w_textbox, (vec3){state->entity_inspector_right_col_x + 390, 150, 0});
+			KASSERT(kui_textbox_control_width_set(kui_state, state->entity_orientation_w_textbox, 120));
 			// Store a pointer to the editor state for use in the handler.
 			state->entity_orientation_w_textbox.user_data = state;
 			state->entity_orientation_w_textbox.user_data_size = sizeof(*state);
@@ -429,38 +434,38 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 		// Entity scale
 		{
 			// Scale label
-			KASSERT(sui_label_control_create(sui_state, "entity_scale_label", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Scale", &state->entity_scale_label));
-			KASSERT(standard_ui_system_control_add_child(sui_state, &state->entity_inspector_bg_panel, &state->entity_scale_label));
-			ktransform_position_set(state->entity_scale_label.ktransform, (vec3){10, 200 + -5.0f, 0});
+			state->entity_scale_label = kui_label_control_create(kui_state, "entity_scale_label", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Scale");
+			KASSERT(kui_system_control_add_child(kui_state, state->entity_inspector_bg_panel, state->entity_scale_label));
+			kui_control_position_set(kui_state, state->entity_scale_label, (vec3){10, 200 + -5.0f, 0});
 
 			// Scale x textbox.
-			KASSERT(sui_textbox_control_create(sui_state, "entity_scale_x_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", SUI_TEXTBOX_TYPE_FLOAT, &state->entity_scale_x_textbox));
-			KASSERT(standard_ui_system_control_add_child(sui_state, &state->entity_inspector_bg_panel, &state->entity_scale_x_textbox));
-			ktransform_position_set(state->entity_scale_x_textbox.ktransform, (vec3){state->entity_inspector_right_col_x, 200, 0});
-			KASSERT(sui_textbox_control_width_set(sui_state, &state->entity_scale_x_textbox, 120));
-			((sui_textbox_internal_data*)state->entity_scale_x_textbox.internal_data)->colour = (colour4){1.0f, 0.5f, 0.5f, 1.0f};
+			state->entity_scale_x_textbox = kui_textbox_control_create(kui_state, "entity_scale_x_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_FLOAT);
+			KASSERT(kui_system_control_add_child(kui_state, state->entity_inspector_bg_panel, state->entity_scale_x_textbox));
+			kui_control_position_set(kui_state, state->entity_scale_x_textbox, (vec3){state->entity_inspector_right_col_x, 200, 0});
+			KASSERT(kui_textbox_control_width_set(kui_state, state->entity_scale_x_textbox, 120));
+			((kui_textbox_internal_data*)state->entity_scale_x_textbox.internal_data)->colour = (colour4){1.0f, 0.5f, 0.5f, 1.0f};
 			// Store a pointer to the editor state for use in the handler.
 			state->entity_scale_x_textbox.user_data = state;
 			state->entity_scale_x_textbox.user_data_size = sizeof(*state);
 			state->entity_scale_x_textbox.on_key = entity_scale_x_textbox_on_key;
 
 			// Scale y textbox.
-			KASSERT(sui_textbox_control_create(sui_state, "entity_scale_y_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", SUI_TEXTBOX_TYPE_FLOAT, &state->entity_scale_y_textbox));
-			KASSERT(standard_ui_system_control_add_child(sui_state, &state->entity_inspector_bg_panel, &state->entity_scale_y_textbox));
-			ktransform_position_set(state->entity_scale_y_textbox.ktransform, (vec3){state->entity_inspector_right_col_x + 130, 200, 0});
-			KASSERT(sui_textbox_control_width_set(sui_state, &state->entity_scale_y_textbox, 120));
-			((sui_textbox_internal_data*)state->entity_scale_y_textbox.internal_data)->colour = (colour4){0.5f, 1.0f, 0.5f, 1.0f};
+			state->entity_scale_y_textbox = kui_textbox_control_create(kui_state, "entity_scale_y_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_FLOAT);
+			KASSERT(kui_system_control_add_child(kui_state, state->entity_inspector_bg_panel, state->entity_scale_y_textbox));
+			kui_control_position_set(kui_state, state->entity_scale_y_textbox, (vec3){state->entity_inspector_right_col_x + 130, 200, 0});
+			KASSERT(kui_textbox_control_width_set(kui_state, state->entity_scale_y_textbox, 120));
+			((kui_textbox_internal_data*)state->entity_scale_y_textbox.internal_data)->colour = (colour4){0.5f, 1.0f, 0.5f, 1.0f};
 			// Store a pointer to the editor state for use in the handler.
 			state->entity_scale_y_textbox.user_data = state;
 			state->entity_scale_y_textbox.user_data_size = sizeof(*state);
 			state->entity_scale_y_textbox.on_key = entity_scale_y_textbox_on_key;
 
 			// Scale z textbox.
-			KASSERT(sui_textbox_control_create(sui_state, "entity_scale_z_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", SUI_TEXTBOX_TYPE_FLOAT, &state->entity_scale_z_textbox));
-			KASSERT(standard_ui_system_control_add_child(sui_state, &state->entity_inspector_bg_panel, &state->entity_scale_z_textbox));
-			ktransform_position_set(state->entity_scale_z_textbox.ktransform, (vec3){state->entity_inspector_right_col_x + 260, 200, 0});
-			KASSERT(sui_textbox_control_width_set(sui_state, &state->entity_scale_z_textbox, 120));
-			((sui_textbox_internal_data*)state->entity_scale_z_textbox.internal_data)->colour = (colour4){0.5f, 0.5f, 1.0f, 1.0f};
+			state->entity_scale_z_textbox = kui_textbox_control_create(kui_state, "entity_scale_z_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_FLOAT);
+			KASSERT(kui_system_control_add_child(kui_state, state->entity_inspector_bg_panel, state->entity_scale_z_textbox));
+			kui_control_position_set(kui_state, state->entity_scale_z_textbox, (vec3){state->entity_inspector_right_col_x + 260, 200, 0});
+			KASSERT(kui_textbox_control_width_set(kui_state, state->entity_scale_z_textbox, 120));
+			((kui_textbox_internal_data*)state->entity_scale_z_textbox.internal_data)->colour = (colour4){0.5f, 0.5f, 1.0f, 1.0f};
 			// Store a pointer to the editor state for use in the handler.
 			state->entity_scale_z_textbox.user_data = state;
 			state->entity_scale_z_textbox.user_data_size = sizeof(*state);
@@ -472,17 +477,21 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 	{
 		state->tree_inspector_width = 500.0f;
 		state->tree_inspector_right_col_x = 150.0f;
-		KASSERT(sui_panel_control_create(sui_state, "tree_inspector_bg_panel", (vec2){state->tree_inspector_width, 600.0f}, (vec4){0.0f, 0.0f, 0.0f, 0.75f}, &state->tree_inspector_bg_panel));
-		ktransform_translate(state->tree_inspector_bg_panel.ktransform, (vec3){1280 - (state->tree_inspector_width + 10)});
-		KASSERT(standard_ui_system_control_add_child(sui_state, &state->editor_root, &state->tree_inspector_bg_panel));
-		state->tree_inspector_bg_panel.is_active = false;
-		standard_ui_system_update_active(sui_state, &state->tree_inspector_bg_panel);
-		state->tree_inspector_bg_panel.is_visible = false;
+		state->tree_inspector_bg_panel = kui_panel_control_create(kui_state, "tree_inspector_bg_panel", (vec2){state->tree_inspector_width, 600.0f}, (vec4){0.0f, 0.0f, 0.0f, 0.75f});
+		KASSERT(kui_system_control_add_child(kui_state, state->editor_root, state->tree_inspector_bg_panel));
+		kui_control_position_set(kui_state, state->tree_inspector_bg_panel, (vec3){1280 - (state->tree_inspector_width + 10)});
+		kui_control_set_is_active(kui_state, state->tree_inspector_bg_panel, false);
+		kui_control_set_is_visible(kui_state, state->tree_inspector_bg_panel, false);
 
 		// Window Label
-		KASSERT(sui_label_control_create(sui_state, "tree_inspector_title", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Tree", &state->tree_inspector_title));
-		KASSERT(standard_ui_system_control_add_child(sui_state, &state->tree_inspector_bg_panel, &state->tree_inspector_title));
-		ktransform_position_set(state->tree_inspector_title.ktransform, (vec3){10, -5.0f, 0});
+		state->tree_inspector_title = kui_label_control_create(kui_state, "tree_inspector_title", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Tree");
+		KASSERT(kui_system_control_add_child(kui_state, state->tree_inspector_bg_panel, state->tree_inspector_title));
+		kui_control_position_set(kui_state, state->tree_inspector_title, (vec3){10, -5.0f, 0});
+
+		// Base tree control.
+		state->tree_base_control = kui_base_control_create(kui_state, "tree_base_control", KUI_CONTROL_TYPE_BASE);
+		KASSERT(kui_system_control_add_child(kui_state, state->tree_inspector_bg_panel, state->tree_base_control));
+		kui_control_position_set(kui_state, state->tree_base_control, (vec3){10, 50, 0});
 
 		// TODO: more controls
 	}
@@ -525,21 +534,21 @@ b8 editor_open(struct editor_state* state, kname scene_name, kname scene_package
 	}
 
 	const char* scene_name_str = kscene_get_name(state->edit_scene);
-	sui_textbox_text_set(state->sui_state, &state->scene_name_textbox, scene_name_str ? scene_name_str : "");
+	kui_textbox_text_set(state->kui_state, state->scene_name_textbox, scene_name_str ? scene_name_str : "");
 	colour3 fog_colour = kscene_get_fog_colour(state->edit_scene);
 	{
 		const char* rstr = f32_to_string(fog_colour.r);
-		sui_textbox_text_set(state->sui_state, &state->scene_fog_colour_r_textbox, rstr);
+		kui_textbox_text_set(state->kui_state, state->scene_fog_colour_r_textbox, rstr);
 		string_free(rstr);
 	}
 	{
 		const char* gstr = f32_to_string(fog_colour.g);
-		sui_textbox_text_set(state->sui_state, &state->scene_fog_colour_g_textbox, gstr);
+		kui_textbox_text_set(state->kui_state, state->scene_fog_colour_g_textbox, gstr);
 		string_free(gstr);
 	}
 	{
 		const char* bstr = f32_to_string(fog_colour.b);
-		sui_textbox_text_set(state->sui_state, &state->scene_fog_colour_b_textbox, bstr);
+		kui_textbox_text_set(state->kui_state, state->scene_fog_colour_b_textbox, bstr);
 		string_free(bstr);
 	}
 
@@ -556,7 +565,7 @@ b8 editor_open(struct editor_state* state, kname scene_name, kname scene_package
 	editor_register_commands(state);
 
 	// Enable UI elements.
-	state->editor_root.is_visible = true;
+	kui_control_set_is_visible(state->kui_state, state->editor_root, true);
 
 	// Set the default mode.
 	editor_set_mode(state, EDITOR_MODE_SCENE);
@@ -585,38 +594,36 @@ b8 editor_close(struct editor_state* state) {
 	state->is_running = false;
 
 	// Disable UI elements.
-	state->editor_root.is_visible = false;
+	kui_control_set_is_visible(state->kui_state, state->editor_root, false);
 
 	return true;
 }
 
-sui_control* get_inspector_base_for_mode(struct editor_state* state, editor_mode mode) {
+kui_control get_inspector_base_for_mode(struct editor_state* state, editor_mode mode) {
 	switch (mode) {
 	case EDITOR_MODE_SCENE:
-		return &state->scene_inspector_bg_panel;
+		return state->scene_inspector_bg_panel;
 	case EDITOR_MODE_ENTITY:
-		return &state->entity_inspector_bg_panel;
+		return state->entity_inspector_bg_panel;
 	case EDITOR_MODE_TREE:
-		return &state->tree_inspector_bg_panel;
+		return state->tree_inspector_bg_panel;
 	case EDITOR_MODE_ASSETS:
 		// TODO: other types
-		return KNULL;
+		return INVALID_KUI_CONTROL;
 	}
 }
 
 void editor_set_mode(struct editor_state* state, editor_mode mode) {
 	// Disable current window
-	sui_control* window = get_inspector_base_for_mode(state, state->mode);
-	window->is_active = false;
-	window->is_visible = false;
-	standard_ui_system_update_active(state->sui_state, window);
+	kui_control window = get_inspector_base_for_mode(state, state->mode);
+	kui_control_set_is_visible(state->kui_state, window, false);
+	kui_control_set_is_active(state->kui_state, window, false);
 
 	// Set mode an enable the new.
 	state->mode = mode;
 	window = get_inspector_base_for_mode(state, state->mode);
-	window->is_active = true;
-	window->is_visible = true;
-	standard_ui_system_update_active(state->sui_state, window);
+	kui_control_set_is_visible(state->kui_state, window, false);
+	kui_control_set_is_active(state->kui_state, window, false);
 }
 
 void editor_clear_selected_entities(struct editor_state* state) {
@@ -625,24 +632,24 @@ void editor_clear_selected_entities(struct editor_state* state) {
 	KTRACE("Selection cleared.");
 
 	// No selection, turn stuff off.
-	sui_label_text_set(state->sui_state, &state->entity_inspector_title, "Entity (no selection)");
-	sui_textbox_text_set(state->sui_state, &state->entity_name_textbox, "");
+	kui_label_text_set(state->kui_state, state->entity_inspector_title, "Entity (no selection)");
+	kui_textbox_text_set(state->kui_state, state->entity_name_textbox, "");
 
 	// Update inspector position controls.
-	sui_textbox_text_set(state->sui_state, &state->entity_position_x_textbox, "");
-	sui_textbox_text_set(state->sui_state, &state->entity_position_y_textbox, "");
-	sui_textbox_text_set(state->sui_state, &state->entity_position_z_textbox, "");
+	kui_textbox_text_set(state->kui_state, state->entity_position_x_textbox, "");
+	kui_textbox_text_set(state->kui_state, state->entity_position_y_textbox, "");
+	kui_textbox_text_set(state->kui_state, state->entity_position_z_textbox, "");
 
 	// Update inspector orientation controls.
-	sui_textbox_text_set(state->sui_state, &state->entity_orientation_x_textbox, "");
-	sui_textbox_text_set(state->sui_state, &state->entity_orientation_y_textbox, "");
-	sui_textbox_text_set(state->sui_state, &state->entity_orientation_z_textbox, "");
-	sui_textbox_text_set(state->sui_state, &state->entity_orientation_w_textbox, "");
+	kui_textbox_text_set(state->kui_state, state->entity_orientation_x_textbox, "");
+	kui_textbox_text_set(state->kui_state, state->entity_orientation_y_textbox, "");
+	kui_textbox_text_set(state->kui_state, state->entity_orientation_z_textbox, "");
+	kui_textbox_text_set(state->kui_state, state->entity_orientation_w_textbox, "");
 
 	// Update inspector scale controls.
-	sui_textbox_text_set(state->sui_state, &state->entity_scale_x_textbox, "");
-	sui_textbox_text_set(state->sui_state, &state->entity_scale_y_textbox, "");
-	sui_textbox_text_set(state->sui_state, &state->entity_scale_z_textbox, "");
+	kui_textbox_text_set(state->kui_state, state->entity_scale_x_textbox, "");
+	kui_textbox_text_set(state->kui_state, state->entity_scale_y_textbox, "");
+	kui_textbox_text_set(state->kui_state, state->entity_scale_z_textbox, "");
 }
 
 void editor_select_entities(struct editor_state* state, u32 count, kentity* entities) {
@@ -673,53 +680,53 @@ void editor_add_to_selected_entities(struct editor_state* state, u32 count, kent
 	// Update inspector controls.
 	const char* type_str = kentity_type_to_string(kentity_unpack_type(state->selection_list[0]));
 	char* title_str = string_format("Entity (%s)", type_str);
-	sui_label_text_set(state->sui_state, &state->entity_inspector_title, title_str);
+	kui_label_text_set(state->kui_state, state->entity_inspector_title, title_str);
 	string_free(title_str);
 
 	kname name = kscene_get_entity_name(state->edit_scene, state->selection_list[0]);
 	const char* name_str = kname_string_get(name);
-	sui_textbox_text_set(state->sui_state, &state->entity_name_textbox, name_str ? name_str : "");
+	kui_textbox_text_set(state->kui_state, state->entity_name_textbox, name_str ? name_str : "");
 
 	// Update inspector position controls.
 	{
 		vec3 position = kscene_get_entity_position(state->edit_scene, state->selection_list[0]);
 		const char* x = f32_to_string(position.x);
-		sui_textbox_text_set(state->sui_state, &state->entity_position_x_textbox, x);
+		kui_textbox_text_set(state->kui_state, state->entity_position_x_textbox, x);
 		string_free(x);
 		const char* y = f32_to_string(position.y);
-		sui_textbox_text_set(state->sui_state, &state->entity_position_y_textbox, y);
+		kui_textbox_text_set(state->kui_state, state->entity_position_y_textbox, y);
 		string_free(y);
 		const char* z = f32_to_string(position.z);
-		sui_textbox_text_set(state->sui_state, &state->entity_position_z_textbox, z);
+		kui_textbox_text_set(state->kui_state, state->entity_position_z_textbox, z);
 		string_free(z);
 	}
 	// Update inspector orientation controls.
 	{
 		quat rotation = kscene_get_entity_rotation(state->edit_scene, state->selection_list[0]);
 		const char* x = f32_to_string(rotation.x);
-		sui_textbox_text_set(state->sui_state, &state->entity_orientation_x_textbox, x);
+		kui_textbox_text_set(state->kui_state, state->entity_orientation_x_textbox, x);
 		string_free(x);
 		const char* y = f32_to_string(rotation.y);
-		sui_textbox_text_set(state->sui_state, &state->entity_orientation_y_textbox, y);
+		kui_textbox_text_set(state->kui_state, state->entity_orientation_y_textbox, y);
 		string_free(y);
 		const char* z = f32_to_string(rotation.z);
-		sui_textbox_text_set(state->sui_state, &state->entity_orientation_z_textbox, z);
+		kui_textbox_text_set(state->kui_state, state->entity_orientation_z_textbox, z);
 		string_free(z);
 		const char* w = f32_to_string(rotation.w);
-		sui_textbox_text_set(state->sui_state, &state->entity_orientation_w_textbox, w);
+		kui_textbox_text_set(state->kui_state, state->entity_orientation_w_textbox, w);
 		string_free(w);
 	}
 	// Update inspector scale controls.
 	{
 		vec3 scale = kscene_get_entity_scale(state->edit_scene, state->selection_list[0]);
 		const char* x = f32_to_string(scale.x);
-		sui_textbox_text_set(state->sui_state, &state->entity_scale_x_textbox, x);
+		kui_textbox_text_set(state->kui_state, state->entity_scale_x_textbox, x);
 		string_free(x);
 		const char* y = f32_to_string(scale.y);
-		sui_textbox_text_set(state->sui_state, &state->entity_scale_y_textbox, y);
+		kui_textbox_text_set(state->kui_state, state->entity_scale_y_textbox, y);
 		string_free(y);
 		const char* z = f32_to_string(scale.z);
-		sui_textbox_text_set(state->sui_state, &state->entity_scale_z_textbox, z);
+		kui_textbox_text_set(state->kui_state, state->entity_scale_z_textbox, z);
 		string_free(z);
 	}
 }
@@ -892,11 +899,11 @@ void editor_on_window_resize(struct editor_state* state, const struct kwindow* w
 	kscene_on_window_resize(state->edit_scene, window);
 
 	// UI elements
-	ktransform_position_set(state->scene_inspector_bg_panel.ktransform, (vec3){window->width - (state->scene_inspector_width + 10), 10});
-	ktransform_position_set(state->entity_inspector_bg_panel.ktransform, (vec3){window->width - (state->entity_inspector_width + 10), 10});
+	kui_control_position_set(state->kui_state, state->scene_inspector_bg_panel, (vec3){window->width - (state->scene_inspector_width + 10), 10});
+	kui_control_position_set(state->kui_state, state->entity_inspector_bg_panel, (vec3){window->width - (state->entity_inspector_width + 10), 10});
 
-	ktransform_position_set(state->tree_inspector_bg_panel.ktransform, (vec3){window->width - (state->tree_inspector_width + 10), 10});
-	sui_panel_set_height(state->sui_state, &state->tree_inspector_bg_panel, window->height - 120.0f);
+	kui_control_position_set(state->kui_state, state->tree_inspector_bg_panel, (vec3){window->width - (state->tree_inspector_width + 10), 10});
+	kui_panel_set_height(state->kui_state, state->tree_inspector_bg_panel, window->height - 120.0f);
 }
 
 void editor_setup_keymaps(struct editor_state* state) {
@@ -949,7 +956,7 @@ static f32 get_engine_total_time(void) {
 }
 
 static b8 editor_has_focused_control(editor_state* editor) {
-	return editor->sui_state->focused != KNULL;
+	return editor->kui_state->focused.val != INVALID_KUI_CONTROL.val;
 }
 
 static void editor_on_yaw(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
@@ -1367,7 +1374,7 @@ void editor_on_lib_unload(struct editor_state* state) {
 	editor_unregister_commands(state);
 }
 
-static b8 save_button_clicked(struct standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event) {
+static b8 save_button_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event) {
 	KTRACE("Save button clicked.");
 
 	console_command_execute("editor_save_scene");
@@ -1375,23 +1382,23 @@ static b8 save_button_clicked(struct standard_ui_state* state, struct sui_contro
 	// Don't allow the event to popagate.
 	return false;
 }
-static b8 mode_scene_button_clicked(struct standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event) {
-	KTRACE("Editor mode SCENE button clicked.");
-	editor_set_mode(self->user_data, EDITOR_MODE_SCENE);
+static b8 mode_scene_button_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event) {
+	kui_base_control* base = kui_system_get_base(state, self);
+	editor_set_mode(base->user_data, EDITOR_MODE_SCENE);
 	// Don't allow the event to popagate.
 	return false;
 }
-static b8 mode_entity_button_clicked(struct standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event) {
-	KTRACE("Editor mode ENTITY button clicked.");
-	editor_set_mode(self->user_data, EDITOR_MODE_ENTITY);
+static b8 mode_entity_button_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event) {
+	kui_base_control* base = kui_system_get_base(state, self);
+	editor_set_mode(base->user_data, EDITOR_MODE_ENTITY);
 	// Don't allow the event to popagate.
 	return false;
 }
-static b8 mode_tree_button_clicked(struct standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event) {
-	KTRACE("Editor mode TREE button clicked.");
-	editor_set_mode(self->user_data, EDITOR_MODE_TREE);
+static b8 mode_tree_button_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event) {
+	kui_base_control* base = kui_system_get_base(state, self);
+	editor_set_mode(base->user_data, EDITOR_MODE_TREE);
 
-	tree_refresh(self->user_data);
+	tree_refresh(base->user_data);
 	// Don't allow the event to popagate.
 	return false;
 }
@@ -1461,13 +1468,13 @@ static b8 editor_on_drag(u16 code, void* sender, void* listener_inst, event_cont
 		{
 			vec3 position = kscene_get_entity_position(state->edit_scene, state->selection_list[0]);
 			const char* xt = f32_to_string(position.x);
-			sui_textbox_text_set(state->sui_state, &state->entity_position_x_textbox, xt);
+			kui_textbox_text_set(state->kui_state, state->entity_position_x_textbox, xt);
 			string_free(xt);
 			const char* yt = f32_to_string(position.y);
-			sui_textbox_text_set(state->sui_state, &state->entity_position_y_textbox, yt);
+			kui_textbox_text_set(state->kui_state, state->entity_position_y_textbox, yt);
 			string_free(yt);
 			const char* zt = f32_to_string(position.z);
-			sui_textbox_text_set(state->sui_state, &state->entity_position_z_textbox, zt);
+			kui_textbox_text_set(state->kui_state, state->entity_position_z_textbox, zt);
 			string_free(zt);
 		}
 
@@ -1475,16 +1482,16 @@ static b8 editor_on_drag(u16 code, void* sender, void* listener_inst, event_cont
 		{
 			quat rotation = kscene_get_entity_rotation(state->edit_scene, state->selection_list[0]);
 			const char* x = f32_to_string(rotation.x);
-			sui_textbox_text_set(state->sui_state, &state->entity_orientation_x_textbox, x);
+			kui_textbox_text_set(state->kui_state, state->entity_orientation_x_textbox, x);
 			string_free(x);
 			const char* y = f32_to_string(rotation.y);
-			sui_textbox_text_set(state->sui_state, &state->entity_orientation_y_textbox, y);
+			kui_textbox_text_set(state->kui_state, state->entity_orientation_y_textbox, y);
 			string_free(y);
 			const char* z = f32_to_string(rotation.z);
-			sui_textbox_text_set(state->sui_state, &state->entity_orientation_z_textbox, z);
+			kui_textbox_text_set(state->kui_state, state->entity_orientation_z_textbox, z);
 			string_free(z);
 			const char* w = f32_to_string(rotation.w);
-			sui_textbox_text_set(state->sui_state, &state->entity_orientation_w_textbox, w);
+			kui_textbox_text_set(state->kui_state, state->entity_orientation_w_textbox, w);
 			string_free(w);
 		}
 
@@ -1492,13 +1499,13 @@ static b8 editor_on_drag(u16 code, void* sender, void* listener_inst, event_cont
 		{
 			vec3 scale = kscene_get_entity_scale(state->edit_scene, state->selection_list[0]);
 			const char* xt = f32_to_string(scale.x);
-			sui_textbox_text_set(state->sui_state, &state->entity_scale_x_textbox, xt);
+			kui_textbox_text_set(state->kui_state, state->entity_scale_x_textbox, xt);
 			string_free(xt);
 			const char* yt = f32_to_string(scale.y);
-			sui_textbox_text_set(state->sui_state, &state->entity_scale_y_textbox, yt);
+			kui_textbox_text_set(state->kui_state, state->entity_scale_y_textbox, yt);
 			string_free(yt);
 			const char* zt = f32_to_string(scale.z);
-			sui_textbox_text_set(state->sui_state, &state->entity_scale_z_textbox, zt);
+			kui_textbox_text_set(state->kui_state, state->entity_scale_z_textbox, zt);
 			string_free(zt);
 		}
 	}
@@ -1608,14 +1615,14 @@ static b8 editor_on_button(u16 code, void* sender, void* listener_inst, event_co
 	return false;
 }
 
-static void scene_name_textbox_on_key(standard_ui_state* state, sui_control* self, sui_keyboard_event evt) {
-	if (evt.type == SUI_KEYBOARD_EVENT_TYPE_PRESS) {
+static void scene_name_textbox_on_key(kui_state* state, kui_control* self, kui_keyboard_event evt) {
+	if (evt.type == KUI_KEYBOARD_EVENT_TYPE_PRESS) {
 		u16 key_code = evt.key;
 
 		editor_state* editor = self->user_data;
 
 		if (key_code == KEY_ENTER) {
-			const char* entry_control_text = sui_textbox_text_get(state, self);
+			const char* entry_control_text = kui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {
 				kscene_set_name(editor->edit_scene, entry_control_text);
@@ -1624,18 +1631,18 @@ static void scene_name_textbox_on_key(standard_ui_state* state, sui_control* sel
 	}
 }
 
-static void scene_fog_colour_r_textbox_on_key(standard_ui_state* state, sui_control* self, sui_keyboard_event evt) {
-	if (evt.type == SUI_KEYBOARD_EVENT_TYPE_PRESS) {
+static void scene_fog_colour_r_textbox_on_key(kui_state* state, kui_control* self, kui_keyboard_event evt) {
+	if (evt.type == KUI_KEYBOARD_EVENT_TYPE_PRESS) {
 		u16 key_code = evt.key;
 
 		editor_state* editor = self->user_data;
 
 		if (key_code == KEY_ENTER || key_code == KEY_TAB) {
-			const char* entry_control_text = sui_textbox_text_get(state, self);
+			const char* entry_control_text = kui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {
 				colour3 fog_colour = kscene_get_fog_colour(editor->edit_scene);
-				const char* val = sui_textbox_text_get(state, self);
+				const char* val = kui_textbox_text_get(state, self);
 				f32 r;
 				if (string_to_f32(val, &r)) {
 					fog_colour.r = r;
@@ -1644,23 +1651,23 @@ static void scene_fog_colour_r_textbox_on_key(standard_ui_state* state, sui_cont
 			}
 		}
 		if (key_code == KEY_TAB) {
-			standard_ui_system_focus_control(state, &editor->scene_fog_colour_g_textbox);
+			kui_system_focus_control(state, editor->scene_fog_colour_g_textbox);
 		}
 	}
 }
 
-static void scene_fog_colour_g_textbox_on_key(standard_ui_state* state, sui_control* self, sui_keyboard_event evt) {
-	if (evt.type == SUI_KEYBOARD_EVENT_TYPE_PRESS) {
+static void scene_fog_colour_g_textbox_on_key(kui_state* state, kui_control* self, kui_keyboard_event evt) {
+	if (evt.type == KUI_KEYBOARD_EVENT_TYPE_PRESS) {
 		u16 key_code = evt.key;
 
 		editor_state* editor = self->user_data;
 
 		if (key_code == KEY_ENTER || key_code == KEY_TAB) {
-			const char* entry_control_text = sui_textbox_text_get(state, self);
+			const char* entry_control_text = kui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {
 				colour3 fog_colour = kscene_get_fog_colour(editor->edit_scene);
-				const char* val = sui_textbox_text_get(state, self);
+				const char* val = kui_textbox_text_get(state, self);
 				f32 g;
 				if (string_to_f32(val, &g)) {
 					fog_colour.g = g;
@@ -1669,23 +1676,23 @@ static void scene_fog_colour_g_textbox_on_key(standard_ui_state* state, sui_cont
 			}
 		}
 		if (key_code == KEY_TAB) {
-			standard_ui_system_focus_control(state, &editor->scene_fog_colour_b_textbox);
+			kui_system_focus_control(state, editor->scene_fog_colour_b_textbox);
 		}
 	}
 }
 
-static void scene_fog_colour_b_textbox_on_key(standard_ui_state* state, sui_control* self, sui_keyboard_event evt) {
-	if (evt.type == SUI_KEYBOARD_EVENT_TYPE_PRESS) {
+static void scene_fog_colour_b_textbox_on_key(kui_state* state, kui_control* self, kui_keyboard_event evt) {
+	if (evt.type == KUI_KEYBOARD_EVENT_TYPE_PRESS) {
 		u16 key_code = evt.key;
 
 		editor_state* editor = self->user_data;
 
 		if (key_code == KEY_ENTER || key_code == KEY_TAB) {
-			const char* entry_control_text = sui_textbox_text_get(state, self);
+			const char* entry_control_text = kui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {
 				colour3 fog_colour = kscene_get_fog_colour(editor->edit_scene);
-				const char* val = sui_textbox_text_get(state, self);
+				const char* val = kui_textbox_text_get(state, self);
 				f32 b;
 				if (string_to_f32(val, &b)) {
 					fog_colour.b = b;
@@ -1694,19 +1701,19 @@ static void scene_fog_colour_b_textbox_on_key(standard_ui_state* state, sui_cont
 			}
 		}
 		if (key_code == KEY_TAB) {
-			standard_ui_system_focus_control(state, &editor->scene_fog_colour_r_textbox);
+			kui_system_focus_control(state, editor->scene_fog_colour_r_textbox);
 		}
 	}
 }
 
-static void entity_name_textbox_on_key(standard_ui_state* state, sui_control* self, sui_keyboard_event evt) {
-	if (evt.type == SUI_KEYBOARD_EVENT_TYPE_PRESS) {
+static void entity_name_textbox_on_key(kui_state* state, kui_control* self, kui_keyboard_event evt) {
+	if (evt.type == KUI_KEYBOARD_EVENT_TYPE_PRESS) {
 		u16 key_code = evt.key;
 
 		editor_state* editor = self->user_data;
 
 		if (key_code == KEY_ENTER) {
-			const char* entry_control_text = sui_textbox_text_get(state, self);
+			const char* entry_control_text = kui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {
 				kscene_set_entity_name(editor->edit_scene, editor->selection_list[0], kname_create(entry_control_text));
@@ -1715,18 +1722,18 @@ static void entity_name_textbox_on_key(standard_ui_state* state, sui_control* se
 	}
 }
 
-static void entity_position_x_textbox_on_key(standard_ui_state* state, sui_control* self, sui_keyboard_event evt) {
-	if (evt.type == SUI_KEYBOARD_EVENT_TYPE_PRESS) {
+static void entity_position_x_textbox_on_key(kui_state* state, kui_control* self, kui_keyboard_event evt) {
+	if (evt.type == KUI_KEYBOARD_EVENT_TYPE_PRESS) {
 		u16 key_code = evt.key;
 
 		editor_state* editor = self->user_data;
 
 		if (key_code == KEY_ENTER || key_code == KEY_TAB) {
-			const char* entry_control_text = sui_textbox_text_get(state, self);
+			const char* entry_control_text = kui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {
 				vec3 position = kscene_get_entity_position(editor->edit_scene, editor->selection_list[0]);
-				const char* val = sui_textbox_text_get(state, self);
+				const char* val = kui_textbox_text_get(state, self);
 				f32 x;
 				if (string_to_f32(val, &x)) {
 					position.x = x;
@@ -1735,22 +1742,22 @@ static void entity_position_x_textbox_on_key(standard_ui_state* state, sui_contr
 			}
 		}
 		if (key_code == KEY_TAB) {
-			standard_ui_system_focus_control(state, &editor->entity_position_y_textbox);
+			kui_system_focus_control(state, editor->entity_position_y_textbox);
 		}
 	}
 }
-static void entity_position_y_textbox_on_key(standard_ui_state* state, sui_control* self, sui_keyboard_event evt) {
-	if (evt.type == SUI_KEYBOARD_EVENT_TYPE_PRESS) {
+static void entity_position_y_textbox_on_key(kui_state* state, kui_control* self, kui_keyboard_event evt) {
+	if (evt.type == KUI_KEYBOARD_EVENT_TYPE_PRESS) {
 		u16 key_code = evt.key;
 
 		editor_state* editor = self->user_data;
 
 		if (key_code == KEY_ENTER || key_code == KEY_TAB) {
-			const char* entry_control_text = sui_textbox_text_get(state, self);
+			const char* entry_control_text = kui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {
 				vec3 position = kscene_get_entity_position(editor->edit_scene, editor->selection_list[0]);
-				const char* val = sui_textbox_text_get(state, self);
+				const char* val = kui_textbox_text_get(state, self);
 				f32 y;
 				if (string_to_f32(val, &y)) {
 					position.y = y;
@@ -1759,22 +1766,22 @@ static void entity_position_y_textbox_on_key(standard_ui_state* state, sui_contr
 			}
 		}
 		if (key_code == KEY_TAB) {
-			standard_ui_system_focus_control(state, &editor->entity_position_z_textbox);
+			kui_system_focus_control(state, editor->entity_position_z_textbox);
 		}
 	}
 }
-static void entity_position_z_textbox_on_key(standard_ui_state* state, sui_control* self, sui_keyboard_event evt) {
-	if (evt.type == SUI_KEYBOARD_EVENT_TYPE_PRESS) {
+static void entity_position_z_textbox_on_key(kui_state* state, kui_control* self, kui_keyboard_event evt) {
+	if (evt.type == KUI_KEYBOARD_EVENT_TYPE_PRESS) {
 		u16 key_code = evt.key;
 
 		editor_state* editor = self->user_data;
 
 		if (key_code == KEY_ENTER || key_code == KEY_TAB) {
-			const char* entry_control_text = sui_textbox_text_get(state, self);
+			const char* entry_control_text = kui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {
 				vec3 position = kscene_get_entity_position(editor->edit_scene, editor->selection_list[0]);
-				const char* val = sui_textbox_text_get(state, self);
+				const char* val = kui_textbox_text_get(state, self);
 				f32 z;
 				if (string_to_f32(val, &z)) {
 					position.z = z;
@@ -1783,23 +1790,23 @@ static void entity_position_z_textbox_on_key(standard_ui_state* state, sui_contr
 			}
 		}
 		if (key_code == KEY_TAB) {
-			standard_ui_system_focus_control(state, &editor->entity_position_x_textbox);
+			kui_system_focus_control(state, editor->entity_position_x_textbox);
 		}
 	}
 }
 
-static void entity_orientation_x_textbox_on_key(standard_ui_state* state, sui_control* self, sui_keyboard_event evt) {
-	if (evt.type == SUI_KEYBOARD_EVENT_TYPE_PRESS) {
+static void entity_orientation_x_textbox_on_key(kui_state* state, kui_control* self, kui_keyboard_event evt) {
+	if (evt.type == KUI_KEYBOARD_EVENT_TYPE_PRESS) {
 		u16 key_code = evt.key;
 
 		editor_state* editor = self->user_data;
 
 		if (key_code == KEY_ENTER || key_code == KEY_TAB) {
-			const char* entry_control_text = sui_textbox_text_get(state, self);
+			const char* entry_control_text = kui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {
 				quat rotation = kscene_get_entity_rotation(editor->edit_scene, editor->selection_list[0]);
-				const char* val = sui_textbox_text_get(state, self);
+				const char* val = kui_textbox_text_get(state, self);
 				f32 x;
 				if (string_to_f32(val, &x)) {
 					rotation.x = x;
@@ -1808,22 +1815,22 @@ static void entity_orientation_x_textbox_on_key(standard_ui_state* state, sui_co
 			}
 		}
 		if (key_code == KEY_TAB) {
-			standard_ui_system_focus_control(state, &editor->entity_orientation_y_textbox);
+			kui_system_focus_control(state, editor->entity_orientation_y_textbox);
 		}
 	}
 }
-static void entity_orientation_y_textbox_on_key(standard_ui_state* state, sui_control* self, sui_keyboard_event evt) {
-	if (evt.type == SUI_KEYBOARD_EVENT_TYPE_PRESS) {
+static void entity_orientation_y_textbox_on_key(kui_state* state, kui_control* self, kui_keyboard_event evt) {
+	if (evt.type == KUI_KEYBOARD_EVENT_TYPE_PRESS) {
 		u16 key_code = evt.key;
 
 		editor_state* editor = self->user_data;
 
 		if (key_code == KEY_ENTER || key_code == KEY_TAB) {
-			const char* entry_control_text = sui_textbox_text_get(state, self);
+			const char* entry_control_text = kui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {
 				quat rotation = kscene_get_entity_rotation(editor->edit_scene, editor->selection_list[0]);
-				const char* val = sui_textbox_text_get(state, self);
+				const char* val = kui_textbox_text_get(state, self);
 				f32 y;
 				if (string_to_f32(val, &y)) {
 					rotation.y = y;
@@ -1832,23 +1839,23 @@ static void entity_orientation_y_textbox_on_key(standard_ui_state* state, sui_co
 			}
 		}
 		if (key_code == KEY_TAB) {
-			standard_ui_system_focus_control(state, &editor->entity_orientation_z_textbox);
+			kui_system_focus_control(state, editor->entity_orientation_z_textbox);
 		}
 	}
 }
 
-static void entity_orientation_z_textbox_on_key(standard_ui_state* state, sui_control* self, sui_keyboard_event evt) {
-	if (evt.type == SUI_KEYBOARD_EVENT_TYPE_PRESS) {
+static void entity_orientation_z_textbox_on_key(kui_state* state, kui_control* self, kui_keyboard_event evt) {
+	if (evt.type == KUI_KEYBOARD_EVENT_TYPE_PRESS) {
 		u16 key_code = evt.key;
 
 		editor_state* editor = self->user_data;
 
 		if (key_code == KEY_ENTER || key_code == KEY_TAB) {
-			const char* entry_control_text = sui_textbox_text_get(state, self);
+			const char* entry_control_text = kui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {
 				quat rotation = kscene_get_entity_rotation(editor->edit_scene, editor->selection_list[0]);
-				const char* val = sui_textbox_text_get(state, self);
+				const char* val = kui_textbox_text_get(state, self);
 				f32 z;
 				if (string_to_f32(val, &z)) {
 					rotation.z = z;
@@ -1857,23 +1864,23 @@ static void entity_orientation_z_textbox_on_key(standard_ui_state* state, sui_co
 			}
 		}
 		if (key_code == KEY_TAB) {
-			standard_ui_system_focus_control(state, &editor->entity_orientation_w_textbox);
+			kui_system_focus_control(state, editor->entity_orientation_w_textbox);
 		}
 	}
 }
 
-static void entity_orientation_w_textbox_on_key(standard_ui_state* state, sui_control* self, sui_keyboard_event evt) {
-	if (evt.type == SUI_KEYBOARD_EVENT_TYPE_PRESS) {
+static void entity_orientation_w_textbox_on_key(kui_state* state, kui_control* self, kui_keyboard_event evt) {
+	if (evt.type == KUI_KEYBOARD_EVENT_TYPE_PRESS) {
 		u16 key_code = evt.key;
 
 		editor_state* editor = self->user_data;
 
 		if (key_code == KEY_ENTER || key_code == KEY_TAB) {
-			const char* entry_control_text = sui_textbox_text_get(state, self);
+			const char* entry_control_text = kui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {
 				quat rotation = kscene_get_entity_rotation(editor->edit_scene, editor->selection_list[0]);
-				const char* val = sui_textbox_text_get(state, self);
+				const char* val = kui_textbox_text_get(state, self);
 				f32 w;
 				if (string_to_f32(val, &w)) {
 					rotation.w = w;
@@ -1882,23 +1889,23 @@ static void entity_orientation_w_textbox_on_key(standard_ui_state* state, sui_co
 			}
 		}
 		if (key_code == KEY_TAB) {
-			standard_ui_system_focus_control(state, &editor->entity_orientation_x_textbox);
+			kui_system_focus_control(state, editor->entity_orientation_x_textbox);
 		}
 	}
 }
 
-static void entity_scale_x_textbox_on_key(standard_ui_state* state, sui_control* self, sui_keyboard_event evt) {
-	if (evt.type == SUI_KEYBOARD_EVENT_TYPE_PRESS) {
+static void entity_scale_x_textbox_on_key(kui_state* state, kui_control* self, kui_keyboard_event evt) {
+	if (evt.type == KUI_KEYBOARD_EVENT_TYPE_PRESS) {
 		u16 key_code = evt.key;
 
 		editor_state* editor = self->user_data;
 
 		if (key_code == KEY_ENTER || key_code == KEY_TAB) {
-			const char* entry_control_text = sui_textbox_text_get(state, self);
+			const char* entry_control_text = kui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {
 				vec3 scale = kscene_get_entity_scale(editor->edit_scene, editor->selection_list[0]);
-				const char* val = sui_textbox_text_get(state, self);
+				const char* val = kui_textbox_text_get(state, self);
 				f32 x;
 				if (string_to_f32(val, &x)) {
 					scale.x = x;
@@ -1907,22 +1914,22 @@ static void entity_scale_x_textbox_on_key(standard_ui_state* state, sui_control*
 			}
 		}
 		if (key_code == KEY_TAB) {
-			standard_ui_system_focus_control(state, &editor->entity_scale_y_textbox);
+			kui_system_focus_control(state, editor->entity_scale_y_textbox);
 		}
 	}
 }
-static void entity_scale_y_textbox_on_key(standard_ui_state* state, sui_control* self, sui_keyboard_event evt) {
-	if (evt.type == SUI_KEYBOARD_EVENT_TYPE_PRESS) {
+static void entity_scale_y_textbox_on_key(kui_state* state, kui_control* self, kui_keyboard_event evt) {
+	if (evt.type == KUI_KEYBOARD_EVENT_TYPE_PRESS) {
 		u16 key_code = evt.key;
 
 		editor_state* editor = self->user_data;
 
 		if (key_code == KEY_ENTER || key_code == KEY_TAB) {
-			const char* entry_control_text = sui_textbox_text_get(state, self);
+			const char* entry_control_text = kui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {
 				vec3 scale = kscene_get_entity_scale(editor->edit_scene, editor->selection_list[0]);
-				const char* val = sui_textbox_text_get(state, self);
+				const char* val = kui_textbox_text_get(state, self);
 				f32 y;
 				if (string_to_f32(val, &y)) {
 					scale.y = y;
@@ -1931,22 +1938,22 @@ static void entity_scale_y_textbox_on_key(standard_ui_state* state, sui_control*
 			}
 		}
 		if (key_code == KEY_TAB) {
-			standard_ui_system_focus_control(state, &editor->entity_scale_z_textbox);
+			kui_system_focus_control(state, editor->entity_scale_z_textbox);
 		}
 	}
 }
-static void entity_scale_z_textbox_on_key(standard_ui_state* state, sui_control* self, sui_keyboard_event evt) {
-	if (evt.type == SUI_KEYBOARD_EVENT_TYPE_PRESS) {
+static void entity_scale_z_textbox_on_key(kui_state* state, kui_control* self, kui_keyboard_event evt) {
+	if (evt.type == KUI_KEYBOARD_EVENT_TYPE_PRESS) {
 		u16 key_code = evt.key;
 
 		editor_state* editor = self->user_data;
 
 		if (key_code == KEY_ENTER || key_code == KEY_TAB) {
-			const char* entry_control_text = sui_textbox_text_get(state, self);
+			const char* entry_control_text = kui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {
 				vec3 scale = kscene_get_entity_scale(editor->edit_scene, editor->selection_list[0]);
-				const char* val = sui_textbox_text_get(state, self);
+				const char* val = kui_textbox_text_get(state, self);
 				f32 z;
 				if (string_to_f32(val, &z)) {
 					scale.z = z;
@@ -1955,66 +1962,155 @@ static void entity_scale_z_textbox_on_key(standard_ui_state* state, sui_control*
 			}
 		}
 		if (key_code == KEY_TAB) {
-			standard_ui_system_focus_control(state, &editor->entity_scale_x_textbox);
+			kui_system_focus_control(state, editor->entity_scale_x_textbox);
 		}
 	}
 }
+
+// TODO: all this stuff should exist in a kui_tree_control.
+struct tree_hierarchy;
+// An individual node within the hierarchy tree.
+typedef struct tree_hierarchy_node {
+	// Pointer back to the tree.
+	struct tree_hierarchy* tree;
+
+	// user context for the node.
+	u32 user_data_size;
+	void* user_data;
+
+	// A pointer to the control associated with this item.
+	/* kui_control* tree_item; */
+
+	// Pointer to the parent.
+	struct tree_hierarchy_node* parent;
+
+	// Child nodes.
+	u32 child_count;
+	struct tree_hierarchy_node* children;
+} tree_hierarchy_node;
+
+// Top-level representation of the tree hierarchy.
+typedef struct tree_hierarchy {
+	// user context for the entire tree.
+	u32 user_data_size;
+	void* user_data;
+
+	u32 root_count;
+	struct tree_hierarchy_node* root_nodes;
+} tree_hierarchy;
 
 typedef struct hierarchy_node_context {
 	editor_state* editor;
 	kentity entity;
+	tree_hierarchy_node* hierarchy_node;
 } hierarchy_node_context;
+
+static tree_hierarchy tree;
+
+static void tree_node_cleanup_r(tree_hierarchy_node* node) {
+	for (u32 i = 0; i < node->child_count; ++i) {
+		tree_node_cleanup_r(&node->children[i]);
+	}
+
+	if (node->child_count && node->children) {
+		KFREE_TYPE_CARRAY(node->children, tree_hierarchy_node, node->child_count);
+	}
+}
+
+static void tree_setup_node_r(editor_state* state, kscene_hierarchy_node* scene_node, tree_hierarchy_node* tree_node, kui_control parent, u32 index) {
+	kui_state* kui_state = state->kui_state;
+
+	kname name = kscene_get_entity_name(state->edit_scene, scene_node->entity);
+
+	tree_node->child_count = scene_node->child_count;
+	if (tree_node->child_count) {
+		tree_node->children = KALLOC_TYPE_CARRAY(tree_hierarchy_node, tree_node->child_count);
+	}
+
+	const u32 item_height = 45;
+	const char* tree_item_name = string_format("tree_item_%i", index);
+
+	kui_control tree_item = kui_tree_item_control_create(
+		kui_state,
+		tree_item_name,
+		state->tree_inspector_width - 10,
+		FONT_TYPE_SYSTEM,
+		state->font_name,
+		state->font_size,
+		kname_string_get(name),
+		tree_node->child_count > 0);
+
+	kui_control* p_tree_item = KNULL;
+	if (parent.val != INVALID_KUI_CONTROL.val) {
+		kui_tree_item_control_add_child_tree_item(kui_state, parent, tree_item);
+	} else {
+		KASSERT(kui_system_control_add_child(kui_state, state->tree_base_control, tree_item));
+		u32 len = darray_length(state->tree_base_control.children);
+		p_tree_item = state->tree_base_control.children[len - 1];
+
+		ktransform_position_set(tree_item.ktransform, (vec3){44, (item_height * index), 0});
+	}
+
+	hierarchy_node_context* context = KALLOC_TYPE(hierarchy_node_context, MEMORY_TAG_EDITOR);
+	context->editor = state;
+	context->entity = scene_node->entity;
+	context->hierarchy_node = tree_node;
+
+	tree_item.user_data_size = sizeof(hierarchy_node_context);
+	tree_item.user_data = (void*)context;
+	tree_item.on_click = tree_item_clicked;
+
+	// Recurse children.
+	for (u32 i = 0; i < tree_node->child_count; ++i) {
+		tree_setup_node_r(state, &scene_node->children[i], &tree_node->children[i], tree_item, i);
+	}
+}
 
 static void tree_refresh(editor_state* state) {
 	if (state->edit_scene) {
-		// TODO: destroy recursively when done.
-		u32 count = 0;
-		kscene_hierarchy_node* nodes = kscene_get_hierarchy(state->edit_scene, &count);
 
-		// Destroy all the current controls.
-		if (state->tree_element_count) {
-			for (u32 i = 0; i < count; ++i) {
-				KFREE_TYPE(state->tree_elements[i].user_data, hierarchy_node_context, MEMORY_TAG_ENGINE);
-				sui_label_control_destroy(state->sui_state, &state->tree_elements[i]);
+		// Destroy current tree.
+		if (tree.root_count && tree.root_nodes) {
+			// First, cleanup the nodes recursively.
+			for (u32 i = 0; i < tree.root_count; ++i) {
+				tree_hierarchy_node* node = &tree.root_nodes[i];
+				tree_node_cleanup_r(node);
 			}
-			KFREE_TYPE_CARRAY(state->tree_elements, sui_control, count);
-			state->tree_elements = KNULL;
-			state->tree_element_count = 0;
+
+			KFREE_TYPE_CARRAY(tree.root_nodes, tree_hierarchy_node, tree.root_count);
+			tree.root_count = 0;
+			tree.root_nodes = KNULL;
+
+			u32 len = darray_length(state->tree_base_control.children);
+			while (len) {
+				kui_tree_item_control_destroy(state->kui_state, state->tree_base_control.children[0]);
+			}
 		}
 
-		if (count) {
+		// Refresh the data.
+		u32 node_count = 0;
+		kscene_hierarchy_node* scene_nodes = kscene_get_hierarchy(state->edit_scene, &node_count);
+		if (node_count && scene_nodes) {
 
-			state->tree_element_count = count;
-			state->tree_elements = KALLOC_TYPE_CARRAY(sui_control, count);
-			standard_ui_state* sui_state = state->sui_state;
+			tree.root_count = node_count;
+			tree.root_nodes = KALLOC_TYPE_CARRAY(tree_hierarchy_node, tree.root_count);
 
-			// Create all the new labels.
-			for (u32 i = 0; i < count; ++i) {
-				kscene_hierarchy_node* node = &nodes[i];
-				sui_control* tree_item = &state->tree_elements[i];
+			// Create all the new tree items.
+			for (u32 i = 0; i < node_count; ++i) {
+				kscene_hierarchy_node* scene_node = &scene_nodes[i];
 
-				kname name = kscene_get_entity_name(state->edit_scene, node->entity);
-
-				// TODO: make label names unique
-
-				// LEFTOFF: Can't click portion of button that is overlapping owning panel.
-				const u32 item_height = 45;
-				KASSERT(sui_tree_item_control_create(sui_state, "entity", state->tree_inspector_width - 10, FONT_TYPE_SYSTEM, state->font_name, state->font_size, kname_string_get(name), node->entity, tree_item));
-				KASSERT(standard_ui_system_control_add_child(sui_state, &state->tree_inspector_bg_panel, tree_item));
-				ktransform_position_set(tree_item->ktransform, (vec3){32, (item_height * (i + 1)), 0});
-
-				hierarchy_node_context* context = KALLOC_TYPE(hierarchy_node_context, MEMORY_TAG_ENGINE);
-				context->editor = state;
-				context->entity = node->entity;
-
-				tree_item->user_data = (void*)context;
-				tree_item->on_click = tree_label_clicked;
+				tree_setup_node_r(state, scene_node, &tree.root_nodes[i], INVALID_KUI_CONTROL, i);
 			}
+
+			// Cleanup once done building
+			kscene_cleanup_hierarchy(scene_nodes, node_count);
+			node_count = 0;
+			scene_nodes = KNULL;
 		}
 	}
 }
 
-static b8 tree_label_clicked(struct standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event) {
+static b8 tree_item_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event) {
 	hierarchy_node_context* context = (hierarchy_node_context*)self->user_data;
 
 	editor_clear_selected_entities(context->editor);
