@@ -337,7 +337,7 @@ static const struct aiScene* assimp_open_file(const char* source_path) {
 	aiSetImportPropertyFloat(store, AI_CONFIG_PP_CT_MAX_SMOOTHING_ANGLE, 60.0f); // less is sharper, more is smoother, 0-180 degrees.
 	const struct aiScene* scene = aiImportFileExWithProperties(
 		source_path,
-		aiProcess_GenNormals |
+		// aiProcess_GenNormals |
 			aiProcess_Triangulate |
 			aiProcess_GenSmoothNormals |
 			aiProcess_JoinIdenticalVertices |

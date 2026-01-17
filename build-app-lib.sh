@@ -8,7 +8,7 @@ INC_CORE_RT="-I./kohi.core/src -I./kohi.runtime/src"
 LNK_CORE_RT="-lkohi.core -lkohi.runtime"
 
 # Testbed Lib
-make -f Makefile.kohi.mak $ACTION TARGET=$TARGET ASSEMBLY=testbed.klib BUILD_MODE=lib DO_VERSION=$DO_VERSION ADDL_INC_FLAGS="$INC_CORE_RT -I./kohi.plugin.ui.standard/src -I./kohi.plugin.audio.openal/src -I./kohi.plugin.utils/src" ADDL_LINK_FLAGS="$LNK_CORE_RT -lkohi.plugin.ui.standard -lkohi.plugin.audio.openal -lkohi.plugin.utils"
+make -f Makefile.kohi.mak $ACTION TARGET=$TARGET ASSEMBLY=testbed.klib BUILD_MODE=lib DO_VERSION=$DO_VERSION ADDL_INC_FLAGS="$INC_CORE_RT -I./kohi.plugin.ui.kui/src -I./kohi.plugin.audio.openal/src -I./kohi.plugin.utils/src" ADDL_LINK_FLAGS="$LNK_CORE_RT -lkohi.plugin.ui.kui -lkohi.plugin.audio.openal -lkohi.plugin.utils"
 ERRORLEVEL=$?
 if [ $ERRORLEVEL -ne 0 ]
 then

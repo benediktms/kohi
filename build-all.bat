@@ -60,8 +60,8 @@ REM OpenAL plugin lib
 make -j -f "Makefile.kohi.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=kohi.plugin.audio.openal BUILD_MODE=lib DO_VERSION=%DO_VERSION% ADDL_INC_FLAGS="%INC_CORE_RT% -I'%programfiles(x86)%\OpenAL 1.1 SDK\include'" ADDL_LINK_FLAGS="%LNK_CORE_RT% -lopenal32 -L'%programfiles(x86)%\OpenAL 1.1 SDK\libs\win64'" FOLDER=
 IF %ERRORLEVEL% NEQ 0 (echo Error:%ERRORLEVEL% && exit)
 
-REM Standard UI lib
-make -j -f "Makefile.kohi.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=kohi.plugin.ui.standard BUILD_MODE=lib DO_VERSION=%DO_VERSION% ADDL_INC_FLAGS="%INC_CORE_RT%" ADDL_LINK_FLAGS="%LNK_CORE_RT%" FOLDER=
+REM Kohi UI lib
+make -j -f "Makefile.kohi.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=kohi.plugin.ui.kui BUILD_MODE=lib DO_VERSION=%DO_VERSION% ADDL_INC_FLAGS="%INC_CORE_RT%" ADDL_LINK_FLAGS="%LNK_CORE_RT%" FOLDER=
 IF %ERRORLEVEL% NEQ 0 (echo Error:%ERRORLEVEL% && exit)
 
 @REM ---------------------------------------------------
@@ -100,7 +100,7 @@ IF %ERRORLEVEL% NEQ 0 (echo Error:%ERRORLEVEL% && exit)
 @REM ---------------------------------------------------
 
 REM Testbed lib
-make -j -f "Makefile.kohi.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=testbed.klib BUILD_MODE=lib DO_VERSION=%DO_VERSION% ADDL_INC_FLAGS="%INC_CORE_RT% -Ikohi.plugin.ui.standard\src -Ikohi.plugin.audio.openal\src -Ikohi.plugin.utils\src" ADDL_LINK_FLAGS="%LNK_CORE_RT% -lkohi.plugin.ui.standard -lkohi.plugin.audio.openal -lkohi.plugin.utils" FOLDER=
+make -j -f "Makefile.kohi.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=testbed.klib BUILD_MODE=lib DO_VERSION=%DO_VERSION% ADDL_INC_FLAGS="%INC_CORE_RT% -Ikohi.plugin.ui.kui\src -Ikohi.plugin.audio.openal\src -Ikohi.plugin.utils\src" ADDL_LINK_FLAGS="%LNK_CORE_RT% -lkohi.plugin.ui.kui -lkohi.plugin.audio.openal -lkohi.plugin.utils" FOLDER=
 IF %ERRORLEVEL% NEQ 0 (echo Error:%ERRORLEVEL% && exit)
 
 REM Testbed

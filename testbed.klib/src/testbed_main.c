@@ -44,12 +44,13 @@
 #include <world/kscene.h>
 
 // Standard UI.
-#include <controls/sui_button.h>
-#include <controls/sui_label.h>
-#include <controls/sui_panel.h>
-#include <renderer/standard_ui_renderer.h>
-#include <standard_ui_plugin_main.h>
-#include <standard_ui_system.h>
+#include <controls/kui_button.h>
+#include <controls/kui_label.h>
+#include <controls/kui_panel.h>
+#include <kui_plugin_main.h>
+#include <kui_system.h>
+#include <kui_types.h>
+#include <renderer/kui_renderer.h>
 
 // Audio
 #include <audio/audio_frontend.h>
@@ -62,6 +63,7 @@
 
 // Game files
 #include "editor/editor.h"
+#include "kui_types.h"
 #include "testbed.klib_version.h"
 #include "testbed_types.h"
 
@@ -176,10 +178,10 @@ b8 application_initialize(struct application* app) {
 	app->state->audio_system = engine_systems_get()->audio_system;
 
 	// Get the standard ui plugin.
-	app->state->sui_plugin = plugin_system_get(engine_systems_get()->plugin_system, "kohi.plugin.ui.standard");
-	app->state->sui_plugin_state = app->state->sui_plugin->plugin_state;
-	app->state->sui_state = app->state->sui_plugin_state->state;
-	standard_ui_state* sui_state = app->state->sui_state;
+	app->state->kui_plugin = plugin_system_get(engine_systems_get()->plugin_system, "kohi.plugin.ui.standard");
+	app->state->kui_plugin_state = app->state->kui_plugin->plugin_state;
+	app->state->kui_state = app->state->kui_plugin_state->state;
+	kui_state* kui_state = app->state->kui_state;
 
 	// Setup forward renderer.
 	// Get colourbuffer and depthbuffer from the currently active window.
@@ -192,13 +194,13 @@ b8 application_initialize(struct application* app) {
 	}
 
 	// Setup Standard UI renderer.
-	if (!sui_renderer_create(&app->state->sui_renderer)) {
+	if (!kui_renderer_create(&app->state->kui_renderer)) {
 		KFATAL("Failed to create Standard UI renderer! Application boot failed.");
 		return false;
 	}
 
 #ifdef KOHI_DEBUG
-	if (!debug_console_create(app->state->sui_state, &app->state->debug_console)) {
+	if (!debug_console_create(app->state->kui_state, &app->state->debug_console)) {
 		KERROR("Failed to create debug console.");
 		return false;
 	}
@@ -241,39 +243,21 @@ b8 application_initialize(struct application* app) {
 
 	// Create test ui text objects
 	// black background text
-	if (!sui_label_control_create(sui_state, "testbed_mono_test_text_black", FONT_TYPE_BITMAP, kname_create("Ubuntu Mono 21px"), 21, "test text 123,\n\tyo!", &app->state->debug_text_shadow)) {
-		KERROR("Failed to load basic ui bitmap text.");
-		return false;
-	} else {
-		sui_label_colour_set(sui_state, &app->state->debug_text_shadow, (vec4){0, 0, 0, 1});
-		if (!standard_ui_system_control_add_child(sui_state, 0, &app->state->debug_text_shadow)) {
-			KERROR("Failed to parent test text.");
-		}
-	}
+	app->state->debug_text_shadow = kui_label_control_create(kui_state, "testbed_mono_test_text_black", FONT_TYPE_BITMAP, kname_create("Ubuntu Mono 21px"), 21, "test text 123,\n\tyo!");
+	kui_label_colour_set(kui_state, app->state->debug_text_shadow, (vec4){0, 0, 0, 1});
+	KASSERT(kui_system_control_add_child(kui_state, INVALID_KUI_CONTROL, app->state->debug_text_shadow));
 
-	if (!sui_label_control_create(sui_state, "testbed_mono_test_text", FONT_TYPE_BITMAP, kname_create("Ubuntu Mono 21px"), 21, "test text 123,\n\tyo!", &app->state->debug_text)) {
-		KERROR("Failed to load basic ui bitmap text.");
-		return false;
-	} else {
-		if (!standard_ui_system_control_add_child(sui_state, 0, &app->state->debug_text)) {
-			KERROR("Failed to parent test text.");
-		}
-	}
+	app->state->debug_text = kui_label_control_create(kui_state, "testbed_mono_test_text", FONT_TYPE_BITMAP, kname_create("Ubuntu Mono 21px"), 21, "test text 123,\n\tyo!");
+	KASSERT(kui_system_control_add_child(kui_state, INVALID_KUI_CONTROL, app->state->debug_text));
 	// Move debug text to new bottom of screen.
-	sui_control_position_set(sui_state, &app->state->debug_text_shadow, vec3_create(20, app->state->height - 75, 0));
-	sui_control_position_set(sui_state, &app->state->debug_text, vec3_create(21, app->state->height - 74, 0));
+	kui_control_position_set(kui_state, app->state->debug_text_shadow, vec3_create(20, app->state->height - 75, 0));
+	kui_control_position_set(kui_state, app->state->debug_text, vec3_create(21, app->state->height - 74, 0));
 
 	// Context-sensitive text
-	if (!sui_label_control_create(sui_state, "testbed_UTF_test_sys_text", FONT_TYPE_SYSTEM, kname_create("Noto Sans CJK JP"), 31, "", &app->state->context_sensitive_text)) {
-		KERROR("Failed to load basic ui bitmap text.");
-		return false;
-	} else {
-		sui_label_colour_set(sui_state, &app->state->context_sensitive_text, (vec4){0, 1, 0, 1});
-		if (!standard_ui_system_control_add_child(sui_state, 0, &app->state->context_sensitive_text)) {
-			KERROR("Failed to parent test text.");
-		}
-	}
-	sui_control_position_set(sui_state, &app->state->context_sensitive_text, vec3_create(20, app->state->height - 50, 0));
+	app->state->context_sensitive_text = kui_label_control_create(kui_state, "testbed_UTF_test_sys_text", FONT_TYPE_SYSTEM, kname_create("Noto Sans CJK JP"), 31, "");
+	kui_label_colour_set(kui_state, app->state->context_sensitive_text, (vec4){0, 1, 0, 1});
+	KASSERT(kui_system_control_add_child(kui_state, INVALID_KUI_CONTROL, app->state->context_sensitive_text));
+	kui_control_position_set(kui_state, app->state->context_sensitive_text, vec3_create(20, app->state->height - 50, 0));
 
 	// Ensure the debug console is on top.
 	if (!debug_console_load(&app->state->debug_console)) {
@@ -451,8 +435,8 @@ FAllocP: %.2f%s/%.2f%s (%.3f %%)",
 			((f32)allocated / (f32)total) * 100);
 
 		// Update the text control.
-		sui_label_text_set(app->state->sui_state, &app->state->debug_text, text_buffer);
-		sui_label_text_set(app->state->sui_state, &app->state->debug_text_shadow, text_buffer);
+		kui_label_text_set(app->state->kui_state, app->state->debug_text, text_buffer);
+		kui_label_text_set(app->state->kui_state, app->state->debug_text_shadow, text_buffer);
 		string_free(text_buffer);
 		string_free(time_str);
 	}
@@ -486,10 +470,10 @@ b8 application_prepare_frame(struct application* app, struct frame_data* p_frame
 	// Forward renderer
 	p_frame_data->render_data = frame_allocator->allocate(sizeof(kforward_renderer_render_data));
 	kzero_memory(p_frame_data->render_data, sizeof(kforward_renderer_render_data));
-	// SUI renderer
-	p_frame_data->sui_render_data = frame_allocator->allocate(sizeof(standard_ui_render_data));
-	kzero_memory(p_frame_data->sui_render_data, sizeof(standard_ui_render_data));
-	standard_ui_render_data* sui_render_data = p_frame_data->sui_render_data;
+	// kui renderer
+	p_frame_data->kui_render_data = frame_allocator->allocate(sizeof(kui_render_data));
+	kzero_memory(p_frame_data->kui_render_data, sizeof(kui_render_data));
+	kui_render_data* ui_render_data = p_frame_data->kui_render_data;
 	// Editor
 	app->state->editor->editor_gizmo_render_data = frame_allocator->allocate(sizeof(keditor_gizmo_pass_render_data));
 	kzero_memory(app->state->editor->editor_gizmo_render_data, sizeof(keditor_gizmo_pass_render_data));
@@ -507,26 +491,23 @@ b8 application_prepare_frame(struct application* app, struct frame_data* p_frame
 	editor_frame_prepare(app->state->editor, p_frame_data, draw_gizmo, editor_gizmo_render_data);
 #endif
 
-	// Standard UI pass
+	// Kohi UI pass
 	{
-		sui_render_data->projection = kcamera_get_projection(app->state->ui_camera);
-		sui_render_data->view = mat4_identity();
-		sui_render_data->colour_buffer = global_colourbuffer;
-		sui_render_data->depth_stencil_buffer = global_depthbuffer;
-		sui_render_data->ui_atlas = app->state->sui_state->atlas_texture;
-		sui_render_data->shader_set0_binding_instance_id = app->state->sui_state->shader_set0_binding_instance_id;
-
-		// Gather SUI render data.
-		standard_ui_render_data ui_render_data = {0};
+		ui_render_data->projection = kcamera_get_projection(app->state->ui_camera);
+		ui_render_data->view = mat4_identity();
+		ui_render_data->colour_buffer = global_colourbuffer;
+		ui_render_data->depth_stencil_buffer = global_depthbuffer;
+		ui_render_data->ui_atlas = app->state->kui_state->atlas_texture;
+		ui_render_data->shader_set0_binding_instance_id = app->state->kui_state->shader_set0_binding_instance_id;
 
 		// Renderables.
-		ui_render_data.renderables = darray_create_with_allocator(standard_ui_renderable, &p_frame_data->allocator);
-		if (!standard_ui_system_render(app->state->sui_state, 0, p_frame_data, &ui_render_data)) {
+		ui_render_data->renderables = darray_create_with_allocator(kui_renderable, &p_frame_data->allocator);
+		if (!kui_system_render(app->state->kui_state, INVALID_KUI_CONTROL, p_frame_data, ui_render_data)) {
 			KERROR("The standard ui system failed to render.");
 		}
 
-		sui_render_data->renderable_count = darray_length(ui_render_data.renderables);
-		sui_render_data->renderables = ui_render_data.renderables;
+		ui_render_data->renderable_count = darray_length(ui_render_data->renderables);
+		ui_render_data->renderables = ui_render_data->renderables;
 	}
 
 	kclock_update(&app->state->prepare_clock);
@@ -558,8 +539,8 @@ b8 application_render_frame(struct application* app, struct frame_data* p_frame_
 #endif
 
 	// Standard ui render.
-	if (!sui_renderer_render_frame(&app->state->sui_renderer, p_frame_data, p_frame_data->sui_render_data)) {
-		KERROR("Failed to render sui frame! See logs for details.");
+	if (!kui_renderer_render_frame(&app->state->kui_renderer, p_frame_data, p_frame_data->kui_render_data)) {
+		KERROR("Failed to render kui frame! See logs for details.");
 	}
 
 	kclock_update(&app->state->render_clock);
@@ -603,10 +584,10 @@ void application_on_window_resize(struct application* app, const struct kwindow*
 	kcamera_set_vp_rect(app->state->ui_camera, ui_vp_rect);
 
 	// Move debug text to new bottom of screen.
-	sui_control_position_set(app->state->sui_state, &app->state->debug_text, vec3_create(20, app->state->height - 136, 0));
-	sui_control_position_set(app->state->sui_state, &app->state->debug_text_shadow, vec3_create(21, app->state->height - 135, 0));
+	kui_control_position_set(app->state->kui_state, app->state->debug_text, vec3_create(20, app->state->height - 136, 0));
+	kui_control_position_set(app->state->kui_state, app->state->debug_text_shadow, vec3_create(21, app->state->height - 135, 0));
 
-	sui_control_position_set(app->state->sui_state, &app->state->context_sensitive_text, vec3_create(21, app->state->height - 170, 0));
+	kui_control_position_set(app->state->kui_state, app->state->context_sensitive_text, vec3_create(21, app->state->height - 170, 0));
 }
 
 void application_shutdown(struct application* app) {
@@ -1144,12 +1125,12 @@ static b8 game_on_event(u16 code, void* sender, void* listener_inst, event_conte
 
 	case GAME_EVENT_CODE_SHOW_CONTEXT_DISPLAY: {
 		KTRACE("Show context display: '%s'", context.data.s);
-		sui_label_text_set(app->state->sui_state, &app->state->context_sensitive_text, context.data.s);
+		kui_label_text_set(app->state->kui_state, app->state->context_sensitive_text, context.data.s);
 	} break;
 
 	case GAME_EVENT_CODE_HIDE_CONTEXT_DISPLAY: {
 		KTRACE("Hide context display.");
-		sui_label_text_set(app->state->sui_state, &app->state->context_sensitive_text, "");
+		kui_label_text_set(app->state->kui_state, app->state->context_sensitive_text, "");
 	} break;
 	}
 

@@ -5,12 +5,12 @@
 #include <input_types.h>
 #include <math/geometry.h>
 #include <math/math_types.h>
+#include <memory/kmemory.h>
 #include <renderer/nine_slice.h>
 #include <renderer/renderer_types.h>
 #include <systems/font_system.h>
 
 struct kui_state;
-struct kui_render_data;
 
 // Encodes both the control type as well as an index into the array of that type.
 typedef struct {
@@ -83,7 +83,8 @@ typedef enum kui_control_flag_bits {
 	KUI_CONTROL_FLAG_PRESSED_BIT = 1 << 3,
 	KUI_CONTROL_FLAG_FOCUSABLE_BIT = 1 << 4,
 	KUI_CONTROL_FLAG_IS_DRAGGING_BIT = 1 << 5,
-	KUI_CONTROL_FLAG_CAN_MOUSE_INTERACT_BIT = 1 << 6
+	KUI_CONTROL_FLAG_CAN_MOUSE_INTERACT_BIT = 1 << 6,
+	KUI_CONTROL_FLAG_USER_DATA_FREE_ON_DESTROY = 1 << 7
 } kui_control_flag_bits;
 
 typedef u32 kui_control_flags;
@@ -93,6 +94,7 @@ typedef u32 kui_control_flags;
  * @returns True if the event should be allowed to propagate to other controls; otherwise false.
  */
 typedef b8 (*PFN_mouse_event_callback)(struct kui_state* state, kui_control self, struct kui_mouse_event event);
+typedef void (*PFN_keyboard_event_callback)(struct kui_state* state, kui_control self, struct kui_keyboard_event event);
 
 typedef enum kui_control_type {
 	KUI_CONTROL_TYPE_BASE,
@@ -123,6 +125,7 @@ typedef struct kui_base_control {
 	// darray
 	kui_control* children;
 
+	memory_tag user_data_memory_tag;
 	void* user_data;
 	u64 user_data_size;
 
@@ -160,7 +163,7 @@ typedef struct kui_base_control {
 	PFN_mouse_event_callback internal_mouse_drag;
 	PFN_mouse_event_callback internal_mouse_drag_end;
 
-	void (*on_key)(struct kui_state* state, kui_control self, struct kui_keyboard_event event);
+	PFN_keyboard_event_callback on_key;
 
 } kui_base_control;
 

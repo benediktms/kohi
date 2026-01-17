@@ -22,6 +22,7 @@
 #include <utils/kcolour.h>
 
 #include "kui_types.h"
+#include "memory/kmemory.h"
 
 struct frame_data;
 struct renderer_system_state;
@@ -87,8 +88,7 @@ KAPI void kui_system_shutdown(kui_state* state);
 KAPI b8 kui_system_update(kui_state* state, struct frame_data* p_frame_data);
 
 // FIXME: combine the SUI renderer into here.
-struct kui_render_data;
-KAPI b8 kui_system_render(kui_state* state, kui_control root, struct frame_data* p_frame_data, struct kui_render_data* render_data);
+KAPI b8 kui_system_render(kui_state* state, kui_control root, struct frame_data* p_frame_data, kui_render_data* render_data);
 
 KAPI kui_base_control* kui_system_get_base(kui_state* state, kui_control control);
 
@@ -107,6 +107,8 @@ KAPI b8 kui_system_is_control_focused(const kui_state* state, const kui_control 
 // ---------------------------
 KAPI kui_control kui_base_control_create(kui_state* state, const char* name, kui_control_type type);
 KAPI void kui_base_control_destroy(kui_state* state, kui_control* self);
+
+KAPI void kui_control_destroy_all_children(kui_state* state, kui_control control);
 
 KAPI b8 kui_base_control_update(kui_state* state, kui_control self, struct frame_data* p_frame_data);
 KAPI b8 kui_base_control_render(kui_state* state, kui_control self, struct frame_data* p_frame_data, struct kui_render_data* render_data);
@@ -129,6 +131,12 @@ KAPI b8 kui_control_is_visible(kui_state* state, kui_control self);
 
 KAPI void kui_control_set_is_visible(kui_state* state, kui_control self, b8 is_visible);
 KAPI void kui_control_set_is_active(kui_state* state, kui_control self, b8 is_active);
+
+KAPI void kui_control_set_user_data(kui_state* state, kui_control self, u32 data_size, void* data, b8 free_on_destroy, memory_tag tag);
+KAPI void* kui_control_get_user_data(kui_state* state, kui_control self);
+
+KAPI void kui_control_set_on_click(kui_state* state, kui_control self, PFN_mouse_event_callback on_click_callback);
+KAPI void kui_control_set_on_key(kui_state* state, kui_control self, PFN_keyboard_event_callback on_key_callback);
 
 /**
  * @brief Sets the position on the given control.

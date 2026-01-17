@@ -448,7 +448,7 @@ void kui_base_control_destroy(kui_state* state, kui_control* self) {
 				kui_control child_handle = base->children[i];
 				kui_base_control* child = get_base(state, child_handle);
 				if (child->destroy) {
-					child->destroy(state, self);
+					child->destroy(state, &child_handle);
 				}
 			}
 		}
@@ -461,6 +461,20 @@ void kui_base_control_destroy(kui_state* state, kui_control* self) {
 		base->children = KNULL;
 		release_handle(state, self);
 	}
+}
+
+void kui_control_destroy_all_children(kui_state* state, kui_control control) {
+	kui_base_control* base = get_base(state, control);
+
+	u32 len = darray_length(base->children);
+	for (u32 i = 0; i < len; ++i) {
+		kui_control child_handle = base->children[i];
+		kui_base_control* child = get_base(state, child_handle);
+		if (child->destroy) {
+			child->destroy(state, &child_handle);
+		}
+	}
+	darray_clear(base->children);
 }
 
 b8 kui_base_control_update(kui_state* state, kui_control self, struct frame_data* p_frame_data) {
@@ -496,6 +510,27 @@ void kui_control_set_is_active(kui_state* state, kui_control self, b8 is_active)
 	kui_base_control* base = get_base(state, self);
 	FLAG_SET(base->flags, KUI_CONTROL_FLAG_ACTIVE_BIT, is_active);
 	kui_system_update_active(state, self);
+}
+
+void kui_control_set_user_data(kui_state* state, kui_control self, u32 data_size, void* data, b8 free_on_destroy, memory_tag tag) {
+	kui_base_control* base = get_base(state, self);
+	FLAG_SET(base->flags, KUI_CONTROL_FLAG_USER_DATA_FREE_ON_DESTROY, free_on_destroy);
+	base->user_data = data;
+	base->user_data_size = data_size;
+}
+void* kui_control_get_user_data(kui_state* state, kui_control self) {
+	kui_base_control* base = get_base(state, self);
+	return base->user_data;
+}
+
+void kui_control_set_on_click(kui_state* state, kui_control self, PFN_mouse_event_callback on_click_callback) {
+	kui_base_control* base = get_base(state, self);
+	base->on_click = on_click_callback;
+}
+
+void kui_control_set_on_key(kui_state* state, kui_control self, PFN_keyboard_event_callback on_key_callback) {
+	kui_base_control* base = get_base(state, self);
+	base->on_key = on_key_callback;
 }
 
 void kui_control_position_set(kui_state* state, kui_control self, vec3 position) {

@@ -2,8 +2,9 @@
 
 #include <renderer/renderer_types.h>
 
+#include "kui_types.h"
+
 struct frame_data;
-struct kui_render_data;
 
 typedef struct kui_pass_data {
 	kshader kui_shader;
@@ -29,4 +30,4 @@ KAPI b8 kui_renderer_create(kui_renderer* out_renderer);
 
 KAPI void kui_renderer_destroy(kui_renderer* renderer);
 
-KAPI b8 kui_renderer_render_frame(kui_renderer* renderer, struct frame_data* p_frame_data, struct kui_render_data* render_data);
+KAPI b8 kui_renderer_render_frame(kui_renderer* renderer, struct frame_data* p_frame_data, kui_render_data* render_data);

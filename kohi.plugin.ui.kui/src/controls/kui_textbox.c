@@ -69,7 +69,7 @@ static void kui_textbox_update_highlight_box(kui_state* state, kui_base_control*
 	kui_textbox_control* typed_control = (kui_textbox_control*)self;
 
 	kui_base_control* highlight_base = kui_system_get_base(state, typed_control->content_label);
-	kui_panel_control* typed_highlight_control = (kui_panel_control*)highlight_base;
+	/* kui_panel_control* typed_highlight_control = (kui_panel_control*)highlight_base; */
 
 	if (typed_control->highlight_range.size == 0) {
 		FLAG_SET(highlight_base->flags, KUI_CONTROL_FLAG_VISIBLE_BIT, false);
@@ -101,7 +101,7 @@ static void kui_textbox_update_cursor_position(kui_state* state, kui_base_contro
 	kui_textbox_control* typed_control = (kui_textbox_control*)self;
 
 	kui_base_control* cursor_base = kui_system_get_base(state, typed_control->cursor);
-	kui_panel_control* typed_cursor_control = (kui_panel_control*)cursor_base;
+	/* kui_panel_control* typed_cursor_control = (kui_panel_control*)cursor_base; */
 
 	kui_base_control* label_base = kui_system_get_base(state, typed_control->content_label);
 	kui_label_control* typed_label_control = (kui_label_control*)label_base;
@@ -303,7 +303,7 @@ void kui_textbox_control_destroy(kui_state* state, kui_control* self) {
 
 	kui_base_control* base = kui_system_get_base(state, *self);
 	KASSERT(base);
-	kui_textbox_control* typed_control = (kui_textbox_control*)base;
+	/* kui_textbox_control* typed_control = (kui_textbox_control*)base; */
 	// unload
 	// TODO: unload sub-controls that aren't children (i.e content_label and highlight_box)
 	event_unregister(EVENT_CODE_KEY_PRESSED, base, kui_textbox_on_key);
@@ -358,6 +358,13 @@ b8 kui_textbox_control_height_set(kui_state* state, kui_control self, i32 height
 	return kui_textbox_control_size_set(state, self, typed_control->size.x, height);
 }
 
+void kui_textbox_control_colour_set(kui_state* state, kui_control self, colour4 colour) {
+	kui_base_control* base = kui_system_get_base(state, self);
+	KASSERT(base);
+	kui_textbox_control* typed_control = (kui_textbox_control*)base;
+	typed_control->colour = colour;
+}
+
 b8 kui_textbox_control_update(kui_state* state, kui_control self, struct frame_data* p_frame_data) {
 	if (!kui_base_control_update(state, self, p_frame_data)) {
 		return false;
@@ -386,15 +393,15 @@ b8 kui_textbox_control_render(kui_state* state, kui_control self, struct frame_d
 
 	kui_base_control* label_base = kui_system_get_base(state, typed_control->content_label);
 	KASSERT(label_base);
-	kui_textbox_control* label_typed_control = (kui_textbox_control*)label_base;
+	/* kui_textbox_control* label_typed_control = (kui_textbox_control*)label_base; */
 
 	kui_base_control* cursor_base = kui_system_get_base(state, typed_control->cursor);
 	KASSERT(cursor_base);
-	kui_textbox_control* cursor_typed_control = (kui_textbox_control*)cursor_base;
+	/* kui_textbox_control* cursor_typed_control = (kui_textbox_control*)cursor_base; */
 
 	kui_base_control* highlight_base = kui_system_get_base(state, typed_control->highlight_box);
 	KASSERT(highlight_base);
-	kui_textbox_control* highlight_typed_control = (kui_textbox_control*)highlight_base;
+	/* kui_textbox_control* highlight_typed_control = (kui_textbox_control*)highlight_base; */
 
 	// Render the nine-slice.
 	nine_slice* ns = 0;

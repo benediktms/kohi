@@ -1,7 +1,7 @@
 #pragma once
 
 #include <defines.h>
-#include <standard_ui_system.h>
+#include <kui_system.h>
 
 typedef struct command_history_entry {
 	const char* command;
@@ -23,15 +23,15 @@ typedef struct debug_console_state {
 	b8 dirty;
 	b8 visible;
 
-	sui_control bg_panel;
-	sui_control text_control;
-	sui_control entry_textbox;
+	kui_control bg_panel;
+	kui_control text_control;
+	kui_control entry_textbox;
 
-	standard_ui_state* sui_state;
+	kui_state* kui_state;
 
 } debug_console_state;
 
-KAPI b8 debug_console_create(standard_ui_state* sui_state, debug_console_state* out_console_state);
+KAPI b8 debug_console_create(kui_state* kui_state, debug_console_state* out_console_state);
 
 KAPI b8 debug_console_load(debug_console_state* state);
 KAPI void debug_console_unload(debug_console_state* state);
@@ -40,8 +40,8 @@ KAPI void debug_console_update(debug_console_state* state);
 KAPI void debug_console_on_lib_load(debug_console_state* state, b8 update_consumer);
 KAPI void debug_console_on_lib_unload(debug_console_state* state);
 
-KAPI struct sui_control* debug_console_get_text(debug_console_state* state);
-KAPI struct sui_control* debug_console_get_entry_text(debug_console_state* state);
+KAPI kui_control debug_console_get_text(debug_console_state* state);
+KAPI kui_control debug_console_get_entry_text(debug_console_state* state);
 
 KAPI b8 debug_console_visible(debug_console_state* state);
 KAPI void debug_console_visible_set(debug_console_state* state, b8 visible);

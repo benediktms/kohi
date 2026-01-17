@@ -1,5 +1,4 @@
 #include "kui_renderer.h"
-#include "kui_defines.h"
 
 #include <core/engine.h>
 #include <logger.h>
@@ -7,6 +6,8 @@
 #include <renderer/renderer_frontend.h>
 #include <systems/kshader_system.h>
 #include <systems/texture_system.h>
+
+#include "kui_defines.h"
 
 b8 kui_renderer_create(kui_renderer* out_renderer) {
 

@@ -58,8 +58,8 @@ ASSIMP_INC=
 ASSIMP_LIB=
 if [ $PLATFORM = 'macos' ]
 then
-    ASSIMP_INC="/opt/homebrew/Cellar/assimp/6.0.2/include/"
-    ASSIMP_LIB="/opt/homebrew/lib/assimp/"
+    ASSIMP_INC="/opt/homebrew/opt/assimp/include/"
+    ASSIMP_LIB="/opt/homebrew/opt/assimp/lib/"
 else
     ASSIMP_INC="/usr/include/assimp/"
     ASSIMP_LIB="/usr/lib/"
@@ -93,8 +93,8 @@ then
 echo "error:"$errorlevel | sed -e "s/error/${txtred}error${txtrst}/g" && exit
 fi
 
-# Standard UI Lib
-make -f Makefile.kohi.mak $ACTION TARGET=$TARGET ASSEMBLY=kohi.plugin.ui.standard BUILD_MODE=lib DO_VERSION=$DO_VERSION ADDL_INC_FLAGS="$INC_CORE_RT" ADDL_LINK_FLAGS="$LNK_CORE_RT" FOLDER=
+# Kohi UI Lib
+make -f Makefile.kohi.mak $ACTION TARGET=$TARGET ASSEMBLY=kohi.plugin.ui.kui BUILD_MODE=lib DO_VERSION=$DO_VERSION ADDL_INC_FLAGS="$INC_CORE_RT" ADDL_LINK_FLAGS="$LNK_CORE_RT" FOLDER=
 ERRORLEVEL=$?
 if [ $ERRORLEVEL -ne 0 ]
 then
@@ -102,7 +102,7 @@ echo "error:"$errorlevel | sed -e "s/error/${txtred}error${txtrst}/g" && exit
 fi
 
 # Kohi Utils plugin Lib
-make -f Makefile.kohi.mak $ACTION TARGET=$TARGET ASSEMBLY=kohi.plugin.utils BUILD_MODE=lib DO_VERSION=$DO_VERSION ADDL_INC_FLAGS="$INC_CORE_RT -I./kohi.plugin.ui.standard/src" ADDL_LINK_FLAGS="-lm $LNK_CORE_RT -lkohi.plugin.ui.standard" FOLDER=
+make -f Makefile.kohi.mak $ACTION TARGET=$TARGET ASSEMBLY=kohi.plugin.utils BUILD_MODE=lib DO_VERSION=$DO_VERSION ADDL_INC_FLAGS="$INC_CORE_RT -I./kohi.plugin.ui.kui/src" ADDL_LINK_FLAGS="-lm $LNK_CORE_RT -lkohi.plugin.ui.kui" FOLDER=
 ERRORLEVEL=$?
 if [ $ERRORLEVEL -ne 0 ]
 then
@@ -123,7 +123,7 @@ echo "error:"$errorlevel | sed -e "s/error/${txtred}error${txtrst}/g" && exit
 fi
 
 # Testbed Lib
-make -f Makefile.kohi.mak $ACTION TARGET=$TARGET ASSEMBLY=testbed.klib BUILD_MODE=lib DO_VERSION=$DO_VERSION ADDL_INC_FLAGS="$INC_CORE_RT -I./kohi.plugin.ui.standard/src -I./kohi.plugin.audio.openal/src -I./kohi.plugin.utils/src" ADDL_LINK_FLAGS="$LNK_CORE_RT -lkohi.plugin.ui.standard -lkohi.plugin.audio.openal -lkohi.plugin.utils" FOLDER=
+make -f Makefile.kohi.mak $ACTION TARGET=$TARGET ASSEMBLY=testbed.klib BUILD_MODE=lib DO_VERSION=$DO_VERSION ADDL_INC_FLAGS="$INC_CORE_RT -I./kohi.plugin.ui.kui/src -I./kohi.plugin.audio.openal/src -I./kohi.plugin.utils/src" ADDL_LINK_FLAGS="$LNK_CORE_RT -lkohi.plugin.ui.kui -lkohi.plugin.audio.openal -lkohi.plugin.utils" FOLDER=
 ERRORLEVEL=$?
 if [ $ERRORLEVEL -ne 0 ]
 then
@@ -136,7 +136,7 @@ fi
 # ---------------------------------------------------
 
 # Testbed
-make -f Makefile.kohi.mak $ACTION TARGET=$TARGET ASSEMBLY=testbed.kapp BUILD_MODE=exe ADDL_INC_FLAGS="$INC_CORE_RT" ADDL_LINK_FLAGS="$LNK_CORE_RT -lkohi.plugin.ui.standard -lkohi.plugin.audio.openal" FOLDER=
+make -f Makefile.kohi.mak $ACTION TARGET=$TARGET ASSEMBLY=testbed.kapp BUILD_MODE=exe ADDL_INC_FLAGS="$INC_CORE_RT" ADDL_LINK_FLAGS="$LNK_CORE_RT -lkohi.plugin.ui.kui -lkohi.plugin.audio.openal" FOLDER=
 ERRORLEVEL=$?
 if [ $ERRORLEVEL -ne 0 ]
 then

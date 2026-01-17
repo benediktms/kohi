@@ -1,19 +1,21 @@
 #include "debug_console.h"
+#include "debug/kassert.h"
+#include "kui_types.h"
 
 #include <containers/darray.h>
-#include <controls/sui_label.h>
-#include <controls/sui_panel.h>
-#include <controls/sui_textbox.h>
+#include <controls/kui_label.h>
+#include <controls/kui_panel.h>
+#include <controls/kui_textbox.h>
 #include <core/console.h>
 #include <core/engine.h>
 #include <core/event.h>
 #include <core/input.h>
+#include <kui_system.h>
 #include <memory/kmemory.h>
 #include <platform/platform.h>
-#include <standard_ui_system.h>
 #include <strings/kstring.h>
 
-static void debug_console_entry_box_on_key(standard_ui_state* state, sui_control* self, sui_keyboard_event evt);
+static void debug_console_entry_box_on_key(kui_state* state, kui_control self, kui_keyboard_event evt);
 
 b8 debug_console_consumer_write(void* inst, log_level level, const char* message) {
 	debug_console_state* state = (debug_console_state*)inst;
@@ -57,16 +59,16 @@ static b8 debug_console_on_resize(u16 code, void* sender, void* listener_inst, e
 	/* u16 height = context.data.u16[1]; */
 
 	debug_console_state* state = listener_inst;
-	vec2 size = sui_panel_size(state->sui_state, &state->bg_panel);
-	sui_panel_control_resize(state->sui_state, &state->bg_panel, (vec2){width, size.y});
+	vec2 size = kui_panel_size(state->kui_state, state->bg_panel);
+	kui_panel_control_resize(state->kui_state, state->bg_panel, (vec2){width, size.y});
 
-	sui_textbox_control_width_set(state->sui_state, &state->entry_textbox, width - 4);
+	kui_textbox_control_width_set(state->kui_state, state->entry_textbox, width - 4);
 
 	return false;
 }
 
-b8 debug_console_create(standard_ui_state* sui_state, debug_console_state* out_console_state) {
-	if (!sui_state || !out_console_state) {
+b8 debug_console_create(kui_state* kui_state, debug_console_state* out_console_state) {
+	if (!kui_state || !out_console_state) {
 		return false;
 	}
 
@@ -77,7 +79,7 @@ b8 debug_console_create(standard_ui_state* sui_state, debug_console_state* out_c
 	out_console_state->history = darray_create(command_history_entry);
 	out_console_state->history_offset = -1;
 	out_console_state->loaded = false;
-	out_console_state->sui_state = sui_state;
+	out_console_state->kui_state = kui_state;
 
 	// NOTE: update the text based on number of lines to display and
 	// the number of lines offset from the bottom. A UI Text object is
@@ -105,81 +107,32 @@ b8 debug_console_load(debug_console_state* state) {
 	f32 width = engine_active_window_get()->width;
 
 	// Create controls.
-	standard_ui_state* sui_state = state->sui_state;
+	kui_state* kui_state = state->kui_state;
 
 	// Background panel.
 	{
-		if (!sui_panel_control_create(sui_state, "debug_console_bg_panel", (vec2){width, height}, (vec4){0.0f, 0.0f, 0.0f, 0.75f}, &state->bg_panel)) {
-			KERROR("Failed to create background panel.");
-			return false;
-		}
-		/* transform_translate(&state->bg_panel.ktransform, (vec3){500, 100}); */
-		if (!standard_ui_system_control_add_child(sui_state, 0, &state->bg_panel)) {
-			KERROR("Failed to parent background panel.");
-			return false;
-		}
+		state->bg_panel = kui_panel_control_create(kui_state, "debug_console_bg_panel", (vec2){width, height}, (vec4){0.0f, 0.0f, 0.0f, 0.75f});
+		KASSERT(kui_system_control_add_child(kui_state, INVALID_KUI_CONTROL, state->bg_panel));
+		kui_control_set_is_visible(kui_state, state->bg_panel, false); // Not visible by default.
 	}
 
 	// Label to render console text.
 	{
-		if (!sui_label_control_create(sui_state, "debug_console_log_text", FONT_TYPE_SYSTEM, kname_create("Noto Sans Mono CJK JP"), font_size, "", &state->text_control)) {
-			KFATAL("Unable to create text control for debug console.");
-			return false;
-		}
-		if (!standard_ui_system_control_add_child(sui_state, &state->bg_panel, &state->text_control)) {
-			KERROR("Failed to add background console text label as a child of the panel.");
-			return false;
-		}
-
-		sui_control_position_set(sui_state, &state->text_control, (vec3){3.0f, 0.0f, 0.0f});
+		state->text_control = kui_label_control_create(kui_state, "debug_console_log_text", FONT_TYPE_SYSTEM, kname_create("Noto Sans Mono CJK JP"), font_size, "");
+		KASSERT(kui_system_control_add_child(kui_state, state->bg_panel, state->text_control));
+		kui_control_position_set(kui_state, state->text_control, (vec3){3.0f, 0.0f, 0.0f});
 	}
 
 	// Textbox for command entry.
 	{
-		if (!sui_textbox_control_create(sui_state, "debug_console_entry_textbox", FONT_TYPE_SYSTEM, kname_create("Noto Sans Mono CJK JP"), font_size, "", SUI_TEXTBOX_TYPE_STRING, &state->entry_textbox)) {
-			KFATAL("Unable to create entry textbox control for debug console.");
-			return false;
-		}
-
-		state->entry_textbox.user_data = state;
-		state->entry_textbox.user_data_size = sizeof(debug_console_state*);
-		state->entry_textbox.on_key = debug_console_entry_box_on_key;
-		if (!standard_ui_system_control_add_child(sui_state, &state->bg_panel, &state->entry_textbox)) {
-			KERROR("Failed to parent textbox control to background panel of debug console.");
-			return false;
-		}
+		state->entry_textbox = kui_textbox_control_create(kui_state, "debug_console_entry_textbox", FONT_TYPE_SYSTEM, kname_create("Noto Sans Mono CJK JP"), font_size, "", KUI_TEXTBOX_TYPE_STRING);
+		kui_control_set_user_data(kui_state, state->entry_textbox, sizeof(debug_console_state), state, false, MEMORY_TAG_UNKNOWN);
+		kui_control_set_on_key(kui_state, state->entry_textbox, debug_console_entry_box_on_key);
+		KASSERT(kui_system_control_add_child(kui_state, state->bg_panel, state->entry_textbox));
+		kui_textbox_control_width_set(state->kui_state, state->entry_textbox, width - 4);
 
 		// HACK: This is definitely not the best way to figure out the height of the above text control.
-		sui_control_position_set(sui_state, &state->entry_textbox, (vec3){3.0f, 10.0f + (font_size * state->line_display_count), 0.0f});
-	}
-
-	// Load controls and activate them.
-
-	// Background panel.
-	{
-		state->bg_panel.is_active = true;
-		state->bg_panel.is_visible = false;
-		if (!standard_ui_system_update_active(state->sui_state, &state->bg_panel)) {
-			KERROR("Unable to update active state.");
-		}
-	}
-
-	// Label to render console text.
-	{
-		state->text_control.is_active = true;
-		if (!standard_ui_system_update_active(state->sui_state, &state->text_control)) {
-			KERROR("Unable to update active state.");
-		}
-	}
-
-	// Textbox for command entry.
-	{
-		state->entry_textbox.is_active = true;
-		if (!standard_ui_system_update_active(state->sui_state, &state->entry_textbox)) {
-			KERROR("Unable to update active state.");
-		}
-
-		sui_textbox_control_width_set(state->sui_state, &state->entry_textbox, width - 4);
+		kui_control_position_set(kui_state, state->entry_textbox, (vec3){3.0f, 10.0f + (font_size * state->line_display_count), 0.0f});
 	}
 
 	state->loaded = true;
@@ -230,26 +183,27 @@ void debug_console_update(debug_console_state* state) {
 		buffer[buffer_pos] = '\0';
 
 		// Once the string is built, set the text.
-		sui_label_text_set(state->sui_state, &state->text_control, buffer);
+		kui_label_text_set(state->kui_state, state->text_control, buffer);
 
 		state->dirty = false;
 	}
 }
 
-static void debug_console_entry_box_on_key(standard_ui_state* state, sui_control* self, sui_keyboard_event evt) {
-	if (evt.type == SUI_KEYBOARD_EVENT_TYPE_PRESS) {
+static void debug_console_entry_box_on_key(kui_state* state, kui_control self, kui_keyboard_event evt) {
+	if (evt.type == KUI_KEYBOARD_EVENT_TYPE_PRESS) {
 		u16 key_code = evt.key;
 		/* b8 shift_held = input_is_key_down(KEY_LSHIFT) || input_is_key_down(KEY_RSHIFT) || input_is_key_down(KEY_SHIFT); */
 
 		if (key_code == KEY_ENTER) {
-			const char* entry_control_text = sui_textbox_text_get(state, self);
+			const char* entry_control_text = kui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {
 				// Keep the command in the history list.
 				command_history_entry entry = {0};
 				entry.command = string_duplicate(entry_control_text);
 				if (entry.command) {
-					darray_push(((debug_console_state*)self->user_data)->history, entry);
+					debug_console_state* user_data = kui_control_get_user_data(state, self);
+					darray_push(user_data->history, entry);
 
 					// Execute the command and clear the text.
 					if (!console_command_execute(entry_control_text)) {
@@ -257,7 +211,7 @@ static void debug_console_entry_box_on_key(standard_ui_state* state, sui_control
 					}
 				}
 				// Clear the text.
-				sui_textbox_text_set(state, self, "");
+				kui_textbox_text_set(state, self, "");
 			}
 		}
 	}
@@ -265,30 +219,30 @@ static void debug_console_entry_box_on_key(standard_ui_state* state, sui_control
 
 void debug_console_on_lib_load(debug_console_state* state, b8 update_consumer) {
 	if (update_consumer) {
-		state->entry_textbox.on_key = debug_console_entry_box_on_key;
+		kui_control_set_on_key(state->kui_state, state->entry_textbox, debug_console_entry_box_on_key);
 		event_register(EVENT_CODE_WINDOW_RESIZED, state, debug_console_on_resize);
 		console_consumer_update(state->console_consumer_id, state, debug_console_consumer_write);
 	}
 }
 
 void debug_console_on_lib_unload(debug_console_state* state) {
-	state->entry_textbox.on_key = 0;
+	kui_control_set_on_key(state->kui_state, state->entry_textbox, KNULL);
 	event_unregister(EVENT_CODE_WINDOW_RESIZED, state, debug_console_on_resize);
 	console_consumer_update(state->console_consumer_id, 0, 0);
 }
 
-sui_control* debug_console_get_text(debug_console_state* state) {
+kui_control debug_console_get_text(debug_console_state* state) {
 	if (state) {
-		return &state->text_control;
+		return state->text_control;
 	}
-	return 0;
+	return INVALID_KUI_CONTROL;
 }
 
-sui_control* debug_console_get_entry_text(debug_console_state* state) {
+kui_control debug_console_get_entry_text(debug_console_state* state) {
 	if (state) {
-		return &state->entry_textbox;
+		return state->entry_textbox;
 	}
-	return 0;
+	return INVALID_KUI_CONTROL;
 }
 
 b8 debug_console_visible(debug_console_state* state) {
@@ -302,8 +256,8 @@ b8 debug_console_visible(debug_console_state* state) {
 void debug_console_visible_set(debug_console_state* state, b8 visible) {
 	if (state) {
 		state->visible = visible;
-		state->bg_panel.is_visible = visible;
-		standard_ui_system_focus_control(state->sui_state, visible ? &state->entry_textbox : 0);
+		kui_control_set_is_visible(state->kui_state, state->bg_panel, visible);
+		kui_system_focus_control(state->kui_state, visible ? state->entry_textbox : INVALID_KUI_CONTROL);
 		input_key_repeats_enable(visible);
 	}
 }
@@ -367,7 +321,7 @@ void debug_console_history_back(debug_console_state* state) {
 		if (length > 0) {
 			state->history_offset = KMIN(state->history_offset + 1, length - 1);
 			i32 idx = length - state->history_offset - 1;
-			sui_textbox_text_set(state->sui_state, &state->entry_textbox, state->history[idx].command);
+			kui_textbox_text_set(state->kui_state, state->entry_textbox, state->history[idx].command);
 		}
 	}
 }
@@ -378,9 +332,9 @@ void debug_console_history_forward(debug_console_state* state) {
 		if (length > 0) {
 			state->history_offset = KMAX(state->history_offset - 1, -1);
 			i32 idx = length - state->history_offset - 1;
-			sui_textbox_text_set(
-				state->sui_state,
-				&state->entry_textbox,
+			kui_textbox_text_set(
+				state->kui_state,
+				state->entry_textbox,
 				state->history_offset == -1 ? "" : state->history[idx].command);
 		}
 	}

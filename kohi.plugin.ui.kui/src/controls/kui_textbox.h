@@ -2,6 +2,7 @@
 
 #include "kui_system.h"
 #include "kui_types.h"
+#include "utils/kcolour.h"
 
 KAPI kui_control kui_textbox_control_create(kui_state* state, const char* name, font_type font_type, kname font_name, u16 font_size, const char* text, kui_textbox_type type);
 
@@ -10,6 +11,7 @@ KAPI void kui_textbox_control_destroy(kui_state* state, kui_control* self);
 KAPI b8 kui_textbox_control_size_set(kui_state* state, kui_control self, i32 width, i32 height);
 KAPI b8 kui_textbox_control_width_set(kui_state* state, kui_control self, i32 width);
 KAPI b8 kui_textbox_control_height_set(kui_state* state, kui_control self, i32 height);
+KAPI void kui_textbox_control_colour_set(kui_state* state, kui_control self, colour4 colour);
 
 KAPI b8 kui_textbox_control_update(kui_state* state, kui_control self, struct frame_data* p_frame_data);
 

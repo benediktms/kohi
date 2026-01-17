@@ -1,7 +1,8 @@
 #include "kui_plugin_main.h"
 
-#include "kohi.plugin.ui.standard_version.h"
+#include "kohi.plugin.ui.kui_version.h"
 
+#include "kui_types.h"
 #include "renderer/kui_renderer.h"
 #include <containers/darray.h>
 #include <core/frame_data.h>
@@ -33,7 +34,6 @@ b8 kohi_plugin_ui_kui_initialize(struct kruntime_plugin* plugin) {
 	kui_plugin_state* plugin_state = plugin->plugin_state;
 
 	kui_system_config kui_cfg = {0};
-	kui_cfg.max_control_count = 1024;
 	kui_system_initialize(&plugin_state->sui_state_memory_requirement, 0, &kui_cfg);
 	plugin_state->state = kallocate(plugin_state->sui_state_memory_requirement, MEMORY_TAG_PLUGIN);
 	if (!kui_system_initialize(&plugin_state->sui_state_memory_requirement, plugin_state->state, &kui_cfg)) {
@@ -74,7 +74,7 @@ b8 kohi_plugin_ui_kui_frame_prepare(struct kruntime_plugin* plugin, struct frame
 	// NOTE: The time at which this is called is actually imperative to proper operation.
 	// This is because the UI typically should be drawn as the last thing in the frame.
 	// Might not be able to use this entry point.
-	return kui_system_render(plugin_state->state, 0, p_frame_data, plugin_state->render_data);
+	return kui_system_render(plugin_state->state, INVALID_KUI_CONTROL, p_frame_data, plugin_state->render_data);
 }
 
 void kohi_plugin_ui_kui_on_window_resized(void* plugin_state, struct kwindow* window, u16 width, u16 height) {

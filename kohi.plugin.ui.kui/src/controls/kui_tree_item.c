@@ -31,7 +31,6 @@ kui_control kui_tree_item_control_create(
 	const char* toggle_button_name = KNULL;
 	const char* label_name = KNULL;
 	const char* child_container_name = KNULL;
-	b8 success = false;
 
 	// Toggle button
 	toggle_button_name = string_format("%s_toggle_button", name);
@@ -69,8 +68,6 @@ kui_control kui_tree_item_control_create(
 	kui_system_control_add_child(state, handle, typed_control->child_container);
 	ktransform_position_set(container_base->ktransform, (vec3){40.0f, 40.0f, 0});
 
-	success = true;
-tree_item_create_cleanup:
 	string_free(toggle_button_name);
 	string_free(label_name);
 	string_free(child_container_name);

@@ -4,9 +4,9 @@
 #include "debug_console.h"
 #include "defines.h"
 #include "editor/editor.h"
+#include "kui_system.h"
 #include "renderer/kforward_renderer.h"
-#include "renderer/standard_ui_renderer.h"
-#include "standard_ui_system.h"
+#include "renderer/kui_renderer.h"
 #include "systems/kcamera_system.h"
 #include "time/kclock.h"
 
@@ -107,9 +107,9 @@ typedef struct application_state {
 
 	// Pointers to engine systems.
 	struct kaudio_system_state* audio_system;
-	struct kruntime_plugin* sui_plugin;
-	struct standard_ui_plugin_state* sui_plugin_state;
-	struct standard_ui_state* sui_state;
+	struct kruntime_plugin* kui_plugin;
+	struct kui_plugin_state* kui_plugin_state;
+	struct kui_state* kui_state;
 
 	kclock update_clock;
 	kclock prepare_clock;
@@ -118,7 +118,7 @@ typedef struct application_state {
 
 	// The forward game renderer.
 	kforward_renderer game_renderer;
-	sui_renderer sui_renderer;
+	kui_renderer kui_renderer;
 
 	mat4 world_projection;
 	mat4 ui_projection;
@@ -132,8 +132,8 @@ typedef struct application_state {
 
 	// NOTE: Debug stuff to eventually be excluded on release builds.
 #ifdef KOHI_DEBUG
-	sui_control debug_text;
-	sui_control debug_text_shadow;
+	kui_control debug_text;
+	kui_control debug_text_shadow;
 	debug_console_state debug_console;
 	keymap console_keymap;
 #endif
@@ -143,7 +143,7 @@ typedef struct application_state {
 	struct item_db* db;
 
 	// UI state
-	sui_control context_sensitive_text;
+	kui_control context_sensitive_text;
 
 #ifdef KOHI_EDITOR
 	struct editor_state* editor;
