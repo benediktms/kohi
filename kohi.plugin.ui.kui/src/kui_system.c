@@ -367,6 +367,7 @@ static void clear_focus(kui_state* state) {
 void kui_system_focus_control(kui_state* state, kui_control control) {
 	if (control.val == INVALID_KUI_CONTROL.val) {
 		clear_focus(state);
+		return;
 	}
 	kui_base_control* base = get_base(state, control);
 	if (FLAG_GET(base->flags, KUI_CONTROL_FLAG_FOCUSABLE_BIT)) {
@@ -395,6 +396,9 @@ kui_control kui_base_control_create(kui_state* state, const char* name, kui_cont
 	kui_control handle = create_handle(state, type);
 
 	kui_base_control* out_control = get_base(state, handle);
+
+	out_control->parent = INVALID_KUI_CONTROL;
+	out_control->type = type;
 
 	// Set all controls to visible by default.
 	FLAG_SET(out_control->flags, KUI_CONTROL_FLAG_VISIBLE_BIT, true);
@@ -508,8 +512,8 @@ void kui_control_set_is_visible(kui_state* state, kui_control self, b8 is_visibl
 }
 void kui_control_set_is_active(kui_state* state, kui_control self, b8 is_active) {
 	kui_base_control* base = get_base(state, self);
-	FLAG_SET(base->flags, KUI_CONTROL_FLAG_ACTIVE_BIT, is_active);
 	kui_system_update_active(state, self);
+	FLAG_SET(base->flags, KUI_CONTROL_FLAG_ACTIVE_BIT, is_active);
 }
 
 void kui_control_set_user_data(kui_state* state, kui_control self, u32 data_size, void* data, b8 free_on_destroy, memory_tag tag) {
@@ -1132,16 +1136,22 @@ static kui_base_control* get_base(kui_state* state, kui_control control) {
 	switch (type) {
 	case KUI_CONTROL_TYPE_BASE:
 		GET_WITHIN_DARRAY_OR_KNULL(base, state->base_controls, type_index);
+		break;
 	case KUI_CONTROL_TYPE_PANEL:
 		GET_BASE_WITHIN_DARRAY_OR_KNULL(base, state->panel_controls, type_index);
+		break;
 	case KUI_CONTROL_TYPE_LABEL:
 		GET_BASE_WITHIN_DARRAY_OR_KNULL(base, state->label_controls, type_index);
+		break;
 	case KUI_CONTROL_TYPE_BUTTON:
 		GET_BASE_WITHIN_DARRAY_OR_KNULL(base, state->button_controls, type_index);
+		break;
 	case KUI_CONTROL_TYPE_TEXTBOX:
 		GET_BASE_WITHIN_DARRAY_OR_KNULL(base, state->textbox_controls, type_index);
+		break;
 	case KUI_CONTROL_TYPE_TREE_ITEM:
 		GET_BASE_WITHIN_DARRAY_OR_KNULL(base, state->tree_item_controls, type_index);
+		break;
 	// TODO: user type support
 	case KUI_CONTROL_TYPE_MAX:
 		return KNULL;
@@ -1155,16 +1165,28 @@ static kui_control create_handle(kui_state* state, kui_control_type type) {
 	switch (type) {
 	case KUI_CONTROL_TYPE_BASE:
 		type_index = darray_length(state->base_controls);
+		darray_push(state->base_controls, (kui_base_control){0});
+		break;
 	case KUI_CONTROL_TYPE_PANEL:
 		type_index = darray_length(state->panel_controls);
+		darray_push(state->panel_controls, (kui_panel_control){0});
+		break;
 	case KUI_CONTROL_TYPE_LABEL:
 		type_index = darray_length(state->label_controls);
+		darray_push(state->label_controls, (kui_label_control){0});
+		break;
 	case KUI_CONTROL_TYPE_BUTTON:
 		type_index = darray_length(state->button_controls);
+		darray_push(state->button_controls, (kui_button_control){0});
+		break;
 	case KUI_CONTROL_TYPE_TEXTBOX:
 		type_index = darray_length(state->textbox_controls);
+		darray_push(state->textbox_controls, (kui_textbox_control){0});
+		break;
 	case KUI_CONTROL_TYPE_TREE_ITEM:
 		type_index = darray_length(state->tree_item_controls);
+		darray_push(state->tree_item_controls, (kui_tree_item_control){0});
+		break;
 	// TODO: user type support
 	case KUI_CONTROL_TYPE_MAX:
 		return INVALID_KUI_CONTROL;

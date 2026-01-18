@@ -102,7 +102,7 @@
             "program": "${workspaceFolder}/bin/kohi.tools",
             "args": [
                 "importmanifest",
-                "${workspaceFolder}/kohi.plugin.ui.standard/asset_manifest.kson",
+                "${workspaceFolder}/kohi.plugin.ui.kui/asset_manifest.kson",
                 "--updated-only"
             ],
             "osx": {

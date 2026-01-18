@@ -5,8 +5,8 @@ references = [
 		path = "../kohi.runtime/"
 	}
 	{
-		name = "Kohi.Plugin.Ui.Standard"
-		path = "../kohi.plugin.ui.standard/"
+		name = "Kohi.Plugin.Ui.Kui"
+		path = "../kohi.plugin.ui.kui/"
 	}
 	{
 		name = "Kohi.Plugin.Utils"

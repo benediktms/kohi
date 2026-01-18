@@ -154,7 +154,7 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 
 	state->selection_list = darray_create(kentity);
 
-	kruntime_plugin* kui_plugin = plugin_system_get(engine_systems_get()->plugin_system, "kohi.plugin.ui.standard");
+	kruntime_plugin* kui_plugin = plugin_system_get(engine_systems_get()->plugin_system, "kohi.plugin.ui.kui");
 	kui_state* kui_state = ((kui_plugin_state*)kui_plugin->plugin_state)->state;
 	state->kui_state = kui_state;
 

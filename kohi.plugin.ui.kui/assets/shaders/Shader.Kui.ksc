@@ -29,13 +29,13 @@ pipelines = [
 		stages = [
 			{
 				type = "vertex"
-				source_asset_name = "Shader.UI_vert"
-				package_name = "Kohi.Plugin.Ui.Standard"
+				source_asset_name = "Shader.Kui_vert"
+				package_name = "Kohi.Plugin.Ui.Kui"
 			}
 			{
 				type = "fragment"
-				source_asset_name = "Shader.UI_frag"
-				package_name = "Kohi.Plugin.Ui.Standard"
+				source_asset_name = "Shader.Kui_frag"
+				package_name = "Kohi.Plugin.Ui.Kui"
 			}
 		]
 

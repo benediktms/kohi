@@ -53,7 +53,7 @@ kui_control kui_button_control_create(kui_state* state, const char* name) {
 	vec2i atlas_max = (vec2i){158, 19};
 	vec2i corner_px_size = (vec2i){3, 3};
 	vec2i corner_size = (vec2i){10, 10};
-	KASSERT(!nine_slice_create(base->name, (vec2i){200, 40}, atlas_size, atlas_min, atlas_max, corner_px_size, corner_size, &typed_data->nslice));
+	KASSERT(nine_slice_create(base->name, (vec2i){200, 40}, atlas_size, atlas_min, atlas_max, corner_px_size, corner_size, &typed_data->nslice));
 
 	base->bounds.x = 0.0f;
 	base->bounds.y = 0.0f;
@@ -64,7 +64,7 @@ kui_control kui_button_control_create(kui_state* state, const char* name) {
 	// Acquire binding set resources for this control.
 	typed_data->binding_instance_id = INVALID_ID;
 	typed_data->binding_instance_id = kshader_acquire_binding_set_instance(kui_shader, 1);
-	KASSERT(typed_data->binding_instance_id == INVALID_ID);
+	KASSERT(typed_data->binding_instance_id != INVALID_ID);
 
 	typed_data->button_type = KUI_BUTTON_TYPE_BASIC;
 

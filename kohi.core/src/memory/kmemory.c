@@ -12,7 +12,7 @@
 #include <stdio.h>
 #include <string.h>
 // NOTE: If this is disabled, C11 must be used to enable aligned_alloc.
-#define K_USE_CUSTOM_MEMORY_ALLOCATOR 0
+#define K_USE_CUSTOM_MEMORY_ALLOCATOR 1
 
 #if !K_USE_CUSTOM_MEMORY_ALLOCATOR
 #	if _MSC_VER
@@ -167,6 +167,7 @@ void* _kallocate_aligned(u64 size, u16 alignment, memory_tag tag, const char* fi
 		KWARN("kallocate_aligned called using MEMORY_TAG_UNKNOWN. Re-class this allocation.");
 	}
 
+	// alignment = KMAX(alignment, 8);
 	u64 aligned_size = get_aligned(size, alignment);
 
 	// Either allocate from the system's allocator or the OS. The latter shouldn't ever
@@ -193,7 +194,7 @@ void* _kallocate_aligned(u64 size, u16 alignment, memory_tag tag, const char* fi
 		kmutex_unlock(&state_ptr->allocation_mutex);
 	} else {
 		// If the system is not up yet, warn about it but give memory for now.
-		printf("Warning: kallocate_aligned called before the memory system is initialized.");
+		// printf("Warning: kallocate_aligned called before the memory system is initialized.");
 		// TODO: Memory alignment
 		block = platform_allocate(size, false);
 	}

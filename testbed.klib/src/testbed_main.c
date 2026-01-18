@@ -178,7 +178,7 @@ b8 application_initialize(struct application* app) {
 	app->state->audio_system = engine_systems_get()->audio_system;
 
 	// Get the standard ui plugin.
-	app->state->kui_plugin = plugin_system_get(engine_systems_get()->plugin_system, "kohi.plugin.ui.standard");
+	app->state->kui_plugin = plugin_system_get(engine_systems_get()->plugin_system, "kohi.plugin.ui.kui");
 	app->state->kui_plugin_state = app->state->kui_plugin->plugin_state;
 	app->state->kui_state = app->state->kui_plugin_state->state;
 	kui_state* kui_state = app->state->kui_state;

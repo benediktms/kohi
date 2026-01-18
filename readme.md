@@ -157,7 +157,7 @@ This structure breakdown is based on the root folder of the repository. Some fil
 - `kohi.runtime` - Shared library/.dll. Contains the core engine logic as well as many of the core engine systems.
 - `kohi.plugin.audio.openal` - Shared library/.dll. Contains the audio plugin which uses OpenAL as the audio backend.
 - `kohi.plugin.renderer.vulkan` - Shared library/.dll. Contains the Vulkan renderer plugin, which serves as the renderer backend to the engine for Vulkan.
-- `kohi.plugin.ui.standard` - Shared library/.dll. Contains the Kohi Standard UI, which contains a general-use collection of controls such as buttons, labels, textboxes, etc. This is a retained-mode UI.
+- `kohi.plugin.ui.kui` - Shared library/.dll. Contains the Kohi UI, which contains a general-use collection of controls such as buttons, labels, textboxes, etc. This is a retained-mode UI.
 - `testbed.kapp` - Application/.exe. The consuming application executable, loads up testbed.klib, configures/uses plugins and other Kohi libraries.
 - `testbed.klib` = Shared library/.dll. Contains the application code (or "game code") specific to the application. Hot-reloadable.
 - `kohi.tools.versiongen` - Application/.exe. A small utility which generates a version using passed-in major and minor version numbers, and auto-generated build and revision numbers based on date and time. Used to version builds of Kohi and plugins.

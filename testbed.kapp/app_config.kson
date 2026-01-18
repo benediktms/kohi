@@ -15,7 +15,7 @@ windows = [
 package_config = {
 	packages = [
 		"Kohi.Runtime"
-		"Kohi.Plugin.Ui.Standard"
+		"Kohi.Plugin.Ui.Kui"
 		"Testbed"
 	]
 	process_as_text [
@@ -115,7 +115,7 @@ systems = [
 	   config = {
 			plugins = [
 				{
-					 name = "kohi.plugin.ui.standard"
+					 name = "kohi.plugin.ui.kui"
 				}
 				{
 					name = "kohi.plugin.utils"

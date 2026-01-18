@@ -293,8 +293,8 @@ kui_control kui_textbox_control_create(kui_state* state, const char* name, font_
 	// Ensure the highlight box size and position is correct.
 	kui_textbox_update_highlight_box(state, base);
 
-	event_register(EVENT_CODE_KEY_PRESSED, base, kui_textbox_on_key);
-	event_register(EVENT_CODE_KEY_RELEASED, base, kui_textbox_on_key);
+	event_register(EVENT_CODE_KEY_PRESSED, typed_control, kui_textbox_on_key);
+	event_register(EVENT_CODE_KEY_RELEASED, typed_control, kui_textbox_on_key);
 
 	return handle;
 }
@@ -303,11 +303,11 @@ void kui_textbox_control_destroy(kui_state* state, kui_control* self) {
 
 	kui_base_control* base = kui_system_get_base(state, *self);
 	KASSERT(base);
-	/* kui_textbox_control* typed_control = (kui_textbox_control*)base; */
+	kui_textbox_control* typed_control = (kui_textbox_control*)base;
 	// unload
 	// TODO: unload sub-controls that aren't children (i.e content_label and highlight_box)
-	event_unregister(EVENT_CODE_KEY_PRESSED, base, kui_textbox_on_key);
-	event_unregister(EVENT_CODE_KEY_RELEASED, base, kui_textbox_on_key);
+	event_unregister(EVENT_CODE_KEY_PRESSED, typed_control, kui_textbox_on_key);
+	event_unregister(EVENT_CODE_KEY_RELEASED, typed_control, kui_textbox_on_key);
 
 	kui_base_control_destroy(state, self);
 }
