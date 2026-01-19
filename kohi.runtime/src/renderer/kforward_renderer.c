@@ -26,6 +26,7 @@
 typedef struct skybox_global_ubo_data {
 	mat4 views[KMATERIAL_UBO_MAX_VIEWS];
 	mat4 projection;
+	vec4 fog_colour;
 } skybox_global_ubo_data;
 
 // per frame UBO FIXME: This should probably be located with the skybox files, or shader, or somewhere other than here...
@@ -429,7 +430,8 @@ static b8 scene_pass(
 		// Apply per-frame
 		{
 			skybox_global_ubo_data global_ubo_data = {
-				.projection = projection};
+				.projection = projection,
+				.fog_colour = skybox_data->fog_colour};
 			for (u8 i = 0; i < view_count; ++i) {
 				global_ubo_data.views[i] = views[i];
 				// zero out the position so the skybox stays put on screen.
@@ -631,6 +633,8 @@ b8 kforward_renderer_render_frame(kforward_renderer* renderer, frame_data* p_fra
 	settings->fog_colour = render_data->forward_data.fog_colour;
 	settings->fog_start = render_data->forward_data.fog_near;
 	settings->fog_end = render_data->forward_data.fog_far;
+
+	render_data->forward_data.skybox.fog_colour = vec4_from_vec3(settings->fog_colour, 1.0f);
 
 	// Begin frame
 	{

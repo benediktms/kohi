@@ -112,7 +112,7 @@ void kui_tree_item_control_add_child_tree_item(kui_state* state, kui_control sel
 	KASSERT(base);
 	kui_tree_item_control* typed_data = (kui_tree_item_control*)base;
 	if (!typed_data->children) {
-		darray_create(kui_control);
+		typed_data->children = darray_create(kui_tree_item_control);
 	}
 
 	u32 count = darray_length(typed_data->children);

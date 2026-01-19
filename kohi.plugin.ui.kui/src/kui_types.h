@@ -222,6 +222,11 @@ typedef enum kui_textbox_type {
 	KUI_TEXTBOX_TYPE_FLOAT
 } kui_textbox_type;
 
+typedef struct kui_textbox_event_listener {
+	struct kui_state* state;
+	kui_control control;
+} kui_textbox_event_listener;
+
 typedef struct kui_textbox_control {
 	kui_base_control base;
 	vec2i size;
@@ -241,10 +246,7 @@ typedef struct kui_textbox_control {
 	// Cached copy of the internal label's line height (taken in turn from its font.)
 	f32 label_line_height;
 
-	// HACK: Need to store a pointer to the standard ui state here because
-	// the event system can only pass a single pointer, which is already occupied
-	// by "self". Should probably re-think this before adding too many more controls.
-	struct kui_state* state;
+	struct kui_textbox_event_listener* listener;
 } kui_textbox_control;
 
 typedef struct kui_tree_item_control {

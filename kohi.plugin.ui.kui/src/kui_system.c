@@ -1146,9 +1146,11 @@ static kui_base_control* get_base(kui_state* state, kui_control control) {
 	case KUI_CONTROL_TYPE_BUTTON:
 		GET_BASE_WITHIN_DARRAY_OR_KNULL(base, state->button_controls, type_index);
 		break;
-	case KUI_CONTROL_TYPE_TEXTBOX:
-		GET_BASE_WITHIN_DARRAY_OR_KNULL(base, state->textbox_controls, type_index);
-		break;
+	case KUI_CONTROL_TYPE_TEXTBOX: {
+		/* GET_BASE_WITHIN_DARRAY_OR_KNULL(base, state->textbox_controls, type_index); */
+		u32 len = darray_length(state->textbox_controls);
+		base = type_index < len ? &state->textbox_controls[type_index].base : KNULL;
+	} break;
 	case KUI_CONTROL_TYPE_TREE_ITEM:
 		GET_BASE_WITHIN_DARRAY_OR_KNULL(base, state->tree_item_controls, type_index);
 		break;

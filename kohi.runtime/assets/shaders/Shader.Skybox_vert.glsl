@@ -16,6 +16,7 @@ layout(location = 4) in vec4 in_tangent;
 layout(set = 0, binding = 0) uniform global_ubo_data {
     mat4 views[KMATERIAL_UBO_MAX_VIEWS];
     mat4 projection;
+	vec4 fog_colour;
 } global_ubo;
 
 layout(push_constant) uniform immediate_data {
@@ -28,10 +29,12 @@ layout(push_constant) uniform immediate_data {
 
 // Data Transfer Object to fragment shader.
 layout(location = 0) out dto {
+	vec4 frag_pos;
 	vec3 tex_coord;
 } out_dto;
 
 void main() {
 	out_dto.tex_coord = -in_position;
+	out_dto.frag_pos = vec4(in_position, 1.0);
 	gl_Position = global_ubo.projection * global_ubo.views[immediate.view_index] * vec4(in_position, 1.0);
 } 

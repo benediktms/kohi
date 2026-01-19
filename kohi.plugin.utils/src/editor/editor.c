@@ -579,8 +579,8 @@ void editor_set_mode(struct editor_state* state, editor_mode mode) {
 	// Set mode an enable the new.
 	state->mode = mode;
 	window = get_inspector_base_for_mode(state, state->mode);
-	kui_control_set_is_visible(state->kui_state, window, false);
-	kui_control_set_is_active(state->kui_state, window, false);
+	kui_control_set_is_visible(state->kui_state, window, true);
+	kui_control_set_is_active(state->kui_state, window, true);
 }
 
 void editor_clear_selected_entities(struct editor_state* state) {

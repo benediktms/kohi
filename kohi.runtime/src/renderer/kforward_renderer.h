@@ -89,6 +89,7 @@ typedef struct kforward_renderer {
 typedef struct kskybox_render_data {
 	u32 shader_set0_instance_id;
 	ktexture skybox_texture;
+	vec4 fog_colour;
 	u32 sb_vertex_count;
 	u64 sb_vertex_offset;
 	u32 sb_index_count;
