@@ -16,7 +16,6 @@ KAPI void kui_tree_item_control_destroy(kui_state* state, kui_control* self);
 KAPI b8 kui_tree_item_control_update(kui_state* state, kui_control self, struct frame_data* p_frame_data);
 KAPI b8 kui_tree_item_control_render(kui_state* state, kui_control self, struct frame_data* p_frame_data, kui_render_data* render_data);
 
-KAPI void kui_tree_item_control_add_child_tree_item(kui_state* state, kui_control self, kui_control child_tree_item);
 KAPI void kui_tree_item_control_width_set(kui_state* state, kui_control self, u16 width);
 
 KAPI void kui_tree_item_text_set(kui_state* state, kui_control self, const char* text);

@@ -1935,8 +1935,8 @@ typedef struct tree_hierarchy_node {
 	u32 user_data_size;
 	void* user_data;
 
-	// A pointer to the control associated with this item.
-	/* kui_control* tree_item; */
+	// A handle to the control associated with this item.
+	kui_control tree_item;
 
 	// Pointer to the parent.
 	struct tree_hierarchy_node* parent;
@@ -1974,7 +1974,7 @@ static void tree_node_cleanup_r(tree_hierarchy_node* node) {
 	}
 }
 
-static void tree_setup_node_r(editor_state* state, kscene_hierarchy_node* scene_node, tree_hierarchy_node* tree_node, kui_control parent, u32 index) {
+static void tree_setup_node_r(editor_state* state, kscene_hierarchy_node* scene_node, tree_hierarchy_node* tree_node, tree_hierarchy_node* parent_node, u32 index) {
 	kui_state* kui_state = state->kui_state;
 
 	kname name = kscene_get_entity_name(state->edit_scene, scene_node->entity);
@@ -1987,7 +1987,7 @@ static void tree_setup_node_r(editor_state* state, kscene_hierarchy_node* scene_
 	const u32 item_height = 45;
 	const char* tree_item_name = string_format("tree_item_%i", index);
 
-	kui_control tree_item = kui_tree_item_control_create(
+	tree_node->tree_item = kui_tree_item_control_create(
 		kui_state,
 		tree_item_name,
 		state->tree_inspector_width - 10,
@@ -1997,14 +1997,17 @@ static void tree_setup_node_r(editor_state* state, kscene_hierarchy_node* scene_
 		kname_string_get(name),
 		tree_node->child_count > 0);
 
-	if (parent.val != INVALID_KUI_CONTROL.val) {
-		kui_tree_item_control_add_child_tree_item(kui_state, parent, tree_item);
+	if (parent_node) {
+		/* kui_tree_item_control_add_child_tree_item(kui_state, parent_node->tree_item, tree_node); */
+		kui_base_control* parent_base = kui_system_get_base(state->kui_state, parent_node->tree_item);
+		kui_tree_item_control* typed_parent_control = (kui_tree_item_control*)parent_base;
+		KASSERT(kui_system_control_add_child(kui_state, typed_parent_control->child_container, tree_node->tree_item));
 	} else {
-		KASSERT(kui_system_control_add_child(kui_state, state->tree_base_control, tree_item));
+		KASSERT(kui_system_control_add_child(kui_state, state->tree_base_control, tree_node->tree_item));
 		/* u32 len = darray_length(state->tree_base_control.children);
 		p_tree_item = state->tree_base_control.children[len - 1]; */
 
-		kui_control_position_set(kui_state, tree_item, (vec3){44, (item_height * index), 0});
+		kui_control_position_set(kui_state, tree_node->tree_item, (vec3){44, (item_height * index), 0});
 	}
 
 	hierarchy_node_context* context = KALLOC_TYPE(hierarchy_node_context, MEMORY_TAG_EDITOR);
@@ -2012,12 +2015,12 @@ static void tree_setup_node_r(editor_state* state, kscene_hierarchy_node* scene_
 	context->entity = scene_node->entity;
 	context->hierarchy_node = tree_node;
 
-	kui_control_set_user_data(kui_state, tree_item, sizeof(hierarchy_node_context), context, true, MEMORY_TAG_EDITOR);
-	kui_control_set_on_click(kui_state, tree_item, tree_item_clicked);
+	kui_control_set_user_data(kui_state, tree_node->tree_item, sizeof(hierarchy_node_context), context, true, MEMORY_TAG_EDITOR);
+	kui_control_set_on_click(kui_state, tree_node->tree_item, tree_item_clicked);
 
 	// Recurse children.
 	for (u32 i = 0; i < tree_node->child_count; ++i) {
-		tree_setup_node_r(state, &scene_node->children[i], &tree_node->children[i], tree_item, i);
+		tree_setup_node_r(state, &scene_node->children[i], &tree_node->children[i], tree_node, i);
 	}
 }
 
@@ -2051,7 +2054,7 @@ static void tree_refresh(editor_state* state) {
 			for (u32 i = 0; i < node_count; ++i) {
 				kscene_hierarchy_node* scene_node = &scene_nodes[i];
 
-				tree_setup_node_r(state, scene_node, &tree.root_nodes[i], INVALID_KUI_CONTROL, i);
+				tree_setup_node_r(state, scene_node, &tree.root_nodes[i], KNULL, i);
 			}
 
 			// Cleanup once done building

@@ -123,6 +123,8 @@ b8 kui_system_initialize(u64* memory_requirement, kui_state* state, kui_system_c
 	state->vertex_buffer = renderer_renderbuffer_get(state->renderer, kname_create(KRENDERBUFFER_NAME_VERTEX_STANDARD));
 	state->index_buffer = renderer_renderbuffer_get(state->renderer, kname_create(KRENDERBUFFER_NAME_INDEX_STANDARD));
 
+	state->focused = INVALID_KUI_CONTROL;
+
 	state->running = true;
 
 	KTRACE("Initialized standard UI system (%s).", KVERSION);
@@ -439,21 +441,19 @@ kui_control kui_base_control_create(kui_state* state, const char* name, kui_cont
 void kui_base_control_destroy(kui_state* state, kui_control* self) {
 	if (self->val != INVALID_KUI_CONTROL.val) {
 		kui_base_control* base = get_base(state, *self);
-		if (state->running) {
-			unregister_control(state, *self);
-			// recurse children/unparent only if running.
+		unregister_control(state, *self);
 
-			if (base->parent.val != INVALID_KUI_CONTROL.val) {
-				kui_system_control_remove_child(state, base->parent, *self);
-			}
+		if (base->parent.val != INVALID_KUI_CONTROL.val) {
+			kui_system_control_remove_child(state, base->parent, *self);
+		}
 
-			u32 len = darray_length(base->children);
-			for (u32 i = 0; i < len; ++i) {
-				kui_control child_handle = base->children[i];
-				kui_base_control* child = get_base(state, child_handle);
-				if (child->destroy) {
-					child->destroy(state, &child_handle);
-				}
+		u32 len = darray_length(base->children);
+		for (u32 i = 0; i < len; ++i) {
+			kui_control child_handle = base->children[i];
+			kui_base_control* child = get_base(state, child_handle);
+			child->parent = INVALID_KUI_CONTROL;
+			if (child->destroy) {
+				child->destroy(state, &child_handle);
 			}
 		}
 
@@ -474,6 +474,7 @@ void kui_control_destroy_all_children(kui_state* state, kui_control control) {
 	for (u32 i = 0; i < len; ++i) {
 		kui_control child_handle = base->children[i];
 		kui_base_control* child = get_base(state, child_handle);
+		child->parent = INVALID_KUI_CONTROL;
 		if (child->destroy) {
 			child->destroy(state, &child_handle);
 		}
@@ -1156,6 +1157,7 @@ static kui_base_control* get_base(kui_state* state, kui_control control) {
 		break;
 	// TODO: user type support
 	case KUI_CONTROL_TYPE_MAX:
+	case KUI_CONTROL_TYPE_NONE:
 		return KNULL;
 	}
 
@@ -1164,35 +1166,100 @@ static kui_base_control* get_base(kui_state* state, kui_control control) {
 
 static kui_control create_handle(kui_state* state, kui_control_type type) {
 	u16 type_index = INVALID_ID_U16;
+	u16 len = 0;
+	kui_base_control* base = KNULL;
 	switch (type) {
 	case KUI_CONTROL_TYPE_BASE:
-		type_index = darray_length(state->base_controls);
-		darray_push(state->base_controls, (kui_base_control){0});
+		len = darray_length(state->base_controls);
+		for (u32 i = 0; i < len; ++i) {
+			if (state->base_controls[i].type == KUI_CONTROL_TYPE_NONE) {
+				type_index = i;
+				break;
+			}
+		}
+		if (type_index == INVALID_ID_U16) {
+			type_index = len;
+			darray_push(state->base_controls, (kui_base_control){0});
+		}
+		base = &state->base_controls[type_index];
 		break;
 	case KUI_CONTROL_TYPE_PANEL:
-		type_index = darray_length(state->panel_controls);
-		darray_push(state->panel_controls, (kui_panel_control){0});
+		len = darray_length(state->panel_controls);
+		for (u32 i = 0; i < len; ++i) {
+			if (state->panel_controls[i].base.type == KUI_CONTROL_TYPE_NONE) {
+				type_index = i;
+				break;
+			}
+		}
+		if (type_index == INVALID_ID_U16) {
+			type_index = len;
+			darray_push(state->panel_controls, (kui_panel_control){0});
+		}
+		base = &state->panel_controls[type_index].base;
 		break;
 	case KUI_CONTROL_TYPE_LABEL:
-		type_index = darray_length(state->label_controls);
-		darray_push(state->label_controls, (kui_label_control){0});
+		len = darray_length(state->label_controls);
+		for (u32 i = 0; i < len; ++i) {
+			if (state->label_controls[i].base.type == KUI_CONTROL_TYPE_NONE) {
+				type_index = i;
+				break;
+			}
+		}
+		if (type_index == INVALID_ID_U16) {
+			type_index = len;
+			darray_push(state->label_controls, (kui_label_control){0});
+		}
+		base = &state->label_controls[type_index].base;
 		break;
 	case KUI_CONTROL_TYPE_BUTTON:
-		type_index = darray_length(state->button_controls);
-		darray_push(state->button_controls, (kui_button_control){0});
+		len = darray_length(state->button_controls);
+		for (u32 i = 0; i < len; ++i) {
+			if (state->button_controls[i].base.type == KUI_CONTROL_TYPE_NONE) {
+				type_index = i;
+				break;
+			}
+		}
+		if (type_index == INVALID_ID_U16) {
+			type_index = len;
+			darray_push(state->button_controls, (kui_button_control){0});
+		}
+		base = &state->button_controls[type_index].base;
 		break;
 	case KUI_CONTROL_TYPE_TEXTBOX:
-		type_index = darray_length(state->textbox_controls);
-		darray_push(state->textbox_controls, (kui_textbox_control){0});
+		len = darray_length(state->textbox_controls);
+		for (u32 i = 0; i < len; ++i) {
+			if (state->textbox_controls[i].base.type == KUI_CONTROL_TYPE_NONE) {
+				type_index = i;
+				break;
+			}
+		}
+		if (type_index == INVALID_ID_U16) {
+			type_index = len;
+			darray_push(state->textbox_controls, (kui_textbox_control){0});
+		}
+		base = &state->textbox_controls[type_index].base;
 		break;
 	case KUI_CONTROL_TYPE_TREE_ITEM:
-		type_index = darray_length(state->tree_item_controls);
-		darray_push(state->tree_item_controls, (kui_tree_item_control){0});
+		len = darray_length(state->tree_item_controls);
+		for (u32 i = 0; i < len; ++i) {
+			if (state->tree_item_controls[i].base.type == KUI_CONTROL_TYPE_NONE) {
+				type_index = i;
+				break;
+			}
+		}
+		if (type_index == INVALID_ID_U16) {
+			type_index = len;
+			darray_push(state->tree_item_controls, (kui_tree_item_control){0});
+		}
+		base = &state->tree_item_controls[type_index].base;
 		break;
 	// TODO: user type support
 	case KUI_CONTROL_TYPE_MAX:
+	case KUI_CONTROL_TYPE_NONE:
 		return INVALID_KUI_CONTROL;
 	}
+
+	base->type = type;
 
 	return encode_handle(type, type_index);
 }
@@ -1203,24 +1270,25 @@ static void release_handle(kui_state* state, kui_control* handle) {
 	if (decode_handle(*handle, &type, &type_index)) {
 		switch (type) {
 		case KUI_CONTROL_TYPE_BASE:
-			darray_pop_at(state->base_controls, type_index, KNULL);
+			kzero_memory(&state->base_controls[type_index], sizeof(kui_base_control));
 			break;
 		case KUI_CONTROL_TYPE_PANEL:
-			darray_pop_at(state->panel_controls, type_index, KNULL);
+			kzero_memory(&state->panel_controls[type_index], sizeof(kui_panel_control));
 			break;
 		case KUI_CONTROL_TYPE_LABEL:
-			darray_pop_at(state->label_controls, type_index, KNULL);
+			kzero_memory(&state->label_controls[type_index], sizeof(kui_label_control));
 			break;
 		case KUI_CONTROL_TYPE_BUTTON:
-			darray_pop_at(state->button_controls, type_index, KNULL);
+			kzero_memory(&state->button_controls[type_index], sizeof(kui_button_control));
 			break;
 		case KUI_CONTROL_TYPE_TEXTBOX:
-			darray_pop_at(state->textbox_controls, type_index, KNULL);
+			kzero_memory(&state->textbox_controls[type_index], sizeof(kui_textbox_control));
 			break;
 		case KUI_CONTROL_TYPE_TREE_ITEM:
-			darray_pop_at(state->tree_item_controls, type_index, KNULL);
+			kzero_memory(&state->tree_item_controls[type_index], sizeof(kui_tree_item_control));
 			break;
 		case KUI_CONTROL_TYPE_MAX:
+		case KUI_CONTROL_TYPE_NONE:
 			// TODO: user type support
 			break; // do nothing
 		}

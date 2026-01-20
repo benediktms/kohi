@@ -183,7 +183,6 @@ kui_control kui_textbox_control_create(kui_state* state, const char* name, font_
 	// Set an initial position.
 	kui_base_control* highlight_base = kui_system_get_base(state, typed_control->highlight_box);
 	FLAG_SET(highlight_base->flags, KUI_CONTROL_FLAG_VISIBLE_BIT, false);
-	/* typed_data->highlight_box.parent = self; */
 	ktransform_parent_set(highlight_base->ktransform, base->ktransform);
 
 	// Ensure the highlight box size and position is correct.
@@ -333,20 +332,17 @@ b8 kui_textbox_control_render(kui_state* state, kui_control self, struct frame_d
 
 	typed_control->clip_mask.render_data.model = ktransform_world_get(typed_control->clip_mask.clip_ktransform);
 
-	// Only perform highlight_box logic if it is visible.
-	if (FLAG_GET(highlight_base->flags, KUI_CONTROL_FLAG_VISIBLE_BIT)) {
-		// Render the highlight box manually so the clip mask can be attached to it.
-		// This ensures the highlight boxis rendered and clipped before the cursor or other
-		// children are drawn.
-		if (!highlight_base->render(state, typed_control->highlight_box, p_frame_data, render_data)) {
-			KERROR("Failed to render highlight box for textbox '%s'", base->name);
-			return false;
-		}
-
-		// Attach clipping mask to highlight box, which would be the last element added.
-		u32 renderable_count = darray_length(render_data->renderables);
-		render_data->renderables[renderable_count - 1].clip_mask_render_data = &typed_control->clip_mask.render_data;
+	// Render the highlight box manually so the clip mask can be attached to it.
+	// This ensures the highlight boxis rendered and clipped before the cursor or other
+	// children are drawn.
+	if (!highlight_base->render(state, typed_control->highlight_box, p_frame_data, render_data)) {
+		KERROR("Failed to render highlight box for textbox '%s'", base->name);
+		return false;
 	}
+
+	// Attach clipping mask to highlight box, which would be the last element added.
+	u32 renderable_count = darray_length(render_data->renderables);
+	render_data->renderables[renderable_count - 1].clip_mask_render_data = &typed_control->clip_mask.render_data;
 
 	// Render the content label manually so the clip mask can be attached to it.
 	// This ensures the content label is rendered and clipped before the cursor or other
@@ -610,7 +606,7 @@ static b8 kui_textbox_on_key(u16 code, void* sender, void* listener_inst, event_
 					// Clear the highlight range.
 					typed_data->highlight_range.offset = 0;
 					typed_data->highlight_range.size = 0;
-					kui_textbox_update_highlight_box(state, &typed_data->base);
+					kui_textbox_update_highlight_box(state, base);
 				} else {
 					string_remove_at(str, entry_control_text, typed_data->cursor_position - 1, 1);
 					typed_data->cursor_position--;
@@ -644,7 +640,7 @@ static b8 kui_textbox_on_key(u16 code, void* sender, void* listener_inst, event_
 					typed_data->highlight_range.offset = 0;
 					typed_data->highlight_range.size = 0;
 				}
-				kui_textbox_update_highlight_box(state, &typed_data->base);
+				kui_textbox_update_highlight_box(state, base);
 				kui_textbox_update_cursor_position(state, &typed_data->base);
 			}
 		} else if (key_code == KEY_RIGHT) {
@@ -671,7 +667,7 @@ static b8 kui_textbox_on_key(u16 code, void* sender, void* listener_inst, event_
 					typed_data->highlight_range.size = 0;
 				}
 
-				kui_textbox_update_highlight_box(state, &typed_data->base);
+				kui_textbox_update_highlight_box(state, base);
 				kui_textbox_update_cursor_position(state, &typed_data->base);
 			}
 		} else if (key_code == KEY_HOME) {
@@ -683,7 +679,7 @@ static b8 kui_textbox_on_key(u16 code, void* sender, void* listener_inst, event_
 				typed_data->highlight_range.size = 0;
 			}
 			typed_data->cursor_position = 0;
-			kui_textbox_update_highlight_box(state, &typed_data->base);
+			kui_textbox_update_highlight_box(state, base);
 			kui_textbox_update_cursor_position(state, &typed_data->base);
 		} else if (key_code == KEY_END) {
 			if (shift_held) {
@@ -694,7 +690,7 @@ static b8 kui_textbox_on_key(u16 code, void* sender, void* listener_inst, event_
 				typed_data->highlight_range.size = 0;
 			}
 			typed_data->cursor_position = len;
-			kui_textbox_update_highlight_box(state, &typed_data->base);
+			kui_textbox_update_highlight_box(state, base);
 			kui_textbox_update_cursor_position(state, &typed_data->base);
 		} else {
 			// Use A-Z and 0-9 as-is.
@@ -875,7 +871,7 @@ static b8 kui_textbox_on_key(u16 code, void* sender, void* listener_inst, event_
 					// Clear the highlight range.
 					typed_data->highlight_range.offset = 0;
 					typed_data->highlight_range.size = 0;
-					kui_textbox_update_highlight_box(state, &typed_data->base);
+					kui_textbox_update_highlight_box(state, base);
 				}
 
 				typed_data->cursor_position++;

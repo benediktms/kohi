@@ -97,6 +97,7 @@ typedef b8 (*PFN_mouse_event_callback)(struct kui_state* state, kui_control self
 typedef void (*PFN_keyboard_event_callback)(struct kui_state* state, kui_control self, struct kui_keyboard_event event);
 
 typedef enum kui_control_type {
+	KUI_CONTROL_TYPE_NONE, // indicates a "free" slot in the internal arrays
 	KUI_CONTROL_TYPE_BASE,
 	KUI_CONTROL_TYPE_PANEL,
 	KUI_CONTROL_TYPE_LABEL,
@@ -262,6 +263,4 @@ typedef struct kui_tree_item_control {
 
 	u64 context;
 
-	// darray
-	struct kui_tree_item_control* children;
 } kui_tree_item_control;
