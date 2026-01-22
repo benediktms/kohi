@@ -23,3 +23,6 @@ KAPI const char* kui_tree_item_text_get(kui_state* state, kui_control self);
 
 KAPI u64 kui_tree_item_context_get(kui_state* state, kui_control self);
 KAPI void kui_tree_item_context_set(kui_state* state, kui_control self, u64 context);
+
+KAPI void kui_tree_item_set_on_expanded(kui_state* state, kui_control self, PFN_mouse_event_callback callback);
+KAPI void kui_tree_item_set_on_collapsed(kui_state* state, kui_control self, PFN_mouse_event_callback callback);

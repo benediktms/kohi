@@ -460,6 +460,7 @@ b8 kpackage_parse_manifest_file_content(const char* path, asset_manifest* out_ma
 					continue;
 				}
 				asset.name = kname_create(asset_name);
+				string_free(asset_name);
 
 				// Verify that the asset name doesn't already exist in the manifest.
 				u32 asset_count = darray_length(out_manifest->assets);
@@ -467,7 +468,7 @@ b8 kpackage_parse_manifest_file_content(const char* path, asset_manifest* out_ma
 					if (out_manifest->assets[a].name == asset.name) {
 						// A collision exists. This makes the manifest invalid, and
 						// should fail the process completely.
-						KERROR("Failed to process asset manifest for package '%s'. An asset named '%s' already exists.", kname_string_get(out_manifest->name), asset_name);
+						KERROR("Failed to process asset manifest for package '%s'. An asset named '%k' already exists.", kname_string_get(out_manifest->name), asset.name);
 						return false;
 					}
 				}

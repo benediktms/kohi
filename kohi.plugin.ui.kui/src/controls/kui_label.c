@@ -70,7 +70,8 @@ kui_control kui_label_control_create(kui_state* state, const char* name, font_ty
 	if (text && string_length(text) > 0) {
 		kui_label_text_set(state, handle, text);
 	} else {
-		kui_label_text_set(state, handle, "");
+		/* kui_label_text_set(state, handle, ""); */
+		kui_label_text_set(state, handle, KNULL);
 	}
 
 	kshader kui_shader = kshader_system_get(kname_create(KUI_SHADER_NAME), kname_create(PACKAGE_NAME_KUI));
@@ -109,7 +110,7 @@ void kui_label_control_destroy(kui_state* state, kui_control* self) {
 
 	if (typed_control->text) {
 		string_free(typed_control->text);
-		typed_control->text = 0;
+		typed_control->text = KNULL;
 	}
 
 	// Free from the vertex buffer.
@@ -302,23 +303,26 @@ void kui_label_text_set(kui_state* state, kui_control self, const char* text) {
 
 	if (typed_control->text) {
 		string_free(typed_control->text);
-		typed_control->text = 0;
+		typed_control->text = KNULL;
 	}
 
-	typed_control->text = string_duplicate(text);
+	if (text) {
 
-	vec2 string_size = vec2_one();
-	if (typed_control->type == FONT_TYPE_BITMAP) {
-		font_system_bitmap_font_measure_string(state->font_system, typed_control->bitmap_font, typed_control->text, &string_size);
-	} else {
-		font_system_system_font_measure_string(state->font_system, typed_control->system_font, typed_control->text, &string_size);
+		typed_control->text = string_duplicate(text);
+
+		vec2 string_size = vec2_one();
+		if (typed_control->type == FONT_TYPE_BITMAP) {
+			font_system_bitmap_font_measure_string(state->font_system, typed_control->bitmap_font, typed_control->text, &string_size);
+		} else {
+			font_system_system_font_measure_string(state->font_system, typed_control->system_font, typed_control->text, &string_size);
+		}
+
+		base->bounds.width = string_size.x;
+		base->bounds.height = string_size.y;
+
+		// NOTE: Only bother with verification and setting the dirty flag for non-empty strings.
+		typed_control->is_dirty = true; // string_length(typed_data->text) > 0;
 	}
-
-	base->bounds.width = string_size.x;
-	base->bounds.height = string_size.y;
-
-	// NOTE: Only bother with verification and setting the dirty flag for non-empty strings.
-	typed_control->is_dirty = true; // string_length(typed_data->text) > 0;
 }
 
 const char* kui_label_text_get(kui_state* state, kui_control self) {

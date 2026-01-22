@@ -8,11 +8,11 @@
 #include <world/world_types.h>
 
 #define EDITOR_AXIS_COLOUR_R \
-	(colour4) { 1.0f, 0.5f, 0.5f, 1.0f }
+	(colour4){1.0f, 0.5f, 0.5f, 1.0f}
 #define EDITOR_AXIS_COLOUR_G \
-	(colour4) { 0.5f, 1.0f, 0.5f, 1.0f }
+	(colour4){0.5f, 1.0f, 0.5f, 1.0f}
 #define EDITOR_AXIS_COLOUR_B \
-	(colour4) { 0.5f, 0.5f, 1.0f, 1.0f }
+	(colour4){0.5f, 0.5f, 1.0f, 1.0f}
 
 #include "editor/editor_gizmo.h"
 
@@ -123,6 +123,7 @@ typedef struct editor_state {
 	kui_control entity_scale_z_textbox;
 
 	// Tree window
+	b8 trigger_tree_refresh;
 	f32 tree_inspector_width;
 	// Beginning position of the entity inspector right column.
 	f32 tree_inspector_right_col_x;

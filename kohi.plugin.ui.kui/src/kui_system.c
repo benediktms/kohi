@@ -26,6 +26,11 @@
 #include <utils/kcolour.h>
 #include <utils/ksort.h>
 
+#include "controls/kui_button.h"
+#include "controls/kui_label.h"
+#include "controls/kui_panel.h"
+#include "controls/kui_textbox.h"
+#include "controls/kui_tree_item.h"
 #include "kohi.plugin.ui.kui_version.h"
 #include "kui_defines.h"
 #include "kui_types.h"
@@ -146,37 +151,71 @@ void kui_system_shutdown(kui_state* state) {
 		event_unregister(EVENT_CODE_BUTTON_PRESSED, state, kui_system_mouse_down);
 		event_unregister(EVENT_CODE_BUTTON_RELEASED, state, kui_system_mouse_up);
 
-		// Unload and destroy inactive controls.
-		u32 len = darray_length(state->inactive_controls);
-		for (u32 i = 0; i < len; ++i) {
-			kui_control handle = state->inactive_controls[i];
-			kui_base_control* c = get_base(state, handle);
-			if (c) {
-				if (c->destroy) {
-					c->destroy(state, &handle);
-				} else {
-					kui_base_control_destroy(state, &handle);
+		// Unload all controls by type
+		{
+			u32 len = darray_length(state->base_controls);
+			for (u32 i = 0; i < len; ++i) {
+				if (state->base_controls[i].handle.val != INVALID_KUI_CONTROL.val) {
+					kui_base_control_destroy(state, &state->base_controls[i].handle);
 				}
-				state->inactive_controls[i] = INVALID_KUI_CONTROL;
 			}
+			darray_destroy(state->base_controls);
 		}
+
+		{
+			u32 len = darray_length(state->panel_controls);
+			for (u32 i = 0; i < len; ++i) {
+				if (state->panel_controls[i].base.handle.val != INVALID_KUI_CONTROL.val) {
+					kui_panel_control_destroy(state, &state->panel_controls[i].base.handle);
+				}
+			}
+			darray_destroy(state->panel_controls);
+		}
+
+		{
+			u32 len = darray_length(state->label_controls);
+			for (u32 i = 0; i < len; ++i) {
+				if (state->label_controls[i].base.handle.val != INVALID_KUI_CONTROL.val) {
+					kui_label_control_destroy(state, &state->label_controls[i].base.handle);
+				}
+			}
+			darray_destroy(state->label_controls);
+		}
+
+		{
+			u32 len = darray_length(state->button_controls);
+			for (u32 i = 0; i < len; ++i) {
+				if (state->button_controls[i].base.handle.val != INVALID_KUI_CONTROL.val) {
+					kui_button_control_destroy(state, &state->button_controls[i].base.handle);
+				}
+			}
+			darray_destroy(state->button_controls);
+		}
+
+		{
+			u32 len = darray_length(state->textbox_controls);
+			for (u32 i = 0; i < len; ++i) {
+				if (state->textbox_controls[i].base.handle.val != INVALID_KUI_CONTROL.val) {
+					kui_textbox_control_destroy(state, &state->textbox_controls[i].base.handle);
+				}
+			}
+			darray_destroy(state->textbox_controls);
+		}
+
+		{
+			u32 len = darray_length(state->tree_item_controls);
+			for (u32 i = 0; i < len; ++i) {
+				if (state->tree_item_controls[i].base.handle.val != INVALID_KUI_CONTROL.val) {
+					kui_tree_item_control_destroy(state, &state->tree_item_controls[i].base.handle);
+				}
+			}
+			darray_destroy(state->tree_item_controls);
+		}
+
 		darray_destroy(state->inactive_controls);
 		state->inactive_controls = KNULL;
 
 		// Unload and destroy active controls.
-		len = darray_length(state->active_controls);
-		for (u32 i = 0; i < len; ++i) {
-			kui_control handle = state->active_controls[i];
-			kui_base_control* c = get_base(state, handle);
-			if (c) {
-				if (c->destroy) {
-					c->destroy(state, &handle);
-				} else {
-					kui_base_control_destroy(state, &handle);
-				}
-				state->active_controls[i] = INVALID_KUI_CONTROL;
-			}
-		}
 		darray_destroy(state->active_controls);
 		state->active_controls = KNULL;
 
@@ -333,6 +372,9 @@ b8 kui_system_control_remove_child(kui_state* state, kui_control parent, kui_con
 
 	kui_base_control* parent_base = get_base(state, parent);
 	kui_base_control* child_base = get_base(state, child);
+	if (!parent_base || !child_base) {
+		return false;
+	}
 
 	if (!parent_base->children) {
 		KERROR("Cannot remove a child from a parent which has no children.");
@@ -441,19 +483,27 @@ kui_control kui_base_control_create(kui_state* state, const char* name, kui_cont
 void kui_base_control_destroy(kui_state* state, kui_control* self) {
 	if (self->val != INVALID_KUI_CONTROL.val) {
 		kui_base_control* base = get_base(state, *self);
-		unregister_control(state, *self);
-
-		if (base->parent.val != INVALID_KUI_CONTROL.val) {
-			kui_system_control_remove_child(state, base->parent, *self);
+		if (!base) {
+			KWARN("base not found for release");
+			return;
 		}
 
-		u32 len = darray_length(base->children);
-		for (u32 i = 0; i < len; ++i) {
-			kui_control child_handle = base->children[i];
-			kui_base_control* child = get_base(state, child_handle);
-			child->parent = INVALID_KUI_CONTROL;
-			if (child->destroy) {
-				child->destroy(state, &child_handle);
+		// Don't recurse if shutting down.
+		if (state->running) {
+			unregister_control(state, *self);
+
+			if (base->parent.val != INVALID_KUI_CONTROL.val) {
+				kui_system_control_remove_child(state, base->parent, *self);
+			}
+
+			u32 len = darray_length(base->children);
+			for (u32 i = 0; i < len; ++i) {
+				kui_control child_handle = base->children[i];
+				kui_base_control* child = get_base(state, child_handle);
+				child->parent = INVALID_KUI_CONTROL;
+				if (child->destroy) {
+					child->destroy(state, &child_handle);
+				}
 			}
 		}
 
@@ -463,7 +513,9 @@ void kui_base_control_destroy(kui_state* state, kui_control* self) {
 		}
 		darray_destroy(base->children);
 		base->children = KNULL;
-		release_handle(state, self);
+		if (state->running) {
+			release_handle(state, self);
+		}
 	}
 }
 
@@ -510,11 +562,13 @@ b8 kui_control_is_visible(kui_state* state, kui_control self) {
 void kui_control_set_is_visible(kui_state* state, kui_control self, b8 is_visible) {
 	kui_base_control* base = get_base(state, self);
 	FLAG_SET(base->flags, KUI_CONTROL_FLAG_VISIBLE_BIT, is_visible);
+	KTRACE("Control '%s' set to %s.", base->name, is_visible ? "visible" : "invisible");
 }
 void kui_control_set_is_active(kui_state* state, kui_control self, b8 is_active) {
 	kui_base_control* base = get_base(state, self);
 	kui_system_update_active(state, self);
 	FLAG_SET(base->flags, KUI_CONTROL_FLAG_ACTIVE_BIT, is_active);
+	KTRACE("Control '%s' set to %s.", base->name, is_active ? "active" : "inactive");
 }
 
 void kui_control_set_user_data(kui_state* state, kui_control self, u32 data_size, void* data, b8 free_on_destroy, memory_tag tag) {
@@ -1083,6 +1137,9 @@ static void register_control(kui_state* state, kui_control control) {
 }
 
 static void unregister_control(kui_state* state, kui_control control) {
+	if (!state->running) {
+		return;
+	}
 
 	state->total_control_count--;
 
@@ -1090,8 +1147,10 @@ static void unregister_control(kui_state* state, kui_control control) {
 	if (FLAG_GET(base->flags, KUI_CONTROL_FLAG_ACTIVE_BIT)) {
 		u32 len = darray_length(state->active_controls);
 		for (u32 i = 0; i < len; ++i) {
-			darray_pop_at(state->active_controls, i, KNULL);
-			return;
+			if (state->active_controls[i].val == control.val) {
+				darray_pop_at(state->active_controls, i, KNULL);
+				return;
+			}
 		}
 	} else {
 		u32 len = darray_length(state->inactive_controls);
@@ -1115,20 +1174,10 @@ static b8 decode_handle(kui_control handle, kui_control_type* out_type, u16* out
 	return true;
 }
 
-#define GET_WITHIN_DARRAY_OR_KNULL(base, array, index) \
-	{                                                  \
-		u32 len = darray_length(array);                \
-		base = index < len ? &array[index] : KNULL;    \
-	};
-#define GET_BASE_WITHIN_DARRAY_OR_KNULL(base, array, index) \
-	{                                                       \
-		u32 len = darray_length(array);                     \
-		base = index < len ? &array[index].base : KNULL;    \
-	};
-
 static kui_base_control* get_base(kui_state* state, kui_control control) {
 	kui_control_type type;
 	u16 type_index;
+	u32 len = 0;
 	if (!decode_handle(control, &type, &type_index)) {
 		return KNULL;
 	}
@@ -1136,24 +1185,28 @@ static kui_base_control* get_base(kui_state* state, kui_control control) {
 	kui_base_control* base = KNULL;
 	switch (type) {
 	case KUI_CONTROL_TYPE_BASE:
-		GET_WITHIN_DARRAY_OR_KNULL(base, state->base_controls, type_index);
+		len = darray_length(state->base_controls);
+		base = type_index < len ? &state->base_controls[type_index] : KNULL;
 		break;
 	case KUI_CONTROL_TYPE_PANEL:
-		GET_BASE_WITHIN_DARRAY_OR_KNULL(base, state->panel_controls, type_index);
+		len = darray_length(state->panel_controls);
+		base = type_index < len ? &state->panel_controls[type_index].base : KNULL;
 		break;
 	case KUI_CONTROL_TYPE_LABEL:
-		GET_BASE_WITHIN_DARRAY_OR_KNULL(base, state->label_controls, type_index);
+		len = darray_length(state->label_controls);
+		base = type_index < len ? &state->label_controls[type_index].base : KNULL;
 		break;
 	case KUI_CONTROL_TYPE_BUTTON:
-		GET_BASE_WITHIN_DARRAY_OR_KNULL(base, state->button_controls, type_index);
+		len = darray_length(state->button_controls);
+		base = type_index < len ? &state->button_controls[type_index].base : KNULL;
 		break;
 	case KUI_CONTROL_TYPE_TEXTBOX: {
-		/* GET_BASE_WITHIN_DARRAY_OR_KNULL(base, state->textbox_controls, type_index); */
-		u32 len = darray_length(state->textbox_controls);
+		len = darray_length(state->textbox_controls);
 		base = type_index < len ? &state->textbox_controls[type_index].base : KNULL;
 	} break;
 	case KUI_CONTROL_TYPE_TREE_ITEM:
-		GET_BASE_WITHIN_DARRAY_OR_KNULL(base, state->tree_item_controls, type_index);
+		len = darray_length(state->tree_item_controls);
+		base = type_index < len ? &state->tree_item_controls[type_index].base : KNULL;
 		break;
 	// TODO: user type support
 	case KUI_CONTROL_TYPE_MAX:
@@ -1271,21 +1324,27 @@ static void release_handle(kui_state* state, kui_control* handle) {
 		switch (type) {
 		case KUI_CONTROL_TYPE_BASE:
 			kzero_memory(&state->base_controls[type_index], sizeof(kui_base_control));
+			state->base_controls[type_index].handle = INVALID_KUI_CONTROL;
 			break;
 		case KUI_CONTROL_TYPE_PANEL:
 			kzero_memory(&state->panel_controls[type_index], sizeof(kui_panel_control));
+			state->panel_controls[type_index].base.handle = INVALID_KUI_CONTROL;
 			break;
 		case KUI_CONTROL_TYPE_LABEL:
 			kzero_memory(&state->label_controls[type_index], sizeof(kui_label_control));
+			state->label_controls[type_index].base.handle = INVALID_KUI_CONTROL;
 			break;
 		case KUI_CONTROL_TYPE_BUTTON:
 			kzero_memory(&state->button_controls[type_index], sizeof(kui_button_control));
+			state->button_controls[type_index].base.handle = INVALID_KUI_CONTROL;
 			break;
 		case KUI_CONTROL_TYPE_TEXTBOX:
 			kzero_memory(&state->textbox_controls[type_index], sizeof(kui_textbox_control));
+			state->textbox_controls[type_index].base.handle = INVALID_KUI_CONTROL;
 			break;
 		case KUI_CONTROL_TYPE_TREE_ITEM:
 			kzero_memory(&state->tree_item_controls[type_index], sizeof(kui_tree_item_control));
+			state->tree_item_controls[type_index].base.handle = INVALID_KUI_CONTROL;
 			break;
 		case KUI_CONTROL_TYPE_MAX:
 		case KUI_CONTROL_TYPE_NONE:

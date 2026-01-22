@@ -19,6 +19,9 @@
 #include "memory/kmemory.h"
 
 u64 string_length(const char* str) {
+	if (!str) {
+		return 0;
+	}
 #if USE_STD_STR
 	return strlen(str);
 #else

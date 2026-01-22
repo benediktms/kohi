@@ -352,11 +352,22 @@ b8 vfs_asset_write_text(vfs_state* state, kname asset_name, kname package_name, 
 
 void vfs_asset_data_cleanup(vfs_asset_data* data) {
 	if (data) {
-		if (data->size && data->bytes) {
-			kfree((void*)data->bytes, data->size, MEMORY_TAG_ASSET);
-		}
 		if (data->context || data->context_size) {
 			KWARN("%s - Possible memory leak - context/context_size found on vfs_asset_data.", __FUNCTION__);
+		}
+		if (FLAG_GET(data->flags, VFS_ASSET_FLAG_BINARY_BIT)) {
+			if (data->size && data->bytes) {
+				kfree((void*)data->bytes, data->size, MEMORY_TAG_ASSET);
+			}
+		} else {
+			if (data->text) {
+				string_free(data->text);
+				data->text = KNULL;
+			}
+		}
+		if (data->path) {
+			string_free(data->path);
+			data->path = KNULL;
 		}
 		kzero_memory(data, sizeof(vfs_asset_data));
 	}
@@ -409,8 +420,10 @@ u32 vfs_asset_watch(vfs_state* state, kname asset_name, kname package_name, b8 i
 			const char* asset_path = kpackage_path_for_asset(package, asset_name);
 			if (!platform_watch_file(asset_path, is_binary, file_written, state, file_deleted, state, &out_watch_id)) {
 				KWARN("VFS: Unable to watch file '%s'.", asset_path);
+				string_free(asset_path);
 				return INVALID_ID_U32;
 			}
+			string_free(asset_path);
 			return out_watch_id;
 		}
 	}

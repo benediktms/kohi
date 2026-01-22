@@ -43,7 +43,7 @@
 
 // NOTE: To disable the custom allocator, comment this out or set to 0.
 #ifndef KVULKAN_USE_CUSTOM_ALLOCATOR
-#	define KVULKAN_USE_CUSTOM_ALLOCATOR 0
+#	define KVULKAN_USE_CUSTOM_ALLOCATOR 1
 #endif
 
 VKAPI_ATTR VkBool32 VKAPI_CALL vk_debug_callback(
@@ -2720,6 +2720,9 @@ void vulkan_renderer_shader_destroy(renderer_backend_interface* backend, kshader
 				KFREE_TYPE_CARRAY(binding_set_state->instances, vulkan_shader_binding_set_instance_state, binding_set_state->max_instance_count);
 			}
 
+			KFREE_TYPE_CARRAY(binding_set_state->bindings, vulkan_shader_binding, binding_set_state->binding_count);
+			binding_set_state->binding_count = 0;
+
 			if (internal_shader->descriptor_set_layouts[i]) {
 				rhi->kvkDestroyDescriptorSetLayout(logical_device, internal_shader->descriptor_set_layouts[i], vk_allocator);
 				internal_shader->descriptor_set_layouts[i] = 0;
@@ -2727,6 +2730,7 @@ void vulkan_renderer_shader_destroy(renderer_backend_interface* backend, kshader
 		}
 		KFREE_TYPE_CARRAY(internal_shader->binding_set_states, vulkan_shader_binding_set_state, internal_shader->descriptor_set_count);
 		KFREE_TYPE_CARRAY(internal_shader->descriptor_set_configs, vulkan_descriptor_set_config, internal_shader->descriptor_set_count);
+		KFREE_TYPE_CARRAY(internal_shader->descriptor_set_layouts, VkDescriptorSetLayout, internal_shader->descriptor_set_count);
 
 		// Descriptor pool
 		if (internal_shader->descriptor_pool) {
@@ -2750,13 +2754,26 @@ void vulkan_renderer_shader_destroy(renderer_backend_interface* backend, kshader
 					vulkan_pipeline_destroy(context, &p->wireframe_pipelines[i]);
 				}
 			}
+			// topology type pipelines
+			KFREE_TYPE_CARRAY(p->pipelines, vulkan_pipeline, 3);
+			if (p->wireframe_pipelines) {
+				KFREE_TYPE_CARRAY(p->wireframe_pipelines, vulkan_pipeline, 3);
+			}
+
+			// Attributes
+			KFREE_TYPE_CARRAY(p->attributes, VkVertexInputAttributeDescription, p->attribute_count);
 
 			// Shader modules
 			for (u32 i = 0; i < p->stage_count; ++i) {
+				string_free(p->stage_sources[i]);
 				rhi->kvkDestroyShaderModule(context->device.logical_device, p->stages[i].handle, context->allocator);
 			}
+			KFREE_TYPE_CARRAY(p->stage_create_infos, VkPipelineShaderStageCreateInfo, p->stage_count);
+			KFREE_TYPE_CARRAY(p->stage_sources, const char*, p->stage_count);
+			KFREE_TYPE_CARRAY(p->stages, vulkan_shader_stage, p->stage_count);
 			p->stage_count = 0;
 		}
+		KFREE_TYPE_CARRAY(internal_shader->vertex_layout_pipelines, vulkan_vertex_layout_pipeline, internal_shader->vertex_layout_pipeline_count);
 
 		KZERO_TYPE(internal_shader, vulkan_shader);
 	}
@@ -3262,6 +3279,7 @@ static b8 create_shader_module(vulkan_context* context, vulkan_shader* internal_
 		return false;
 	}
 	shaderc_compilation_status status = shaderc_result_get_compilation_status(compilation_result);
+	shaderc_compile_options_release(options);
 
 	// Handle errors, if any.
 	if (status != shaderc_compilation_status_success) {
@@ -4238,6 +4256,7 @@ static b8 vulkan_graphics_pipeline_create(vulkan_context* context, const vulkan_
 		&out_pipeline->handle);
 
 	// Cleanup
+	KFREE_TYPE_CARRAY(out_attribs, VkVertexInputAttributeDescription, config->attribute_count);
 	darray_destroy(dynamic_states);
 
 #if KOHI_DEBUG

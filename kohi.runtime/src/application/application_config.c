@@ -56,11 +56,10 @@ b8 application_config_parse_file_content(const char* file_content, application_c
 	}
 
 	// Default package name
-	if (!kson_object_property_value_get_string(&app_config_tree.root, "default_package_name", &out_config->default_package_name_str)) {
+	if (!kson_object_property_value_get_string_as_kname(&app_config_tree.root, "default_package_name", &out_config->default_package_name)) {
 		KERROR("'default_package_name' is a required field in application config. Cannot continue.");
 		return false;
 	}
-	out_config->default_package_name = kname_create(out_config->default_package_name_str);
 
 	// Window configs.
 	out_config->windows = darray_create(kwindow_config);
@@ -102,6 +101,7 @@ b8 application_config_parse_file_content(const char* file_content, application_c
 					new_window.width = (u32)resolution.x;
 					new_window.height = (u32)resolution.y;
 				}
+				string_free(res_str);
 			}
 			if (!new_window.width) {
 				new_window.width = 1280;
@@ -114,10 +114,11 @@ b8 application_config_parse_file_content(const char* file_content, application_c
 			const char* sp_str = 0;
 			if (kson_object_property_value_get_string(&window_config, "position", &sp_str)) {
 				vec2 start_position;
-				if (string_to_vec2(res_str, &start_position)) {
+				if (string_to_vec2(sp_str, &start_position)) {
 					new_window.position_x = (u32)start_position.x;
 					new_window.position_y = (u32)start_position.y;
 				}
+				string_free(sp_str);
 			}
 			// TODO: Maybe use some value here to indicate a "use default" to the platform layer?
 			if (!new_window.position_x) {

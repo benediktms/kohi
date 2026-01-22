@@ -66,6 +66,11 @@ void vulkan_command_buffer_free(vulkan_context* context, VkCommandPool pool, vul
 
 	krhi_vulkan* rhi = &context->rhi;
 
+#ifdef KOHI_DEBUG
+	// Also keep a copy of the name for debugging purposes.
+	string_free(command_buffer->name);
+#endif
+
 	rhi->kvkFreeCommandBuffers(
 		context->device.logical_device,
 		pool,

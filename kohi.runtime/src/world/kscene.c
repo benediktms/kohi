@@ -534,6 +534,10 @@ void kscene_destroy(struct kscene* scene) {
 		string_free(scene->description);
 		scene->description = KNULL;
 	}
+	if (scene->name) {
+		string_free(scene->name);
+		scene->name = KNULL;
+	}
 
 	u64_bst_cleanup(scene->name_lookup);
 	scene->name_lookup = KNULL;
@@ -3148,6 +3152,7 @@ static b8 deserialize_entity(kson_object* obj, kentity parent, kscene* out_scene
 			KWARN("Invalid transform provided, defaulting to identity transform.");
 			t = ktransform_create(0);
 		}
+		string_free(transform_str);
 	} else {
 		t = ktransform_create(0);
 	}
@@ -3232,9 +3237,13 @@ static b8 deserialize_entity(kson_object* obj, kentity parent, kscene* out_scene
 	} break;
 	case KENTITY_TYPE_VOLUME: {
 		// volume type
+		kscene_volume_type vol_type = KSCENE_VOLUME_TYPE_TRIGGER;
 		const char* vol_type_str = 0;
 		kson_object_property_value_get_string(obj, "volume_type", &vol_type_str);
-		kscene_volume_type vol_type = scene_volume_type_from_string(vol_type_str);
+		if (vol_type_str) {
+			vol_type = scene_volume_type_from_string(vol_type_str);
+			string_free(vol_type_str);
+		}
 
 		// Shape type
 		kshape_type shape_type = KSHAPE_TYPE_SPHERE;
@@ -3277,6 +3286,8 @@ static b8 deserialize_entity(kson_object* obj, kentity parent, kscene* out_scene
 					hit_shape_tags[i] = kstring_id_create(parts[i]);
 				}
 			}
+			string_cleanup_split_darray(parts);
+			string_free(hit_tag_str);
 		}
 
 		const char* on_enter_command = 0;
@@ -3289,6 +3300,19 @@ static b8 deserialize_entity(kson_object* obj, kentity parent, kscene* out_scene
 		kson_object_property_value_get_string(obj, "on_tick", &on_tick_command);
 
 		new_entity = kscene_add_volume(out_scene, entity_name, t, parent, vol_type, shape, hit_shape_tag_count, hit_shape_tags, on_enter_command, on_leave_command, on_tick_command);
+		if (hit_shape_tags) {
+			KFREE_TYPE_CARRAY(hit_shape_tags, kstring_id, hit_shape_tag_count);
+		}
+
+		if (on_enter_command) {
+			string_free(on_enter_command);
+		}
+		if (on_leave_command) {
+			string_free(on_leave_command);
+		}
+		if (on_tick_command) {
+			string_free(on_tick_command);
+		}
 	} break;
 	case KENTITY_TYPE_HIT_SHAPE: {
 		// Shape type

@@ -263,4 +263,7 @@ typedef struct kui_tree_item_control {
 
 	u64 context;
 
+	PFN_mouse_event_callback on_expanded;
+	PFN_mouse_event_callback on_collapsed;
+
 } kui_tree_item_control;

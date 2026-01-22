@@ -287,6 +287,8 @@ void renderer_system_shutdown(renderer_system_state* state) {
 		renderer_renderbuffer_destroy(state, state->standard_vertex_buffer);
 		renderer_renderbuffer_destroy(state, state->geometry_index_buffer);
 
+		darray_destroy(state->renderbuffers);
+
 		// Destroy generic samplers.
 		for (u32 i = 0; i < SHADER_GENERIC_SAMPLER_COUNT; ++i) {
 			renderer_sampler_release(state, &state->generic_samplers[i]);

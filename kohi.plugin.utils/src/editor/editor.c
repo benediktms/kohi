@@ -107,8 +107,11 @@ static void entity_scale_x_textbox_on_key(kui_state* state, kui_control self, ku
 static void entity_scale_y_textbox_on_key(kui_state* state, kui_control self, kui_keyboard_event evt);
 static void entity_scale_z_textbox_on_key(kui_state* state, kui_control self, kui_keyboard_event evt);
 
+static void tree_clear(editor_state* state);
 static void tree_refresh(editor_state* state);
 static b8 tree_item_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event);
+static b8 tree_item_expanded(struct kui_state* state, kui_control self, struct kui_mouse_event event);
+static b8 tree_item_collapsed(struct kui_state* state, kui_control self, struct kui_mouse_event event);
 
 b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 	*memory_requirement = sizeof(editor_state);
@@ -731,6 +734,16 @@ void editor_update(struct editor_state* state, frame_data* p_frame_data) {
 	if (!kscene_update(state->edit_scene, p_frame_data)) {
 		KWARN("Failed to update editor scene.");
 	}
+
+	if (state->trigger_tree_refresh) {
+		tree_refresh(state);
+		state->trigger_tree_refresh = false;
+	}
+
+	kui_base_control* base = kui_system_get_base(state->kui_state, state->main_bg_panel);
+	if (base) {
+		//
+	}
 }
 
 void editor_frame_prepare(struct editor_state* state, frame_data* p_frame_data, b8 draw_gizmo, keditor_gizmo_pass_render_data* gizmo_pass_render_data) {
@@ -1340,22 +1353,29 @@ static b8 save_button_clicked(struct kui_state* state, kui_control self, struct 
 	return false;
 }
 static b8 mode_scene_button_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event) {
+	KTRACE("Scene mode button clicked.");
 	kui_base_control* base = kui_system_get_base(state, self);
 	editor_set_mode(base->user_data, EDITOR_MODE_SCENE);
 	// Don't allow the event to popagate.
 	return false;
 }
 static b8 mode_entity_button_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event) {
+	KTRACE("Entity mode button clicked.");
 	kui_base_control* base = kui_system_get_base(state, self);
 	editor_set_mode(base->user_data, EDITOR_MODE_ENTITY);
 	// Don't allow the event to popagate.
 	return false;
 }
 static b8 mode_tree_button_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event) {
+	KTRACE("Tree mode button clicked.");
 	kui_base_control* base = kui_system_get_base(state, self);
-	editor_set_mode(base->user_data, EDITOR_MODE_TREE);
+	editor_state* edit_state = base->user_data;
 
-	tree_refresh(base->user_data);
+	if (edit_state->mode != EDITOR_MODE_TREE) {
+		editor_set_mode(edit_state, EDITOR_MODE_TREE);
+
+		edit_state->trigger_tree_refresh = true;
+	}
 	// Don't allow the event to popagate.
 	return false;
 }
@@ -1928,6 +1948,9 @@ static void entity_scale_z_textbox_on_key(kui_state* state, kui_control self, ku
 struct tree_hierarchy;
 // An individual node within the hierarchy tree.
 typedef struct tree_hierarchy_node {
+
+	b8 expanded;
+
 	// Pointer back to the tree.
 	struct tree_hierarchy* tree;
 
@@ -1974,7 +1997,7 @@ static void tree_node_cleanup_r(tree_hierarchy_node* node) {
 	}
 }
 
-static void tree_setup_node_r(editor_state* state, kscene_hierarchy_node* scene_node, tree_hierarchy_node* tree_node, tree_hierarchy_node* parent_node, u32 index) {
+static void tree_setup_node_r(editor_state* state, kscene_hierarchy_node* scene_node, tree_hierarchy_node* tree_node, tree_hierarchy_node* parent_node, u32 index, f32* y_offset) {
 	kui_state* kui_state = state->kui_state;
 
 	kname name = kscene_get_entity_name(state->edit_scene, scene_node->entity);
@@ -1997,6 +2020,8 @@ static void tree_setup_node_r(editor_state* state, kscene_hierarchy_node* scene_
 		kname_string_get(name),
 		tree_node->child_count > 0);
 
+	string_free(tree_item_name);
+
 	if (parent_node) {
 		/* kui_tree_item_control_add_child_tree_item(kui_state, parent_node->tree_item, tree_node); */
 		kui_base_control* parent_base = kui_system_get_base(state->kui_state, parent_node->tree_item);
@@ -2007,8 +2032,10 @@ static void tree_setup_node_r(editor_state* state, kscene_hierarchy_node* scene_
 		/* u32 len = darray_length(state->tree_base_control.children);
 		p_tree_item = state->tree_base_control.children[len - 1]; */
 
-		kui_control_position_set(kui_state, tree_node->tree_item, (vec3){44, (item_height * index), 0});
+		/* kui_control_position_set(kui_state, tree_node->tree_item, (vec3){44, *y_offset, 0}); */
 	}
+
+	*y_offset += item_height;
 
 	hierarchy_node_context* context = KALLOC_TYPE(hierarchy_node_context, MEMORY_TAG_EDITOR);
 	context->editor = state;
@@ -2017,30 +2044,64 @@ static void tree_setup_node_r(editor_state* state, kscene_hierarchy_node* scene_
 
 	kui_control_set_user_data(kui_state, tree_node->tree_item, sizeof(hierarchy_node_context), context, true, MEMORY_TAG_EDITOR);
 	kui_control_set_on_click(kui_state, tree_node->tree_item, tree_item_clicked);
+	kui_tree_item_set_on_expanded(kui_state, tree_node->tree_item, tree_item_expanded);
+	kui_tree_item_set_on_collapsed(kui_state, tree_node->tree_item, tree_item_collapsed);
 
 	// Recurse children.
 	for (u32 i = 0; i < tree_node->child_count; ++i) {
-		tree_setup_node_r(state, &scene_node->children[i], &tree_node->children[i], tree_node, i);
+		tree_setup_node_r(state, &scene_node->children[i], &tree_node->children[i], tree_node, index + 1, y_offset);
+	}
+}
+
+static f32 refresh_tree_item_expansion_r(editor_state* state, tree_hierarchy_node* node, f32 y_offset) {
+
+	f32 accumulated_y_offset = 0.0f;
+	kui_control_position_set(state->kui_state, node->tree_item, (vec3){44, y_offset, 0});
+
+	accumulated_y_offset += 45.0f;
+
+	if (node->expanded && node->child_count && node->children) {
+		for (u32 i = 0; i < node->child_count; ++i) {
+			accumulated_y_offset += refresh_tree_item_expansion_r(state, &node->children[i], i * 45.0f);
+		}
+	}
+
+	return accumulated_y_offset;
+}
+
+static void refresh_tree_expansion(editor_state* state, tree_hierarchy* tree) {
+	f32 y_offset = 0.0f;
+	for (u32 i = 0; i < tree->root_count; ++i) {
+		y_offset += refresh_tree_item_expansion_r(state, &tree->root_nodes[i], y_offset);
+	}
+}
+
+static void tree_clear(editor_state* state) {
+	// Destroy current tree.
+	if (tree.root_count && tree.root_nodes) {
+		// First, cleanup the nodes recursively.
+		for (u32 i = 0; i < tree.root_count; ++i) {
+			tree_hierarchy_node* node = &tree.root_nodes[i];
+			tree_node_cleanup_r(node);
+		}
+
+		KFREE_TYPE_CARRAY(tree.root_nodes, tree_hierarchy_node, tree.root_count);
+		tree.root_count = 0;
+		tree.root_nodes = KNULL;
+
+		kui_control_destroy_all_children(state->kui_state, state->tree_base_control);
+
+		/* kui_base_control_destroy(state->kui_state, &state->tree_base_control);
+		state->tree_base_control = kui_base_control_create(state->kui_state, "tree_base_control", KUI_CONTROL_TYPE_BASE);
+		KASSERT(kui_system_control_add_child(state->kui_state, state->tree_inspector_bg_panel, state->tree_base_control));
+		kui_control_position_set(state->kui_state, state->tree_base_control, (vec3){10, 50, 0}); */
 	}
 }
 
 static void tree_refresh(editor_state* state) {
+	KTRACE("Tree refresh starting.");
 	if (state->edit_scene) {
-
-		// Destroy current tree.
-		if (tree.root_count && tree.root_nodes) {
-			// First, cleanup the nodes recursively.
-			for (u32 i = 0; i < tree.root_count; ++i) {
-				tree_hierarchy_node* node = &tree.root_nodes[i];
-				tree_node_cleanup_r(node);
-			}
-
-			KFREE_TYPE_CARRAY(tree.root_nodes, tree_hierarchy_node, tree.root_count);
-			tree.root_count = 0;
-			tree.root_nodes = KNULL;
-
-			kui_control_destroy_all_children(state->kui_state, state->tree_base_control);
-		}
+		tree_clear(state);
 
 		// Refresh the data.
 		u32 node_count = 0;
@@ -2051,10 +2112,11 @@ static void tree_refresh(editor_state* state) {
 			tree.root_nodes = KALLOC_TYPE_CARRAY(tree_hierarchy_node, tree.root_count);
 
 			// Create all the new tree items.
+			f32 y_offset = 0.0f;
 			for (u32 i = 0; i < node_count; ++i) {
 				kscene_hierarchy_node* scene_node = &scene_nodes[i];
 
-				tree_setup_node_r(state, scene_node, &tree.root_nodes[i], KNULL, i);
+				tree_setup_node_r(state, scene_node, &tree.root_nodes[i], KNULL, i, &y_offset);
 			}
 
 			// Cleanup once done building
@@ -2062,7 +2124,11 @@ static void tree_refresh(editor_state* state) {
 			node_count = 0;
 			scene_nodes = KNULL;
 		}
+
+		refresh_tree_expansion(state, &tree);
 	}
+
+	KTRACE("Tree refresh complete.");
 }
 
 static b8 tree_item_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event) {
@@ -2070,6 +2136,26 @@ static b8 tree_item_clicked(struct kui_state* state, kui_control self, struct ku
 
 	editor_clear_selected_entities(context->editor);
 	editor_add_to_selected_entities(context->editor, 1, &context->entity);
+
+	return true;
+}
+
+static b8 tree_item_expanded(struct kui_state* state, kui_control self, struct kui_mouse_event event) {
+	hierarchy_node_context* context = (hierarchy_node_context*)kui_control_get_user_data(state, self);
+
+	context->hierarchy_node->expanded = true;
+
+	refresh_tree_expansion(context->editor, &tree);
+
+	return true;
+}
+
+static b8 tree_item_collapsed(struct kui_state* state, kui_control self, struct kui_mouse_event event) {
+	hierarchy_node_context* context = (hierarchy_node_context*)kui_control_get_user_data(state, self);
+
+	context->hierarchy_node->expanded = false;
+
+	refresh_tree_expansion(context->editor, &tree);
 
 	return true;
 }

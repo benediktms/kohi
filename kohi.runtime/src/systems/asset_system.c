@@ -405,6 +405,7 @@ kasset_image* asset_system_request_image_from_package_sync(struct asset_system_s
 	vfs_asset_data data = vfs_request_asset_sync(state->vfs, info);
 
 	b8 result = kasset_image_deserialize(data.size, data.bytes, out_asset);
+	vfs_asset_data_cleanup(&data);
 	if (!result) {
 		KERROR("Failed to deserialize image asset. See logs for details.");
 		KFREE_TYPE(out_asset, kasset_image, MEMORY_TAG_ASSET);
@@ -982,6 +983,7 @@ kasset_shader* asset_system_request_shader_from_package_sync(struct asset_system
 	vfs_asset_data data = vfs_request_asset_sync(state->vfs, info);
 
 	b8 result = kasset_shader_deserialize(data.text, out_asset);
+	vfs_asset_data_cleanup(&data);
 	if (!result) {
 		KERROR("Failed to deserialize shader asset. See logs for details.");
 		KFREE_TYPE(out_asset, kasset_shader, MEMORY_TAG_ASSET);

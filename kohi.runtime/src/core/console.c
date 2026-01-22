@@ -68,6 +68,12 @@ b8 console_initialize(u64* memory_requirement, struct console_state* memory, voi
 
 void console_shutdown(struct console_state* state) {
 	if (state_ptr) {
+		u32 command_count = darray_length(state_ptr->registered_commands);
+		for (u32 i = 0; i < command_count; ++i) {
+			if (state_ptr->registered_commands[i].name) {
+				string_free(state_ptr->registered_commands[i].name);
+			}
+		}
 		darray_destroy(state_ptr->registered_commands);
 		darray_destroy(state_ptr->registered_objects);
 
@@ -145,6 +151,9 @@ b8 console_command_unregister(const char* command) {
 		if (strings_equali(state_ptr->registered_commands[i].name, command)) {
 			// Command found, remove it.
 			console_command popped_command;
+			if (popped_command.name) {
+				string_free(popped_command.name);
+			}
 			darray_pop_at(state_ptr->registered_commands, i, &popped_command);
 			return true;
 		}
@@ -291,6 +300,8 @@ b8 console_command_execute(const char* command) {
 				if (context.arguments) {
 					kfree(context.arguments, sizeof(console_command_argument) * arg_count, MEMORY_TAG_ARRAY);
 				}
+				string_free(context.command_name);
+				string_cleanup_split_darray(parts);
 			}
 			break;
 		}

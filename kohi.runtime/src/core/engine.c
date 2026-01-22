@@ -958,8 +958,15 @@ b8 engine_run(application* app) {
 		// Tell the renderer about the window destruction.
 		renderer_on_window_destroyed(engine_state->systems.renderer_system, window);
 
+		if (window->name) {
+			string_free(window->name);
+		}
+
 		platform_window_destroy(window);
 	}
+
+	string_free(app->game_library_name);
+	string_free(app->game_library_loaded_name);
 
 	// Shut down all systems.
 	{

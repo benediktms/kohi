@@ -5,6 +5,7 @@
 #include "kui_system.h"
 #include "kui_types.h"
 #include "logger.h"
+#include "memory/kmemory.h"
 #include "strings/kstring.h"
 #include "systems/ktransform_system.h"
 
@@ -64,7 +65,7 @@ kui_control kui_tree_item_control_create(
 	kui_base_control* container_base = kui_system_get_base(state, typed_control->label);
 	KASSERT(container_base);
 	kui_system_control_add_child(state, base_handle, typed_control->child_container);
-	kui_control_position_set(state, typed_control->child_container, (vec3){40.0f, 40.0f, 0});
+	kui_control_position_set(state, typed_control->child_container, (vec3){0.0f, 40.0f, 0});
 	kui_control_set_is_visible(state, typed_control->child_container, false);
 
 	string_free(toggle_button_name);
@@ -139,6 +140,19 @@ void kui_tree_item_context_set(kui_state* state, kui_control self, u64 context) 
 	typed_data->context = context;
 }
 
+void kui_tree_item_set_on_expanded(kui_state* state, kui_control self, PFN_mouse_event_callback callback) {
+	kui_base_control* base = kui_system_get_base(state, self);
+	KASSERT(base);
+	kui_tree_item_control* typed_data = (kui_tree_item_control*)base;
+	typed_data->on_expanded = callback;
+}
+void kui_tree_item_set_on_collapsed(kui_state* state, kui_control self, PFN_mouse_event_callback callback) {
+	kui_base_control* base = kui_system_get_base(state, self);
+	KASSERT(base);
+	kui_tree_item_control* typed_data = (kui_tree_item_control*)base;
+	typed_data->on_collapsed = callback;
+}
+
 static b8 label_on_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event) {
 	KDEBUG("inner label clicked");
 	kui_base_control* base = kui_system_get_base(state, self);
@@ -164,6 +178,11 @@ static b8 toggle_on_clicked(struct kui_state* state, kui_control self, struct ku
 	kui_base_control* parent_base = kui_system_get_base(state, base->parent);
 	kui_tree_item_control* tree_item = (kui_tree_item_control*)parent_base;
 	kui_control_set_is_visible(state, tree_item->child_container, expanded);
+	if (expanded && tree_item->on_expanded) {
+		tree_item->on_expanded(state, base->parent, event);
+	} else if (!expanded && tree_item->on_collapsed) {
+		tree_item->on_collapsed(state, base->parent, event);
+	}
 
 	return false;
 }

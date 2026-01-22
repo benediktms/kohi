@@ -790,6 +790,10 @@ static void ensure_allocated(ktransform_system_state* state, u32 slot_count) {
 			kfree_aligned(state->flags, sizeof(ktransform_flag_bits) * state->capacity, 16, MEMORY_TAG_TRANSFORM);
 		}
 		state->flags = new_flags;
+		// Mark all new slots as free.
+		for (u32 i = state->capacity; i < slot_count; ++i) {
+			state->flags[i] = FLAG_SET(state->flags[i], KTRANSFORM_FLAG_FREE, true);
+		}
 
 		// User data
 		u64* new_user = kallocate_aligned(sizeof(u64) * slot_count, 16, MEMORY_TAG_TRANSFORM);
@@ -849,15 +853,17 @@ static void dirty_list_add_r(ktransform_system_state* state, ktransform t) {
 		}
 	}
 
-	if (do_add) {
-		state->local_dirty_handles[state->local_dirty_count] = t;
-		state->local_dirty_count++;
-	}
+	if (state->local_dirty_handles) {
+		if (do_add) {
+			state->local_dirty_handles[state->local_dirty_count] = t;
+			state->local_dirty_count++;
+		}
 
-	// Need to recurse all children and add them to the list as well.
-	for (u32 i = 0; i < state->capacity; ++i) {
-		if (state->parents[i] == t) {
-			dirty_list_add_r(state, i);
+		// Need to recurse all children and add them to the list as well.
+		for (u32 i = 0; i < state->capacity; ++i) {
+			if (state->parents[i] == t) {
+				dirty_list_add_r(state, i);
+			}
 		}
 	}
 }
