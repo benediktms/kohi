@@ -742,9 +742,6 @@ void editor_update(struct editor_state* state, frame_data* p_frame_data) {
 		tree_refresh(state);
 		state->trigger_tree_refresh = false;
 	}
-
-	kui_scrollable_control_scroll_y(state->kui_state, state->tree_scrollable_control, 0.5f);
-	kui_scrollable_control_scroll_x(state->kui_state, state->tree_scrollable_control, 0.5f);
 }
 
 void editor_frame_prepare(struct editor_state* state, frame_data* p_frame_data, b8 draw_gizmo, keditor_gizmo_pass_render_data* gizmo_pass_render_data) {
@@ -874,9 +871,12 @@ void editor_on_window_resize(struct editor_state* state, const struct kwindow* w
 	kui_control_position_set(state->kui_state, state->entity_inspector_bg_panel, (vec3){window->width - (state->entity_inspector_width + 10), 10});
 
 	kui_control_position_set(state->kui_state, state->tree_inspector_bg_panel, (vec3){window->width - (state->tree_inspector_width + 10), 10});
-	kui_panel_set_height(state->kui_state, state->tree_inspector_bg_panel, window->height - 120.0f);
 
-	kui_scrollable_control_resize(state->kui_state, state->tree_scrollable_control, (vec2){state->tree_inspector_width, window->height - 120.0f - 50.0f});
+	// HACK: hardcoded offset.
+	f32 tree_bottom_offset = 420.0f;
+	kui_panel_set_height(state->kui_state, state->tree_inspector_bg_panel, window->height - tree_bottom_offset);
+
+	kui_scrollable_control_resize(state->kui_state, state->tree_scrollable_control, (vec2){state->tree_inspector_width, window->height - tree_bottom_offset - 50.0f});
 }
 
 void editor_setup_keymaps(struct editor_state* state) {
@@ -2074,10 +2074,12 @@ static f32 refresh_tree_item_expansion_r(editor_state* state, tree_hierarchy_nod
 }
 
 static void refresh_tree_expansion(editor_state* state, tree_hierarchy* tree) {
-	f32 y_offset = 0.0f;
+	f32 accumulated_height = 0.0f;
 	for (u32 i = 0; i < tree->root_count; ++i) {
-		y_offset += refresh_tree_item_expansion_r(state, &tree->root_nodes[i], y_offset);
+		accumulated_height += refresh_tree_item_expansion_r(state, &tree->root_nodes[i], accumulated_height);
 	}
+
+	kui_scrollable_set_content_size(state->kui_state, state->tree_scrollable_control, state->tree_inspector_width, accumulated_height);
 }
 
 static void tree_clear(editor_state* state) {

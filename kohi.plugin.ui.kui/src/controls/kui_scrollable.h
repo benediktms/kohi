@@ -17,3 +17,7 @@ KAPI void kui_scrollable_set_width(kui_state* state, kui_control self, f32 width
 KAPI kui_control kui_scrollable_control_get_content_container(kui_state* state, kui_control self);
 KAPI void kui_scrollable_control_scroll_y(kui_state* state, kui_control self, f32 amount);
 KAPI void kui_scrollable_control_scroll_x(kui_state* state, kui_control self, f32 amount);
+
+KAPI void kui_scrollable_set_content_size(kui_state* state, kui_control self, f32 width, f32 height);
+KAPI b8 kui_scrollable_can_scroll_x(kui_state* state, kui_control self);
+KAPI b8 kui_scrollable_can_scroll_y(kui_state* state, kui_control self);

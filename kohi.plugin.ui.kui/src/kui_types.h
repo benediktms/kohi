@@ -276,6 +276,19 @@ typedef struct kui_tree_item_control {
 
 } kui_tree_item_control;
 
+struct kui_scrollable_control;
+
+typedef struct kui_scrollbar {
+	struct kui_scrollable_control* owner;
+
+	kui_control background;
+	// up or left
+	kui_control dec_button;
+	// down or right
+	kui_control inc_button;
+	kui_control thumb_button;
+} kui_scrollbar;
+
 typedef struct kui_scrollable_control {
 	kui_base_control base;
 	b8 is_dirty;
@@ -285,8 +298,12 @@ typedef struct kui_scrollable_control {
 	// What actually holds all controls.
 	kui_control content_wrapper;
 
-	kui_control scrollbar_bg;
-	kui_control up_button;
-	kui_control down_button;
-	kui_control thumb_button;
+	f32 scrollbar_width;
+
+	// TODO: scrollbar x
+	/* kui_scrollbar scrollbar_x; */
+	kui_scrollbar scrollbar_y;
+
+	// HACK: Use proper kui events so we don't have to do this
+	struct kui_state* kui_state;
 } kui_scrollable_control;

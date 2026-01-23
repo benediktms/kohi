@@ -153,6 +153,7 @@ kgeometry geometry_generate_quad(f32 width, f32 height, f32 tx_min, f32 tx_max, 
 	out_geometry.index_buffer_offset = INVALID_ID_U64;
 
 	vertex_2d vertices[4];
+	// FIXME: Extents above are based on half width/height, but this is zero based. Pick one, ya dingus!
 	vertices[0].position.x = 0.0f;	 // 0    3
 	vertices[0].position.y = 0.0f;	 //
 	vertices[0].texcoord.x = tx_min; //

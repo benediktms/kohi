@@ -648,21 +648,36 @@ b8 platform_pump_messages(void) {
 				xcb_button_press_event_t* mouse_event = (xcb_button_press_event_t*)event;
 				b8 pressed = event->response_type == XCB_BUTTON_PRESS;
 				mouse_buttons mouse_button = MOUSE_BUTTON_MAX;
-				switch (mouse_event->detail) {
-				case XCB_BUTTON_INDEX_1:
-					mouse_button = MOUSE_BUTTON_LEFT;
-					break;
-				case XCB_BUTTON_INDEX_2:
-					mouse_button = MOUSE_BUTTON_MIDDLE;
-					break;
-				case XCB_BUTTON_INDEX_3:
-					mouse_button = MOUSE_BUTTON_RIGHT;
-					break;
-				}
 
-				// Pass over to the input subsystem.
-				if (mouse_button != MOUSE_BUTTON_MAX) {
-					state_ptr->process_mouse_button(mouse_button, pressed);
+				if (mouse_event->detail <= XCB_BUTTON_INDEX_3) {
+					switch (mouse_event->detail) {
+					case XCB_BUTTON_INDEX_1:
+						mouse_button = MOUSE_BUTTON_LEFT;
+						break;
+					case XCB_BUTTON_INDEX_2:
+						mouse_button = MOUSE_BUTTON_MIDDLE;
+						break;
+					case XCB_BUTTON_INDEX_3:
+						mouse_button = MOUSE_BUTTON_RIGHT;
+						break;
+					}
+
+					// Pass over to the input subsystem.
+					if (mouse_button != MOUSE_BUTTON_MAX) {
+						state_ptr->process_mouse_button(mouse_button, pressed);
+					}
+				} else if (mouse_event->detail == XCB_BUTTON_INDEX_4 || mouse_event->detail == XCB_BUTTON_INDEX_5) {
+					i8 delta = 0;
+					switch (mouse_event->detail) {
+					case XCB_BUTTON_INDEX_4:
+						delta = 1;
+						break;
+					case XCB_BUTTON_INDEX_5:
+						delta = -1;
+						break;
+					}
+
+					state_ptr->process_mouse_wheel(delta);
 				}
 			} break;
 			case XCB_MOTION_NOTIFY: {

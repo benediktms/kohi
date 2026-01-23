@@ -8,11 +8,19 @@
 #include <strings/kstring.h>
 #include <systems/kshader_system.h>
 
+#include "controls/kui_button.h"
+#include "controls/kui_panel.h"
+#include "core/event.h"
 #include "debug/kassert.h"
 #include "kui_system.h"
 #include "kui_types.h"
 #include "renderer/kui_renderer.h"
+#include "systems/font_system.h"
 #include "systems/ktransform_system.h"
+
+static b8 dec_y_on_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event);
+static b8 inc_y_on_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event);
+static b8 on_mouse_wheel(u16 code, void* sender, void* listener_inst, event_context context);
 
 kui_control kui_scrollable_control_create(kui_state* state, const char* name, vec2 size, b8 scroll_x, b8 scroll_y) {
 	kui_control handle = kui_base_control_create(state, name, KUI_CONTROL_TYPE_SCROLLABLE);
@@ -27,6 +35,8 @@ kui_control kui_scrollable_control_create(kui_state* state, const char* name, ve
 	// Reasonable defaults.
 	typed_control->scroll_x = true;
 	typed_control->scroll_y = true;
+
+	typed_control->kui_state = state;
 
 	// Assign function pointers.
 	base->destroy = kui_scrollable_control_destroy;
@@ -73,6 +83,41 @@ kui_control kui_scrollable_control_create(kui_state* state, const char* name, ve
 		KFATAL("Unable to acquire shader binding set resources for label.");
 		kui_base_control_destroy(state, &handle);
 	} */
+
+	// TODO: configurable
+	typed_control->scrollbar_width = 20.0f;
+
+	const char* scroll_y_name = string_format("%s_scroll_y", name);
+	// TODO: configurable bg colour.
+	typed_control->scrollbar_y.background = kui_panel_control_create(state, scroll_y_name, (vec2){typed_control->scrollbar_width, 100}, (vec4){0.5f, 0.5f, 0.5f, 0.8f});
+	string_free(scroll_y_name);
+	kui_system_control_add_child(state, handle, typed_control->scrollbar_y.background);
+	kui_control_set_is_visible(state, typed_control->scrollbar_y.background, false);
+	kui_control_position_set(state, typed_control->scrollbar_y.background, (vec3){size.x - typed_control->scrollbar_width, 0, 0});
+
+	// HACK: using text button until the image button is created.
+	scroll_y_name = string_format("%s_scroll_y_dec", name);
+	typed_control->scrollbar_y.dec_button = kui_button_control_create_with_text(state, scroll_y_name, FONT_TYPE_SYSTEM, kname_create("Noto Sans CJK JP"), 15, "^");
+	string_free(scroll_y_name);
+	kui_system_control_add_child(state, handle, typed_control->scrollbar_y.dec_button);
+	kui_button_control_width_set(state, typed_control->scrollbar_y.dec_button, typed_control->scrollbar_width);
+	kui_button_control_height_set(state, typed_control->scrollbar_y.dec_button, typed_control->scrollbar_width);
+	kui_control_set_is_visible(state, typed_control->scrollbar_y.dec_button, false);
+	kui_control_position_set(state, typed_control->scrollbar_y.dec_button, (vec3){size.x - typed_control->scrollbar_width, 0, 0});
+	kui_control_set_on_click(state, typed_control->scrollbar_y.dec_button, dec_y_on_clicked);
+
+	// HACK: using text button until the image button is created.
+	scroll_y_name = string_format("%s_scroll_y_inc", name);
+	typed_control->scrollbar_y.inc_button = kui_button_control_create_with_text(state, scroll_y_name, FONT_TYPE_SYSTEM, kname_create("Noto Sans CJK JP"), 15, "^");
+	string_free(scroll_y_name);
+	kui_system_control_add_child(state, handle, typed_control->scrollbar_y.inc_button);
+	kui_button_control_width_set(state, typed_control->scrollbar_y.inc_button, typed_control->scrollbar_width);
+	kui_button_control_height_set(state, typed_control->scrollbar_y.inc_button, typed_control->scrollbar_width);
+	kui_control_set_is_visible(state, typed_control->scrollbar_y.inc_button, false);
+	kui_control_position_set(state, typed_control->scrollbar_y.inc_button, (vec3){size.x - typed_control->scrollbar_width, base->bounds.height - typed_control->scrollbar_width, 0});
+	kui_control_set_on_click(state, typed_control->scrollbar_y.inc_button, inc_y_on_clicked);
+
+	event_register(EVENT_CODE_MOUSE_WHEEL, typed_control, on_mouse_wheel);
 
 	return handle;
 }
@@ -138,8 +183,7 @@ void kui_scrollable_set_width(kui_state* state, kui_control self, f32 width) {
 b8 kui_scrollable_control_resize(kui_state* state, kui_control self, vec2 new_size) {
 	kui_base_control* base = kui_system_get_base(state, self);
 	KASSERT(base);
-
-	/* kui_scrollable_control* typed_control = (kui_scrollable_control*)base; */
+	kui_scrollable_control* typed_control = (kui_scrollable_control*)base;
 
 	base->bounds.width = new_size.x;
 	base->bounds.height = new_size.y;
@@ -149,6 +193,12 @@ b8 kui_scrollable_control_resize(kui_state* state, kui_control self, vec2 new_si
 	vertices[2].position.y = new_size.y;
 	vertices[3].position.x = new_size.x;
 	renderer_geometry_vertex_update(&base->clip_mask.clip_geometry, 0, 4, vertices, false);
+
+	kui_panel_set_height(state, typed_control->scrollbar_y.background, new_size.y);
+	kui_control_position_set(state, typed_control->scrollbar_y.background, (vec3){new_size.x - (typed_control->scrollbar_width * 2), 0, 0});
+
+	kui_control_position_set(state, typed_control->scrollbar_y.dec_button, (vec3){new_size.x - (typed_control->scrollbar_width * 2), 0, 0});
+	kui_control_position_set(state, typed_control->scrollbar_y.inc_button, (vec3){new_size.x - (typed_control->scrollbar_width * 2), new_size.y - (typed_control->scrollbar_width), 0});
 
 	return true;
 }
@@ -173,4 +223,68 @@ void kui_scrollable_control_scroll_x(kui_state* state, kui_control self, f32 amo
 	kui_scrollable_control* typed_control = (kui_scrollable_control*)base;
 	kui_base_control* container_base = kui_system_get_base(state, typed_control->content_wrapper);
 	ktransform_translate(container_base->ktransform, (vec3){amount, 0, 0});
+}
+
+void kui_scrollable_set_content_size(kui_state* state, kui_control self, f32 width, f32 height) {
+	kui_base_control* base = kui_system_get_base(state, self);
+	KASSERT(base);
+	kui_scrollable_control* typed_control = (kui_scrollable_control*)base;
+	kui_base_control* container_base = kui_system_get_base(state, typed_control->content_wrapper);
+	container_base->bounds.height = height;
+	container_base->bounds.width = width;
+
+	// Determine if we can scroll in any direction, and show that scrollbar.
+	b8 y_visible = kui_scrollable_can_scroll_y(state, self);
+	kui_control_set_is_visible(state, typed_control->scrollbar_y.background, y_visible);
+	kui_control_set_is_visible(state, typed_control->scrollbar_y.dec_button, y_visible);
+	kui_control_set_is_visible(state, typed_control->scrollbar_y.inc_button, y_visible);
+}
+
+b8 kui_scrollable_can_scroll_x(kui_state* state, kui_control self) {
+	kui_base_control* base = kui_system_get_base(state, self);
+	KASSERT(base);
+	kui_scrollable_control* typed_control = (kui_scrollable_control*)base;
+	kui_base_control* container_base = kui_system_get_base(state, typed_control->content_wrapper);
+
+	return container_base->bounds.width > base->bounds.width;
+}
+b8 kui_scrollable_can_scroll_y(kui_state* state, kui_control self) {
+	kui_base_control* base = kui_system_get_base(state, self);
+	KASSERT(base);
+	kui_scrollable_control* typed_control = (kui_scrollable_control*)base;
+	kui_base_control* container_base = kui_system_get_base(state, typed_control->content_wrapper);
+
+	return container_base->bounds.height > base->bounds.height;
+}
+
+static b8 dec_y_on_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event) {
+	kui_base_control* button_base = kui_system_get_base(state, self);
+	KASSERT(button_base);
+	kui_control parent = button_base->parent;
+
+	kui_scrollable_control_scroll_y(state, parent, 5.0f);
+
+	return false;
+}
+static b8 inc_y_on_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event) {
+	kui_base_control* button_base = kui_system_get_base(state, self);
+	KASSERT(button_base);
+	kui_control parent = button_base->parent;
+
+	kui_scrollable_control_scroll_y(state, parent, -5.0f);
+
+	return false;
+}
+
+// HACK: will pick up all mouse wheel events.
+static b8 on_mouse_wheel(u16 code, void* sender, void* listener_inst, event_context context) {
+	if (code == EVENT_CODE_MOUSE_WHEEL) {
+		i8 delta = context.data.i8[0];
+
+		kui_scrollable_control* typed_control = listener_inst;
+
+		kui_scrollable_control_scroll_y(typed_control->kui_state, typed_control->base.handle, (f32)delta);
+	}
+
+	return false;
 }
