@@ -1,5 +1,6 @@
 #include "application_config.h"
 #include "containers/darray.h"
+#include "debug/kassert.h"
 #include "logger.h"
 #include "parsers/kson_parser.h"
 #include "platform/platform.h"
@@ -190,8 +191,36 @@ b8 application_config_parse_file_content(const char* file_content, application_c
 		darray_push(out_config->systems, new_system);
 	}
 
+	kson_tree_cleanup(&app_config_tree);
+
 	// Loop through and fill up struct
 	return true;
+}
+
+void application_config_destroy(application_config* config) {
+	KASSERT(config);
+
+	string_free(config->name);
+	string_free(config->audio_plugin_name);
+	string_free(config->manifest_file_path);
+
+	{
+		u32 len = darray_length(config->systems);
+		for (u32 i = 0; i < len; ++i) {
+			string_free(config->systems[i].name);
+			string_free(config->systems[i].configuration_str);
+		}
+		darray_destroy(config->systems);
+	}
+
+	{
+		u32 len = darray_length(config->windows);
+		for (u32 i = 0; i < len; ++i) {
+			string_free(config->windows[i].name);
+			string_free(config->windows[i].title);
+		}
+		darray_destroy(config->windows);
+	}
 }
 
 b8 application_config_system_config_get(const application_config* config, const char* system_name, application_system_config* out_sys_config) {

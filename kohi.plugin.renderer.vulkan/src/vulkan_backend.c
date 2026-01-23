@@ -43,7 +43,7 @@
 
 // NOTE: To disable the custom allocator, comment this out or set to 0.
 #ifndef KVULKAN_USE_CUSTOM_ALLOCATOR
-#	define KVULKAN_USE_CUSTOM_ALLOCATOR 1
+#	define KVULKAN_USE_CUSTOM_ALLOCATOR 0
 #endif
 
 VKAPI_ATTR VkBool32 VKAPI_CALL vk_debug_callback(
@@ -362,6 +362,16 @@ void vulkan_renderer_backend_shutdown(renderer_backend_interface* backend) {
 	KDEBUG("Destroying Vulkan device...");
 	vulkan_device_destroy(context);
 
+	// Cleanup backend of renderbuffer data.
+	u32 rbcount = darray_length(context->renderbuffers);
+	for (u32 i = 0; i < rbcount; ++i) {
+		if (context->renderbuffers[i].infos) {
+			u32 array_size = context->triple_buffering_enabled ? 3 : 1;
+			KFREE_TYPE_CARRAY(context->renderbuffers[i].infos, vkbuffer_info, array_size);
+		}
+	}
+	darray_destroy(context->renderbuffers);
+
 	if (context->validation_enabled) {
 		KDEBUG("Destroying Vulkan debugger...");
 		if (context->debug_messenger) {
@@ -379,11 +389,14 @@ void vulkan_renderer_backend_shutdown(renderer_backend_interface* backend) {
 		context->allocator = 0;
 	}
 
+	// Shutdown the platform-specific items.
+	vulkan_loader_shutdown(&context->rhi);
+
 	// Free the context last.
 	if (backend->internal_context) {
 		kfree_aligned(backend->internal_context, backend->internal_context_size, 16, MEMORY_TAG_RENDERER);
 		backend->internal_context_size = 0;
-		backend->internal_context = 0;
+		backend->internal_context = KNULL;
 	}
 }
 
@@ -535,20 +548,23 @@ void vulkan_renderer_on_window_destroyed(renderer_backend_interface* backend, kw
 			// Command buffers
 			if (window_backend->graphics_command_buffers[i].handle) {
 				vulkan_command_buffer_free(context, context->device.graphics_command_pool, &window_backend->graphics_command_buffers[i]);
-				window_backend->graphics_command_buffers[i].handle = 0;
+				window_backend->graphics_command_buffers[i].handle = KNULL;
 			}
 		}
 		KFREE_TYPE_CARRAY(window_backend->acquire_semaphores, VkSemaphore, window_backend->max_frames_in_flight);
-		window_backend->acquire_semaphores = 0;
+		window_backend->acquire_semaphores = KNULL;
 
 		KFREE_TYPE_CARRAY(window_backend->in_flight_fences, VkFence, window_backend->max_frames_in_flight);
-		window_backend->in_flight_fences = 0;
+		window_backend->in_flight_fences = KNULL;
 
 		KFREE_TYPE_CARRAY(window_backend->staging, krenderbuffer, window_backend->max_frames_in_flight);
-		window_backend->staging = 0;
+		window_backend->staging = KNULL;
 
 		KFREE_TYPE_CARRAY(window_backend->graphics_command_buffers, vulkan_command_buffer, window_backend->max_frames_in_flight);
-		window_backend->graphics_command_buffers = 0;
+		window_backend->graphics_command_buffers = KNULL;
+
+		KFREE_TYPE_CARRAY(window_backend->frame_texture_updated_list, ktexture*, window_backend->max_frames_in_flight);
+		window_backend->frame_texture_updated_list = KNULL;
 	}
 
 	// Swapchain
@@ -558,12 +574,12 @@ void vulkan_renderer_on_window_destroyed(renderer_backend_interface* backend, kw
 	KDEBUG("Destroying Vulkan surface for window '%s'...", window->name);
 	if (window_backend->surface) {
 		rhi->kvkDestroySurfaceKHR(context->instance, window_backend->surface, context->allocator);
-		window_backend->surface = 0;
+		window_backend->surface = KNULL;
 	}
 
 	// Free the backend state.
 	kfree(window_internal->backend_state, sizeof(kwindow_renderer_backend_state), MEMORY_TAG_RENDERER);
-	window_internal->backend_state = 0;
+	window_internal->backend_state = KNULL;
 }
 
 void vulkan_renderer_backend_on_window_resized(renderer_backend_interface* backend, const kwindow* window) {
@@ -2765,7 +2781,6 @@ void vulkan_renderer_shader_destroy(renderer_backend_interface* backend, kshader
 
 			// Shader modules
 			for (u32 i = 0; i < p->stage_count; ++i) {
-				string_free(p->stage_sources[i]);
 				rhi->kvkDestroyShaderModule(context->device.logical_device, p->stages[i].handle, context->allocator);
 			}
 			KFREE_TYPE_CARRAY(p->stage_create_infos, VkPipelineShaderStageCreateInfo, p->stage_count);
@@ -3531,6 +3546,7 @@ void vulkan_renderbuffer_destroy(renderer_backend_interface* backend, krenderbuf
 		}
 		if (internal_buffer->infos) {
 			KFREE_TYPE_CARRAY(internal_buffer->infos, vkbuffer_info, internal_buffer->handle_count);
+			internal_buffer->infos = KNULL;
 		}
 
 		internal_buffer->flags = 0;

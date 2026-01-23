@@ -72,4 +72,10 @@ b8 vulkan_platform_initialize(krhi_vulkan* rhi) {
 	return platform_dynamic_library_load("vulkan-1", &rhi->vulkan_lib);
 }
 
+void vulkan_platform_shutdown(krhi_vulkan* rhi) {
+	if (rhi) {
+		platform_dynamic_library_unload(&rhi->vulkan_lib);
+	}
+}
+
 #endif

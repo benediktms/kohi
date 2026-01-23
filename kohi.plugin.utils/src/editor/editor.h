@@ -1,5 +1,6 @@
 #pragma once
 
+#include "kui_types.h"
 #include <core/frame_data.h>
 #include <core/keymap.h>
 #include <kui_system.h>
@@ -129,7 +130,8 @@ typedef struct editor_state {
 	f32 tree_inspector_right_col_x;
 	kui_control tree_inspector_bg_panel;
 	kui_control tree_inspector_title;
-	kui_control tree_base_control;
+	kui_control tree_scrollable_control;
+	kui_control tree_content_container;
 
 } editor_state;
 

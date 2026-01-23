@@ -89,18 +89,18 @@ b8 plugin_system_intialize(u64* memory_requirement, struct plugin_system_state* 
 	// Stand up all plugins in config. Don't initialize them yet, just create them.
 	u32 plugin_count = darray_length(config->plugins);
 	for (u32 i = 0; i < plugin_count; ++i) {
-		plugin_system_plugin_config* plugin = &config->plugins[i];
+		plugin_system_plugin_config* plug_config = &config->plugins[i];
 
-		if (!plugin_system_load_plugin(state, plugin->name, plugin->config_str)) {
+		if (!plugin_system_load_plugin(state, plug_config->name, plug_config->config_str)) {
 			// Warn about it, but move on.
-			KERROR("Plugin '%s' creation failed during plugin system boot.", plugin->name);
+			KERROR("Plugin '%s' creation failed during plugin system boot.", plug_config->name);
 		}
 	}
 
 	return true;
 }
 
-void plugin_system_shutdown(struct plugin_system_state* state) {
+void plugin_system_shutdown_all_plugins(struct plugin_system_state* state) {
 	if (state) {
 		if (state->plugins) {
 			u32 plugin_count = darray_length(state->plugins);
@@ -109,8 +109,18 @@ void plugin_system_shutdown(struct plugin_system_state* state) {
 				if (plugin->kplugin_destroy) {
 					plugin->kplugin_destroy(plugin);
 				}
+				string_free(plugin->name);
+				string_free(plugin->config_str);
+				if (!plugin->block_auto_unload) {
+					platform_dynamic_library_unload(&plugin->library);
+				}
 			}
 		}
+	}
+}
+
+void plugin_system_shutdown(struct plugin_system_state* state) {
+	if (state) {
 		darray_destroy(state->plugins);
 		state->plugins = 0;
 	}
@@ -213,6 +223,8 @@ b8 plugin_system_load_plugin(struct plugin_system_state* state, const char* name
 		return false;
 	}
 
+	b8 success = false;
+
 	kruntime_plugin new_plugin = {0};
 	new_plugin.name = string_duplicate(name);
 
@@ -222,13 +234,13 @@ b8 plugin_system_load_plugin(struct plugin_system_state* state, const char* name
 	// Load the plugin library.
 	if (!platform_dynamic_library_load(name, &new_plugin.library)) {
 		KERROR("Failed to load library for plugin '%s'. See logs for details.", name);
-		return false;
+		goto plugin_system_load_plugin_cleanup;
 	}
 
 	// kplugin_create is required. This should fail if it does not exist.
 	PFN_kruntime_plugin_create plugin_create = get_func_from_tokenized_name(&new_plugin.library, plugin_fn_prefix, true, "create");
 	if (!plugin_create) {
-		return false;
+		goto plugin_system_load_plugin_cleanup;
 	}
 
 	// kplugin_destroy is required. This should fail if it does not exist.
@@ -245,14 +257,14 @@ b8 plugin_system_load_plugin(struct plugin_system_state* state, const char* name
 	// Invoke plugin creation.
 	if (!plugin_create(&new_plugin)) {
 		KERROR("plugin_create call failed for plugin '%s'. Plugin load failed.", name);
-		return false;
+		goto plugin_system_load_plugin_cleanup;
 	}
 
 	// Invoke boot-time initialization of the plugin.
 	if (new_plugin.kplugin_boot) {
 		if (!new_plugin.kplugin_boot(&new_plugin)) {
 			KERROR("Failed to boot new plugin during creation.");
-			return false;
+			goto plugin_system_load_plugin_cleanup;
 		}
 	}
 
@@ -265,7 +277,11 @@ b8 plugin_system_load_plugin(struct plugin_system_state* state, const char* name
 	darray_push(state->plugins, new_plugin);
 
 	KINFO("Plugin '%s' successfully loaded.", name);
-	return true;
+	success = true;
+plugin_system_load_plugin_cleanup:
+	string_free(plugin_fn_prefix);
+
+	return success;
 }
 
 kruntime_plugin* plugin_system_get(struct plugin_system_state* state, const char* name) {

@@ -154,6 +154,13 @@ b8 renderer_system_deserialize_config(const char* config_str, renderer_system_co
 	return true;
 }
 
+void renderer_system_destroy_config(renderer_system_config* config) {
+	if (config) {
+		string_free(config->backend_plugin_name);
+		string_free(config->application_name);
+	}
+}
+
 static b8 renderer_on_event(u16 code, void* sender, void* listener_inst, event_context context) {
 	if (code == EVENT_CODE_KVAR_CHANGED) {
 		renderer_system_state* state = listener_inst;
@@ -296,6 +303,9 @@ void renderer_system_shutdown(renderer_system_state* state) {
 
 		// Shutdown the plugin
 		state->backend->shutdown(state->backend);
+
+		// Unload the plugin's dynamic library manually.
+		platform_dynamic_library_unload(&state->backend_plugin->library);
 	}
 }
 

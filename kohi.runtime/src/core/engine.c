@@ -363,6 +363,7 @@ b8 engine_create(application* app, const char* app_config_path, const char* game
 			KERROR("Failed to initialize VFS. See logs for details.");
 			return false;
 		}
+		string_free(vfs_sys_config.manifest_file_path);
 	}
 
 	// Asset system - must always come after the VFS since it relies on it.
@@ -468,6 +469,7 @@ b8 engine_create(application* app, const char* app_config_path, const char* game
 			KERROR("Failed to initialize renderer system.");
 			return false;
 		}
+		renderer_system_destroy_config(&renderer_sys_config);
 	}
 
 	// Job system
@@ -816,7 +818,7 @@ b8 engine_run(application* app) {
 
 				// If the required number of frames have passed since the resize, go ahead and perform the actual updates.
 				// FIXME: Configurable delay here instead of magic 30 frames.
-				if (w->frames_since_resize >= 30) {
+				if (w->frames_since_resize >= 3) {
 					renderer_on_window_resized(engine_state->systems.renderer_system, w);
 
 					// NOTE: Don't bother checking the result of this, since this will likely
@@ -958,15 +960,13 @@ b8 engine_run(application* app) {
 		// Tell the renderer about the window destruction.
 		renderer_on_window_destroyed(engine_state->systems.renderer_system, window);
 
-		if (window->name) {
-			string_free(window->name);
-		}
-
 		platform_window_destroy(window);
 	}
 
 	string_free(app->game_library_name);
 	string_free(app->game_library_loaded_name);
+
+	application_config_destroy(&app->app_config);
 
 	// Shut down all systems.
 	{
@@ -983,7 +983,9 @@ b8 engine_run(application* app) {
 		ktimeline_system_shutdown(systems->timeline_system);
 		ktransform_system_shutdown(systems->ktransform_system);
 		kaudio_system_shutdown(systems->audio_system);
-		plugin_system_shutdown(systems->plugin_system);
+		// Shutdown plugins, but not the system yet in case plugins which do not
+		// "auto-unload" rely on the state still existing.
+		plugin_system_shutdown_all_plugins(systems->plugin_system);
 		kshader_system_shutdown(systems->shader_system);
 		renderer_system_shutdown(systems->renderer_system);
 		job_system_shutdown(systems->job_system);
@@ -992,6 +994,8 @@ b8 engine_run(application* app) {
 		kvar_system_shutdown(systems->kvar_system);
 		vfs_shutdown(systems->vfs_system_state);
 		console_shutdown(systems->console_system);
+		// Now shutdown the plugin system itself.
+		plugin_system_shutdown(systems->plugin_system);
 		platform_system_shutdown(systems->platform_system);
 
 		kstring_id_shutdown();

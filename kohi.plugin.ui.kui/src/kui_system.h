@@ -64,6 +64,7 @@ typedef struct kui_state {
 	kui_button_control* button_controls;
 	kui_textbox_control* textbox_controls;
 	kui_tree_item_control* tree_item_controls;
+	kui_scrollable_control* scrollable_controls;
 } kui_state;
 
 /**

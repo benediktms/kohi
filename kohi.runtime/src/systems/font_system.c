@@ -1029,6 +1029,8 @@ static b8 rebuild_system_font_variant_atlas(system_font_lookup* lookup, system_f
 		g->x_advance = pc->xadvance;
 	}
 
+	kfree(packed_chars, sizeof(stbtt_packedchar) * codepoint_count, MEMORY_TAG_ARRAY);
+
 	// Regenerate kernings
 	if (variant->data.kernings && variant->data.kerning_count) {
 		kfree(variant->data.kernings, sizeof(font_kerning) * variant->data.kerning_count, MEMORY_TAG_ARRAY);

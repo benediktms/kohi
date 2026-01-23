@@ -36,6 +36,7 @@ b8 plugin_system_deserialize_config(const char* config_str, plugin_system_config
 
 b8 plugin_system_intialize(u64* memory_requirement, struct plugin_system_state* state, struct plugin_system_config* config);
 
+void plugin_system_shutdown_all_plugins(struct plugin_system_state* state);
 void plugin_system_shutdown(struct plugin_system_state* state);
 
 b8 plugin_system_initialize_plugins(struct plugin_system_state* state);

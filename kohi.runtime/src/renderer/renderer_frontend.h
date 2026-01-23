@@ -58,6 +58,7 @@ struct renderer_system_state;
 struct kwindow;
 
 b8 renderer_system_deserialize_config(const char* config_str, renderer_system_config* out_config);
+void renderer_system_destroy_config(renderer_system_config* config);
 
 /**
  * @brief Initializes the renderer frontend/system. Should be called twice - once

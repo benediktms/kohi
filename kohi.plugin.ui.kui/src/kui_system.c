@@ -29,6 +29,7 @@
 #include "controls/kui_button.h"
 #include "controls/kui_label.h"
 #include "controls/kui_panel.h"
+#include "controls/kui_scrollable.h"
 #include "controls/kui_textbox.h"
 #include "controls/kui_tree_item.h"
 #include "kohi.plugin.ui.kui_version.h"
@@ -104,6 +105,7 @@ b8 kui_system_initialize(u64* memory_requirement, kui_state* state, kui_system_c
 	state->button_controls = darray_create(kui_button_control);
 	state->textbox_controls = darray_create(kui_textbox_control);
 	state->tree_item_controls = darray_create(kui_tree_item_control);
+	state->scrollable_controls = darray_create(kui_scrollable_control);
 
 	state->root = kui_base_control_create(state, "__ROOT__", KUI_CONTROL_TYPE_BASE);
 
@@ -212,6 +214,16 @@ void kui_system_shutdown(kui_state* state) {
 			darray_destroy(state->tree_item_controls);
 		}
 
+		{
+			u32 len = darray_length(state->scrollable_controls);
+			for (u32 i = 0; i < len; ++i) {
+				if (state->scrollable_controls[i].base.handle.val != INVALID_KUI_CONTROL.val) {
+					kui_scrollable_control_destroy(state, &state->scrollable_controls[i].base.handle);
+				}
+			}
+			darray_destroy(state->scrollable_controls);
+		}
+
 		darray_destroy(state->inactive_controls);
 		state->inactive_controls = KNULL;
 
@@ -259,6 +271,19 @@ b8 kui_system_render(kui_state* state, kui_control root, struct frame_data* p_fr
 		return false;
 	}
 
+	// TODO: If there is a clipping mask, insert the begin renderable here.
+	b8 use_clip_mask = false;
+	if (base->clip_mask.render_data.vertex_count) {
+		use_clip_mask = true;
+	}
+
+	if (use_clip_mask) {
+		kui_renderable clip_begin_renderable = {
+			.type = KUI_RENDERABLE_TYPE_CLIP_BEGIN,
+			.render_data = base->clip_mask.render_data};
+		darray_push(render_data->renderables, clip_begin_renderable);
+	}
+
 	if (base->render) {
 		if (!base->render(state, root, p_frame_data, render_data)) {
 			KERROR("Root element failed to render. See logs for more details");
@@ -279,6 +304,12 @@ b8 kui_system_render(kui_state* state, kui_control root, struct frame_data* p_fr
 				return false;
 			}
 		}
+	}
+
+	// TODO: If there is a clipping mask, insert the end renderable here.
+	if (use_clip_mask) {
+		kui_renderable clip_end_renderable = {.type = KUI_RENDERABLE_TYPE_CLIP_END};
+		darray_push(render_data->renderables, clip_end_renderable);
 	}
 
 	return true;
@@ -481,41 +512,39 @@ kui_control kui_base_control_create(kui_state* state, const char* name, kui_cont
 }
 
 void kui_base_control_destroy(kui_state* state, kui_control* self) {
-	if (self->val != INVALID_KUI_CONTROL.val) {
-		kui_base_control* base = get_base(state, *self);
-		if (!base) {
-			KWARN("base not found for release");
-			return;
+	kui_base_control* base = get_base(state, *self);
+	if (!base) {
+		KWARN("base not found for release");
+		return;
+	}
+
+	// Don't recurse if shutting down.
+	if (state->running) {
+		unregister_control(state, *self);
+
+		if (base->parent.val != INVALID_KUI_CONTROL.val) {
+			kui_system_control_remove_child(state, base->parent, *self);
 		}
 
-		// Don't recurse if shutting down.
-		if (state->running) {
-			unregister_control(state, *self);
-
-			if (base->parent.val != INVALID_KUI_CONTROL.val) {
-				kui_system_control_remove_child(state, base->parent, *self);
-			}
-
-			u32 len = darray_length(base->children);
-			for (u32 i = 0; i < len; ++i) {
-				kui_control child_handle = base->children[i];
-				kui_base_control* child = get_base(state, child_handle);
-				child->parent = INVALID_KUI_CONTROL;
-				if (child->destroy) {
-					child->destroy(state, &child_handle);
-				}
+		u32 len = darray_length(base->children);
+		for (u32 i = 0; i < len; ++i) {
+			kui_control child_handle = base->children[i];
+			kui_base_control* child = get_base(state, child_handle);
+			child->parent = INVALID_KUI_CONTROL;
+			if (child->destroy) {
+				child->destroy(state, &child_handle);
 			}
 		}
+	}
 
-		if (base->name) {
-			string_free(base->name);
-			base->name = KNULL;
-		}
-		darray_destroy(base->children);
-		base->children = KNULL;
-		if (state->running) {
-			release_handle(state, self);
-		}
+	if (base->name) {
+		string_free(base->name);
+		base->name = KNULL;
+	}
+	darray_destroy(base->children);
+	base->children = KNULL;
+	if (state->running) {
+		release_handle(state, self);
 	}
 }
 
@@ -1208,6 +1237,10 @@ static kui_base_control* get_base(kui_state* state, kui_control control) {
 		len = darray_length(state->tree_item_controls);
 		base = type_index < len ? &state->tree_item_controls[type_index].base : KNULL;
 		break;
+	case KUI_CONTROL_TYPE_SCROLLABLE:
+		len = darray_length(state->scrollable_controls);
+		base = type_index < len ? &state->scrollable_controls[type_index].base : KNULL;
+		break;
 	// TODO: user type support
 	case KUI_CONTROL_TYPE_MAX:
 	case KUI_CONTROL_TYPE_NONE:
@@ -1306,7 +1339,21 @@ static kui_control create_handle(kui_state* state, kui_control_type type) {
 		}
 		base = &state->tree_item_controls[type_index].base;
 		break;
-	// TODO: user type support
+	case KUI_CONTROL_TYPE_SCROLLABLE:
+		len = darray_length(state->scrollable_controls);
+		for (u32 i = 0; i < len; ++i) {
+			if (state->scrollable_controls[i].base.type == KUI_CONTROL_TYPE_NONE) {
+				type_index = i;
+				break;
+			}
+		}
+		if (type_index == INVALID_ID_U16) {
+			type_index = len;
+			darray_push(state->scrollable_controls, (kui_scrollable_control){0});
+		}
+		base = &state->scrollable_controls[type_index].base;
+		break;
+		// TODO: user type support
 	case KUI_CONTROL_TYPE_MAX:
 	case KUI_CONTROL_TYPE_NONE:
 		return INVALID_KUI_CONTROL;
@@ -1345,6 +1392,10 @@ static void release_handle(kui_state* state, kui_control* handle) {
 		case KUI_CONTROL_TYPE_TREE_ITEM:
 			kzero_memory(&state->tree_item_controls[type_index], sizeof(kui_tree_item_control));
 			state->tree_item_controls[type_index].base.handle = INVALID_KUI_CONTROL;
+			break;
+		case KUI_CONTROL_TYPE_SCROLLABLE:
+			kzero_memory(&state->scrollable_controls[type_index], sizeof(kui_scrollable_control));
+			state->scrollable_controls[type_index].base.handle = INVALID_KUI_CONTROL;
 			break;
 		case KUI_CONTROL_TYPE_MAX:
 		case KUI_CONTROL_TYPE_NONE:

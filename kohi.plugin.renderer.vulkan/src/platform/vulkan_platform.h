@@ -166,3 +166,5 @@ void vulkan_platform_get_required_extension_names(const char*** names_darray);
 b8 vulkan_platform_presentation_support(struct vulkan_context* context, struct VkPhysicalDevice_T* physical_device, u32 queue_family_index);
 
 b8 vulkan_platform_initialize(krhi_vulkan* rhi);
+
+void vulkan_platform_shutdown(krhi_vulkan* rhi);

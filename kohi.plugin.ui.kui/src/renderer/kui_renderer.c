@@ -7,7 +7,9 @@
 #include <systems/kshader_system.h>
 #include <systems/texture_system.h>
 
+#include "debug/kassert.h"
 #include "kui_defines.h"
+#include "kui_types.h"
 
 b8 kui_renderer_create(kui_renderer* out_renderer) {
 
@@ -93,6 +95,8 @@ b8 kui_renderer_render_frame(kui_renderer* renderer, frame_data* p_frame_data, k
 	kshader_set_binding_data(renderer->kui_pass.kui_shader, 0, render_data->shader_set0_binding_instance_id, 0, 0, &global_ubo_data, sizeof(kui_global_ubo));
 	kshader_apply_binding_set(renderer->kui_pass.kui_shader, 0, render_data->shader_set0_binding_instance_id);
 
+	b8 clip_mask_active = false;
+
 	u32 renderable_count = render_data->renderable_count;
 	for (u32 i = 0; i < renderable_count; ++i) {
 		kui_renderable* renderable = &render_data->renderables[i];
@@ -106,13 +110,15 @@ b8 kui_renderer_render_frame(kui_renderer* renderer, frame_data* p_frame_data, k
 		kshader_apply_binding_set(renderer->kui_pass.kui_shader, 1, renderable->binding_instance_id);
 
 		// Render clipping mask geometry if it exists.
-		if (renderable->clip_mask_render_data) {
+		if (renderable->type == KUI_RENDERABLE_TYPE_CLIP_BEGIN) {
+			KASSERT(!clip_mask_active);
+			clip_mask_active = true;
 			renderer_begin_debug_label("clip_mask", (vec3){0, 1, 0});
 			// Enable writing, disable test.
 			renderer_set_stencil_test_enabled(true);
 			renderer_set_depth_test_enabled(false);
 			renderer_set_depth_write_enabled(false);
-			renderer_set_stencil_reference((u32)renderable->clip_mask_render_data->unique_id);
+			renderer_set_stencil_reference((u32)renderable->render_data.unique_id);
 			renderer_set_stencil_write_mask(0xFF);
 			renderer_set_stencil_op(
 				RENDERER_STENCIL_OP_REPLACE,
@@ -126,13 +132,13 @@ b8 kui_renderer_render_frame(kui_renderer* renderer, frame_data* p_frame_data, k
 			// Immediates
 			{
 				kui_immediate_data immediate_data = {
-					.model = renderable->clip_mask_render_data->model,
+					.model = renderable->render_data.model,
 					.diffuse_colour = renderable->render_data.diffuse_colour};
 				kshader_set_immediate_data(renderer->kui_pass.kui_shader, &immediate_data, sizeof(kui_immediate_data));
 			}
 
 			// Draw the clip mask geometry.
-			renderer_geometry_draw(renderable->clip_mask_render_data);
+			renderer_geometry_draw(&renderable->render_data);
 
 			// Disable writing, enable test.
 			renderer_set_stencil_write_mask(0x00);
@@ -144,26 +150,28 @@ b8 kui_renderer_render_frame(kui_renderer* renderer, frame_data* p_frame_data, k
 				RENDERER_STENCIL_OP_KEEP,
 				RENDERER_COMPARE_OP_EQUAL);
 			renderer_end_debug_label();
-		} else {
-			renderer_set_stencil_write_mask(0x00);
-			renderer_set_stencil_test_enabled(false);
-		}
+		} /*  else {
+			 renderer_set_stencil_write_mask(0x00);
+			 renderer_set_stencil_test_enabled(false);
+		 } */
 
 		// Now render the actual renderable.
-
-		// Immediates
-		{
-			kui_immediate_data immediate_data = {
-				.model = renderable->render_data.model,
-				.diffuse_colour = renderable->render_data.diffuse_colour};
-			kshader_set_immediate_data(renderer->kui_pass.kui_shader, &immediate_data, sizeof(kui_immediate_data));
+		if (renderable->type == KUI_RENDERABLE_TYPE_CONTROL) {
+			// Immediates
+			{
+				kui_immediate_data immediate_data = {
+					.model = renderable->render_data.model,
+					.diffuse_colour = renderable->render_data.diffuse_colour};
+				kshader_set_immediate_data(renderer->kui_pass.kui_shader, &immediate_data, sizeof(kui_immediate_data));
+			}
+			// Draw
+			renderer_geometry_draw(&renderable->render_data);
 		}
 
-		// Draw
-		renderer_geometry_draw(&renderable->render_data);
-
 		// Turn off stencil tests if they were on.
-		if (renderable->clip_mask_render_data) {
+		if (renderable->type == KUI_RENDERABLE_TYPE_CLIP_END) {
+			KASSERT(clip_mask_active);
+			clip_mask_active = false;
 			// Turn off stencil testing.
 			renderer_set_stencil_test_enabled(false);
 			renderer_set_stencil_op(
@@ -173,6 +181,17 @@ b8 kui_renderer_render_frame(kui_renderer* renderer, frame_data* p_frame_data, k
 				RENDERER_COMPARE_OP_ALWAYS);
 		}
 	} // renderables
+
+	if (clip_mask_active) {
+		clip_mask_active = false;
+		// Turn off stencil testing.
+		renderer_set_stencil_test_enabled(false);
+		renderer_set_stencil_op(
+			RENDERER_STENCIL_OP_KEEP,
+			RENDERER_STENCIL_OP_KEEP,
+			RENDERER_STENCIL_OP_KEEP,
+			RENDERER_COMPARE_OP_ALWAYS);
+	}
 
 	// SUI end render.
 	renderer_end_rendering(renderer->renderer_state, p_frame_data);

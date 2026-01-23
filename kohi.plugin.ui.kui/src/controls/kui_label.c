@@ -34,8 +34,6 @@ kui_control kui_label_control_create(kui_state* state, const char* name, font_ty
 	base->update = kui_label_control_update;
 	base->render = kui_label_control_render;
 
-	base->name = string_duplicate(name);
-
 	// Assign the type first
 	typed_control->type = type;
 

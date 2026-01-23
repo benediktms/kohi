@@ -131,6 +131,8 @@ static b8 kvar_entry_set_desc_value(kvar_entry* entry, kvar_types type, const ch
 	change_data->new_value = entry->value;
 
 	event_fire(EVENT_CODE_KVAR_CHANGED, 0, context);
+
+	kfree(context.data.custom_data.data, context.data.custom_data.size, MEMORY_TAG_ENGINE);
 	return true;
 }
 

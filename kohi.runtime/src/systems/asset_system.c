@@ -274,6 +274,7 @@ kasset_binary* asset_system_request_binary_from_package_sync(struct asset_system
 	out_asset->size = data.size;
 	void* content = kallocate(out_asset->size, MEMORY_TAG_ASSET);
 	kcopy_memory(content, data.bytes, out_asset->size);
+	vfs_asset_data_cleanup(&data);
 	out_asset->content = content;
 
 	return out_asset;
@@ -312,6 +313,8 @@ kasset_text* asset_system_request_text_from_package_sync(struct asset_system_sta
 	vfs_asset_data data = vfs_request_asset_sync(state->vfs, info);
 
 	out_asset->content = string_duplicate(data.text);
+
+	vfs_asset_data_cleanup(&data);
 
 	return out_asset;
 }
@@ -452,6 +455,7 @@ kasset_bitmap_font* asset_system_request_bitmap_font_from_package_sync(struct as
 	vfs_asset_data data = vfs_request_asset_sync(state->vfs, info);
 
 	b8 result = kasset_bitmap_font_deserialize(data.size, data.bytes, out_asset);
+	vfs_asset_data_cleanup(&data);
 	if (!result) {
 		KERROR("Failed to deserialize bitmap font asset. See logs for details.");
 		KFREE_TYPE(out_asset, kasset_bitmap_font, MEMORY_TAG_ASSET);
@@ -496,6 +500,7 @@ kasset_system_font* asset_system_request_system_font_from_package_sync(struct as
 	vfs_asset_data data = vfs_request_asset_sync(state->vfs, info);
 
 	b8 result = kasset_system_font_deserialize(data.text, out_asset);
+	vfs_asset_data_cleanup(&data);
 	if (!result) {
 		KERROR("Failed to deserialize system font asset. See logs for details.");
 		KFREE_TYPE(out_asset, kasset_system_font, MEMORY_TAG_ASSET);
@@ -841,6 +846,7 @@ kasset_material* asset_system_request_material_from_package_sync(struct asset_sy
 	vfs_asset_data data = vfs_request_asset_sync(state->vfs, info);
 
 	b8 result = kasset_material_deserialize(data.text, out_asset);
+	vfs_asset_data_cleanup(&data);
 	if (!result) {
 		KERROR("Failed to deserialize material asset. See logs for details.");
 		KFREE_TYPE(out_asset, kasset_material, MEMORY_TAG_ASSET);
@@ -885,6 +891,10 @@ static void vfs_on_audio_asset_loaded_callback(struct vfs_state* vfs, vfs_asset_
 	if (context->callback) {
 		context->callback(context->listener, context->asset);
 	}
+
+	KFREE_TYPE(context, kasset_audio_vfs_context, MEMORY_TAG_ASSET);
+
+	vfs_asset_data_cleanup(&asset_data);
 }
 
 // async load from game package.
@@ -941,6 +951,7 @@ kasset_audio* asset_system_request_audio_from_package_sync(struct asset_system_s
 		KFREE_TYPE(out_asset, kasset_audio, MEMORY_TAG_ASSET);
 		return 0;
 	}
+	vfs_asset_data_cleanup(&data);
 
 	out_asset->name = info.asset_name;
 

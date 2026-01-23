@@ -263,6 +263,13 @@ void platform_system_shutdown(struct platform_state* state) {
 			darray_destroy(state->windows);
 			state->windows = 0;
 		}
+		if (state->watches) {
+			u32 len = darray_length(state->watches);
+			for (u32 i = 0; i < len; ++i) {
+				string_free(state->watches[i].file_path);
+			}
+			darray_destroy(state->watches);
+		}
 		if (state->handle.connection) {
 			free(state->handle.connection);
 			state->handle.connection = 0;
@@ -507,16 +514,18 @@ void platform_window_destroy(struct kwindow* window) {
 		u32 len = darray_length(state_ptr->windows);
 		for (u32 i = 0; i < len; ++i) {
 			if (state_ptr->windows[i] == window) {
-				KTRACE("Destroying window...");
+				string_free(window->name);
+				string_free(window->title);
 				xcb_destroy_window(state_ptr->handle.connection, window->platform_state->window);
-				window->platform_state->window = 0;
-				state_ptr->windows[i] = 0;
+				kfree(window->platform_state, sizeof(kwindow_platform_state), MEMORY_TAG_PLATFORM);
+				window->platform_state->window = KNULL;
+				state_ptr->windows[i] = KNULL;
 				return;
 			}
 		}
 		KERROR("Destroying a window that was somehow not registered with the platform layer.");
 		xcb_destroy_window(state_ptr->handle.connection, window->platform_state->window);
-		window->platform_state->window = 0;
+		window->platform_state->window = KNULL;
 	}
 }
 

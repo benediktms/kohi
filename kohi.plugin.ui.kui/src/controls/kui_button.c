@@ -44,8 +44,6 @@ kui_control kui_button_control_create(kui_state* state, const char* name) {
 	base->internal_mouse_out = kui_button_internal_mouse_out;
 	base->internal_mouse_over = kui_button_internal_mouse_over;
 
-	base->name = string_duplicate(name);
-
 	// HACK: TODO: remove hardcoded stuff.
 	/* vec2i atlas_size = (vec2i){typed_state->ui_atlas.texture->width, typed_state->ui_atlas.texture->height}; */
 	vec2i atlas_size = (vec2i){512, 512};

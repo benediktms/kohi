@@ -429,30 +429,20 @@ b8 platform_dynamic_library_unload(dynamic_library* library) {
 	if (result != 0) { // Opposite of Windows, 0 means success.
 		return false;
 	}
-	library->internal_data = 0;
+	library->internal_data = KNULL;
 
-	if (library->name) {
-		u64 length = string_length(library->name);
-		kfree((void*)library->name, sizeof(char) * (length + 1), MEMORY_TAG_STRING);
-	}
-
-	if (library->filename) {
-		u64 length = string_length(library->filename);
-		kfree((void*)library->filename, sizeof(char) * (length + 1), MEMORY_TAG_STRING);
-	}
+	string_free(library->name);
+	string_free(library->filename);
 
 	if (library->functions) {
 		u32 count = darray_length(library->functions);
 		for (u32 i = 0; i < count; ++i) {
 			dynamic_library_function* f = &library->functions[i];
-			if (f->name) {
-				u64 length = string_length(f->name);
-				kfree((void*)f->name, sizeof(char) * (length + 1), MEMORY_TAG_STRING);
-			}
+			string_free(f->name);
 		}
 
 		darray_destroy(library->functions);
-		library->functions = 0;
+		library->functions = KNULL;
 	}
 
 	kzero_memory(library, sizeof(dynamic_library));

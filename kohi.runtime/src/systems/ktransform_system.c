@@ -469,6 +469,8 @@ quat ktransform_world_rotation_get(ktransform t) {
 		world = quat_mul(world, rotations[i]);
 	}
 
+	darray_destroy(rotations);
+
 	world = quat_mul(world, state->rotations[t]);
 	world = quat_normalize(world);
 
@@ -783,7 +785,7 @@ static void ensure_allocated(ktransform_system_state* state, u32 slot_count) {
 		}
 		state->scales = new_scales;
 
-		// Identifiers don't *need* to be aligned, but do it anyways since everything else is.
+		// Identifiers don't *need* to be aligned, but do it anyways since everythingaelse is.
 		ktransform_flag_bits* new_flags = kallocate_aligned(sizeof(ktransform_flag_bits) * slot_count, 16, MEMORY_TAG_TRANSFORM);
 		if (state->flags) {
 			kcopy_memory(new_flags, state->flags, sizeof(ktransform_flag_bits) * state->capacity);

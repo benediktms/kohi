@@ -131,6 +131,13 @@ void kmaterial_system_shutdown(struct kmaterial_system_state* state) {
 		material_destroy(state, state->default_water_material, 1);
 		// TODO: destroy this when it's implemented.
 		/* material_destroy(state, state->default_blended_material, 2); */
+
+		u32 len = darray_length(state->materials);
+		for (u32 i = 0; i < len; ++i) {
+			darray_destroy(state->instances[i]);
+		}
+		darray_destroy(state->instances);
+		darray_destroy(state->materials);
 	}
 }
 

@@ -203,8 +203,6 @@ void string_free(const char* str) {
 		// called without the memory system being initialized (i.e. unit tests).
 		u64 length = string_length(str);
 		kfree((char*)str, length + 1, MEMORY_TAG_STRING);
-	} else {
-		KWARN("string_free called with an empty string. Nothing to be done.");
 	}
 }
 

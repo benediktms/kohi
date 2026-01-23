@@ -606,12 +606,15 @@ void kscene_destroy(struct kscene* scene) {
 		u32 count = darray_length(scene->debug_datas);
 		for (u32 i = 0; i < count; ++i) {
 			renderer_geometry_destroy(&scene->debug_datas[i].geometry);
+			geometry_destroy(&scene->debug_datas[i].geometry);
 			// NOTE: Don't destroy the transform here since it is also the transform of its owner.
 			/* ktransform_destroy(&scene->debug_datas[i].transform); */
 		}
 		darray_destroy(scene->debug_datas);
 		scene->debug_datas = KNULL;
 	}
+
+	debug_grid_destroy(&scene->grid);
 
 	if (scene->bvh_debug_pool && scene->bvh_debug_pool_size) {
 		// Cleanup debug BVH data.
@@ -2237,15 +2240,13 @@ kentity kscene_add_volume(
 }
 
 static void volume_entity_destroy(kscene* scene, volume_entity* typed_entity, kentity entity_handle) {
-	if (typed_entity->on_enter_command) {
-		string_free(typed_entity->on_enter_command);
-	}
-	if (typed_entity->on_leave_command) {
-		string_free(typed_entity->on_leave_command);
-	}
-	if (typed_entity->on_tick_command) {
-		string_free(typed_entity->on_tick_command);
-	}
+	string_free(typed_entity->on_enter_command);
+	typed_entity->on_enter_command = KNULL;
+	string_free(typed_entity->on_leave_command);
+	typed_entity->on_leave_command = KNULL;
+	string_free(typed_entity->on_tick_command);
+	typed_entity->on_tick_command = KNULL;
+
 	if (typed_entity->hit_shape_tag_count && typed_entity->hit_shape_tags) {
 		KFREE_TYPE_CARRAY(typed_entity->hit_shape_tags, kstring_id, typed_entity->hit_shape_tag_count);
 	}
@@ -3287,6 +3288,7 @@ static b8 deserialize_entity(kson_object* obj, kentity parent, kscene* out_scene
 				}
 			}
 			string_cleanup_split_darray(parts);
+			darray_destroy(parts);
 			string_free(hit_tag_str);
 		}
 
@@ -3493,6 +3495,8 @@ static b8 deserialize(const char* file_content, kscene* out_scene) {
 	}
 
 	out_scene->state = KSCENE_STATE_LOADING;
+
+	kson_tree_cleanup(&tree);
 
 	return true;
 }

@@ -11,6 +11,10 @@ b8 vulkan_loader_initialize(krhi_vulkan* rhi) {
 	return vulkan_platform_initialize(rhi);
 }
 
+void vulkan_loader_shutdown(krhi_vulkan* rhi) {
+	vulkan_platform_shutdown(rhi);
+}
+
 b8 vulkan_loader_load_core(krhi_vulkan* rhi) {
 	if (!rhi) {
 		return false;

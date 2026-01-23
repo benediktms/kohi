@@ -37,6 +37,8 @@ typedef struct kruntime_plugin {
 	/** @brief The plugin's configuration in string format. */
 	const char* config_str;
 
+	b8 block_auto_unload;
+
 	/** @brief The dynamically loaded library for the plugin. */
 	dynamic_library library;
 

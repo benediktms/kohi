@@ -124,15 +124,14 @@ static b8 file_watch_event(u16 code, void* sender, void* listener_inst, event_co
 			b8 reload_required = false;
 
 			for (u8 pi = 0; pi < shader->pipeline_count; ++pi) {
-				kshader_pipeline_data* pipeline = &shader->pipelines[pi];
+				kshader_pipeline_data* p = &shader->pipelines[pi];
 
-				for (u32 w = 0; w < pipeline->shader_stage_count; ++w) {
-					if (pipeline->watch_ids[w] == watch_id) {
+				for (u32 w = 0; w < p->shader_stage_count; ++w) {
+					if (p->watch_ids[w] == watch_id) {
 						// Replace the existing shader stage source with the new.
-						if (pipeline->stage_sources[w]) {
-							string_free(pipeline->stage_sources[w]);
-						}
-						pipeline->stage_sources[w] = string_duplicate(shader_source_asset->content);
+						string_free(p->stage_sources[w]);
+						p->stage_sources[w] = KNULL;
+						p->stage_sources[w] = string_duplicate(shader_source_asset->content);
 
 						// Release the asset.
 						asset_system_release_text(engine_systems_get()->asset_state, shader_source_asset);
@@ -267,6 +266,10 @@ kshader kshader_system_get_from_source(kname name, const char* shader_config_sou
 	// Create the shader.
 	kshader shader_handle = shader_create(temp_asset);
 
+	kshader_data* s = &state_ptr->shaders[shader_handle];
+	// Clear the shader asset on shaders loaded directly from source.
+	s->shader_asset = KNULL;
+
 	asset_system_release_shader(engine_systems_get()->asset_state, temp_asset);
 
 	if (shader_handle == KSHADER_INVALID) {
@@ -282,12 +285,49 @@ static void internal_shader_destroy(kshader* shader) {
 		return;
 	}
 
-	renderer_shader_destroy(state_ptr->renderer, *shader);
-
 	kshader_data* s = &state_ptr->shaders[*shader];
+	if (s->state == SHADER_STATE_FREE) {
+		return;
+	}
 
 	// Set it to be unusable right away.
 	s->state = SHADER_STATE_FREE;
+
+	renderer_shader_destroy(state_ptr->renderer, *shader);
+
+	struct asset_system_state* asset_state = engine_systems_get()->asset_state;
+
+	if (s->pipeline_count && s->pipelines) {
+		for (u8 i = 0; i < s->pipeline_count; ++i) {
+			kshader_pipeline_data* p = &s->pipelines[i];
+
+			if (p->shader_stage_count) {
+				for (u8 si = 0; si < p->shader_stage_count; ++si) {
+					if (p->stage_sources) {
+						string_free(p->stage_sources[si]);
+						p->stage_sources[si] = KNULL;
+					}
+					asset_system_release_text(asset_state, p->stage_source_text_assets[si]);
+					p->stage_source_text_assets[si] = KNULL;
+				}
+				KFREE_TYPE_CARRAY(p->stage_source_text_assets, kasset_text*, p->shader_stage_count);
+				KFREE_TYPE_CARRAY(p->stage_sources, const char*, p->shader_stage_count);
+				KFREE_TYPE_CARRAY(p->stage_source_text_generations, u32, p->shader_stage_count);
+				KFREE_TYPE_CARRAY(p->stage_names, kname, p->shader_stage_count);
+				KFREE_TYPE_CARRAY(p->stages, shader_stage, p->shader_stage_count);
+				KFREE_TYPE_CARRAY(p->watch_ids, u32, p->shader_stage_count);
+			}
+
+			KFREE_TYPE_CARRAY(p->attributes, shader_attribute, p->attribute_count);
+		}
+		KFREE_TYPE_CARRAY(s->pipelines, kshader_pipeline_data, s->pipeline_count);
+	}
+
+	if (s->colour_attachment_count && s->colour_attachments) {
+		KFREE_TYPE_CARRAY(s->colour_attachments, kshader_attachment, s->colour_attachment_count);
+	}
+
+	asset_system_release_shader(asset_state, (kasset_shader*)s->shader_asset);
 
 	s->name = INVALID_KNAME;
 

@@ -257,6 +257,9 @@ void openal_backend_shutdown(kaudio_backend_interface* backend) {
 			for (u32 i = 0; i < backend->internal_state->max_sources; ++i) {
 				openal_backend_channel_destroy(backend, &backend->internal_state->sources[i]);
 			}
+
+			KFREE_TYPE_CARRAY(backend->internal_state->datas, kaudio_internal_data, backend->internal_state->max_count);
+
 			if (backend->internal_state->device) {
 				alcCloseDevice(backend->internal_state->device);
 				backend->internal_state->device = 0;

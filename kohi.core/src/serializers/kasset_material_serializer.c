@@ -271,6 +271,7 @@ b8 kasset_material_deserialize(const char* file_text, kasset_material* out_asset
 	} else {
 		out_material->model = string_to_kmaterial_model(model_str);
 	}
+	string_free(model_str);
 
 	// Format version.
 	i64 file_format_version = 0;

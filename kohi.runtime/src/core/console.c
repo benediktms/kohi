@@ -119,6 +119,7 @@ void console_write(log_level level, const char* message) {
 
 b8 console_command_register(const char* command, u8 min_arg_count, u8 max_arg_count, void* listener, PFN_console_command func) {
 	KASSERT_MSG(state_ptr && command, "console_register_command requires state and valid command");
+	KASSERT(string_length(command));
 
 	// Make sure it doesn't already exist.
 	u32 command_count = darray_length(state_ptr->registered_commands);
@@ -150,11 +151,11 @@ b8 console_command_unregister(const char* command) {
 	for (u32 i = 0; i < command_count; ++i) {
 		if (strings_equali(state_ptr->registered_commands[i].name, command)) {
 			// Command found, remove it.
-			console_command popped_command;
+			console_command popped_command = {0};
+			darray_pop_at(state_ptr->registered_commands, i, &popped_command);
 			if (popped_command.name) {
 				string_free(popped_command.name);
 			}
-			darray_pop_at(state_ptr->registered_commands, i, &popped_command);
 			return true;
 		}
 	}
@@ -287,7 +288,7 @@ b8 console_command_execute(const char* command) {
 				context.command_name = string_duplicate(cmd->name);
 				context.argument_count = arg_count;
 				if (context.argument_count > 0) {
-					context.arguments = kallocate(sizeof(console_command_argument) * arg_count, MEMORY_TAG_ARRAY);
+					context.arguments = KALLOC_TYPE_CARRAY(console_command_argument, arg_count);
 					for (u8 j = 0; j < arg_count; ++j) {
 						context.arguments[j].value = parts[j + 1];
 					}
@@ -298,8 +299,9 @@ b8 console_command_execute(const char* command) {
 				cmd->func(context);
 
 				if (context.arguments) {
-					kfree(context.arguments, sizeof(console_command_argument) * arg_count, MEMORY_TAG_ARRAY);
+					KFREE_TYPE_CARRAY(context.arguments, console_command_argument, arg_count);
 				}
+				string_free(context.command);
 				string_free(context.command_name);
 				string_cleanup_split_darray(parts);
 			}

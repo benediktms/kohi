@@ -59,8 +59,6 @@ kui_control kui_textbox_control_create(kui_state* state, const char* name, font_
 	base->on_focus = kui_textbox_on_focus;
 	base->on_unfocus = kui_textbox_on_unfocus;
 
-	base->name = string_duplicate(name);
-
 	if (type == KUI_TEXTBOX_TYPE_FLOAT) {
 		// Verify the text content. If numeric is required and it isn't numeric, blank it out.
 		f32 f = 0;
@@ -120,31 +118,31 @@ kui_control kui_textbox_control_create(kui_state* state, const char* name, font_
 	base->bounds.width = typed_control->size.x;
 	base->bounds.height = typed_control->size.y;
 	// Setup textbox clipping mask geometry.
-	typed_control->clip_mask.reference_id = 1; // TODO: move creation/reference_id assignment.
+	base->clip_mask.reference_id = 1; // TODO: move creation/reference_id assignment.
 
 	kgeometry quad = geometry_generate_quad(typed_control->size.x - (corner_size.x * 2), typed_control->size.y, 0, 0, 0, 0, kname_create("textbox_clipping_box"));
 	KASSERT(renderer_geometry_upload(&quad));
 
-	typed_control->clip_mask.clip_geometry = quad;
+	base->clip_mask.clip_geometry = quad;
 
-	typed_control->clip_mask.render_data.model = mat4_identity();
+	base->clip_mask.render_data.model = mat4_identity();
 	// FIXME: Convert this to generate just verts/indices, and upload via the new
 	// renderer api functions instead of deprecated geometry functions.
-	typed_control->clip_mask.render_data.unique_id = typed_control->clip_mask.reference_id;
+	base->clip_mask.render_data.unique_id = base->clip_mask.reference_id;
 
-	typed_control->clip_mask.render_data.vertex_count = typed_control->clip_mask.clip_geometry.vertex_count;
-	typed_control->clip_mask.render_data.vertex_element_size = typed_control->clip_mask.clip_geometry.vertex_element_size;
-	typed_control->clip_mask.render_data.vertex_buffer_offset = typed_control->clip_mask.clip_geometry.vertex_buffer_offset;
+	base->clip_mask.render_data.vertex_count = base->clip_mask.clip_geometry.vertex_count;
+	base->clip_mask.render_data.vertex_element_size = base->clip_mask.clip_geometry.vertex_element_size;
+	base->clip_mask.render_data.vertex_buffer_offset = base->clip_mask.clip_geometry.vertex_buffer_offset;
 
-	typed_control->clip_mask.render_data.index_count = typed_control->clip_mask.clip_geometry.index_count;
-	typed_control->clip_mask.render_data.index_element_size = typed_control->clip_mask.clip_geometry.index_element_size;
-	typed_control->clip_mask.render_data.index_buffer_offset = typed_control->clip_mask.clip_geometry.index_buffer_offset;
+	base->clip_mask.render_data.index_count = base->clip_mask.clip_geometry.index_count;
+	base->clip_mask.render_data.index_element_size = base->clip_mask.clip_geometry.index_element_size;
+	base->clip_mask.render_data.index_buffer_offset = base->clip_mask.clip_geometry.index_buffer_offset;
 
-	typed_control->clip_mask.render_data.diffuse_colour = vec4_zero(); // transparent;
+	base->clip_mask.render_data.diffuse_colour = vec4_zero(); // transparent;
 
-	typed_control->clip_mask.clip_ktransform = ktransform_from_position((vec3){corner_size.x, 0.0f, 0.0f}, 0);
+	base->clip_mask.clip_ktransform = ktransform_from_position((vec3){corner_size.x, 0.0f, 0.0f}, 0);
 
-	ktransform_parent_set(typed_control->clip_mask.clip_ktransform, base->ktransform);
+	ktransform_parent_set(base->clip_mask.clip_ktransform, base->ktransform);
 
 	// Acquire group resources for this control.
 	kshader kui_shader = kshader_system_get(kname_create(KUI_SHADER_NAME), kname_create(PACKAGE_NAME_KUI));
@@ -206,6 +204,12 @@ void kui_textbox_control_destroy(kui_state* state, kui_control* self) {
 	event_unregister(EVENT_CODE_KEY_PRESSED, typed_control->listener, kui_textbox_on_key);
 	event_unregister(EVENT_CODE_KEY_RELEASED, typed_control->listener, kui_textbox_on_key);
 
+	nine_slice_destroy(&typed_control->nslice);
+	nine_slice_destroy(&typed_control->focused_nslice);
+
+	renderer_geometry_destroy(&base->clip_mask.clip_geometry);
+	geometry_destroy(&base->clip_mask.clip_geometry);
+
 	kfree(typed_control->listener, sizeof(kui_textbox_event_listener), MEMORY_TAG_UI);
 
 	kui_base_control_destroy(state, self);
@@ -229,18 +233,17 @@ b8 kui_textbox_control_size_set(kui_state* state, kui_control self, i32 width, i
 	nine_slice_update(&typed_control->nslice, 0);
 	nine_slice_update(&typed_control->focused_nslice, 0);
 
-	kgeometry* vg = &typed_control->clip_mask.clip_geometry;
+	kgeometry* vg = &base->clip_mask.clip_geometry;
 	// HACK: TODO: remove hardcoded stuff.
 	vec2i corner_size = (vec2i){10, 10};
 
 	kgeometry quad = geometry_generate_quad(typed_control->size.x - (corner_size.x * 2), typed_control->size.y, 0, 0, 0, 0, 0);
 	kfree(quad.indices, quad.index_element_size * quad.index_count, MEMORY_TAG_ARRAY);
-
 	kfree(vg->vertices, vg->vertex_element_size * vg->vertex_count, MEMORY_TAG_ARRAY);
 	vg->vertices = quad.vertices;
 	vg->extents = quad.extents;
 
-	renderer_geometry_vertex_update(&typed_control->clip_mask.clip_geometry, 0, vg->vertex_count, vg->vertices, false);
+	renderer_geometry_vertex_update(&base->clip_mask.clip_geometry, 0, vg->vertex_count, vg->vertices, false);
 
 	return true;
 }
@@ -330,7 +333,9 @@ b8 kui_textbox_control_render(kui_state* state, kui_control self, struct frame_d
 
 	FLAG_SET(cursor_base->flags, KUI_CONTROL_FLAG_VISIBLE_BIT, is_focused);
 
-	typed_control->clip_mask.render_data.model = ktransform_world_get(typed_control->clip_mask.clip_ktransform);
+	base->clip_mask.render_data.model = ktransform_world_get(base->clip_mask.clip_ktransform);
+
+	/* kgeometry* vg = &typed_control->clip_mask.clip_geometry; */
 
 	// Render the highlight box manually so the clip mask can be attached to it.
 	// This ensures the highlight boxis rendered and clipped before the cursor or other
@@ -341,8 +346,8 @@ b8 kui_textbox_control_render(kui_state* state, kui_control self, struct frame_d
 	}
 
 	// Attach clipping mask to highlight box, which would be the last element added.
-	u32 renderable_count = darray_length(render_data->renderables);
-	render_data->renderables[renderable_count - 1].clip_mask_render_data = &typed_control->clip_mask.render_data;
+	/* u32 renderable_count = darray_length(render_data->renderables);
+	render_data->renderables[renderable_count - 1].clip_mask_render_data = &typed_control->clip_mask.render_data; */
 
 	// Render the content label manually so the clip mask can be attached to it.
 	// This ensures the content label is rendered and clipped before the cursor or other
@@ -351,6 +356,10 @@ b8 kui_textbox_control_render(kui_state* state, kui_control self, struct frame_d
 		KERROR("Failed to render content label for textbox '%s'", base->name);
 		return false;
 	}
+
+	/* kui_renderable clip_end_renderable = {.type = KUI_RENDERABLE_TYPE_CLIP_END};
+
+	darray_push(render_data->renderables, clip_end_renderable); */
 
 	return true;
 }

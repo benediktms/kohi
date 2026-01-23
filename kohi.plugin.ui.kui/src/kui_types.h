@@ -19,12 +19,18 @@ typedef struct {
 
 #define INVALID_KUI_CONTROL ((kui_control){U32_MAX})
 
+typedef enum kui_renderable_type {
+	KUI_RENDERABLE_TYPE_CONTROL,
+	KUI_RENDERABLE_TYPE_CLIP_BEGIN,
+	KUI_RENDERABLE_TYPE_CLIP_END
+} kui_renderable_type;
+
 typedef struct kui_renderable {
 	// The per-control instance binding id for binding set 1.
 	u32 binding_instance_id;
 	ktexture atlas_override;
+	kui_renderable_type type;
 	geometry_render_data render_data;
-	geometry_render_data* clip_mask_render_data;
 } kui_renderable;
 
 typedef struct kui_render_data {
@@ -104,6 +110,7 @@ typedef enum kui_control_type {
 	KUI_CONTROL_TYPE_BUTTON,
 	KUI_CONTROL_TYPE_TEXTBOX,
 	KUI_CONTROL_TYPE_TREE_ITEM,
+	KUI_CONTROL_TYPE_SCROLLABLE,
 
 	KUI_CONTROL_TYPE_MAX = 64
 } kui_control_type;
@@ -121,6 +128,8 @@ typedef struct kui_base_control {
 	u32 depth;
 
 	rect_2d bounds;
+
+	kui_clip_mask clip_mask;
 
 	kui_control parent;
 	// darray
@@ -242,7 +251,6 @@ typedef struct kui_textbox_control {
 	range32 highlight_range;
 	u32 cursor_position;
 	f32 text_view_offset;
-	kui_clip_mask clip_mask;
 
 	// Cached copy of the internal label's line height (taken in turn from its font.)
 	f32 label_line_height;
@@ -267,3 +275,18 @@ typedef struct kui_tree_item_control {
 	PFN_mouse_event_callback on_collapsed;
 
 } kui_tree_item_control;
+
+typedef struct kui_scrollable_control {
+	kui_base_control base;
+	b8 is_dirty;
+	b8 scroll_x;
+	b8 scroll_y;
+
+	// What actually holds all controls.
+	kui_control content_wrapper;
+
+	kui_control scrollbar_bg;
+	kui_control up_button;
+	kui_control down_button;
+	kui_control thumb_button;
+} kui_scrollable_control;

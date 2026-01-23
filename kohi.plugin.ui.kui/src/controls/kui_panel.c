@@ -65,6 +65,7 @@ void kui_panel_control_destroy(kui_state* state, kui_control* self) {
 	kui_panel_control* typed_control = (kui_panel_control*)base;
 
 	renderer_geometry_destroy(&typed_control->g);
+	geometry_destroy(&typed_control->g);
 
 	kui_base_control_destroy(state, self);
 }

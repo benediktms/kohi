@@ -102,12 +102,14 @@ void vfs_asset_job_success(void* result_params) {
 		result->info.vfs_callback(result->state, result->data);
 	}
 
-	// Cleanup context.
+	/* // Cleanup context.
 	if (result->data.context && result->data.context_size) {
 		kfree(result->data.context, result->data.context_size, MEMORY_TAG_PLATFORM);
 		result->data.context = 0;
 		result->data.context_size = 0;
 	}
+*/
+	// vfs_asset_data_cleanup(&result->data);
 }
 
 // Invoked on asset job failure.

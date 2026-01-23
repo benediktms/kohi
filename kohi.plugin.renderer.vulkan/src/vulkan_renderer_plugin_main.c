@@ -9,6 +9,9 @@
 #include "vulkan_backend.h"
 
 b8 kohi_plugin_renderer_vulkan_create(kruntime_plugin* out_plugin) {
+	// Don't let the plugin system unload this plugin. It'll be handled here instead.
+	out_plugin->block_auto_unload = true;
+
 	out_plugin->plugin_state_size = sizeof(renderer_backend_interface);
 	out_plugin->plugin_state = kallocate(out_plugin->plugin_state_size, MEMORY_TAG_RENDERER);
 

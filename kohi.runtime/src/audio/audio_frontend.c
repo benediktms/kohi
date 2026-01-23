@@ -226,6 +226,7 @@ typedef struct audio_asset_request_listener {
 } audio_asset_request_listener;
 
 static b8 deserialize_config(const char* config_str, kaudio_system_config* out_config);
+static void destroy_config(kaudio_system_config* config);
 static kaudio create_base_audio(kaudio_system_state* state, b8 is_streaming, b8 auto_release);
 static u16 issue_new_instance(kaudio_system_state* state, kaudio base);
 static void kasset_audio_loaded_callback(void* listener, kasset_audio* asset);
@@ -314,7 +315,9 @@ b8 kaudio_system_initialize(u64* memory_requirement, void* memory, const char* c
 	backend_config.channel_count = config.channel_count;
 	backend_config.max_count = config.max_count;
 	backend_config.audio_channel_count = config.audio_channel_count;
-	return state->backend->initialize(state->backend, &backend_config);
+	b8 result = state->backend->initialize(state->backend, &backend_config);
+	destroy_config(&config);
+	return result;
 }
 
 void kaudio_system_shutdown(struct kaudio_system_state* state) {
@@ -1149,6 +1152,19 @@ static b8 deserialize_config(const char* config_str, kaudio_system_config* out_c
 	kson_tree_cleanup(&tree);
 
 	return true;
+}
+
+static void destroy_config(kaudio_system_config* config) {
+	string_free(config->backend_plugin_name);
+	if (config->category_count) {
+		for (u32 i = 0; i < config->category_count; ++i) {
+			kaudio_category_config* cc = &config->categories[i];
+			if (cc->channel_ids && cc->channel_id_count) {
+				KFREE_TYPE_CARRAY(cc->channel_ids, u32, cc->channel_id_count);
+			}
+		}
+		KFREE_TYPE_CARRAY(config->categories, kaudio_category_config, config->category_count);
+	}
 }
 
 static kaudio create_base_audio(kaudio_system_state* state, b8 is_streaming, b8 auto_release) {

@@ -90,9 +90,8 @@ void kpackage_destroy(kpackage* package) {
 			u32 entry_count = darray_length(package->internal_data->entries);
 			for (u32 j = 0; j < entry_count; ++j) {
 				asset_entry* entry = &package->internal_data->entries[j];
-				if (entry->path) {
-					string_free(entry->path);
-				}
+				string_free(entry->path);
+				string_free(entry->source_path);
 			}
 			darray_destroy(package->internal_data->entries);
 		}
@@ -508,9 +507,7 @@ kpackage_parse_cleanup:
 		if (out_manifest->references) {
 			u32 ref_count = darray_length(out_manifest->references);
 			for (u32 i = 0; i < ref_count; ++i) {
-				if (out_manifest->references[i].path) {
-					string_free(out_manifest->references[i].path);
-				}
+				string_free(out_manifest->references[i].path);
 			}
 			darray_destroy(out_manifest->references);
 			out_manifest->references = 0;
@@ -521,16 +518,13 @@ kpackage_parse_cleanup:
 
 void kpackage_manifest_destroy(asset_manifest* manifest) {
 	if (manifest) {
-		if (manifest->path) {
-			string_free(manifest->path);
-		}
+		string_free(manifest->path);
+		string_free(manifest->file_path);
 		if (manifest->references) {
 			u32 ref_count = darray_length(manifest->references);
 			for (u32 i = 0; i < ref_count; ++i) {
 				asset_manifest_reference* ref = &manifest->references[i];
-				if (ref->path) {
-					string_free(ref->path);
-				}
+				string_free(ref->path);
 			}
 			darray_destroy(manifest->references);
 		}
@@ -539,12 +533,8 @@ void kpackage_manifest_destroy(asset_manifest* manifest) {
 			u32 ref_count = darray_length(manifest->assets);
 			for (u32 i = 0; i < ref_count; ++i) {
 				asset_manifest_asset* asset = &manifest->assets[i];
-				if (asset->path) {
-					string_free(asset->path);
-				}
-				if (asset->source_path) {
-					string_free(asset->source_path);
-				}
+				string_free(asset->path);
+				string_free(asset->source_path);
 			}
 			darray_destroy(manifest->assets);
 		}

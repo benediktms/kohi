@@ -2,6 +2,7 @@
 
 #include "assets/kasset_types.h"
 #include "audio/audio_frontend.h"
+#include "controls/kui_scrollable.h"
 #include "controls/kui_tree_item.h"
 #include "core/event.h"
 #include "core_resource_types.h"
@@ -449,9 +450,11 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 		kui_control_position_set(kui_state, state->tree_inspector_title, (vec3){10, -5.0f, 0});
 
 		// Base tree control.
-		state->tree_base_control = kui_base_control_create(kui_state, "tree_base_control", KUI_CONTROL_TYPE_BASE);
-		KASSERT(kui_system_control_add_child(kui_state, state->tree_inspector_bg_panel, state->tree_base_control));
-		kui_control_position_set(kui_state, state->tree_base_control, (vec3){10, 50, 0});
+		state->tree_scrollable_control = kui_scrollable_control_create(kui_state, "tree_base_control", (vec2){state->tree_inspector_width, 200}, true, true);
+		KASSERT(kui_system_control_add_child(kui_state, state->tree_inspector_bg_panel, state->tree_scrollable_control));
+		kui_control_position_set(kui_state, state->tree_scrollable_control, (vec3){10, 50, 0});
+
+		state->tree_content_container = kui_scrollable_control_get_content_container(state->kui_state, state->tree_scrollable_control);
 
 		// TODO: more controls
 	}
@@ -740,10 +743,8 @@ void editor_update(struct editor_state* state, frame_data* p_frame_data) {
 		state->trigger_tree_refresh = false;
 	}
 
-	kui_base_control* base = kui_system_get_base(state->kui_state, state->main_bg_panel);
-	if (base) {
-		//
-	}
+	kui_scrollable_control_scroll_y(state->kui_state, state->tree_scrollable_control, 0.5f);
+	kui_scrollable_control_scroll_x(state->kui_state, state->tree_scrollable_control, 0.5f);
 }
 
 void editor_frame_prepare(struct editor_state* state, frame_data* p_frame_data, b8 draw_gizmo, keditor_gizmo_pass_render_data* gizmo_pass_render_data) {
@@ -874,6 +875,8 @@ void editor_on_window_resize(struct editor_state* state, const struct kwindow* w
 
 	kui_control_position_set(state->kui_state, state->tree_inspector_bg_panel, (vec3){window->width - (state->tree_inspector_width + 10), 10});
 	kui_panel_set_height(state->kui_state, state->tree_inspector_bg_panel, window->height - 120.0f);
+
+	kui_scrollable_control_resize(state->kui_state, state->tree_scrollable_control, (vec2){state->tree_inspector_width, window->height - 120.0f - 50.0f});
 }
 
 void editor_setup_keymaps(struct editor_state* state) {
@@ -2028,7 +2031,8 @@ static void tree_setup_node_r(editor_state* state, kscene_hierarchy_node* scene_
 		kui_tree_item_control* typed_parent_control = (kui_tree_item_control*)parent_base;
 		KASSERT(kui_system_control_add_child(kui_state, typed_parent_control->child_container, tree_node->tree_item));
 	} else {
-		KASSERT(kui_system_control_add_child(kui_state, state->tree_base_control, tree_node->tree_item));
+		// Add to the content container of the scrollable control.
+		KASSERT(kui_system_control_add_child(kui_state, state->tree_content_container, tree_node->tree_item));
 		/* u32 len = darray_length(state->tree_base_control.children);
 		p_tree_item = state->tree_base_control.children[len - 1]; */
 
@@ -2089,7 +2093,7 @@ static void tree_clear(editor_state* state) {
 		tree.root_count = 0;
 		tree.root_nodes = KNULL;
 
-		kui_control_destroy_all_children(state->kui_state, state->tree_base_control);
+		kui_control_destroy_all_children(state->kui_state, state->tree_scrollable_control);
 
 		/* kui_base_control_destroy(state->kui_state, &state->tree_base_control);
 		state->tree_base_control = kui_base_control_create(state->kui_state, "tree_base_control", KUI_CONTROL_TYPE_BASE);
