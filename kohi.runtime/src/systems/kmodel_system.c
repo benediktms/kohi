@@ -60,6 +60,7 @@ b8 kmodel_system_initialize(u64* memory_requirement, kmodel_system_state* memory
 }
 
 void kmodel_system_shutdown(kmodel_system_state* state) {
+	darray_destroy(state->instance_queue);
 	for (u32 b = 0; b < state->max_mesh_count; ++b) {
 		u32 instance_count = state->models[b].instance_count;
 

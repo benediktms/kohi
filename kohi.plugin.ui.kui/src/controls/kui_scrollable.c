@@ -129,6 +129,7 @@ void kui_scrollable_control_destroy(kui_state* state, kui_control* self) {
 
 	// destroy clipping mask
 	renderer_geometry_destroy(&base->clip_mask.clip_geometry);
+	geometry_destroy(&base->clip_mask.clip_geometry);
 
 	kui_base_control_destroy(state, self);
 }

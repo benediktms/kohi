@@ -322,6 +322,7 @@ b8 vulkan_renderer_backend_initialize(renderer_backend_interface* backend, const
 	}
 
 	// Textures array. Matches array size in texture system.
+	context->max_texture_count = config->max_texture_count;
 	context->textures = KALLOC_TYPE_CARRAY(vulkan_texture_handle_data, config->max_texture_count);
 
 	// Samplers array.
@@ -361,6 +362,13 @@ void vulkan_renderer_backend_shutdown(renderer_backend_interface* backend) {
 
 	KDEBUG("Destroying Vulkan device...");
 	vulkan_device_destroy(context);
+
+	darray_destroy(context->shaders);
+	context->shaders = KNULL;
+	darray_destroy(context->samplers);
+	context->samplers = KNULL;
+	KFREE_TYPE_CARRAY(context->textures, vulkan_texture_handle_data, context->max_texture_count);
+	context->textures = KNULL;
 
 	// Cleanup backend of renderbuffer data.
 	u32 rbcount = darray_length(context->renderbuffers);
@@ -550,6 +558,8 @@ void vulkan_renderer_on_window_destroyed(renderer_backend_interface* backend, kw
 				vulkan_command_buffer_free(context, context->device.graphics_command_pool, &window_backend->graphics_command_buffers[i]);
 				window_backend->graphics_command_buffers[i].handle = KNULL;
 			}
+
+			darray_destroy(window_backend->frame_texture_updated_list[i]);
 		}
 		KFREE_TYPE_CARRAY(window_backend->acquire_semaphores, VkSemaphore, window_backend->max_frames_in_flight);
 		window_backend->acquire_semaphores = KNULL;

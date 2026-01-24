@@ -23,6 +23,7 @@
 #include <strings/kname.h>
 #include <strings/kstring.h>
 
+#include "containers/binary_string_table.h"
 #include "core/engine.h"
 #include "core_render_types.h"
 #include "platform/vfs.h"
@@ -75,6 +76,8 @@ b8 asset_system_deserialize_config(const char* config_str, asset_system_config* 
 		KERROR("max_asset_count is a required field and was not provided.");
 		return false;
 	}
+
+	kson_tree_cleanup(&tree);
 
 	return true;
 }
@@ -467,11 +470,11 @@ kasset_bitmap_font* asset_system_request_bitmap_font_from_package_sync(struct as
 
 void asset_system_release_bitmap_font(struct asset_system_state* state, kasset_bitmap_font* asset) {
 	if (state && asset) {
-		array_kasset_bitmap_font_kerning_destroy(&asset->kernings);
-		array_kasset_bitmap_font_glyph_destroy(&asset->glyphs);
-		array_kasset_bitmap_font_page_destroy(&asset->pages);
+		KFREE_TYPE_CARRAY(asset->kernings, kasset_bitmap_font_kerning, asset->kerning_count);
+		KFREE_TYPE_CARRAY(asset->glyphs, kasset_bitmap_font_glyph, asset->glyph_count);
+		KFREE_TYPE_CARRAY(asset->pages, kasset_bitmap_font_page, asset->page_count);
 
-		kzero_memory(asset, sizeof(kasset_bitmap_font));
+		KFREE_TYPE(asset, kasset_bitmap_font, MEMORY_TAG_ASSET);
 	}
 }
 
@@ -534,7 +537,7 @@ void asset_system_release_system_font(struct asset_system_state* state, kasset_s
 			kfree(asset->font_binary, asset->font_binary_size, MEMORY_TAG_ASSET);
 		}
 
-		kzero_memory(asset, sizeof(kasset_system_font));
+		KFREE_TYPE(asset, kasset_system_font, MEMORY_TAG_ASSET);
 	}
 }
 
@@ -674,6 +677,12 @@ void asset_system_release_model(struct asset_system_state* state, kasset_model* 
 		}
 
 		if (asset->nodes && asset->node_count) {
+			for (u16 i = 0; i < asset->node_count; ++i) {
+				kasset_model_node* node = &asset->nodes[i];
+				if (node->child_count && node->children) {
+					KFREE_TYPE_CARRAY(node->children, u16, node->child_count);
+				}
+			}
 			KFREE_TYPE_CARRAY(asset->nodes, kasset_model_node, asset->node_count);
 			asset->nodes = KNULL;
 			asset->node_count = 0;
@@ -891,10 +900,6 @@ static void vfs_on_audio_asset_loaded_callback(struct vfs_state* vfs, vfs_asset_
 	if (context->callback) {
 		context->callback(context->listener, context->asset);
 	}
-
-	KFREE_TYPE(context, kasset_audio_vfs_context, MEMORY_TAG_ASSET);
-
-	vfs_asset_data_cleanup(&asset_data);
 }
 
 // async load from game package.

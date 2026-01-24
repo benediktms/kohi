@@ -48,6 +48,8 @@ void kohi_plugin_ui_kui_destroy(struct kruntime_plugin* plugin) {
 	if (plugin) {
 		kui_plugin_state* plugin_state = plugin->plugin_state;
 		kui_system_shutdown(plugin_state->state);
+
+		kfree(plugin->plugin_state, plugin->plugin_state_size, MEMORY_TAG_PLUGIN);
 	}
 }
 

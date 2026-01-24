@@ -1,8 +1,6 @@
 #pragma once
 
-#include "containers/array.h"
 #include "core_render_types.h"
-#include "core_resource_types.h"
 #include "defines.h"
 #include "identifiers/identifier.h"
 #include "math/math_types.h"
@@ -397,10 +395,6 @@ typedef struct kasset_bitmap_font_page {
 	kname image_asset_name;
 } kasset_bitmap_font_page;
 
-ARRAY_TYPE(kasset_bitmap_font_glyph);
-ARRAY_TYPE(kasset_bitmap_font_kerning);
-ARRAY_TYPE(kasset_bitmap_font_page);
-
 typedef struct kasset_bitmap_font {
 	kname face;
 	u32 size;
@@ -408,9 +402,12 @@ typedef struct kasset_bitmap_font {
 	i32 baseline;
 	i32 atlas_size_x;
 	i32 atlas_size_y;
-	array_kasset_bitmap_font_glyph glyphs;
-	array_kasset_bitmap_font_kerning kernings;
-	array_kasset_bitmap_font_page pages;
+	u32 glyph_count;
+	kasset_bitmap_font_glyph* glyphs;
+	u32 kerning_count;
+	kasset_bitmap_font_kerning* kernings;
+	u32 page_count;
+	kasset_bitmap_font_page* pages;
 } kasset_bitmap_font;
 
 #define KASSET_TYPE_NAME_AUDIO "Audio"

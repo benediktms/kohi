@@ -90,6 +90,7 @@ void console_shutdown(struct console_state* state);
  */
 KAPI void console_consumer_register(void* inst, PFN_console_consumer_write callback, u8* out_consumer_id);
 
+KAPI void console_consumer_unregister(u8 consumer_id);
 /**
  * @brief Updates the instance and callback for the consumer with the given identifier.
  *

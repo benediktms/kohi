@@ -6,6 +6,7 @@
 #include "defines.h"
 #include "logger.h"
 #include "memory/kmemory.h"
+#include "platform/platform.h"
 #include "threads/kmutex.h"
 #include "threads/ksemaphore.h"
 #include "threads/kthread.h"
@@ -252,8 +253,14 @@ void job_system_shutdown(void* state) {
 
 		// Check for a free thread first.
 		for (u8 i = 0; i < thread_count; ++i) {
+			ksemaphore_signal(&state_ptr->job_threads[i].semaphore);
+			// Give it a bit.
+			kthread_sleep(&state_ptr->job_threads[i].thread, 100);
 			kthread_destroy(&state_ptr->job_threads[i].thread);
 		}
+
+		// Wait for the threads to finish.
+		platform_sleep(100);
 		ring_queue_destroy(&state_ptr->low_priority_queue);
 		ring_queue_destroy(&state_ptr->normal_priority_queue);
 		ring_queue_destroy(&state_ptr->high_priority_queue);

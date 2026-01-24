@@ -46,5 +46,4 @@ void kohi_plugin_audio_openal_destroy(kruntime_plugin* plugin) {
 	if (plugin && plugin->plugin_state) {
 		kfree(plugin->plugin_state, plugin->plugin_state_size, MEMORY_TAG_AUDIO);
 	}
-	kzero_memory(plugin, sizeof(kruntime_plugin));
 }

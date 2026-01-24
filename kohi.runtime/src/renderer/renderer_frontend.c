@@ -372,6 +372,8 @@ void renderer_on_window_destroyed(struct renderer_system_state* state, struct kw
 		// Release colour/depth buffers.
 		texture_release(window->renderer_state->colourbuffer);
 		texture_release(window->renderer_state->depthbuffer);
+
+		kfree(window->renderer_state, sizeof(kwindow_renderer_state), MEMORY_TAG_RENDERER);
 	}
 }
 

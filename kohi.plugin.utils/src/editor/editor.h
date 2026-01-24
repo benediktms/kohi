@@ -155,6 +155,7 @@ KAPI b8 editor_render(struct editor_state* state, frame_data* p_frame_data, ktex
 KAPI void editor_on_window_resize(struct editor_state* state, const struct kwindow* window);
 
 KAPI void editor_setup_keymaps(struct editor_state* state);
+KAPI void editor_destroy_keymaps(struct editor_state* state);
 
 KAPI void editor_on_lib_load(struct editor_state* state);
 KAPI void editor_on_lib_unload(struct editor_state* state);

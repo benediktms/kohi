@@ -318,6 +318,7 @@ b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material
 
 		// Create/load the shader from the serialized source.
 		out_state->material_standard_skinned_shader = kshader_system_get_from_source(mat_std_skinned_shader_name, config_source);
+		string_free(config_source);
 	}
 
 	// Blended material shader.

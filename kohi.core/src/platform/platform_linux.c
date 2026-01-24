@@ -211,41 +211,41 @@ b8 platform_system_startup(u64* memory_requirement, struct platform_state* state
 	state_ptr = state;
 
 	// Connect to X
-	state_ptr->display = XOpenDisplay(NULL);
+	state->display = XOpenDisplay(NULL);
 
 	// Retrieve the connection from the display.
-	state_ptr->handle.connection = XGetXCBConnection(state_ptr->display);
+	state->handle.connection = XGetXCBConnection(state->display);
 
-	if (xcb_connection_has_error(state_ptr->handle.connection)) {
+	if (xcb_connection_has_error(state->handle.connection)) {
 		KFATAL("Failed to connect to X server via XCB.");
 		return false;
 	}
 
-	b8 detectable_repeat = enable_detectable_autorepeat(state_ptr->handle.connection);
+	b8 detectable_repeat = enable_detectable_autorepeat(state->handle.connection);
 	KINFO("XCB: %s detectable auto-repeat.", detectable_repeat ? "Enabled " : "Could not enable ");
 
 	// Get data from the X server
-	const struct xcb_setup_t* setup = xcb_get_setup(state_ptr->handle.connection);
+	const struct xcb_setup_t* setup = xcb_get_setup(state->handle.connection);
 
 	// TODO: Does this need to be associated with the window?
 	// Loop through screens using iterator
 	xcb_screen_iterator_t it = xcb_setup_roots_iterator(setup);
-	for (i32 s = 0; s < state_ptr->screen_count; ++s) {
+	for (i32 s = 0; s < state->screen_count; ++s) {
 		/* f32 w_inches = it.data->width_in_millimeters * 0.0394;
 		f32 h_inches = it.data->height_in_millimeters * 0.0394;
 		f32 x_dpi = (f32)it.data->width_in_pixels / w_inches;
 
 		KINFO("Monitor '%s' has a DPI of %.2f for a device pixelratio of %0.2f", it.index, x_dpi, x_dpi / 96.0f);
-		// state_ptr->device_pixel_ratio = x_dpi / 96.0f;  // Default DPI is considered 96. */
+		// state->device_pixel_ratio = x_dpi / 96.0f;  // Default DPI is considered 96. */
 
 		xcb_screen_next(&it);
 	}
 
 	// After screens have been looped through, assign it.
-	state_ptr->screen = it.data;
-	state_ptr->handle.screen = state_ptr->screen;
+	state->screen = it.data;
+	state->handle.screen = state->screen;
 
-	state_ptr->windows = darray_create(kwindow*);
+	state->windows = darray_create(kwindow*);
 
 	return true;
 }
@@ -270,10 +270,11 @@ void platform_system_shutdown(struct platform_state* state) {
 			}
 			darray_destroy(state->watches);
 		}
-		if (state->handle.connection) {
-			free(state->handle.connection);
-			state->handle.connection = 0;
-		}
+
+		xcb_flush(state->handle.connection);
+		XCloseDisplay(state->display);
+		state->display = KNULL;
+		state->handle.connection = KNULL;
 	}
 }
 
@@ -518,7 +519,7 @@ void platform_window_destroy(struct kwindow* window) {
 				string_free(window->title);
 				xcb_destroy_window(state_ptr->handle.connection, window->platform_state->window);
 				kfree(window->platform_state, sizeof(kwindow_platform_state), MEMORY_TAG_PLATFORM);
-				window->platform_state->window = KNULL;
+				window->platform_state = KNULL;
 				state_ptr->windows[i] = KNULL;
 				return;
 			}

@@ -379,25 +379,27 @@ b8 font_system_bitmap_font_load(font_system_state* state, kname resource_name, k
 	lookup->data.atlas_size_y = font_asset->atlas_size_y;
 
 	// Take a copy of the glyphs.
-	lookup->data.glyph_count = font_asset->glyphs.base.length;
-	if (font_asset->glyphs.base.length) {
-		lookup->data.glyphs = KALLOC_TYPE_CARRAY(font_glyph, font_asset->glyphs.base.length);
-		kcopy_memory(lookup->data.glyphs, font_asset->glyphs.data, sizeof(font_glyph) * font_asset->glyphs.base.length);
+	lookup->data.glyph_count = font_asset->glyph_count;
+	if (font_asset->glyph_count) {
+		lookup->data.glyphs = KALLOC_TYPE_CARRAY(font_glyph, font_asset->glyph_count);
+		KASSERT_DEBUG(sizeof(kasset_bitmap_font_glyph) == sizeof(font_glyph));
+		KCOPY_TYPE_CARRAY(lookup->data.glyphs, font_asset->glyphs, font_glyph, font_asset->glyph_count);
 	}
 
 	// Take a copy of the kernings.
-	lookup->data.kerning_count = font_asset->kernings.base.length;
-	if (font_asset->kernings.base.length) {
-		lookup->data.kernings = KALLOC_TYPE_CARRAY(font_kerning, font_asset->kernings.base.length);
-		kcopy_memory(lookup->data.kernings, font_asset->kernings.data, sizeof(font_kerning) * font_asset->kernings.base.length);
+	lookup->data.kerning_count = font_asset->kerning_count;
+	if (font_asset->kerning_count) {
+		lookup->data.kernings = KALLOC_TYPE_CARRAY(font_kerning, font_asset->kerning_count);
+		KASSERT_DEBUG(sizeof(kasset_bitmap_font_kerning) == sizeof(font_kerning));
+		KCOPY_TYPE_CARRAY(lookup->data.kernings, font_asset->kernings, font_kerning, font_asset->kerning_count);
 	}
 
 	// Setup pages, request atlas textures for each.
-	lookup->page_count = font_asset->pages.base.length;
-	if (font_asset->pages.base.length) {
-		lookup->pages = KALLOC_TYPE_CARRAY(bitmap_font_page, font_asset->pages.base.length);
+	lookup->page_count = font_asset->page_count;
+	if (font_asset->page_count) {
+		lookup->pages = KALLOC_TYPE_CARRAY(bitmap_font_page, font_asset->page_count);
 		for (u32 i = 0; i < lookup->page_count; ++i) {
-			lookup->pages[i].atlas = texture_acquire_from_package_sync(font_asset->pages.data[i].image_asset_name, package_name);
+			lookup->pages[i].atlas = texture_acquire_from_package_sync(font_asset->pages[i].image_asset_name, package_name);
 			// If lookup fails, use default texture instead.
 			if (!lookup->pages[i].atlas) {
 				KWARN("Failed to request bitmap font atlas texture. Using a default texture instead, but text will not render correctly.");
@@ -1142,6 +1144,8 @@ static void system_font_release(font_system_state* state, system_font_lookup* lo
 
 			cleanup_font_data(&v->data);
 		}
+
+		darray_destroy(lookup->size_variants);
 
 		if (lookup->binary_size && lookup->font_binary) {
 			kfree(lookup->font_binary, lookup->binary_size, MEMORY_TAG_SYSTEM_FONT);

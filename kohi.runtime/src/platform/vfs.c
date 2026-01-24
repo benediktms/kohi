@@ -102,14 +102,7 @@ void vfs_asset_job_success(void* result_params) {
 		result->info.vfs_callback(result->state, result->data);
 	}
 
-	/* // Cleanup context.
-	if (result->data.context && result->data.context_size) {
-		kfree(result->data.context, result->data.context_size, MEMORY_TAG_PLATFORM);
-		result->data.context = 0;
-		result->data.context_size = 0;
-	}
-*/
-	// vfs_asset_data_cleanup(&result->data);
+	vfs_asset_data_cleanup(&result->data);
 }
 
 // Invoked on asset job failure.
@@ -151,7 +144,7 @@ vfs_asset_data vfs_request_asset_sync(vfs_state* state, vfs_request_info info) {
 	out_data.package_name = info.package_name;
 
 	// Take a copy of the context if provided. This will need to be freed by the caller.
-	if (info.context_size) {
+	/* if (info.context_size) {
 		KASSERT_MSG(info.context, "Called vfs_request_asset with a context_size, but not a context. Check yourself before you wreck yourself.");
 		out_data.context_size = info.context_size;
 		out_data.context = kallocate(info.context_size, MEMORY_TAG_PLATFORM);
@@ -159,7 +152,10 @@ vfs_asset_data vfs_request_asset_sync(vfs_state* state, vfs_request_info info) {
 	} else {
 		out_data.context_size = 0;
 		out_data.context = 0;
-	}
+	} */
+
+	out_data.context_size = info.context_size;
+	out_data.context = (void*)info.context;
 
 	const char* asset_name_str = kname_string_get(info.asset_name);
 
@@ -355,7 +351,9 @@ b8 vfs_asset_write_text(vfs_state* state, kname asset_name, kname package_name, 
 void vfs_asset_data_cleanup(vfs_asset_data* data) {
 	if (data) {
 		if (data->context || data->context_size) {
-			KWARN("%s - Possible memory leak - context/context_size found on vfs_asset_data.", __FUNCTION__);
+			kfree(data->context, data->context_size, MEMORY_TAG_ASSET);
+			data->context = KNULL;
+			data->context_size = 0;
 		}
 		if (FLAG_GET(data->flags, VFS_ASSET_FLAG_BINARY_BIT)) {
 			if (data->size && data->bytes) {

@@ -27,8 +27,9 @@ b8 debug_grid_create(const debug_grid_config* config, debug_grid* out_grid) {
 }
 
 void debug_grid_destroy(debug_grid* grid) {
-	// TODO: zero out, etc.
-	grid->id.uniqueid = INVALID_ID_U64;
+	debug_grid_unload(grid);
+
+	geometry_destroy(&grid->geometry);
 }
 
 b8 debug_grid_initialize(debug_grid* grid) {

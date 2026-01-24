@@ -5,6 +5,7 @@
 #include "controls/kui_scrollable.h"
 #include "controls/kui_tree_item.h"
 #include "core/event.h"
+#include "core/keymap.h"
 #include "core_resource_types.h"
 #include "debug/kassert.h"
 #include "defines.h"
@@ -464,6 +465,22 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 	return true;
 }
 void editor_shutdown(struct editor_state* state) {
+
+	editor_gizmo_destroy(&state->gizmo);
+
+	editor_destroy_keymaps(state);
+
+	// TODO: dirty check. If dirty, return false here. May need some sort of callback to
+	// allow a "this is saved, now we can close" function.
+
+	KTRACE("Shutting down editor.");
+
+	tree_clear(state);
+
+	if (state->edit_scene) {
+		kscene_destroy(state->edit_scene);
+		state->edit_scene = KNULL;
+	}
 }
 
 b8 editor_open(struct editor_state* state, kname scene_name, kname scene_package_name) {
@@ -475,13 +492,6 @@ b8 editor_open(struct editor_state* state, kname scene_name, kname scene_package
 		KERROR("%s - Failed to request scene asset. See logs for details.", __FUNCTION__);
 		return false;
 	}
-
-	// TODO: callback for zone load?
-	/* zone_loaded_context* c = KALLOC_TYPE(zone_loaded_context, MEMORY_TAG_GAME);
-	c->z = z;
-	c->state = state;
-	c->zone_index = index;
-	c->spawn_point_id = spawn_point_id; */
 
 	KINFO("Opening editor scene...");
 
@@ -916,6 +926,10 @@ void editor_setup_keymaps(struct editor_state* state) {
 	keymap_binding_add(&state->editor_keymap, KEY_S, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_CONTROL_BIT, state, editor_on_save_scene);
 
 	keymap_binding_add(&state->editor_keymap, KEY_Z, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, state, editor_on_zoom_extents);
+}
+
+void editor_destroy_keymaps(struct editor_state* state) {
+	keymap_clear(&state->editor_keymap);
 }
 
 static f32 get_engine_delta_time(void) {

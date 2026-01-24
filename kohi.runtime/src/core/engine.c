@@ -413,6 +413,7 @@ b8 engine_create(application* app, const char* app_config_path, const char* game
 			KERROR("Failed to initialize plugin system.");
 			return false;
 		}
+		plugin_system_destroy_config(&plugin_sys_config);
 	}
 
 	// KVar system
@@ -946,8 +947,10 @@ b8 engine_run(application* app) {
 	engine_state->is_running = false;
 	app->stage = APPLICATION_STAGE_SHUTTING_DOWN;
 
-	// Shut down the game.
+	// Shut down the game and unload the lib.
 	app->shutdown(app);
+	// LEFTOFF: This fubars things
+	// platform_dynamic_library_unload(&app->game_library);
 
 	// Unregister from events.
 	event_unregister(EVENT_CODE_APPLICATION_QUIT, 0, engine_on_event);
@@ -962,6 +965,7 @@ b8 engine_run(application* app) {
 
 		platform_window_destroy(window);
 	}
+	darray_destroy(engine_state->windows);
 
 	string_free(app->game_library_name);
 	string_free(app->game_library_loaded_name);
@@ -1000,6 +1004,7 @@ b8 engine_run(application* app) {
 
 		kstring_id_shutdown();
 		kname_shutdown();
+		kregistry_destroy(&engine_state->external_systems_registry);
 
 		memory_system_shutdown();
 	}

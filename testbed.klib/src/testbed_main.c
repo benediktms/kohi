@@ -593,6 +593,10 @@ void application_on_window_resize(struct application* app, const struct kwindow*
 void application_shutdown(struct application* app) {
 	app->state->running = false;
 
+#ifdef KOHI_EDITOR
+	editor_shutdown(app->state->editor);
+#endif
+
 	// Shutdown game systems.
 
 	// Also destroy the game renderer.

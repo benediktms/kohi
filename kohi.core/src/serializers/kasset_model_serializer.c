@@ -468,7 +468,8 @@ KAPI b8 kasset_model_deserialize(u64 size, const void* in_block, kasset_model* o
 	out_asset->extents = header->extents;
 	out_asset->global_inverse_transform = header->inverse_global_transform;
 
-	// Done!
+	binary_string_table_destroy(&string_table);
+
 	return true;
 }
 

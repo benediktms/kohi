@@ -537,6 +537,12 @@ void kui_base_control_destroy(kui_state* state, kui_control* self) {
 		}
 	}
 
+	if (FLAG_GET(base->flags, KUI_CONTROL_FLAG_USER_DATA_FREE_ON_DESTROY)) {
+		if (base->user_data && base->user_data_size) {
+			kfree(base->user_data, base->user_data_size, base->user_data_memory_tag);
+		}
+	}
+
 	if (base->name) {
 		string_free(base->name);
 		base->name = KNULL;

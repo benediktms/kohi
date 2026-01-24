@@ -61,6 +61,14 @@ b8 editor_gizmo_create(editor_gizmo* out_gizmo) {
 
 void editor_gizmo_destroy(editor_gizmo* gizmo) {
 	if (gizmo) {
+		editor_gizmo_unload(gizmo);
+
+		u8 mode_count = EDITOR_GIZMO_MODE_MAX + 1;
+		for (u8 i = 0; i < mode_count; ++i) {
+			editor_gizmo_mode_data* data = &gizmo->mode_data[i];
+			geometry_destroy(&data->geo);
+			KFREE_TYPE_CARRAY(data->mode_extents, extents_3d, data->extents_count);
+		}
 	}
 }
 
@@ -126,6 +134,11 @@ b8 editor_gizmo_unload(editor_gizmo* gizmo) {
 		debug_line3d_unload(&gizmo->plane_normal_line);
 		debug_line3d_destroy(&gizmo->plane_normal_line);
 #endif
+
+		u8 mode_count = EDITOR_GIZMO_MODE_MAX + 1;
+		for (u8 i = 0; i < mode_count; ++i) {
+			renderer_geometry_destroy(&gizmo->mode_data[i].geo);
+		}
 	}
 	return true;
 }

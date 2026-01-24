@@ -322,7 +322,15 @@ b8 kaudio_system_initialize(u64* memory_requirement, void* memory, const char* c
 
 void kaudio_system_shutdown(struct kaudio_system_state* state) {
 	if (state) {
-		// TODO: release all sources, device, etc.
+		for (u16 i = 0; i < state->max_count; ++i) {
+			if (state->data.states[i] == KAUDIO_STATE_LOADED) {
+				state->backend->unload(state->backend, i);
+			}
+
+			darray_destroy(state->data.instances[i]);
+		}
+
+		darray_destroy(state->emitters);
 
 		state->backend->shutdown(state->backend);
 	}

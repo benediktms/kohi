@@ -1024,7 +1024,7 @@ static void texture_kasset_image_loaded(void* listener, kasset_image* asset) {
 			context->user_callback(t, context->user_listener);
 		}
 
-		// KFREE_TYPE(context, texture_asset_load_listener_context, MEMORY_TAG_RESOURCE);
+		KFREE_TYPE(context, texture_asset_load_listener_context, MEMORY_TAG_TEXTURE);
 	}
 }
 

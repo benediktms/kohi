@@ -258,12 +258,27 @@ void openal_backend_shutdown(kaudio_backend_interface* backend) {
 				openal_backend_channel_destroy(backend, &backend->internal_state->sources[i]);
 			}
 
-			KFREE_TYPE_CARRAY(backend->internal_state->datas, kaudio_internal_data, backend->internal_state->max_count);
+			// Give the threads a bit to stop.
+			platform_sleep(100);
 
-			if (backend->internal_state->device) {
-				alcCloseDevice(backend->internal_state->device);
-				backend->internal_state->device = 0;
-			}
+			kfree(backend->internal_state->sources, sizeof(kaudio_plugin_source) * backend->internal_state->max_sources, MEMORY_TAG_AUDIO);
+			backend->internal_state->sources = KNULL;
+
+			kfree(backend->internal_state->buffers, sizeof(u32) * backend->internal_state->buffer_count, MEMORY_TAG_ARRAY);
+			backend->internal_state->buffers = KNULL;
+
+			KFREE_TYPE_CARRAY(backend->internal_state->datas, kaudio_internal_data, backend->internal_state->max_count);
+			backend->internal_state->datas = KNULL;
+
+			darray_destroy(backend->internal_state->free_buffers);
+			backend->internal_state->free_buffers = KNULL;
+
+			alcDestroyContext(backend->internal_state->context);
+			backend->internal_state->context = KNULL;
+
+			alcCloseDevice(backend->internal_state->device);
+			backend->internal_state->device = KNULL;
+
 			kfree(backend->internal_state, sizeof(kaudio_backend_state), MEMORY_TAG_AUDIO);
 			backend->internal_state = 0;
 		}
@@ -379,6 +394,19 @@ void openal_backend_unload(struct kaudio_backend_interface* backend, kaudio audi
 
 	// Get the internal data.
 	kaudio_internal_data* data = &state->datas[audio];
+
+	b8 data_shared = data->mono_pcm_data == data->pcm_data;
+	if (data->mono_pcm_data) {
+		kfree(data->mono_pcm_data, data->downmixed_size, MEMORY_TAG_AUDIO);
+		data->mono_pcm_data = KNULL;
+		data->downmixed_size = 0;
+	}
+
+	if (!data_shared && data->pcm_data) {
+		kfree(data->pcm_data, data->pcm_data_size, MEMORY_TAG_AUDIO);
+		data->pcm_data = KNULL;
+		data->pcm_data_size = 0;
+	}
 
 	clear_buffer(backend, &data->buffer, 0);
 
@@ -905,6 +933,8 @@ static b8 openal_backend_channel_create(kaudio_backend_interface* backend, kaudi
 static void openal_backend_channel_destroy(kaudio_backend_interface* backend, kaudio_plugin_source* source) {
 	if (backend && source) {
 		alDeleteSources(1, &source->id);
+		kmutex_destroy(&source->data_mutex);
+		kthread_destroy(&source->thread);
 		kzero_memory(source, sizeof(kaudio_plugin_source));
 		source->id = INVALID_ID;
 	}

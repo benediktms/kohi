@@ -376,6 +376,8 @@ b8 kmaterial_system_acquire(kmaterial_system_state* state, kname name, kmaterial
 
 	out_instance->instance_id = material_asset_loaded(state, asset, new_handle, true);
 
+	asset_system_release_material(engine_systems_get()->asset_state, asset);
+
 	return true;
 }
 

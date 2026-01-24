@@ -63,13 +63,11 @@ void keymap_clear(keymap* map) {
 		for (u32 i = 0; i < KEYS_MAX_KEYS; ++i) {
 			keymap_entry* entry = &map->entries[i];
 			keymap_binding* node = entry->bindings;
-			keymap_binding* previous = entry->bindings;
 			while (node) {
 				// Remove all nodes
-				previous->next = node->next;
+				keymap_binding* next = node->next;
 				kfree(node, sizeof(keymap_binding), MEMORY_TAG_KEYMAP);
-				previous = node;
-				node = node->next;
+				node = next;
 			}
 		}
 	}

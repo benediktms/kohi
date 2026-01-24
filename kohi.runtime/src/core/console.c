@@ -95,6 +95,16 @@ void console_consumer_register(void* inst, PFN_console_consumer_write callback, 
 	}
 }
 
+void console_consumer_unregister(u8 consumer_id) {
+	if (state_ptr) {
+
+		console_consumer* consumer = &state_ptr->consumers[consumer_id];
+		consumer->instance = KNULL;
+		consumer->callback = KNULL;
+		state_ptr->consumer_count--;
+	}
+}
+
 void console_consumer_update(u8 consumer_id, void* inst, PFN_console_consumer_write callback) {
 	if (state_ptr) {
 		KASSERT_MSG(consumer_id < state_ptr->consumer_count, "Consumer id is invalid.");

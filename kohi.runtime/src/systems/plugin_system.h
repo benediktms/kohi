@@ -33,6 +33,7 @@ struct frame_data;
 struct kwindow;
 
 b8 plugin_system_deserialize_config(const char* config_str, plugin_system_config* out_config);
+void plugin_system_destroy_config(plugin_system_config* out_config);
 
 b8 plugin_system_intialize(u64* memory_requirement, struct plugin_system_state* state, struct plugin_system_config* config);
 

@@ -1,5 +1,6 @@
 #include "debug_console.h"
 #include "debug/kassert.h"
+#include "defines.h"
 #include "kui_types.h"
 
 #include <containers/darray.h>
@@ -143,6 +144,15 @@ b8 debug_console_load(debug_console_state* state) {
 void debug_console_unload(debug_console_state* state) {
 	if (state) {
 		state->loaded = false;
+
+		console_consumer_unregister(state->console_consumer_id);
+		state->console_consumer_id = INVALID_ID_U8;
+
+		// LEFTOFF: This causes debug_console_consumer_write leaks
+		/* darray_destroy(state->lines);
+		state->lines = KNULL;
+		darray_destroy(state->history);
+		state->history = KNULL; */
 	}
 }
 

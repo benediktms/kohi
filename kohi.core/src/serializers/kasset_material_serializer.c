@@ -263,6 +263,7 @@ b8 kasset_material_deserialize(const char* file_text, kasset_material* out_asset
 		goto cleanup;
 	}
 	out_material->type = string_to_kmaterial_type(type_str);
+	string_free(type_str);
 
 	// Material model. Optional, defaults to PBR
 	const char* model_str = 0;

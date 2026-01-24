@@ -120,8 +120,6 @@ b8 kforward_renderer_create(ktexture colour_buffer, ktexture depth_stencil_buffe
 		// Obtain an instance id for the default instance, used for non-transparent materials. Just use the first one in the list.
 		out_renderer->shadow_pass.sm_default_instance_id = out_renderer->shadow_pass.sm_set1_instance_ids[0];
 
-		// FIXME: animated mesh shadowmap shader
-
 		// Load heightmap terrain shadowmap shader.
 		out_renderer->shadow_pass.hmt_shader = kshader_system_get(kname_create(SHADER_NAME_RUNTIME_SHADOW_TERRAIN), kname_create(PACKAGE_NAME_RUNTIME));
 		KASSERT_DEBUG(out_renderer->shadow_pass.hmt_shader != KSHADER_INVALID);
@@ -185,7 +183,7 @@ b8 kforward_renderer_create(ktexture colour_buffer, ktexture depth_stencil_buffe
 
 void kforward_renderer_destroy(kforward_renderer* renderer) {
 	if (renderer) {
-		// TODO: do the thing
+		KFREE_TYPE_CARRAY(renderer->shadow_pass.sm_set1_instance_ids, u32, renderer->shadow_pass.sm_set1_max_instances);
 	}
 }
 

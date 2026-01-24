@@ -736,7 +736,8 @@ typedef struct vulkan_context {
 	/** @brief Collection of samplers. darray */
 	vulkan_sampler_handle_data* samplers;
 
-	/** @brief Collection of textures. darray. */
+	u32 max_texture_count;
+	/** @brief Collection of textures. Matches max texture size on frontend. */
 	vulkan_texture_handle_data* textures;
 
 	/** @brief Collection of vulkan shaders (internal shader data). Matches size of shader array in shader system. */
