@@ -254,9 +254,9 @@ void job_system_shutdown(void* state) {
 		// Check for a free thread first.
 		for (u8 i = 0; i < thread_count; ++i) {
 			ksemaphore_signal(&state_ptr->job_threads[i].semaphore);
-			// Give it a bit.
-			kthread_sleep(&state_ptr->job_threads[i].thread, 100);
 			kthread_destroy(&state_ptr->job_threads[i].thread);
+			// Give it a bit.
+			/* kthread_sleep(&state_ptr->job_threads[i].thread, 100); */
 		}
 
 		// Wait for the threads to finish.

@@ -34,9 +34,9 @@ b8 kohi_plugin_ui_kui_initialize(struct kruntime_plugin* plugin) {
 	kui_plugin_state* plugin_state = plugin->plugin_state;
 
 	kui_system_config kui_cfg = {0};
-	kui_system_initialize(&plugin_state->sui_state_memory_requirement, 0, &kui_cfg);
-	plugin_state->state = kallocate(plugin_state->sui_state_memory_requirement, MEMORY_TAG_PLUGIN);
-	if (!kui_system_initialize(&plugin_state->sui_state_memory_requirement, plugin_state->state, &kui_cfg)) {
+	kui_system_initialize(&plugin_state->state_memory_requirement, 0, &kui_cfg);
+	plugin_state->state = kallocate(plugin_state->state_memory_requirement, MEMORY_TAG_PLUGIN);
+	if (!kui_system_initialize(&plugin_state->state_memory_requirement, plugin_state->state, &kui_cfg)) {
 		KERROR("Failed to initialize standard ui system.");
 		return false;
 	}
@@ -49,6 +49,7 @@ void kohi_plugin_ui_kui_destroy(struct kruntime_plugin* plugin) {
 		kui_plugin_state* plugin_state = plugin->plugin_state;
 		kui_system_shutdown(plugin_state->state);
 
+		kfree(plugin_state->state, plugin_state->state_memory_requirement, MEMORY_TAG_PLUGIN);
 		kfree(plugin->plugin_state, plugin->plugin_state_size, MEMORY_TAG_PLUGIN);
 	}
 }

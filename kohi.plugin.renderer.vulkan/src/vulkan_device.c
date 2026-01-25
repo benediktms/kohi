@@ -344,6 +344,17 @@ void vulkan_device_query_swapchain_support(
 	VkSurfaceKHR surface,
 	vulkan_swapchain_support_info* out_support_info) {
 
+	if (out_support_info->formats) {
+		kfree(out_support_info->formats, sizeof(VkSurfaceFormatKHR) * out_support_info->format_count, MEMORY_TAG_RENDERER);
+		out_support_info->formats = KNULL;
+		out_support_info->format_count = 0;
+	}
+	if (out_support_info->present_modes) {
+		kfree(out_support_info->present_modes, sizeof(VkPresentModeKHR) * out_support_info->present_mode_count, MEMORY_TAG_RENDERER);
+		out_support_info->present_modes = KNULL;
+		out_support_info->present_mode_count = 0;
+	}
+
 	krhi_vulkan* rhi = &context->rhi;
 	// Surface capabilities
 	VkResult result = rhi->kvkGetPhysicalDeviceSurfaceCapabilitiesKHR(
@@ -359,7 +370,7 @@ void vulkan_device_query_swapchain_support(
 		physical_device,
 		surface,
 		&out_support_info->format_count,
-		0));
+		KNULL));
 
 	if (out_support_info->format_count != 0) {
 		if (!out_support_info->formats) {
@@ -377,7 +388,7 @@ void vulkan_device_query_swapchain_support(
 		physical_device,
 		surface,
 		&out_support_info->present_mode_count,
-		0));
+		KNULL));
 	if (out_support_info->present_mode_count != 0) {
 		if (!out_support_info->present_modes) {
 			out_support_info->present_modes = kallocate(sizeof(VkPresentModeKHR) * out_support_info->present_mode_count, MEMORY_TAG_RENDERER);

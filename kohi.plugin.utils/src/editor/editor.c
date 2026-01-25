@@ -475,6 +475,9 @@ void editor_shutdown(struct editor_state* state) {
 
 	KTRACE("Shutting down editor.");
 
+	darray_destroy(state->selection_list);
+	state->selection_list = KNULL;
+
 	tree_clear(state);
 
 	if (state->edit_scene) {

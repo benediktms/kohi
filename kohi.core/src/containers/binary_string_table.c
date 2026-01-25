@@ -18,7 +18,7 @@ binary_string_table binary_string_table_create(void) {
 binary_string_table binary_string_table_from_block(void* block) {
 	KASSERT_DEBUG(block);
 
-	binary_string_table table = binary_string_table_create();
+	binary_string_table table = {0};
 
 	binary_string_table_header* header = (binary_string_table_header*)block;
 	table.header = *header;

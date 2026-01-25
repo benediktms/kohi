@@ -102,18 +102,6 @@ static b8 create(renderer_backend_interface* backend, kwindow* window, renderer_
 		present_mode = VK_PRESENT_MODE_IMMEDIATE_KHR;
 	}
 
-	vulkan_swapchain_support_info* swapchain_support = &context->device.swapchain_support;
-	if (swapchain_support->format_count < 1 || swapchain_support->present_mode_count < 1) {
-		if (swapchain_support->formats) {
-			kfree(swapchain_support->formats, sizeof(VkSurfaceFormatKHR) * swapchain_support->format_count, MEMORY_TAG_RENDERER);
-		}
-		if (swapchain_support->present_modes) {
-			kfree(swapchain_support->present_modes, sizeof(VkPresentModeKHR) * swapchain_support->present_mode_count, MEMORY_TAG_RENDERER);
-		}
-		KINFO("Required swapchain support not present, skipping device.");
-		return false;
-	}
-
 	// Swapchain extent
 	if (context->device.swapchain_support.capabilities.currentExtent.width != U32_MAX) {
 		swapchain_extent = context->device.swapchain_support.capabilities.currentExtent;
@@ -233,6 +221,16 @@ static b8 create(renderer_backend_interface* backend, kwindow* window, renderer_
 		return false;
 	}
 
+	if (texture_data->image_count && texture_data->images) {
+		for (u32 i = 0; i < swapchain->image_count; ++i) {
+			vulkan_image* image = &texture_data->images[i];
+			string_free(image->name);
+			rhi->kvkDestroyImageView(context->device.logical_device, image->view, context->allocator);
+		}
+		KFREE_TYPE_CARRAY(texture_data->images, vulkan_image, swapchain->image_count);
+		texture_data->images = KNULL;
+	}
+
 	texture_data->image_count = swapchain->image_count;
 	texture_data->images = KALLOC_TYPE_CARRAY(vulkan_image, texture_data->image_count);
 
@@ -249,17 +247,11 @@ static b8 create(renderer_backend_interface* backend, kwindow* window, renderer_
 		image->format = swapchain->image_format.format;
 		image->layer_count = 1;
 		image->layer_views = 0;
-	}
-
-	// Update the parameters and setup a view for each image.
-	for (u32 i = 0; i < texture_data->image_count; ++i) {
-		vulkan_image* image = &texture_data->images[i];
 
 		// Update the internal handle and dimensions.
 		image->handle = swapchain_images[i];
 		image->width = swapchain_extent.width;
 		image->height = swapchain_extent.height;
-		image->format = swapchain->image_format.format; // Technically possible that the format changes...
 		// Setup a debug name for the image.
 		VK_SET_DEBUG_OBJECT_NAME(context, VK_OBJECT_TYPE_IMAGE, image->handle, image->name);
 

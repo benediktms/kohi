@@ -148,11 +148,15 @@ void debug_console_unload(debug_console_state* state) {
 		console_consumer_unregister(state->console_consumer_id);
 		state->console_consumer_id = INVALID_ID_U8;
 
-		// LEFTOFF: This causes debug_console_consumer_write leaks
-		/* darray_destroy(state->lines);
+		u32 len = darray_length(state->lines);
+		for (u32 i = 0; i < len; ++i) {
+			string_free(state->lines[i]);
+		}
+		darray_destroy(state->lines);
 		state->lines = KNULL;
+
 		darray_destroy(state->history);
-		state->history = KNULL; */
+		state->history = KNULL;
 	}
 }
 

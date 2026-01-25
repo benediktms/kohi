@@ -43,7 +43,7 @@
 
 // NOTE: To disable the custom allocator, comment this out or set to 0.
 #ifndef KVULKAN_USE_CUSTOM_ALLOCATOR
-#	define KVULKAN_USE_CUSTOM_ALLOCATOR 0
+#	define KVULKAN_USE_CUSTOM_ALLOCATOR 1
 #endif
 
 VKAPI_ATTR VkBool32 VKAPI_CALL vk_debug_callback(
@@ -227,14 +227,14 @@ b8 vulkan_renderer_backend_initialize(renderer_backend_interface* backend, const
 			}
 		}
 
-		// Clean up.
-		darray_destroy(available_extensions);
 		darray_destroy(available_layers);
 
 		KINFO("All required validation layers are present.");
 	} else {
 		KINFO("Vulkan validation layers are not enabled.");
 	}
+
+	darray_destroy(available_extensions);
 
 	create_info.enabledLayerCount = required_validation_layer_count;
 	create_info.ppEnabledLayerNames = required_validation_layer_names;
@@ -661,9 +661,10 @@ b8 vulkan_renderer_frame_prepare_window_surface(renderer_backend_interface* back
 		// If the swapchain recreation failed (because, for example, the window was
 		// minimized), boot out before unsetting the flag.
 		if (window_backend->skip_frames == 0) {
-			if (!recreate_swapchain(backend, window)) {
-				return false;
-			}
+			// FIXME: Check this on all platforms, but maybe swapchain recreation wasn't needed here after all?
+			// if (!recreate_swapchain(backend, window)) {
+			// 	return false;
+			// }
 		}
 
 		window_backend->skip_frames++;
@@ -715,10 +716,11 @@ b8 vulkan_renderer_frame_prepare_window_surface(renderer_backend_interface* back
 		&window_backend->swapchain.image_index);
 
 	if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-		// Trigger swapchain recreation, then boot out of the render loop.
-		if (!vulkan_swapchain_recreate(backend, window, &window_backend->swapchain)) {
-			KFATAL("Failed to recreate swapchain.");
-		}
+		// FIXME: Check this on all platforms, but maybe swapchain recreation wasn't needed here after all?
+		// // Trigger swapchain recreation, then boot out of the render loop.
+		// if (!vulkan_swapchain_recreate(backend, window, &window_backend->swapchain)) {
+		// 	KFATAL("Failed to recreate swapchain.");
+		// }
 		return false;
 	} else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
 		KFATAL("Failed to acquire swapchain image!");

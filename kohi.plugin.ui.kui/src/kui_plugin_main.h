@@ -8,7 +8,7 @@ struct kui_state;
 struct kui_render_data;
 
 typedef struct kui_plugin_state {
-	u64 sui_state_memory_requirement;
+	u64 state_memory_requirement;
 	struct kui_state* state;
 	struct kui_render_data* render_data;
 } kui_plugin_state;

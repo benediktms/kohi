@@ -30,7 +30,7 @@ typedef struct console_object {
 } console_object;
 
 typedef struct console_state {
-	u8 consumer_count;
+	// darray of registered console consumers.
 	console_consumer* consumers;
 
 	// darray of registered commands.
@@ -42,23 +42,21 @@ typedef struct console_state {
 
 static b8 on_exec(console_state* state, const char* exec_text);
 
-const u32 MAX_CONSUMER_COUNT = 10;
-
 static console_state* state_ptr;
 
-b8 console_initialize(u64* memory_requirement, struct console_state* memory, void* config) {
-	*memory_requirement = sizeof(console_state) + (sizeof(console_consumer) * MAX_CONSUMER_COUNT);
+b8 console_initialize(u64* memory_requirement, struct console_state* state, void* config) {
+	*memory_requirement = sizeof(console_state);
 
-	if (!memory) {
+	if (!state) {
 		return true;
 	}
 
-	kzero_memory(memory, *memory_requirement);
-	state_ptr = memory;
-	state_ptr->consumers = (console_consumer*)((u64)memory + sizeof(console_state));
+	kzero_memory(state, *memory_requirement);
+	state_ptr = state;
+	state->consumers = darray_create(console_consumer);
 
-	state_ptr->registered_commands = darray_create(console_command);
-	state_ptr->registered_objects = darray_create(console_object);
+	state->registered_commands = darray_create(console_command);
+	state->registered_objects = darray_create(console_object);
 
 	// Tell the logger about the console.
 	logger_console_write_hook_set(console_write);
@@ -67,17 +65,17 @@ b8 console_initialize(u64* memory_requirement, struct console_state* memory, voi
 }
 
 void console_shutdown(struct console_state* state) {
-	if (state_ptr) {
-		u32 command_count = darray_length(state_ptr->registered_commands);
+	if (state) {
+		u32 command_count = darray_length(state->registered_commands);
 		for (u32 i = 0; i < command_count; ++i) {
-			if (state_ptr->registered_commands[i].name) {
-				string_free(state_ptr->registered_commands[i].name);
+			if (state->registered_commands[i].name) {
+				string_free(state->registered_commands[i].name);
 			}
 		}
-		darray_destroy(state_ptr->registered_commands);
-		darray_destroy(state_ptr->registered_objects);
+		darray_destroy(state->registered_commands);
+		darray_destroy(state->registered_objects);
 
-		kzero_memory(state, sizeof(console_state) + (sizeof(console_consumer) * MAX_CONSUMER_COUNT));
+		darray_destroy(state->consumers);
 	}
 
 	state_ptr = 0;
@@ -85,29 +83,36 @@ void console_shutdown(struct console_state* state) {
 
 void console_consumer_register(void* inst, PFN_console_consumer_write callback, u8* out_consumer_id) {
 	if (state_ptr) {
-		KASSERT_MSG(state_ptr->consumer_count + 1 < MAX_CONSUMER_COUNT, "Max console consumers reached.");
+		*out_consumer_id = INVALID_ID_U8;
+		u8 len = darray_length(state_ptr->consumers);
+		for (u32 i = 0; i < len; ++i) {
+			if (!state_ptr->consumers[i].callback) {
+				*out_consumer_id = i;
+				break;
+			}
+		}
+		if (*out_consumer_id == INVALID_ID_U8) {
+			darray_push(state_ptr->consumers, (console_consumer){0});
+			*out_consumer_id = len;
+		}
 
-		console_consumer* consumer = &state_ptr->consumers[state_ptr->consumer_count];
+		console_consumer* consumer = &state_ptr->consumers[*out_consumer_id];
 		consumer->instance = inst;
 		consumer->callback = callback;
-		*out_consumer_id = state_ptr->consumer_count;
-		state_ptr->consumer_count++;
 	}
 }
 
 void console_consumer_unregister(u8 consumer_id) {
 	if (state_ptr) {
-
 		console_consumer* consumer = &state_ptr->consumers[consumer_id];
 		consumer->instance = KNULL;
 		consumer->callback = KNULL;
-		state_ptr->consumer_count--;
 	}
 }
 
 void console_consumer_update(u8 consumer_id, void* inst, PFN_console_consumer_write callback) {
 	if (state_ptr) {
-		KASSERT_MSG(consumer_id < state_ptr->consumer_count, "Consumer id is invalid.");
+		KASSERT_MSG(consumer_id < darray_length(state_ptr->consumers), "Consumer id is invalid.");
 
 		console_consumer* consumer = &state_ptr->consumers[consumer_id];
 		consumer->instance = inst;
@@ -118,7 +123,8 @@ void console_consumer_update(u8 consumer_id, void* inst, PFN_console_consumer_wr
 void console_write(log_level level, const char* message) {
 	if (state_ptr) {
 		// Notify each consumer that a line has been added.
-		for (u8 i = 0; i < state_ptr->consumer_count; ++i) {
+		u8 len = darray_length(state_ptr->consumers);
+		for (u8 i = 0; i < len; ++i) {
 			console_consumer* consumer = &state_ptr->consumers[i];
 			if (consumer->callback) {
 				consumer->callback(consumer->instance, level, message);

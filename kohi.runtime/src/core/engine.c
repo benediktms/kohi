@@ -949,8 +949,7 @@ b8 engine_run(application* app) {
 
 	// Shut down the game and unload the lib.
 	app->shutdown(app);
-	// LEFTOFF: This fubars things
-	// platform_dynamic_library_unload(&app->game_library);
+	platform_dynamic_library_unload(&app->game_library);
 
 	// Unregister from events.
 	event_unregister(EVENT_CODE_APPLICATION_QUIT, 0, engine_on_event);
