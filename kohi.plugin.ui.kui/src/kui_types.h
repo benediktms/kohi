@@ -307,3 +307,41 @@ typedef struct kui_scrollable_control {
 	// HACK: Use proper kui events so we don't have to do this
 	struct kui_state* kui_state;
 } kui_scrollable_control;
+
+// Atlas configuration
+
+typedef struct kui_atlas_panel_control_config {
+	extents_2d extents;
+} kui_atlas_panel_control_config;
+
+typedef struct kui_atlas_button_control_mode_config {
+	extents_2d extents;
+	vec2 corner_size;
+	vec2 corner_px_size;
+} kui_atlas_button_control_mode_config;
+
+typedef struct kui_atlas_button_control_config {
+	kui_atlas_button_control_mode_config normal;
+	kui_atlas_button_control_mode_config hover;
+	kui_atlas_button_control_mode_config pressed;
+} kui_atlas_button_control_config;
+
+typedef struct kui_atlas_textbox_control_mode_config {
+	extents_2d extents;
+	vec2 corner_size;
+	vec2 corner_px_size;
+} kui_atlas_textbox_control_mode_config;
+
+typedef struct kui_atlas_textbox_control_config {
+	kui_atlas_textbox_control_mode_config normal;
+	kui_atlas_textbox_control_mode_config focused;
+} kui_atlas_textbox_control_config;
+
+typedef struct kui_atlas_config {
+	kname image_asset_name;
+	kname image_asset_package_name;
+
+	kui_atlas_panel_control_config panel;
+	kui_atlas_button_control_config button;
+	kui_atlas_textbox_control_config textbox;
+} kui_atlas_config;

@@ -1,0 +1,61 @@
+image_asset_name = "Texture.KuiDefaultAtlas"
+image_asset_package_name = "Kohi.Plugin.Ui.Kui"
+controls = [
+	{
+		type = "panel"
+		extents = {
+			min = "44 7"
+			max = "73 36"
+		}
+	}
+	{
+		type = "button"
+		modes = {
+			normal = {
+				extents = {
+					min = "151 12"
+					max = "158 19"
+				}
+				corner_px_size = "3 3"
+				corner_size = "10 10"
+			}
+			hover = {
+				extents = {
+					min = "151 31"
+					max = "158 37"
+				}
+				corner_px_size = "3 3"
+				corner_size = "10 10"
+			}
+			pressed = {
+				extents = {
+					min = "151 21"
+					max = "158 28"
+				}
+				corner_px_size = "3 3"
+				corner_size = "10 10"
+			}
+		}
+	}
+	{
+		type = "textbox"
+		modes = {
+			normal = {
+				extents = {
+					min = "180 31"
+					max = "193 43"
+				}
+				corner_px_size = "3 3"
+				corner_size = "10 10"
+			}
+			focused = {
+				extents = {
+					min = "180 44"
+					max = "193 56"
+				}
+				corner_px_size = "3 3"
+				corner_size = "10 10"
+			}
+		}
+	}
+]

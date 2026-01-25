@@ -52,6 +52,8 @@ typedef struct kui_state {
 	colour4 unfocused_base_colour;
 
 	ktexture atlas_texture;
+	uvec2 atlas_texture_size;
+	kui_atlas_config atlas;
 
 	krenderbuffer vertex_buffer;
 	krenderbuffer index_buffer;

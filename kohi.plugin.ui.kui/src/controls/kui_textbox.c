@@ -28,7 +28,6 @@
 #include "kui_types.h"
 #include "math/math_types.h"
 #include "renderer/kui_renderer.h"
-#include "systems/texture_system.h"
 
 static f32 kui_textbox_calculate_cursor_offset(kui_state* state, u32 string_pos, const char* full_string, kui_textbox_control* typed_textbox_control);
 static void kui_textbox_update_highlight_box(kui_state* state, kui_base_control* self);
@@ -94,23 +93,33 @@ kui_control kui_textbox_control_create(kui_state* state, const char* name, font_
 
 	// load
 
-	// HACK: TODO: remove hardcoded stuff.
-	u32 atlas_x, atlas_y;
-	texture_dimensions_get(state->atlas_texture, &atlas_x, &atlas_y);
-	vec2i atlas_size = (vec2i){atlas_x, atlas_y};
+	vec2i atlas_size = (vec2i){state->atlas_texture_size.x, state->atlas_texture_size.y};
 
-	vec2i corner_px_size = (vec2i){3, 3};
-	vec2i corner_size = (vec2i){10, 10};
+	vec2i corner_size;
 	{
-		vec2i atlas_min = (vec2i){180, 31};
-		vec2i atlas_max = (vec2i){193, 43};
-		KASSERT(nine_slice_create(base->name, typed_control->size, atlas_size, atlas_min, atlas_max, corner_px_size, corner_size, &typed_control->nslice));
+		vec2 min = state->atlas.textbox.normal.extents.min;
+		vec2 max = state->atlas.textbox.normal.extents.max;
+		vec2i atlas_min = (vec2i){min.x, min.y};
+		vec2i atlas_max = (vec2i){max.x, max.y};
+		vec2 cps = state->atlas.textbox.normal.corner_px_size;
+		vec2 cs = state->atlas.textbox.normal.corner_size;
+		vec2i local_corner_px_size = (vec2i){cps.x, cps.y};
+		vec2i local_corner_size = (vec2i){cs.x, cs.y};
+		KASSERT(nine_slice_create(base->name, typed_control->size, atlas_size, atlas_min, atlas_max, local_corner_px_size, local_corner_size, &typed_control->nslice));
+
+		corner_size = local_corner_size;
 	}
 
 	{
-		vec2i atlas_min = (vec2i){180, 31 + 13};
-		vec2i atlas_max = (vec2i){193, 43 + 13};
-		KASSERT(nine_slice_create(base->name, typed_control->size, atlas_size, atlas_min, atlas_max, corner_px_size, corner_size, &typed_control->focused_nslice));
+		vec2 min = state->atlas.textbox.focused.extents.min;
+		vec2 max = state->atlas.textbox.focused.extents.max;
+		vec2i atlas_min = (vec2i){min.x, min.y};
+		vec2i atlas_max = (vec2i){max.x, max.y};
+		vec2 cps = state->atlas.textbox.focused.corner_px_size;
+		vec2 cs = state->atlas.textbox.focused.corner_size;
+		vec2i local_corner_px_size = (vec2i){cps.x, cps.y};
+		vec2i local_corner_size = (vec2i){cs.x, cs.y};
+		KASSERT(nine_slice_create(base->name, typed_control->size, atlas_size, atlas_min, atlas_max, local_corner_px_size, local_corner_size, &typed_control->focused_nslice));
 	}
 
 	base->bounds.x = 0.0f;

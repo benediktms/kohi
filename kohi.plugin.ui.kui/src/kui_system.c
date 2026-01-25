@@ -26,6 +26,7 @@
 #include <utils/kcolour.h>
 #include <utils/ksort.h>
 
+#include "assets/kasset_types.h"
 #include "controls/kui_button.h"
 #include "controls/kui_label.h"
 #include "controls/kui_panel.h"
@@ -35,7 +36,9 @@
 #include "kohi.plugin.ui.kui_version.h"
 #include "kui_defines.h"
 #include "kui_types.h"
+#include "parsers/kson_parser.h"
 #include "renderer/kui_renderer.h"
+#include "systems/asset_system.h"
 
 static b8 kui_base_internal_mouse_down(kui_state* state, kui_control self, struct kui_mouse_event event);
 static b8 kui_base_internal_mouse_up(kui_state* state, kui_control self, struct kui_mouse_event event);
@@ -68,6 +71,8 @@ static kui_base_control* get_base(kui_state* state, kui_control control);
 static kui_control create_handle(kui_state* state, kui_control_type type);
 static void release_handle(kui_state* state, kui_control* handle);
 
+static b8 parse_atlas_config(const char* config_source, kui_atlas_config* out_config);
+
 b8 kui_system_initialize(u64* memory_requirement, kui_state* state, kui_system_config* config) {
 	if (!memory_requirement) {
 		KERROR("kui_system_initialize requires a valid pointer to memory_requirement.");
@@ -87,6 +92,15 @@ b8 kui_system_initialize(u64* memory_requirement, kui_state* state, kui_system_c
 
 	state->focused_base_colour = KCOLOUR4_WHITE;
 	state->unfocused_base_colour = KCOLOUR4_WHITE_50;
+
+	kasset_text* atlas_asset = asset_system_request_text_from_package_sync(engine_systems_get()->asset_state, PACKAGE_NAME_KUI, KUI_DEFAULT_ATLAS_ASSET_NAME);
+	b8 asset_parse_result = parse_atlas_config(atlas_asset->content, &state->atlas);
+	asset_system_release_text(engine_systems_get()->asset_state, atlas_asset);
+
+	if (!asset_parse_result) {
+		KERROR("Failed to parse atlas config!");
+		return false;
+	}
 
 	// Get the shader and the global binding id.
 	state->shader = kshader_system_get(kname_create(KUI_SHADER_NAME), kname_create(PACKAGE_NAME_KUI));
@@ -111,12 +125,13 @@ b8 kui_system_initialize(u64* memory_requirement, kui_state* state, kui_system_c
 
 	// Atlas texture.
 	state->atlas_texture = texture_acquire_from_package_sync(
-		kname_create(KUI_DEFAULT_ATLAS_NAME),
-		kname_create(PACKAGE_NAME_KUI));
+		state->atlas.image_asset_name,
+		state->atlas.image_asset_package_name);
 	if (state->atlas_texture == INVALID_KTEXTURE) {
 		KERROR("Failed to request atlas texture for standard UI.");
 		state->atlas_texture = texture_acquire_sync(kname_create(DEFAULT_TEXTURE_NAME));
 	}
+	texture_dimensions_get(state->atlas_texture, &state->atlas_texture_size.x, &state->atlas_texture_size.y);
 
 	// Listen for input events.
 	event_register(EVENT_CODE_BUTTON_CLICKED, state, kui_system_click);
@@ -1410,4 +1425,113 @@ static void release_handle(kui_state* state, kui_control* handle) {
 		}
 	}
 	*handle = INVALID_KUI_CONTROL;
+}
+
+static b8 parse_atlas_config(const char* config_source, kui_atlas_config* out_config) {
+	kson_tree tree = {0};
+	if (!kson_tree_from_string(config_source, &tree)) {
+		KERROR("%s - parsing failed.", __FUNCTION__);
+		return false;
+	}
+
+	b8 success = false;
+	const char* name_str = KNULL;
+
+	if (!kson_object_property_value_get_string_as_kname(&tree.root, "image_asset_name", &out_config->image_asset_name)) {
+		KERROR("%s - Parse failed: required property 'image_asset_name' missing.", __FUNCTION__);
+		goto parse_atlas_config_cleanup;
+	}
+
+	if (!kson_object_property_value_get_string_as_kname(&tree.root, "image_asset_package_name", &out_config->image_asset_package_name)) {
+		KERROR("%s - Parse failed: required property 'image_asset_package_name' missing.", __FUNCTION__);
+		goto parse_atlas_config_cleanup;
+	}
+
+	if (!kson_object_property_value_get_string_as_kname(&tree.root, "image_asset_package_name", &out_config->image_asset_package_name)) {
+		KERROR("%s - Parse failed: required property 'image_asset_package_name' missing.", __FUNCTION__);
+		goto parse_atlas_config_cleanup;
+	}
+
+	kson_array controls_array;
+	if (!kson_object_property_value_get_array(&tree.root, "controls", &controls_array)) {
+		KERROR("%s - Parse failed: required property 'controls' missing.", __FUNCTION__);
+		goto parse_atlas_config_cleanup;
+	}
+
+	u32 type_count = 0;
+	kson_array_element_count_get(&controls_array, &type_count);
+	for (u32 i = 0; i < type_count; ++i) {
+		kson_object control_obj;
+		kson_array_element_value_get_object(&controls_array, i, &control_obj);
+
+		if (!kson_object_property_value_get_string(&control_obj, "type", &name_str)) {
+			KERROR("%s - Parse failed: required property 'type' missing from controls[%u].", __FUNCTION__, i);
+			goto parse_atlas_config_cleanup;
+		}
+
+		if (strings_equali(name_str, "panel")) {
+			// Process panel properties
+			kson_object_property_value_get_extents_2d(&control_obj, "extents", &out_config->panel.extents);
+		} else if (strings_equali(name_str, "button")) {
+			// Process button properties
+			kson_object modes_obj;
+			if (!kson_object_property_value_get_object(&control_obj, "modes", &modes_obj)) {
+				KERROR("%s - Required property 'modes' found from controls[%u].", __FUNCTION__, i);
+				goto parse_atlas_config_cleanup;
+			}
+
+			// Normal
+			kson_object normal_obj;
+			kson_object_property_value_get_object(&modes_obj, "normal", &normal_obj);
+			kson_object_property_value_get_extents_2d(&normal_obj, "extents", &out_config->button.normal.extents);
+			kson_object_property_value_get_vec2(&normal_obj, "corner_size", &out_config->button.normal.corner_size);
+			kson_object_property_value_get_vec2(&normal_obj, "corner_px_size", &out_config->button.normal.corner_px_size);
+
+			// Hover
+			kson_object hover_obj;
+			kson_object_property_value_get_object(&modes_obj, "hover", &hover_obj);
+			kson_object_property_value_get_extents_2d(&hover_obj, "extents", &out_config->button.hover.extents);
+			kson_object_property_value_get_vec2(&hover_obj, "corner_size", &out_config->button.hover.corner_size);
+			kson_object_property_value_get_vec2(&hover_obj, "corner_px_size", &out_config->button.hover.corner_px_size);
+
+			// Pressed
+			kson_object pressed_obj;
+			kson_object_property_value_get_object(&modes_obj, "pressed", &pressed_obj);
+			kson_object_property_value_get_extents_2d(&pressed_obj, "extents", &out_config->button.pressed.extents);
+			kson_object_property_value_get_vec2(&pressed_obj, "corner_size", &out_config->button.pressed.corner_size);
+			kson_object_property_value_get_vec2(&pressed_obj, "corner_px_size", &out_config->button.pressed.corner_px_size);
+
+		} else if (strings_equali(name_str, "textbox")) {
+			// TODO: Process textbox properties
+			kson_object modes_obj;
+			if (!kson_object_property_value_get_object(&control_obj, "modes", &modes_obj)) {
+				KERROR("%s - Required property 'modes' found from controls[%u].", __FUNCTION__, i);
+				goto parse_atlas_config_cleanup;
+			}
+
+			// Normal
+			kson_object normal_obj;
+			kson_object_property_value_get_object(&modes_obj, "normal", &normal_obj);
+			kson_object_property_value_get_extents_2d(&normal_obj, "extents", &out_config->textbox.normal.extents);
+			kson_object_property_value_get_vec2(&normal_obj, "corner_size", &out_config->textbox.normal.corner_size);
+			kson_object_property_value_get_vec2(&normal_obj, "corner_px_size", &out_config->textbox.normal.corner_px_size);
+
+			// Hover
+			kson_object focused_obj;
+			kson_object_property_value_get_object(&modes_obj, "focused", &focused_obj);
+			kson_object_property_value_get_extents_2d(&focused_obj, "extents", &out_config->textbox.focused.extents);
+			kson_object_property_value_get_vec2(&focused_obj, "corner_size", &out_config->textbox.focused.corner_size);
+			kson_object_property_value_get_vec2(&focused_obj, "corner_px_size", &out_config->textbox.focused.corner_px_size);
+		} else {
+			KERROR("%s - Unknown type '%s' found from controls[%u]. It will be ignored", __FUNCTION__, name_str, i);
+		}
+	}
+
+	success = true;
+parse_atlas_config_cleanup:
+
+	string_free(name_str);
+	kson_tree_cleanup(&tree);
+
+	return success;
 }

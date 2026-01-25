@@ -44,13 +44,14 @@ kui_control kui_button_control_create(kui_state* state, const char* name) {
 	base->internal_mouse_out = kui_button_internal_mouse_out;
 	base->internal_mouse_over = kui_button_internal_mouse_over;
 
-	// HACK: TODO: remove hardcoded stuff.
-	/* vec2i atlas_size = (vec2i){typed_state->ui_atlas.texture->width, typed_state->ui_atlas.texture->height}; */
-	vec2i atlas_size = (vec2i){512, 512};
-	vec2i atlas_min = (vec2i){151, 12};
-	vec2i atlas_max = (vec2i){158, 19};
-	vec2i corner_px_size = (vec2i){3, 3};
-	vec2i corner_size = (vec2i){10, 10};
+	uvec2 uatlas_size = state->atlas_texture_size;
+	vec2i atlas_size = (vec2i){uatlas_size.x, uatlas_size.y};
+	vec2 min = state->atlas.button.normal.extents.min;
+	vec2 max = state->atlas.button.normal.extents.max;
+	vec2i atlas_min = (vec2i){min.x, min.y};
+	vec2i atlas_max = (vec2i){max.x, max.y};
+	vec2i corner_px_size = (vec2i){state->atlas.button.normal.corner_px_size.x, state->atlas.button.normal.corner_px_size.y};
+	vec2i corner_size = (vec2i){state->atlas.button.normal.corner_size.x, state->atlas.button.normal.corner_size.y};
 	KASSERT(nine_slice_create(base->name, (vec2i){200, 40}, atlas_size, atlas_min, atlas_max, corner_px_size, corner_size, &typed_data->nslice));
 
 	base->bounds.x = 0.0f;
@@ -209,10 +210,11 @@ static b8 kui_button_internal_mouse_out(kui_state* state, kui_control self, stru
 	kui_base_control* base = kui_system_get_base(state, self);
 	KASSERT(base);
 	kui_button_control* typed_data = (kui_button_control*)base;
-	typed_data->nslice.atlas_px_min.x = 151;
-	typed_data->nslice.atlas_px_min.y = 12;
-	typed_data->nslice.atlas_px_max.x = 158;
-	typed_data->nslice.atlas_px_max.y = 19;
+	kui_atlas_button_control_mode_config* mode = &state->atlas.button.normal;
+	typed_data->nslice.atlas_px_min.x = mode->extents.min.x;
+	typed_data->nslice.atlas_px_min.y = mode->extents.min.y;
+	typed_data->nslice.atlas_px_max.x = mode->extents.max.x;
+	typed_data->nslice.atlas_px_max.y = mode->extents.max.y;
 	nine_slice_update(&typed_data->nslice, 0);
 
 	KTRACE("mouse OUT on button '%s'", base->name);
@@ -225,17 +227,14 @@ static b8 kui_button_internal_mouse_over(kui_state* state, kui_control self, str
 	kui_base_control* base = kui_system_get_base(state, self);
 	KASSERT(base);
 	kui_button_control* typed_data = (kui_button_control*)base;
+	kui_atlas_button_control_mode_config* mode = &state->atlas.button.hover;
 	if (FLAG_GET(base->flags, KUI_CONTROL_FLAG_PRESSED_BIT)) {
-		typed_data->nslice.atlas_px_min.x = 151;
-		typed_data->nslice.atlas_px_min.y = 21;
-		typed_data->nslice.atlas_px_max.x = 158;
-		typed_data->nslice.atlas_px_max.y = 28;
-	} else {
-		typed_data->nslice.atlas_px_min.x = 151;
-		typed_data->nslice.atlas_px_min.y = 31;
-		typed_data->nslice.atlas_px_max.x = 158;
-		typed_data->nslice.atlas_px_max.y = 37;
+		mode = &state->atlas.button.pressed;
 	}
+	typed_data->nslice.atlas_px_min.x = mode->extents.min.x;
+	typed_data->nslice.atlas_px_min.y = mode->extents.min.y;
+	typed_data->nslice.atlas_px_max.x = mode->extents.max.x;
+	typed_data->nslice.atlas_px_max.y = mode->extents.max.y;
 	nine_slice_update(&typed_data->nslice, 0);
 
 	KTRACE("mouse OVER on button '%s'", base->name);
@@ -247,10 +246,11 @@ static b8 kui_button_internal_mouse_down(kui_state* state, kui_control self, str
 	kui_base_control* base = kui_system_get_base(state, self);
 	KASSERT(base);
 	kui_button_control* typed_data = (kui_button_control*)base;
-	typed_data->nslice.atlas_px_min.x = 151;
-	typed_data->nslice.atlas_px_min.y = 21;
-	typed_data->nslice.atlas_px_max.x = 158;
-	typed_data->nslice.atlas_px_max.y = 28;
+	kui_atlas_button_control_mode_config* mode = &state->atlas.button.pressed;
+	typed_data->nslice.atlas_px_min.x = mode->extents.min.x;
+	typed_data->nslice.atlas_px_min.y = mode->extents.min.y;
+	typed_data->nslice.atlas_px_max.x = mode->extents.max.x;
+	typed_data->nslice.atlas_px_max.y = mode->extents.max.y;
 	nine_slice_update(&typed_data->nslice, 0);
 	// Block event propagation by default. User events can override this.
 	return base->on_mouse_down ? base->on_mouse_down(state, self, event) : false;
@@ -259,17 +259,14 @@ static b8 kui_button_internal_mouse_up(kui_state* state, kui_control self, struc
 	kui_base_control* base = kui_system_get_base(state, self);
 	KASSERT(base);
 	kui_button_control* typed_data = (kui_button_control*)base;
+	kui_atlas_button_control_mode_config* mode = &state->atlas.button.normal;
 	if (FLAG_GET(base->flags, KUI_CONTROL_FLAG_HOVERED_BIT)) {
-		typed_data->nslice.atlas_px_min.x = 151;
-		typed_data->nslice.atlas_px_min.y = 31;
-		typed_data->nslice.atlas_px_max.x = 158;
-		typed_data->nslice.atlas_px_max.y = 37;
-	} else {
-		typed_data->nslice.atlas_px_min.x = 151;
-		typed_data->nslice.atlas_px_min.y = 31;
-		typed_data->nslice.atlas_px_max.x = 158;
-		typed_data->nslice.atlas_px_max.y = 37;
+		mode = &state->atlas.button.hover;
 	}
+	typed_data->nslice.atlas_px_min.x = mode->extents.min.x;
+	typed_data->nslice.atlas_px_min.y = mode->extents.min.y;
+	typed_data->nslice.atlas_px_max.x = mode->extents.max.x;
+	typed_data->nslice.atlas_px_max.y = mode->extents.max.y;
 	nine_slice_update(&typed_data->nslice, 0);
 	// Block event propagation by default. User events can override this.
 	return base->on_mouse_up ? base->on_mouse_up(state, self, event) : false;

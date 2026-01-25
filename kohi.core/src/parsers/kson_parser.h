@@ -751,6 +751,28 @@ KAPI b8 kson_object_property_value_get_vec3(const kson_object* object, const cha
 KAPI b8 kson_object_property_value_get_vec2(const kson_object* object, const char* name, vec2* out_value);
 
 /**
+ * @brief Attempts to retrieve the given object's property value by name as a extents_3d. Fails if not found
+ * or on type mismatch (these are always stored as an object containing min/max values as strings, i.e. {min = "x y z" max = "x y z"}).
+ *
+ * @param object A constant pointer to the object to search. Required.
+ * @param name The property name to search for. Required.
+ * @param out_value A pointer to hold the object property's value.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 kson_object_property_value_get_extents_3d(const kson_object* object, const char* name, extents_3d* out_value);
+
+/**
+ * @brief Attempts to retrieve the given object's property value by name as a extents_2d. Fails if not found
+ * or on type mismatch (these are always stored as an object containing min/max values as strings, i.e. {min = "x y" max = "x y"}).
+ *
+ * @param object A constant pointer to the object to search. Required.
+ * @param name The property name to search for. Required.
+ * @param out_value A pointer to hold the object property's value.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 kson_object_property_value_get_extents_2d(const kson_object* object, const char* name, extents_2d* out_value);
+
+/**
  * @brief Attempts to retrieve the given object's property value by name as a kname. Fails if not found
  * or on type mismatch. knames are always stored as thier original text format.
  *

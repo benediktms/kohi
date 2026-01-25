@@ -4,6 +4,7 @@
 #include "containers/stack.h"
 #include "debug/kassert.h"
 #include "logger.h"
+#include "math/math_types.h"
 #include "memory/kmemory.h"
 #include "strings/kname.h"
 #include "strings/kstring.h"
@@ -1931,6 +1932,40 @@ b8 kson_object_property_value_get_vec2(const kson_object* object, const char* na
 
 	const char* str = kson_object_property_value_get_string_reference(object, name, "vec2");
 	return string_to_vec2(str, out_value);
+}
+
+b8 kson_object_property_value_get_extents_3d(const kson_object* object, const char* name, extents_3d* out_value) {
+	if (!out_value) {
+		return false;
+	}
+
+	kson_object extents_obj;
+	if (kson_object_property_value_get_object(object, name, &extents_obj)) {
+		kzero_memory(out_value, sizeof(extents_3d));
+
+		kson_object_property_value_get_vec3(&extents_obj, "min", &out_value->min);
+		kson_object_property_value_get_vec3(&extents_obj, "max", &out_value->max);
+		return true;
+	}
+
+	return false;
+}
+
+b8 kson_object_property_value_get_extents_2d(const kson_object* object, const char* name, extents_2d* out_value) {
+	if (!out_value) {
+		return false;
+	}
+
+	kson_object extents_obj;
+	if (kson_object_property_value_get_object(object, name, &extents_obj)) {
+		kzero_memory(out_value, sizeof(extents_2d));
+
+		kson_object_property_value_get_vec2(&extents_obj, "min", &out_value->min);
+		kson_object_property_value_get_vec2(&extents_obj, "max", &out_value->max);
+		return true;
+	}
+
+	return false;
 }
 
 b8 kson_object_property_value_get_string_as_kname(const kson_object* object, const char* name, kname* out_value) {

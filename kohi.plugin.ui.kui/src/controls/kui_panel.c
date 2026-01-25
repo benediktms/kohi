@@ -37,8 +37,8 @@ kui_control kui_panel_control_create(kui_state* state, const char* name, vec2 si
 
 	// Generate UVs.
 	f32 xmin, ymin, xmax, ymax;
-	generate_uvs_from_image_coords(512, 512, 44, 7, &xmin, &ymin);
-	generate_uvs_from_image_coords(512, 512, 73, 36, &xmax, &ymax);
+	generate_uvs_from_image_coords(state->atlas_texture_size.x, state->atlas_texture_size.y, state->atlas.panel.extents.min.x, state->atlas.panel.extents.min.y, &xmin, &ymin);
+	generate_uvs_from_image_coords(state->atlas_texture_size.x, state->atlas_texture_size.y, state->atlas.panel.extents.max.x, state->atlas.panel.extents.max.y, &xmax, &ymax);
 
 	// Create a simple plane.
 	typed_control->g = geometry_generate_quad(base->bounds.width, base->bounds.height, xmin, xmax, ymin, ymax, kname_create(base->name));
