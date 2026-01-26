@@ -1,3 +1,3 @@
 #!/bin/bash
 
-./build-all.sh linux clean all
+time make clean

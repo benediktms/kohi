@@ -63,6 +63,7 @@ Changelog
   - Added depth pre-pass to renderer.
   - Added configurable fog to scene and pass-through to renderer.
   - Renamed SUI -> KUI (Kohi UI), and reworked to use handles/ids like other Kohi systems. Also setup configurable atlas and removed hardcoded values.
+  - Revamped build system to allow components to be built individually as well as all together.
 
 - 0.10.0
   - Combined asset_image_format and texture_format into a single kpixel_format which is used for both.
