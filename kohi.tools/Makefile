@@ -11,7 +11,7 @@ CFLAGS +=-fvisibility=hidden
 
 # Base linker flags
 LDFLAGS = -Lbin -Llib -L../kohi.core/bin -L../kohi.runtime/bin -lkohi.core -lkohi.runtime
-LDFLAGS += -lassimp -lm
+LDFLAGS += 
 
 # Base include flags
 INCLUDE_FLAGS = -Isrc -I../kohi.core/src -I../kohi.runtime/src
@@ -21,16 +21,21 @@ DEFINES =-DKEXPORT
 OUTPUT_NAME =
 
 
-UNAME_S := $(shell uname -s)
+UNAME_S := 
+ifneq ($(OS),Windows_NT)
+	UNAME_S = $(shell uname -s)
+endif
 ifeq ($(OS),Windows_NT)
 	PLATFORM := win32
 
 # 	Make does not offer a recursive wildcard function, and Windows needs one, so here it is:
 	rwildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2))
 	DIR := $(subst /,\,${CURDIR})
-	SRC_FILES := $(call rwildcard,$(FOLDER)$(ASSEMBLY)/,*.c)
-	DIRECTORIES := $(FOLDER)$(ASSEMBLY)\src $(subst $(DIR),,$(shell dir $(FOLDER)$(ASSEMBLY)\src /S /AD /B | findstr /i src)) 
+	SRC_FILES := $(call rwildcard,src,*.c)
+	DIRECTORIES := \src $(subst $(DIR),,$(shell dir src /S /AD /B | findstr /i src)) 
 	OBJ_FILES := $(SRC_FILES:%=obj/%.o)
+	INCLUDE_FLAGS += -I'$(ASSIMP)\include'
+	LDFLAGS += -L'$(ASSIMP)\lib\x64\'
 else ifeq ($(UNAME_S),Linux)
 	PLATFORM := linux
 	SRC_FILES := $(shell find src -name "*.c")
@@ -74,11 +79,9 @@ scaffold: scaffold-$(PLATFORM)
 
 .NOTPARALLEL: scaffold
 
-scaffold-win32: # create build directory
-	@echo Scaffold for Windows
-	-@setlocal enableextensions enabledelayedexpansion && mkdir $(addprefix obj\, $(DIRECTORIES)) 2>NUL || cd .
-	-@setlocal enableextensions enabledelayedexpansion && mkdir bin 2>NUL || cd .
-	-@setlocal enableextensions enabledelayedexpansion && mkdir lib 2>NUL || cd .
+scaffold-win32:
+	@if not exist $(addprefix obj\, $(DIRECTORIES)) mkdir $(addprefix obj\, $(DIRECTORIES))
+	@if not exist bin mkdir bin
 
 scaffold-linux scaffold-macos:
 	@mkdir -p bin
@@ -97,12 +100,9 @@ genversion-linux genversion-macos:
 .PHONY: clean
 clean:    clean-$(PLATFORM)
 
-clean-win32: # clean build directory
-	@echo --- Cleaning ---
-#	@if exist bin\$(ASSEMBLY)$(EXTENSION) del bin\$(ASSEMBLY)$(EXTENSION)
-# Windows builds include a lot of files... get them all.
-	@if exist bin\* del bin\*
-	@if exist obj\* rmdir /s /q obj\*
+clean-win32:
+	if exist bin del /s /q bin\*.*
+	if exist obj del /s /q obj\*.*
 
 clean-linux clean-macos:
 	@rm -rf bin/*
@@ -112,7 +112,7 @@ clean-linux clean-macos:
 link: link-$(PLATFORM)
 
  
-link-win32: LDFLAGS += -fdeclspec -Wno-cast-function-type-mismatch -Xlinker /INCREMENTAL 
+link-win32: LDFLAGS += -lassimp-vc143-mt -fdeclspec -Wno-cast-function-type-mismatch -Xlinker /INCREMENTAL 
 link-win32: DEFINES += -D_CRT_SECURE_NO_WARNINGS -DUNICODE
 link-win32: OUTPUT_NAME = bin\$(ASSEMBLY_NAME).exe
 
@@ -121,16 +121,16 @@ link-win32: OUTPUT_NAME = bin\$(ASSEMBLY_NAME).exe
 # 		here that would not on other platforms from not being exported (i.e. Windows)
 # 		Discovered the solution here for this: https://github.com/ziglang/zig/issues/8180
 link-linux: CFLAGS += -Wno-cast-function-type-mismatch -fPIC
-link-linux: LDFLAGS += 
+link-linux: LDFLAGS += -lm -lassimp
 link-linux: OUTPUT_NAME = bin/lib$(ASSEMBLY_NAME)
 
-link-macos: LDFLAGS += 
+link-macos: LDFLAGS += -lassimp
 link-macos: OUTPUT_NAME = bin/lib$(ASSEMBLY_NAME)
 
 link-win32 link-linux link-macos: link-common
 
 link-common: $(OBJ_FILES)
-	@clang $(OBJ_FILES) -o $(OUTPUT_NAME) $(LDFLAGS)
+	clang $(OBJ_FILES) -o $(OUTPUT_NAME) $(LDFLAGS)
 
 .PHONY: compile
 compile:

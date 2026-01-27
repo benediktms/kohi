@@ -20,15 +20,18 @@ DEFINES =-DKEXPORT
 OUTPUT_NAME =
 
 
-UNAME_S := $(shell uname -s)
+UNAME_S := 
+ifneq ($(OS),Windows_NT)
+	UNAME_S = $(shell uname -s)
+endif
 ifeq ($(OS),Windows_NT)
 	PLATFORM := win32
 
 # 	Make does not offer a recursive wildcard function, and Windows needs one, so here it is:
 	rwildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2))
 	DIR := $(subst /,\,${CURDIR})
-	SRC_FILES := $(call rwildcard,$(FOLDER)$(ASSEMBLY)/,*.c)
-	DIRECTORIES := $(FOLDER)$(ASSEMBLY)\src $(subst $(DIR),,$(shell dir $(FOLDER)$(ASSEMBLY)\src /S /AD /B | findstr /i src)) 
+	SRC_FILES := $(call rwildcard,src,*.c)
+	DIRECTORIES := \src $(subst $(DIR),,$(shell dir src /S /AD /B | findstr /i src)) 
 	OBJ_FILES := $(SRC_FILES:%=obj/%.o)
 else ifeq ($(UNAME_S),Linux)
 	PLATFORM := linux
@@ -51,6 +54,7 @@ endif
 .PHONY: genversion genversion-win32 genversion-linux genversion-macos 
 .PHONY: scaffold scaffold-win32 scaffold-linux scaffold-macos 
 .PHONY: link link-win32 link-linux link-macos
+.PHONY: clean clean-win32 clean-linux clean-macos
 
 all-release: scaffold genversion gen_compile_flags flags-release compile link
 all-debug: scaffold genversion gen_compile_flags flags-debug compile link
@@ -69,11 +73,9 @@ scaffold: scaffold-$(PLATFORM)
 
 .NOTPARALLEL: scaffold
 
-scaffold-win32: # create build directory
-	@echo Scaffold for Windows
-	-@setlocal enableextensions enabledelayedexpansion && mkdir $(addprefix obj\, $(DIRECTORIES)) 2>NUL || cd .
-	-@setlocal enableextensions enabledelayedexpansion && mkdir bin 2>NUL || cd .
-	-@setlocal enableextensions enabledelayedexpansion && mkdir lib 2>NUL || cd .
+scaffold-win32:
+	@if not exist $(addprefix obj\, $(DIRECTORIES)) mkdir $(addprefix obj\, $(DIRECTORIES))
+	@if not exist bin mkdir bin
 
 scaffold-linux scaffold-macos:
 	@mkdir -p bin
@@ -83,21 +85,19 @@ scaffold-linux scaffold-macos:
 genversion: genversion-$(PLATFORM)
 
 genversion-win32:
+	@echo -- Gen Version --
 	@..\utils\bin\versiongen.exe version.txt -outfile=src\$(ASSEMBLY_NAME)_version.h
 
 genversion-linux genversion-macos:
 	@../utils/bin/versiongen version.txt -outfile=src/$(ASSEMBLY_NAME)_version.h
 
 
-.PHONY: clean
 clean:    clean-$(PLATFORM)
 
-clean-win32: # clean build directory
-	@echo --- Cleaning ---
-#	@if exist bin\$(ASSEMBLY)$(EXTENSION) del bin\$(ASSEMBLY)$(EXTENSION)
-# Windows builds include a lot of files... get them all.
-	@if exist bin\* del bin\*
-	@if exist obj\* rmdir /s /q obj\*
+clean-win32:
+	@echo -- Cleaning --
+	if exist bin del /s /q bin\*.*
+	if exist obj del /s /q obj\*.*
 
 clean-linux clean-macos:
 	@rm -rf bin/*
@@ -105,7 +105,6 @@ clean-linux clean-macos:
 
 
 link: link-$(PLATFORM)
-
  
 link-win32: LDFLAGS += -fdeclspec -Wno-cast-function-type-mismatch -luser32 -lgdi32 -lwinmm -Xlinker /INCREMENTAL 
 link-win32: DEFINES += -D_CRT_SECURE_NO_WARNINGS -DUNICODE

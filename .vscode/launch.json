@@ -25,7 +25,7 @@
             },
             "windows": {
                 "type": "cppvsdbg",
-                "program": "${workspaceFolder}/bin/testbed.kapp.exe",
+                "program": "${workspaceFolder}\\bin\\testbed.kapp.exe",
                 // cppvsdbg requires this instead of externalConsole
                 "console": "integratedTerminal",
             },

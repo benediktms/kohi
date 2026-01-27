@@ -21,7 +21,10 @@ CFG_ASSEMBLY_NAME =cfgen
 VG_OUTPUT_NAME =
 CFG_OUTPUT_NAME =
 
-UNAME_S := $(shell uname -s)
+UNAME_S := 
+ifneq ($(OS),Windows_NT)
+	UNAME_S = $(shell uname -s)
+endif
 ifeq ($(OS),Windows_NT)
 	PLATFORM := win32
 else ifeq ($(UNAME_S),Linux)
@@ -57,11 +60,9 @@ scaffold: scaffold-$(PLATFORM)
 
 .NOTPARALLEL: scaffold
 
-scaffold-win32: # create build directory
-	@echo Scaffold for Windows
-	-@setlocal enableextensions enabledelayedexpansion && mkdir obj 2>NUL || cd .
-	-@setlocal enableextensions enabledelayedexpansion && mkdir bin 2>NUL || cd .
-	-@setlocal enableextensions enabledelayedexpansion && mkdir lib 2>NUL || cd .
+scaffold-win32:
+	@if not exist obj mkdir obj
+	@if not exist bin mkdir bin
 
 scaffold-linux scaffold-macos:
 	@mkdir -p bin
@@ -70,12 +71,9 @@ scaffold-linux scaffold-macos:
 .PHONY: clean
 clean:    clean-$(PLATFORM)
 
-clean-win32: # clean build directory
-	@echo --- Cleaning ---
-#	@if exist bin\$(ASSEMBLY)$(EXTENSION) del bin\$(ASSEMBLY)$(EXTENSION)
-# Windows builds include a lot of files... get them all.
-	@if exist bin\* del bin\*
-	@if exist obj\* rmdir /s /q obj\*
+clean-win32:
+	if exist bin del /s /q bin\*.*
+	if exist obj del /s /q obj\*.*
 
 clean-linux clean-macos:
 	@rm -rf bin/*

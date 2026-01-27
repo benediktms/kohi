@@ -11,26 +11,30 @@ CFLAGS +=-fvisibility=hidden
 
 # Base linker flags
 LDFLAGS = -Lbin -Llib -L../kohi.core/bin -L../kohi.runtime/bin -lkohi.core -lkohi.runtime
-LDFLAGS += -lopenal
+LDFLAGS += 
 
 # Base include flags
 INCLUDE_FLAGS = -Isrc -I../kohi.core/src -I../kohi.runtime/src
-INCLUDE_FLAGS +=
+
 
 DEFINES =-DKEXPORT
 
 OUTPUT_NAME =
 
 
-UNAME_S := $(shell uname -s)
+UNAME_S := 
+ifneq ($(OS),Windows_NT)
+	UNAME_S = $(shell uname -s)
+endif
 ifeq ($(OS),Windows_NT)
 	PLATFORM := win32
 
 # 	Make does not offer a recursive wildcard function, and Windows needs one, so here it is:
 	rwildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2))
 	DIR := $(subst /,\,${CURDIR})
-	SRC_FILES := $(call rwildcard,$(FOLDER)$(ASSEMBLY)/,*.c)
-	DIRECTORIES := $(FOLDER)$(ASSEMBLY)\src $(subst $(DIR),,$(shell dir $(FOLDER)$(ASSEMBLY)\src /S /AD /B | findstr /i src)) 
+	SRC_FILES := $(call rwildcard,src,*.c)
+	DIRECTORIES := \src $(subst $(DIR),,$(shell dir src /S /AD /B | findstr /i src)) 
+	INCLUDE_FLAGS += -I'C:\Program Files (x86)\OpenAL 1.1 SDK\include'
 	OBJ_FILES := $(SRC_FILES:%=obj/%.o)
 else ifeq ($(UNAME_S),Linux)
 	PLATFORM := linux
@@ -71,11 +75,9 @@ scaffold: scaffold-$(PLATFORM)
 
 .NOTPARALLEL: scaffold
 
-scaffold-win32: # create build directory
-	@echo Scaffold for Windows
-	-@setlocal enableextensions enabledelayedexpansion && mkdir $(addprefix obj\, $(DIRECTORIES)) 2>NUL || cd .
-	-@setlocal enableextensions enabledelayedexpansion && mkdir bin 2>NUL || cd .
-	-@setlocal enableextensions enabledelayedexpansion && mkdir lib 2>NUL || cd .
+scaffold-win32:
+	@if not exist $(addprefix obj\, $(DIRECTORIES)) mkdir $(addprefix obj\, $(DIRECTORIES))
+	@if not exist bin mkdir bin
 
 scaffold-linux scaffold-macos:
 	@mkdir -p bin
@@ -94,12 +96,9 @@ genversion-linux genversion-macos:
 .PHONY: clean
 clean:    clean-$(PLATFORM)
 
-clean-win32: # clean build directory
-	@echo --- Cleaning ---
-#	@if exist bin\$(ASSEMBLY)$(EXTENSION) del bin\$(ASSEMBLY)$(EXTENSION)
-# Windows builds include a lot of files... get them all.
-	@if exist bin\* del bin\*
-	@if exist obj\* rmdir /s /q obj\*
+clean-win32:
+	if exist bin del /s /q bin\*.*
+	if exist obj del /s /q obj\*.*
 
 clean-linux clean-macos:
 	@rm -rf bin/*
@@ -109,16 +108,16 @@ clean-linux clean-macos:
 link: link-$(PLATFORM)
 
  
-link-win32: LDFLAGS += -fdeclspec -Wno-cast-function-type-mismatch -Xlinker /INCREMENTAL 
+link-win32: LDFLAGS += -L"C:\Program Files (x86)\OpenAL 1.1 SDK\libs\Win64" -lopenal32 -fdeclspec -Wno-cast-function-type-mismatch -Xlinker /INCREMENTAL 
 link-win32: DEFINES += -D_CRT_SECURE_NO_WARNINGS -DUNICODE
-link-win32: OUTPUT_NAME = bin\$(ASSEMBLY_NAME).dll
+link-win32: OUTPUT_NAME = bin\$(ASSEMBLY_NAME).dll 
 
 # 		NOTE: --no-undefined and --no-allow-shlib-undefined ensure that symbols linking against are resolved.
 # 		These are linux-specific, as the default behaviour is the opposite of this, allowing code to compile 
 # 		here that would not on other platforms from not being exported (i.e. Windows)
 # 		Discovered the solution here for this: https://github.com/ziglang/zig/issues/8180
 link-linux: CFLAGS += -Wno-cast-function-type-mismatch -fPIC
-link-linux: LDFLAGS += 
+link-linux: LDFLAGS += -lopenal
 link-linux: OUTPUT_NAME = bin/lib$(ASSEMBLY_NAME).so
 
 link-macos: LDFLAGS += 
@@ -144,7 +143,7 @@ obj/%.c.o: %.c
 .PHONY: gen_compile_flags
 gen_compile_flags:
 ifeq ($(BUILD_PLATFORM),windows)
-	@..\utils\bin\cfgen -outfile=compile_flags.txt $(INCLUDE_FLAGS) $(DEFINES) -ferror-limit=0
+	..\utils\bin\cfgen -outfile=compile_flags.txt $(INCLUDE_FLAGS) $(DEFINES) -ferror-limit=0
 else
 	@../utils/bin/cfgen -outfile=compile_flags.txt $(INCLUDE_FLAGS) $(DEFINES) -ferror-limit=0
 endif

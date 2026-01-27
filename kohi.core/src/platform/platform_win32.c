@@ -592,7 +592,7 @@ void kmutex_destroy(kmutex* mutex) {
 	if (mutex && mutex->internal_data) {
 		CloseHandle(mutex->internal_data);
 		// KTRACE("Destroyed mutex.");
-		mutex->internal_data = 0;
+		// mutex->internal_data = 0;
 	}
 }
 
