@@ -282,6 +282,7 @@ static void set_render_state_defaults(rect_2di vp_rect) {
 
 	renderer_set_depth_test_enabled(false);
 	renderer_set_depth_write_enabled(false);
+	renderer_set_depth_bias(0.0f, 0.0f, 0.0f);
 	renderer_set_stencil_test_enabled(false);
 	renderer_set_stencil_compare_mask(0);
 
@@ -502,6 +503,7 @@ static b8 scene_pass(
 		// Don't need to write these again.
 		renderer_set_depth_write_enabled(false);
 		renderer_set_depth_test_enabled(true);
+		renderer_set_depth_bias(1.0f, 0.0f, 1.0f);
 	}
 	// static geometries
 	draw_geo_list(renderer, p_frame_data, directional_light, view_index, clipping_plane, pass_data->opaque_meshes_by_material_count, pass_data->opaque_meshes_by_material);
@@ -510,6 +512,7 @@ static b8 scene_pass(
 		// Switch back on.
 		renderer_set_depth_write_enabled(true);
 		renderer_set_depth_test_enabled(true);
+		renderer_set_depth_bias(0.0f, 0.0f, 0.0f);
 	}
 	// animated geometries
 	draw_geo_list(renderer, p_frame_data, directional_light, view_index, clipping_plane, pass_data->animated_opaque_meshes_by_material_count, pass_data->animated_opaque_meshes_by_material);

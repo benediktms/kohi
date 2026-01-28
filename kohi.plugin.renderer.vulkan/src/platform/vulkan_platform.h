@@ -122,6 +122,7 @@ typedef struct krhi_vulkan {
 	RHI_VULKAN_DECL(vkCmdSetStencilTestEnable);
 	RHI_VULKAN_DECL(vkCmdSetDepthTestEnable);
 	RHI_VULKAN_DECL(vkCmdSetDepthWriteEnable);
+	RHI_VULKAN_DECL(vkCmdSetDepthBias);
 	RHI_VULKAN_DECL(vkCmdSetStencilReference);
 	RHI_VULKAN_DECL(vkCmdSetStencilOp);
 	RHI_VULKAN_DECL(vkCmdBeginRendering);

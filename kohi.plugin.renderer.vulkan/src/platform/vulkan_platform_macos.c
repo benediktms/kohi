@@ -2,8 +2,8 @@
 
 #if defined(KPLATFORM_APPLE)
 
-#	include "vulkan/vulkan_core.h"
-#	include "vulkan/vulkan_metal.h"
+#	include <vulkan/vulkan_core.h>
+#	include <vulkan/vulkan_metal.h>
 
 // Loading function pointers
 #	include <dlfcn.h>
@@ -81,9 +81,9 @@ b8 vulkan_platform_initialize(krhi_vulkan* rhi) {
 	return platform_dynamic_library_load("vulkan.1", &rhi->vulkan_lib);
 }
 
-b8 vulkan_platform_shutdown(krhi_vulkan* rhi) {
+void vulkan_platform_shutdown(krhi_vulkan* rhi) {
 	if (rhi) {
-		platform_dynamic_library_load(&rhi->vulkan_lib);
+		platform_dynamic_library_unload(&rhi->vulkan_lib);
 	}
 }
 

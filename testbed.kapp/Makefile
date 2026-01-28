@@ -113,7 +113,7 @@ link-linux: CFLAGS += -Wno-cast-function-type-mismatch -fPIC
 link-linux: LDFLAGS += -Wl,--no-undefined,--no-allow-shlib-undefined,-rpath='$$ORIGIN'
 link-linux: OUTPUT_NAME = bin/$(ASSEMBLY_NAME)
 
-link-macos: LDFLAGS += 
+link-macos: LDFLAGS += -Wl,-rpath,.
 link-macos: OUTPUT_NAME = bin/$(ASSEMBLY_NAME)
 
 link-win32 link-linux link-macos: link-common

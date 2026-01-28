@@ -49,6 +49,7 @@ b8 kohi_plugin_renderer_vulkan_create(kruntime_plugin* out_plugin) {
 	backend->set_stencil_test_enabled = vulkan_renderer_set_stencil_test_enabled;
 	backend->set_depth_test_enabled = vulkan_renderer_set_depth_test_enabled;
 	backend->set_depth_write_enabled = vulkan_renderer_set_depth_write_enabled;
+	backend->set_depth_bias = vulkan_renderer_set_depth_bias;
 	backend->set_stencil_reference = vulkan_renderer_set_stencil_reference;
 	backend->set_stencil_op = vulkan_renderer_set_stencil_op;
 

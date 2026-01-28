@@ -196,6 +196,12 @@ b8 vulkan_device_create(vulkan_context* context, b8 require_discrete_gpu) {
 		descriptor_indexing_features.pNext = &line_rasterization_ext;
 	}
 
+// #if defined(VK_USE_PLATFORM_MACOS_MVK)
+// 	MVKPhysicalDeviceMetalFeatures metal_features = {
+// 		.sType = MKV
+// 	}
+// #endif
+
 	VkDeviceCreateInfo device_create_info = {VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
 	device_create_info.queueCreateInfoCount = index_count;
 	device_create_info.pQueueCreateInfos = queue_create_infos;

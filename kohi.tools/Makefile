@@ -122,10 +122,10 @@ link-win32: OUTPUT_NAME = bin\$(ASSEMBLY_NAME).exe
 # 		Discovered the solution here for this: https://github.com/ziglang/zig/issues/8180
 link-linux: CFLAGS += -Wno-cast-function-type-mismatch -fPIC
 link-linux: LDFLAGS += -lm -lassimp
-link-linux: OUTPUT_NAME = bin/lib$(ASSEMBLY_NAME)
+link-linux: OUTPUT_NAME = bin/$(ASSEMBLY_NAME)
 
-link-macos: LDFLAGS += -lassimp
-link-macos: OUTPUT_NAME = bin/lib$(ASSEMBLY_NAME)
+link-macos: LDFLAGS +=  -Wl,-rpath,. -lassimp
+link-macos: OUTPUT_NAME = bin/$(ASSEMBLY_NAME)
 
 link-win32 link-linux link-macos: link-common
 

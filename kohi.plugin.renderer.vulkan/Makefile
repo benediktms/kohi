@@ -118,7 +118,7 @@ link-linux: CFLAGS += -Wno-cast-function-type-mismatch -fPIC
 link-linux: LDFLAGS += 
 link-linux: OUTPUT_NAME = bin/lib$(ASSEMBLY_NAME).so
 
-link-macos: LDFLAGS += 
+link-macos: LDFLAGS += -dynamiclib -install_name @rpath/lib$(ASSEMBLY_NAME).dylib -Wl,-rpath,/usr/local/lib
 link-macos: OUTPUT_NAME = bin/lib$(ASSEMBLY_NAME).dylib
 
 link-win32 link-linux link-macos: link-common

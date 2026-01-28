@@ -123,6 +123,7 @@ b8 vulkan_loader_load_device(krhi_vulkan* rhi, VkDevice device) {
 	RHI_DEVICE_FUNCTION(vkCmdSetStencilTestEnable);
 	RHI_DEVICE_FUNCTION(vkCmdSetDepthTestEnable);
 	RHI_DEVICE_FUNCTION(vkCmdSetDepthWriteEnable);
+	RHI_DEVICE_FUNCTION(vkCmdSetDepthBias);
 	RHI_DEVICE_FUNCTION(vkCmdSetStencilReference);
 	RHI_DEVICE_FUNCTION(vkCmdSetStencilOp);
 	RHI_DEVICE_FUNCTION(vkCmdBeginRendering);

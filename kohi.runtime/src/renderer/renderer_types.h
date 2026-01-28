@@ -397,6 +397,8 @@ typedef struct renderer_backend_interface {
 	 */
 	void (*set_depth_write_enabled)(struct renderer_backend_interface* backend, b8 enabled);
 
+	void (*set_depth_bias)(struct renderer_backend_interface* backend, f32 constant_factor, f32 clamp, f32 slope_factor);
+
 	/**
 	 * @brief Set the stencil reference for testing.
 	 *

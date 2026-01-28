@@ -217,6 +217,8 @@ KAPI void renderer_set_depth_test_enabled(b8 enabled);
  */
 KAPI void renderer_set_depth_write_enabled(b8 enabled);
 
+KAPI void renderer_set_depth_bias(f32 constant_factor, f32 clamp, f32 slope_factor);
+
 /**
  * @brief Set stencil operation.
  *

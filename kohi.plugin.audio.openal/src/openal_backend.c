@@ -1,11 +1,15 @@
 #include "openal_backend.h"
 #include "audio/audio_frontend.h"
 #include "core/engine.h"
+#include "defines.h"
 
 // OpenAL
 #ifdef KPLATFORM_WINDOWS
 #	include <al.h>
 #	include <alc.h>
+#elif KPLATFORM_APPLE
+#	include <OpenAL/al.h>
+#	include <OpenAL/alc.h>
 #else
 #	include <AL/al.h>
 #	include <AL/alc.h>
