@@ -1,7 +1,10 @@
 # Top-level Kohi makefile
 
-# Run make all-debug to build everything in debug mode.
-# Run make all-release to build everything in release mode.
+# Run make setup to setup the build environment. This needs to be done once, unless a repo update calls for it.
+# Run make build-debug to build debug versions of kohi, its test libraries, its plugins, and the testbed project.
+# Run make build-release to build debug versions of kohi, its test libraries, its plugins, and the testbed project.
+# Run make all-debug to build everything in debug mode. This doesn't usually need to be done, build-debug is typically enough after the first build.
+# Run make all-release to build everything in release mode. This doesn't usually need to be done, build-debug is typically enough after the first build.
 # Run make clean To clean everything. This should especially be done if changing from debug->release or vice versa.
 #
 # To build just a portion of things, you can target certain things to be built:
@@ -35,23 +38,31 @@ endif
 .PHONY: utils-clean core-clean core-tests-clean runtime-clean runtime-tests-clean plugin-audio-openal-clean plugin-renderer-vulkan-clean plugin-renderer-ui-kui-clean plugin-renderer-utils-clean tools-clean testbed-klib-clean testbed-kapp-clean
 .PHONY: kohi-clean kohi-tests-clean kohi-plugins-clean testbed-clean
 
+.PHONY: setup build-debug build-release
+
+
+# Setup: This really just needs to be done once to setup the environment, etc. Unless repo updates demand it.
+setup: scaffold utils-debug copy-utils
+
 # Scaffold folder structure needed for top-level operations.
 scaffold: scaffold-$(PLATFORM)
 .NOTPARALLEL: scaffold
 
 scaffold-win32:
 	@if not exist bin mkdir bin
+	@if not exist misc mkdir misc
 
 scaffold-linux scaffold-macos:
 	@mkdir -p bin
+	@mkdir -p misc
 
 copy-utils: copy-utils-$(PLATFORM)
 
 copy-utils-win32:
-	copy utils\bin\* bin
+	copy utils\bin\* misc
 
 copy-utils-linux copy-utils-macos:
-	cp utils/bin/* bin
+	cp utils/bin/* misc
 
 copy-top-level: copy-top-level-$(PLATFORM)
 .NOTPARALLEL: copy-top-level
@@ -85,11 +96,12 @@ copy-top-level-linux copy-top-level-macos: copy-utils
 
 
 # Debug builds
-all-debug: utils-debug copy-utils kohi-debug kohi-tests-debug kohi-plugins-debug kohi-tools-debug testbed-debug copy-top-level
-kohi-debug: utils-debug copy-utils core-debug runtime-debug
+all-debug: setup kohi-debug kohi-tests-debug kohi-plugins-debug kohi-tools-debug testbed-debug copy-top-level
+build-debug: kohi-debug kohi-tests-debug kohi-plugins-debug kohi-tools-debug testbed-debug copy-top-level
+kohi-debug: core-debug runtime-debug 
 kohi-tests-debug: kohi-debug core-tests-debug runtime-tests-debug
-kohi-plugins-debug: utils-debug copy-utils kohi-debug plugin-audio-openal-debug plugin-renderer-vulkan-debug plugin-renderer-ui-kui-debug plugin-renderer-utils-debug
-testbed-debug: utils-debug copy-utils kohi-debug kohi-plugins-debug testbed-klib-debug testbed-kapp-debug
+kohi-plugins-debug: kohi-debug plugin-audio-openal-debug plugin-renderer-vulkan-debug plugin-renderer-ui-kui-debug plugin-renderer-utils-debug
+testbed-debug: kohi-debug kohi-plugins-debug testbed-klib-debug testbed-kapp-debug
 
 utils-debug:
 	$(MAKE) -C utils all-debug
@@ -128,11 +140,12 @@ testbed-kapp-debug:
 	$(MAKE) -C testbed.kapp all-debug
 
 # Release builds 
-all-release: utils-release copy-utils kohi-release kohi-tests-release kohi-plugins-release tools-release testbed-release copy-top-level
-kohi-release: utils-release copy-utils core-release runtime-release copy-top-level
-kohi-tests-release: core-tests-release runtime-tests-release copy-top-level
-kohi-plugins-release: utils-release copy-utils kohi-release plugin-audio-openal-release plugin-renderer-vulkan-release plugin-renderer-ui-kui-release plugin-renderer-utils-release copy-top-level
-testbed-release: utils-release copy-utils testbed-klib-release testbed-kapp-release copy-top-level
+all-release: setup kohi-release kohi-tests-release kohi-plugins-release kohi-tools-release testbed-release copy-top-level
+build-release: kohi-release kohi-tests-release kohi-plugins-release kohi-tools-release testbed-release copy-top-level
+kohi-release: core-release runtime-release 
+kohi-tests-release: kohi-release core-tests-release runtime-tests-release
+kohi-plugins-release: kohi-release plugin-audio-openal-release plugin-renderer-vulkan-release plugin-renderer-ui-kui-release plugin-renderer-utils-release
+testbed-release: kohi-release kohi-plugins-release testbed-klib-release testbed-kapp-release
 
 utils-release:
 	$(MAKE) -C utils all-release

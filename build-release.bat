@@ -1,3 +1,7 @@
 @echo off
 
-make all-release
+if not exist misc\ktime.exe (
+    make setup
+)
+
+misc\ktime.exe make build-release

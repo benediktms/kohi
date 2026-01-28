@@ -17,9 +17,11 @@ DEFINES =-DKIMPORT
 
 VG_ASSEMBLY_NAME =versiongen
 CFG_ASSEMBLY_NAME =cfgen
+KTIME_ASSEMBLY_NAME=ktime
 
 VG_OUTPUT_NAME =
 CFG_OUTPUT_NAME =
+KTIME_OUTPUT_NAME =
 
 UNAME_S := 
 ifneq ($(OS),Windows_NT)
@@ -82,11 +84,11 @@ clean-linux clean-macos:
 
 link: link-$(PLATFORM)
 
- 
 link-win32: LDFLAGS += -fdeclspec -Wno-cast-function-type-mismatch -luser32 -lgdi32 -lwinmm -Xlinker /INCREMENTAL 
 link-win32: DEFINES += -D_CRT_SECURE_NO_WARNINGS -DUNICODE
 link-win32: VG_OUTPUT_NAME = bin\$(VG_ASSEMBLY_NAME).exe
 link-win32: CFG_OUTPUT_NAME = bin\$(CFG_ASSEMBLY_NAME).exe
+link-win32: KTIME_OUTPUT_NAME = bin\$(KTIME_ASSEMBLY_NAME).exe
 
 # 		NOTE: --no-undefined and --no-allow-shlib-undefined ensure that symbols linking against are resolved.
 # 		These are linux-specific, as the default behaviour is the opposite of this, allowing code to compile 
@@ -96,23 +98,36 @@ link-linux: CFLAGS += -Wno-cast-function-type-mismatch -fPIC
 link-linux: LDFLAGS += -lxcb -lX11 -lX11-xcb -lxkbcommon -lxcb-xkb -lm -ldl -L/usr/X11R6/lib -Wl,--no-undefined,--no-allow-shlib-undefined,-rpath='$$ORIGIN'
 link-linux: VG_OUTPUT_NAME = bin/$(VG_ASSEMBLY_NAME)
 link-linux: CFG_OUTPUT_NAME = bin/$(CFG_ASSEMBLY_NAME)
+link-linux: KTIME_OUTPUT_NAME = bin/$(KTIME_ASSEMBLY_NAME)
 
-link-macos: LDFLAGS += -dynamiclib -install_name @rpath/lib$(ASSEMBLY_NAME).dylib -lobjc -framework AppKit -framework QuartzCore -framework DiskArbitration -framework CoreFoundation
+link-macos: LDFLAGS += -lobjc -framework AppKit -framework QuartzCore -framework DiskArbitration -framework CoreFoundation
 link-macos: VG_OUTPUT_NAME = bin/$(VG_ASSEMBLY_NAME)
 link-macos: CFG_OUTPUT_NAME = bin/$(CFG_ASSEMBLY_NAME)
+link-macos: KTIME_OUTPUT_NAME = bin/$(KTIME_ASSEMBLY_NAME)
 
 link-win32 link-linux link-macos: link-common-vg link-common-cfg
+link-win32: link-ktime-win32
 
 link-common-vg: obj/versiongen.c.o
-	@clang obj/versiongen.c.o -o $(VG_OUTPUT_NAME) $(LDFLAGS)
+	clang obj/versiongen.c.o -o $(VG_OUTPUT_NAME) $(LDFLAGS)
 
 link-common-cfg: obj/cfgen.c.o
-	@clang obj/cfgen.c.o -o $(CFG_OUTPUT_NAME) $(LDFLAGS)
+	clang obj/cfgen.c.o -o $(CFG_OUTPUT_NAME) $(LDFLAGS)
+
+link-ktime-win32: obj/ktime.c.o
+	clang obj/ktime.c.o -o $(KTIME_OUTPUT_NAME) $(LDFLAGS)
 
 obj/versiongen.c.o obj/cfgen.c.o: compile
 
 .PHONY: compile
-compile:
-	@clang src/versiongen.c $(CFLAGS) -c -o obj/versiongen.c.o $(DEFINES) $(INCLUDE_FLAGS)
-	@clang src/cfgen.c $(CFLAGS) -c -o obj/cfgen.c.o $(DEFINES) $(INCLUDE_FLAGS)
+compile: compile-$(PLATFORM)
+
+compile-macos compile-linux: compile-common
+
+compile-win32: compile-common
+	clang src/ktime.c $(CFLAGS) -c -o obj/ktime.c.o $(DEFINES) $(INCLUDE_FLAGS)
+
+compile-common:
+	clang src/versiongen.c $(CFLAGS) -c -o obj/versiongen.c.o $(DEFINES) $(INCLUDE_FLAGS)
+	clang src/cfgen.c $(CFLAGS) -c -o obj/cfgen.c.o $(DEFINES) $(INCLUDE_FLAGS)
 

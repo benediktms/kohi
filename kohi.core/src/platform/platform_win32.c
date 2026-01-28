@@ -590,9 +590,10 @@ b8 kmutex_create(kmutex* out_mutex) {
 
 void kmutex_destroy(kmutex* mutex) {
 	if (mutex && mutex->internal_data) {
+		WaitForSingleObject(mutex->internal_data, INFINITE);
 		CloseHandle(mutex->internal_data);
-		// KTRACE("Destroyed mutex.");
-		// mutex->internal_data = 0;
+		mutex->internal_data = KNULL;
+		KTRACE("Destroyed mutex.");
 	}
 }
 

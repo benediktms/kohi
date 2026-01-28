@@ -1,3 +1,8 @@
+@echo off
 REM Builds only the testbed library
 
-make testbed-debug
+if not exist misc\ktime.exe (
+    make setup
+)
+
+misc\ktime.exe make testbed-debug

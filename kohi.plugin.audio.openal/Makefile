@@ -76,7 +76,7 @@ scaffold: scaffold-$(PLATFORM)
 .NOTPARALLEL: scaffold
 
 scaffold-win32:
-	@if not exist $(addprefix obj\, $(DIRECTORIES)) mkdir $(addprefix obj\, $(DIRECTORIES))
+	-@mkdir $(addprefix obj\\, $(DIRECTORIES)) 2>nul
 	@if not exist bin mkdir bin
 
 scaffold-linux scaffold-macos:
@@ -87,10 +87,10 @@ scaffold-linux scaffold-macos:
 genversion: genversion-$(PLATFORM)
 
 genversion-win32:
-	@..\utils\bin\versiongen.exe version.txt -outfile=src\$(ASSEMBLY_NAME)_version.h
+	@..\misc\versiongen.exe version.txt -outfile=src\$(ASSEMBLY_NAME)_version.h
 
 genversion-linux genversion-macos:
-	@../utils/bin/versiongen version.txt -outfile=src/$(ASSEMBLY_NAME)_version.h
+	@../misc/versiongen version.txt -outfile=src/$(ASSEMBLY_NAME)_version.h
 
 
 .PHONY: clean
@@ -107,7 +107,9 @@ clean-linux clean-macos:
 
 link: link-$(PLATFORM)
 
- 
+
+# link-linux: CFLAGS += -fsanitize=address -fsanitize-recover=address
+# link-win32: LDFLAGS += -fsanitize=address -fsanitize-recover=address
 link-win32: LDFLAGS += -L"C:\Program Files (x86)\OpenAL 1.1 SDK\libs\Win64" -lopenal32 -fdeclspec -Wno-cast-function-type-mismatch -Xlinker /INCREMENTAL 
 link-win32: DEFINES += -D_CRT_SECURE_NO_WARNINGS -DUNICODE
 link-win32: OUTPUT_NAME = bin\$(ASSEMBLY_NAME).dll 
@@ -143,7 +145,7 @@ obj/%.c.o: %.c
 .PHONY: gen_compile_flags
 gen_compile_flags:
 ifeq ($(BUILD_PLATFORM),windows)
-	..\utils\bin\cfgen -outfile=compile_flags.txt $(INCLUDE_FLAGS) $(DEFINES) -ferror-limit=0
+	..\misc\cfgen -outfile=compile_flags.txt $(INCLUDE_FLAGS) $(DEFINES) -ferror-limit=0
 else
-	@../utils/bin/cfgen -outfile=compile_flags.txt $(INCLUDE_FLAGS) $(DEFINES) -ferror-limit=0
+	@../misc/cfgen -outfile=compile_flags.txt $(INCLUDE_FLAGS) $(DEFINES) -ferror-limit=0
 endif
