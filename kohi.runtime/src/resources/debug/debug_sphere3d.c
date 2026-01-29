@@ -43,7 +43,7 @@ void debug_sphere3d_colour_set(debug_sphere3d* sphere, vec4 colour) {
 			colour.a = 1.0f;
 		}
 		sphere->colour = colour;
-		vec4_clamp(&sphere->colour, 0.0f, 1.0f);
+		vec4_clamp_scalar(&sphere->colour, 0.0f, 1.0f);
 		if (sphere->geometry.generation != INVALID_ID_U16 && sphere->geometry.vertex_count && sphere->geometry.vertices) {
 			update_vert_colour(sphere);
 			sphere->is_dirty = true;

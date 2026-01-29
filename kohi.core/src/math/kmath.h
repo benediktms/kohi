@@ -511,6 +511,62 @@ KINLINE b8 vec2_compare(vec2 vector_0, vec2 vector_1, f32 tolerance) {
 }
 
 /**
+ * @brief Clamps the provided vector in-place to the given min/max values.
+ *
+ * @param vector A pointer to the vector to be clamped.
+ * @param min The minimum value.
+ * @param max The maximum value.
+ */
+KINLINE void vec2_clamp(vec2* vector, vec2 min, vec2 max) {
+	if (vector) {
+		for (u8 i = 0; i < 2; ++i) {
+			vector->elements[i] = KCLAMP(vector->elements[i], min.elements[i], max.elements[i]);
+		}
+	}
+}
+
+/**
+ * @brief Returns a clamped copy of the provided vector.
+ *
+ * @param vector The vector to clamp.
+ * @param min The minimum value.
+ * @param max The maximum value.
+ * @return A clamped copy of the provided vector.
+ */
+KINLINE vec2 vec2_clamped(vec2 vector, vec2 min, vec2 max) {
+	vec2_clamp(&vector, min, max);
+	return vector;
+}
+
+/**
+ * @brief Clamps the provided vector in-place to the given min/max values.
+ *
+ * @param vector A pointer to the vector to be clamped.
+ * @param min The minimum value.
+ * @param max The maximum value.
+ */
+KINLINE void vec2_clamp_scalar(vec2* vector, f32 min, f32 max) {
+	if (vector) {
+		for (u8 i = 0; i < 2; ++i) {
+			vector->elements[i] = KCLAMP(vector->elements[i], min, max);
+		}
+	}
+}
+
+/**
+ * @brief Returns a clamped copy of the provided vector.
+ *
+ * @param vector The vector to clamp.
+ * @param min The minimum value.
+ * @param max The maximum value.
+ * @return A clamped copy of the provided vector.
+ */
+KINLINE vec2 vec2_clamped_scalar(vec2 vector, f32 min, f32 max) {
+	vec2_clamp_scalar(&vector, min, max);
+	return vector;
+}
+
+/**
  * @brief Returns the distance between vector_0 and vector_1.
  *
  * @param vector_0 The first vector.
@@ -533,6 +589,18 @@ KINLINE f32 vec2_distance(vec2 vector_0, vec2 vector_1) {
 KINLINE f32 vec2_distance_squared(vec2 vector_0, vec2 vector_1) {
 	vec2 d = (vec2){vector_0.x - vector_1.x, vector_0.y - vector_1.y};
 	return vec2_length_squared(d);
+}
+
+KINLINE vec2 vec2_min(vec2 vector_0, vec2 vector_1) {
+	return vec2_create(
+		KMIN(vector_0.x, vector_1.x),
+		KMIN(vector_0.y, vector_1.y));
+}
+
+KINLINE vec2 vec2_max(vec2 vector_0, vec2 vector_1) {
+	return vec2_create(
+		KMAX(vector_0.x, vector_1.x),
+		KMAX(vector_0.y, vector_1.y));
 }
 
 // ------------------------------------------
@@ -815,6 +883,62 @@ KINLINE b8 vec3_compare(vec3 vector_0, vec3 vector_1, f32 tolerance) {
 	}
 
 	return true;
+}
+
+/**
+ * @brief Clamps the provided vector in-place to the given min/max values.
+ *
+ * @param vector A pointer to the vector to be clamped.
+ * @param min The minimum value.
+ * @param max The maximum value.
+ */
+KINLINE void vec3_clamp(vec3* vector, vec3 min, vec3 max) {
+	if (vector) {
+		for (u8 i = 0; i < 3; ++i) {
+			vector->elements[i] = KCLAMP(vector->elements[i], min.elements[i], max.elements[i]);
+		}
+	}
+}
+
+/**
+ * @brief Returns a clamped copy of the provided vector.
+ *
+ * @param vector The vector to clamp.
+ * @param min The minimum value.
+ * @param max The maximum value.
+ * @return A clamped copy of the provided vector.
+ */
+KINLINE vec3 vec3_clamped(vec3 vector, vec3 min, vec3 max) {
+	vec3_clamp(&vector, min, max);
+	return vector;
+}
+
+/**
+ * @brief Clamps the provided vector in-place to the given min/max values.
+ *
+ * @param vector A pointer to the vector to be clamped.
+ * @param min The minimum value.
+ * @param max The maximum value.
+ */
+KINLINE void vec3_clamp_scalar(vec3* vector, f32 min, f32 max) {
+	if (vector) {
+		for (u8 i = 0; i < 3; ++i) {
+			vector->elements[i] = KCLAMP(vector->elements[i], min, max);
+		}
+	}
+}
+
+/**
+ * @brief Returns a clamped copy of the provided vector.
+ *
+ * @param vector The vector to clamp.
+ * @param min The minimum value.
+ * @param max The maximum value.
+ * @return A clamped copy of the provided vector.
+ */
+KINLINE vec3 vec3_clamped_scalar(vec3 vector, f32 min, f32 max) {
+	vec3_clamp_scalar(&vector, min, max);
+	return vector;
 }
 
 /**
@@ -1180,7 +1304,35 @@ KINLINE b8 vec4_compare(vec4 vector_0, vec4 vector_1, f32 tolerance) {
  * @param min The minimum value.
  * @param max The maximum value.
  */
-KINLINE void vec4_clamp(vec4* vector, f32 min, f32 max) {
+KINLINE void vec4_clamp(vec4* vector, vec4 min, vec4 max) {
+	if (vector) {
+		for (u8 i = 0; i < 4; ++i) {
+			vector->elements[i] = KCLAMP(vector->elements[i], min.elements[i], max.elements[i]);
+		}
+	}
+}
+
+/**
+ * @brief Returns a clamped copy of the provided vector.
+ *
+ * @param vector The vector to clamp.
+ * @param min The minimum value.
+ * @param max The maximum value.
+ * @return A clamped copy of the provided vector.
+ */
+KINLINE vec4 vec4_clamped(vec4 vector, vec4 min, vec4 max) {
+	vec4_clamp(&vector, min, max);
+	return vector;
+}
+
+/**
+ * @brief Clamps the provided vector in-place to the given min/max values.
+ *
+ * @param vector A pointer to the vector to be clamped.
+ * @param min The minimum value.
+ * @param max The maximum value.
+ */
+KINLINE void vec4_clamp_scalar(vec4* vector, f32 min, f32 max) {
 	if (vector) {
 		for (u8 i = 0; i < 4; ++i) {
 			vector->elements[i] = KCLAMP(vector->elements[i], min, max);
@@ -1196,8 +1348,8 @@ KINLINE void vec4_clamp(vec4* vector, f32 min, f32 max) {
  * @param max The maximum value.
  * @return A clamped copy of the provided vector.
  */
-KINLINE vec4 vec4_clamped(vec4 vector, f32 min, f32 max) {
-	vec4_clamp(&vector, min, max);
+KINLINE vec4 vec4_clamped_scalar(vec4 vector, f32 min, f32 max) {
+	vec4_clamp_scalar(&vector, min, max);
 	return vector;
 }
 

@@ -38,6 +38,7 @@ The items in this list are not in any particular order. This list will be update
 - [x] Build: Make a setup script that creates the clangd 'compile_flags.txt'
       files that is independent of the build process and can be run separately
       when the project is first cloned.
+- [ ] BUG: macOS/MoltenVK issue where vkCmdSetDepthBiasEnable isn't available. Try extension?
 
 ## 0.12.0 Release
 

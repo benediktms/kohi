@@ -304,6 +304,9 @@ typedef struct kui_scrollable_control {
 	/* kui_scrollbar scrollbar_x; */
 	kui_scrollbar scrollbar_y;
 
+	vec2 offset;
+	vec2 min_offset;
+
 	// HACK: Use proper kui events so we don't have to do this
 	struct kui_state* kui_state;
 } kui_scrollable_control;
