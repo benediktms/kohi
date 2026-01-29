@@ -85,7 +85,7 @@ kui_control kui_scrollable_control_create(kui_state* state, const char* name, ve
 	} */
 
 	// TODO: configurable
-	typed_control->scrollbar_width = 20.0f;
+	typed_control->scrollbar_width = 30.0f;
 
 	const char* scroll_y_name = string_format("%s_scroll_y", name);
 	// TODO: configurable bg colour.
@@ -97,7 +97,7 @@ kui_control kui_scrollable_control_create(kui_state* state, const char* name, ve
 
 	// HACK: using text button until the image button is created.
 	scroll_y_name = string_format("%s_scroll_y_dec", name);
-	typed_control->scrollbar_y.dec_button = kui_button_control_create_with_text(state, scroll_y_name, FONT_TYPE_SYSTEM, kname_create("Noto Sans CJK JP"), 15, "^");
+	typed_control->scrollbar_y.dec_button = kui_button_control_create_with_text(state, scroll_y_name, FONT_TYPE_SYSTEM, kname_create("Noto Sans CJK JP"), 25, "^");
 	string_free(scroll_y_name);
 	kui_system_control_add_child(state, handle, typed_control->scrollbar_y.dec_button);
 	kui_button_control_width_set(state, typed_control->scrollbar_y.dec_button, typed_control->scrollbar_width);
@@ -108,7 +108,7 @@ kui_control kui_scrollable_control_create(kui_state* state, const char* name, ve
 
 	// HACK: using text button until the image button is created.
 	scroll_y_name = string_format("%s_scroll_y_inc", name);
-	typed_control->scrollbar_y.inc_button = kui_button_control_create_with_text(state, scroll_y_name, FONT_TYPE_SYSTEM, kname_create("Noto Sans CJK JP"), 15, "^");
+	typed_control->scrollbar_y.inc_button = kui_button_control_create_with_text(state, scroll_y_name, FONT_TYPE_SYSTEM, kname_create("Noto Sans CJK JP"), 25, "v");
 	string_free(scroll_y_name);
 	kui_system_control_add_child(state, handle, typed_control->scrollbar_y.inc_button);
 	kui_button_control_width_set(state, typed_control->scrollbar_y.inc_button, typed_control->scrollbar_width);

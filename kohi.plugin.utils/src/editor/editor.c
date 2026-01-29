@@ -164,7 +164,7 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 	state->kui_state = kui_state;
 
 	// UI elements. Create/load them all up here.
-	state->font_name = kname_create("Noto Sans CJK JP");
+	state->font_name = kname_create("Noto Sans CJK JP, Bold");
 	state->font_size = 32;
 	state->textbox_font_name = kname_create("Noto Sans Mono CJK JP");
 	state->textbox_font_size = 30;
@@ -188,8 +188,8 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 		{
 			state->save_button = kui_button_control_create_with_text(kui_state, "save_button", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Save");
 			KASSERT(kui_system_control_add_child(kui_state, state->main_bg_panel, state->save_button));
-			kui_button_control_width_set(kui_state, state->save_button, 200);
-			kui_control_position_set(kui_state, state->save_button, (vec3){0, 50, 0});
+			kui_button_control_width_set(kui_state, state->save_button, 190);
+			kui_control_position_set(kui_state, state->save_button, (vec3){5, 50, 0});
 			kui_control_set_on_click(kui_state, state->save_button, save_button_clicked);
 		}
 
@@ -197,8 +197,8 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 		{
 			state->mode_scene_button = kui_button_control_create_with_text(kui_state, "mode_scene_button", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Scene");
 			KASSERT(kui_system_control_add_child(kui_state, state->main_bg_panel, state->mode_scene_button));
-			kui_button_control_width_set(kui_state, state->mode_scene_button, 100);
-			kui_control_position_set(kui_state, state->mode_scene_button, (vec3){0, 100, 0});
+			kui_button_control_width_set(kui_state, state->mode_scene_button, 90);
+			kui_control_position_set(kui_state, state->mode_scene_button, (vec3){5, 100, 0});
 			kui_control_set_user_data(kui_state, state->mode_scene_button, sizeof(*state), state, false, MEMORY_TAG_UNKNOWN);
 			kui_control_set_on_click(kui_state, state->mode_scene_button, mode_scene_button_clicked);
 		}
@@ -207,8 +207,8 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 		{
 			state->mode_entity_button = kui_button_control_create_with_text(kui_state, "mode_entity_button", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Entity");
 			KASSERT(kui_system_control_add_child(kui_state, state->main_bg_panel, state->mode_entity_button));
-			kui_button_control_width_set(kui_state, state->mode_entity_button, 100);
-			kui_control_position_set(kui_state, state->mode_entity_button, (vec3){100, 100, 0});
+			kui_button_control_width_set(kui_state, state->mode_entity_button, 90);
+			kui_control_position_set(kui_state, state->mode_entity_button, (vec3){105, 100, 0});
 			kui_control_set_user_data(kui_state, state->mode_entity_button, sizeof(*state), state, false, MEMORY_TAG_UNKNOWN);
 			kui_control_set_on_click(kui_state, state->mode_entity_button, mode_entity_button_clicked);
 		}
@@ -217,8 +217,8 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 		{
 			state->mode_tree_button = kui_button_control_create_with_text(kui_state, "mode_tree_button", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Tree");
 			KASSERT(kui_system_control_add_child(kui_state, state->main_bg_panel, state->mode_tree_button));
-			kui_button_control_width_set(kui_state, state->mode_tree_button, 100);
-			kui_control_position_set(kui_state, state->mode_tree_button, (vec3){0, 150, 0});
+			kui_button_control_width_set(kui_state, state->mode_tree_button, 90);
+			kui_control_position_set(kui_state, state->mode_tree_button, (vec3){5, 150, 0});
 			kui_control_set_user_data(kui_state, state->mode_tree_button, sizeof(*state), state, false, MEMORY_TAG_UNKNOWN);
 			kui_control_set_on_click(kui_state, state->mode_tree_button, mode_tree_button_clicked);
 		}

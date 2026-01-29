@@ -337,7 +337,10 @@ b8 kui_textbox_control_render(kui_state* state, kui_control self, struct frame_d
 		nineslice_renderable.binding_instance_id = typed_control->binding_instance_id;
 		nineslice_renderable.atlas_override = INVALID_KTEXTURE;
 
-		darray_push(render_data->renderables, nineslice_renderable);
+		u32 len = darray_length(render_data->renderables);
+		darray_insert_at(render_data->renderables, len-1, nineslice_renderable);
+
+		// darray_push(render_data->renderables, nineslice_renderable);
 	}
 
 	FLAG_SET(cursor_base->flags, KUI_CONTROL_FLAG_VISIBLE_BIT, is_focused);
@@ -349,9 +352,11 @@ b8 kui_textbox_control_render(kui_state* state, kui_control self, struct frame_d
 	// Render the highlight box manually so the clip mask can be attached to it.
 	// This ensures the highlight boxis rendered and clipped before the cursor or other
 	// children are drawn.
-	if (!highlight_base->render(state, typed_control->highlight_box, p_frame_data, render_data)) {
-		KERROR("Failed to render highlight box for textbox '%s'", base->name);
-		return false;
+	if(FLAG_GET(highlight_base->flags, KUI_CONTROL_FLAG_VISIBLE_BIT)){
+		if (!highlight_base->render(state, typed_control->highlight_box, p_frame_data, render_data)) {
+			KERROR("Failed to render highlight box for textbox '%s'", base->name);
+			return false;
+		}
 	}
 
 	// Attach clipping mask to highlight box, which would be the last element added.
@@ -519,7 +524,7 @@ static void kui_textbox_update_highlight_box(kui_state* state, kui_base_control*
 	kui_base_control* label_base = kui_system_get_base(state, typed_control->content_label);
 	kui_label_control* typed_label_control = (kui_label_control*)label_base;
 
-	FLAG_SET(highlight_base->flags, KUI_CONTROL_FLAG_VISIBLE_BIT, false);
+	FLAG_SET(highlight_base->flags, KUI_CONTROL_FLAG_VISIBLE_BIT, true);
 
 	// Offset from the start of the string.
 	f32 offset_start = kui_textbox_calculate_cursor_offset(state, typed_control->highlight_range.offset, typed_label_control->text, typed_control);
@@ -529,10 +534,9 @@ static void kui_textbox_update_highlight_box(kui_state* state, kui_base_control*
 	f32 padding_y = typed_control->nslice.corner_size.y;
 
 	vec3 initial_pos = ktransform_position_get(highlight_base->ktransform);
-	/* initial_pos.y = -typed_data->label_line_height + 10.0f; */
 	// positive line height is below
 	// negative should be above?
-	initial_pos.y = padding_y * 0.5f; //-typed_data->label_line_height; // * -0.5f;
+	initial_pos.y = padding_y - 1.0f;
 	ktransform_position_set(highlight_base->ktransform, (vec3){padding + offset_start, initial_pos.y, initial_pos.z});
 	ktransform_scale_set(highlight_base->ktransform, (vec3){width, 1.0f, 1.0f});
 }

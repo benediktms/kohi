@@ -137,6 +137,14 @@ assets = [
         path = "./assets/fonts/Binary.SystemFont.NotoSansCJK-Regular.ttc"
     }
     {
+        name = "SystemFont.NotoSansCJK-Bold"
+        path = "./assets/fonts/SystemFont.NotoSansCJK-Bold.ksf"
+    }
+    {
+        name = "Binary.SystemFont.NotoSansCJK-Bold"
+        path = "./assets/fonts/Binary.SystemFont.NotoSansCJK-Bold.ttc"
+    }
+    {
         name = "SystemFont.UbuntuMono"
         path = "./assets/fonts/SystemFont.UbuntuMono.ksf"
     }

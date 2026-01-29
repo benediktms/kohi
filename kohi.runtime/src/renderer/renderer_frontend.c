@@ -558,6 +558,12 @@ void renderer_set_depth_bias(f32 constant_factor, f32 clamp, f32 slope_factor) {
 	state_ptr->backend->set_depth_bias(state_ptr->backend, constant_factor, clamp, slope_factor);
 }
 
+void renderer_set_depth_bias_enabled(b8 enabled) {
+	renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
+	// Cache dynamic state.
+	state_ptr->backend->set_depth_bias_enabled(state_ptr->backend, enabled);
+}
+
 void renderer_set_stencil_op(renderer_stencil_op fail_op, renderer_stencil_op pass_op, renderer_stencil_op depth_fail_op, renderer_compare_op compare_op) {
 	renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
 	// Cache dynamic state.

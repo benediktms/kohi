@@ -32,13 +32,13 @@ kui_control kui_tree_item_control_create(
 
 	// Toggle button
 	toggle_button_name = string_format("%s_toggle_button", name);
-	typed_control->toggle_button = kui_button_control_create_with_text(state, toggle_button_name, type, font_name, font_size, ">");
+	typed_control->toggle_button = kui_button_control_create_with_text(state, toggle_button_name, type, font_name, 25, "+");
 	kui_base_control* toggle_base = kui_system_get_base(state, typed_control->toggle_button);
 	KASSERT(toggle_base);
 	kui_system_control_add_child(state, base_handle, typed_control->toggle_button);
-	kui_control_position_set(state, typed_control->toggle_button, (vec3){-42.0f, 2.0f, 0});
-	kui_button_control_width_set(state, typed_control->toggle_button, 40);	// FIXME: hardcoded
-	kui_button_control_height_set(state, typed_control->toggle_button, 40); // FIXME: hardcoded
+	kui_control_position_set(state, typed_control->toggle_button, (vec3){-37.0f, 7.0f, 0});
+	kui_button_control_width_set(state, typed_control->toggle_button, 30);	// FIXME: hardcoded
+	kui_button_control_height_set(state, typed_control->toggle_button, 30); // FIXME: hardcoded
 	toggle_base->on_click = toggle_on_clicked;
 	FLAG_SET(toggle_base->flags, KUI_CONTROL_FLAG_CAN_MOUSE_INTERACT_BIT, true);
 	FLAG_SET(toggle_base->flags, KUI_CONTROL_FLAG_VISIBLE_BIT, show_toggle_button);
@@ -170,9 +170,9 @@ static b8 toggle_on_clicked(struct kui_state* state, kui_control self, struct ku
 	kui_base_control* base = kui_system_get_base(state, self);
 
 	const char* text = kui_button_control_text_get(state, self);
-	b8 expanded = text[0] == 'v';
+	b8 expanded = text[0] == '-';
 	expanded = !expanded;
-	kui_button_control_text_set(state, self, expanded ? "v" : ">");
+	kui_button_control_text_set(state, self, expanded ? "-" : "+");
 
 	kui_base_control* parent_base = kui_system_get_base(state, base->parent);
 	kui_tree_item_control* tree_item = (kui_tree_item_control*)parent_base;

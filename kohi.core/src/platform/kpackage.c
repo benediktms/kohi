@@ -171,7 +171,7 @@ static kpackage_result asset_get_data(const kpackage* package, b8 is_binary, kna
 			actual_file_size++;
 		}
 
-		data = kallocate(actual_file_size, MEMORY_TAG_ASSET);
+		data = kallocate(actual_file_size, is_binary ? MEMORY_TAG_ASSET : MEMORY_TAG_STRING);
 
 		u64 read_size = 0;
 		if (is_binary) {

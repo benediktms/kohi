@@ -217,7 +217,21 @@ KAPI void renderer_set_depth_test_enabled(b8 enabled);
  */
 KAPI void renderer_set_depth_write_enabled(b8 enabled);
 
+/**
+ * @brief Sets depth bias factors and clamp dynamically.
+ * 
+ * @param constant_factor A scalar factor controlling the constant depth value added to each fragment.
+ * @param clamp The maximum (or minimum) depth bias of a fragment.
+ * @param slope_factor A scalar factor applied to a fragment’s slope in depth bias calculations.
+ */
 KAPI void renderer_set_depth_bias(f32 constant_factor, f32 clamp, f32 slope_factor);
+
+/**
+ * @brief Enables/disables depth bias.
+ * 
+ * @param enabled True to enable; otherwise disable.
+ */
+KAPI void renderer_set_depth_bias_enabled(b8 enabled);
 
 /**
  * @brief Set stencil operation.

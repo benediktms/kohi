@@ -397,7 +397,23 @@ typedef struct renderer_backend_interface {
 	 */
 	void (*set_depth_write_enabled)(struct renderer_backend_interface* backend, b8 enabled);
 
+	/**
+	 * @brief Sets depth bias factors and clamp dynamically.
+	 * 
+	 * @param backend A pointer to the renderer backend interface.
+	 * @param constant_factor A scalar factor controlling the constant depth value added to each fragment.
+	 * @param clamp The maximum (or minimum) depth bias of a fragment.
+	 * @param slope_factor A scalar factor applied to a fragment’s slope in depth bias calculations.
+	 */
 	void (*set_depth_bias)(struct renderer_backend_interface* backend, f32 constant_factor, f32 clamp, f32 slope_factor);
+
+	/**
+	 * @brief Enables/disables depth bias.
+	 * 
+	 * @param backend A pointer to the renderer backend interface.
+	 * @param enabled True to enable; otherwise disable.
+	 */
+	void (*set_depth_bias_enabled)(struct renderer_backend_interface* backend, b8 enabled);
 
 	/**
 	 * @brief Set the stencil reference for testing.

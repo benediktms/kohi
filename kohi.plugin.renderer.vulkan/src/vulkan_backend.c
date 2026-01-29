@@ -1239,6 +1239,14 @@ void vulkan_renderer_set_depth_bias(struct renderer_backend_interface* backend, 
 	rhi->kvkCmdSetDepthBias(command_buffer->handle, constant_factor, clamp, slope_factor);
 }
 
+void vulkan_renderer_set_depth_bias_enabled(struct renderer_backend_interface* backend, b8 enabled) {
+	vulkan_context* context = (vulkan_context*)backend->internal_context;
+	krhi_vulkan* rhi = &context->rhi;
+	vulkan_command_buffer* command_buffer = get_current_command_buffer(context);
+
+	rhi->kvkCmdSetDepthBiasEnable(command_buffer->handle, enabled);
+}
+
 void vulkan_renderer_set_stencil_reference(struct renderer_backend_interface* backend, u32 reference) {
 	vulkan_context* context = (vulkan_context*)backend->internal_context;
 	krhi_vulkan* rhi = &context->rhi;
@@ -4076,11 +4084,12 @@ static b8 vulkan_graphics_pipeline_create(vulkan_context* context, const vulkan_
 		if (config->shader_flags & SHADER_FLAG_DEPTH_WRITE_BIT) {
 			depth_stencil.depthWriteEnable = VK_TRUE;
 		}
-		depth_stencil.depthCompareOp = VK_COMPARE_OP_LESS;//VK_COMPARE_OP_LESS_OR_EQUAL; // VK_COMPARE_OP_LESS;
+		depth_stencil.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL; // VK_COMPARE_OP_LESS;
 		depth_stencil.depthBoundsTestEnable = VK_FALSE;
-
-		rasterizer_create_info.depthBiasEnable = VK_TRUE;
 	}
+
+	rasterizer_create_info.depthBiasEnable = VK_TRUE;
+
 	depth_stencil.stencilTestEnable = (config->shader_flags & SHADER_FLAG_STENCIL_TEST_BIT) ? VK_TRUE : VK_FALSE;
 	if (config->shader_flags & SHADER_FLAG_STENCIL_TEST_BIT) {
 		// equivalent to glStencilFunc(func, ref, mask)
@@ -4139,6 +4148,7 @@ static b8 vulkan_graphics_pipeline_create(vulkan_context* context, const vulkan_
 		darray_push(dynamic_states, VK_DYNAMIC_STATE_STENCIL_REFERENCE);
 		darray_push(dynamic_states, VK_DYNAMIC_STATE_CULL_MODE);
 		darray_push(dynamic_states, VK_DYNAMIC_STATE_DEPTH_BIAS);
+		darray_push(dynamic_states, VK_DYNAMIC_STATE_DEPTH_BIAS_ENABLE);
 		/* darray_push(dynamic_states, VK_DYNAMIC_STATE_COLOR_WRITE_ENABLE_EXT);
 		darray_push(dynamic_states, VK_DYNAMIC_STATE_COLOR_WRITE_MASK_EXT); */
 	}

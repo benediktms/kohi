@@ -41,6 +41,8 @@ static void set_render_state_defaults(rect_2di vp_rect) {
 	renderer_set_depth_write_enabled(false);
 	renderer_set_stencil_test_enabled(false);
 	renderer_set_stencil_compare_mask(0);
+	renderer_set_depth_bias_enabled(false);
+	renderer_set_depth_bias(0.0f, 0.0f, 0.0f);
 
 	renderer_cull_mode_set(RENDERER_CULL_MODE_BACK);
 	// Default winding is counter clockwise

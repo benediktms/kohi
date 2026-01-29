@@ -326,7 +326,7 @@ b8 openal_backend_load(struct kaudio_backend_interface* backend, i32 channels, u
 	data->sample_rate = sample_rate;
 	data->total_sample_count = total_sample_count;
 	data->pcm_data_size = pcm_data_size;
-	data->pcm_data = kallocate(pcm_data_size, MEMORY_TAG_ARRAY);
+	data->pcm_data = kallocate(pcm_data_size, MEMORY_TAG_AUDIO);
 	kcopy_memory(data->pcm_data, pcm_data, pcm_data_size);
 
 	data->format = AL_FORMAT_MONO16;
@@ -399,17 +399,21 @@ void openal_backend_unload(struct kaudio_backend_interface* backend, kaudio audi
 	// Get the internal data.
 	kaudio_internal_data* data = &state->datas[audio];
 
-	b8 data_shared = data->mono_pcm_data == data->pcm_data;
-	if (data->mono_pcm_data) {
-		kfree(data->mono_pcm_data, data->downmixed_size, MEMORY_TAG_AUDIO);
-		data->mono_pcm_data = KNULL;
-		data->downmixed_size = 0;
-	}
-
-	if (!data_shared && data->pcm_data) {
+	if (data->pcm_data && data->pcm_data_size) {
 		kfree(data->pcm_data, data->pcm_data_size, MEMORY_TAG_AUDIO);
 		data->pcm_data = KNULL;
 		data->pcm_data_size = 0;
+
+		if(data->mono_pcm_data == data->pcm_data) {
+			data->mono_pcm_data = KNULL;
+			data->downmixed_size = 0;
+		}
+	}
+
+	if (data->mono_pcm_data && data->downmixed_size) {
+		kfree(data->mono_pcm_data, data->downmixed_size, MEMORY_TAG_AUDIO);
+		data->mono_pcm_data = KNULL;
+		data->downmixed_size = 0;
 	}
 
 	clear_buffer(backend, &data->buffer, 0);
