@@ -2,6 +2,7 @@
 
 #include "assets/kasset_types.h"
 #include "audio/audio_frontend.h"
+#include "controls/image_box_control.h"
 #include "controls/kui_scrollable.h"
 #include "controls/kui_tree_item.h"
 #include "core/event.h"
@@ -199,7 +200,7 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 			KASSERT(kui_system_control_add_child(kui_state, state->main_bg_panel, state->mode_scene_button));
 			kui_button_control_width_set(kui_state, state->mode_scene_button, 90);
 			kui_control_position_set(kui_state, state->mode_scene_button, (vec3){5, 100, 0});
-			kui_control_set_user_data(kui_state, state->mode_scene_button, sizeof(*state), state, false, MEMORY_TAG_UNKNOWN);
+			kui_control_set_user_data(kui_state, state->mode_scene_button, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
 			kui_control_set_on_click(kui_state, state->mode_scene_button, mode_scene_button_clicked);
 		}
 
@@ -209,7 +210,7 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 			KASSERT(kui_system_control_add_child(kui_state, state->main_bg_panel, state->mode_entity_button));
 			kui_button_control_width_set(kui_state, state->mode_entity_button, 90);
 			kui_control_position_set(kui_state, state->mode_entity_button, (vec3){105, 100, 0});
-			kui_control_set_user_data(kui_state, state->mode_entity_button, sizeof(*state), state, false, MEMORY_TAG_UNKNOWN);
+			kui_control_set_user_data(kui_state, state->mode_entity_button, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
 			kui_control_set_on_click(kui_state, state->mode_entity_button, mode_entity_button_clicked);
 		}
 
@@ -219,8 +220,17 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 			KASSERT(kui_system_control_add_child(kui_state, state->main_bg_panel, state->mode_tree_button));
 			kui_button_control_width_set(kui_state, state->mode_tree_button, 90);
 			kui_control_position_set(kui_state, state->mode_tree_button, (vec3){5, 150, 0});
-			kui_control_set_user_data(kui_state, state->mode_tree_button, sizeof(*state), state, false, MEMORY_TAG_UNKNOWN);
+			kui_control_set_user_data(kui_state, state->mode_tree_button, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
 			kui_control_set_on_click(kui_state, state->mode_tree_button, mode_tree_button_clicked);
+		}
+
+		// HACK: testing stuff.
+		{
+			state->test_image_box = kui_image_box_control_create(kui_state, "rubbish and bollocks", (vec2i){100, 100});
+			/* kui_image_box_control_texture_set_by_name(kui_state, state->test_image_box, kname_create("cobblestone"), kname_create("ShadowsOfIllumina")); */
+			kui_image_box_control_set_rect(kui_state, state->test_image_box, (rect_2di){117, 46, 26, 26});
+			KASSERT(kui_system_control_add_child(kui_state, state->main_bg_panel, state->test_image_box));
+			kui_control_position_set(kui_state, state->test_image_box, (vec3){5, 350, 0});
 		}
 	}
 
@@ -251,7 +261,7 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 			KASSERT(kui_system_control_add_child(kui_state, state->scene_inspector_bg_panel, state->scene_name_textbox));
 			KASSERT(kui_textbox_control_width_set(kui_state, state->scene_name_textbox, 380));
 			kui_control_position_set(kui_state, state->scene_name_textbox, (vec3){state->scene_inspector_right_col_x, 50, 0});
-			kui_control_set_user_data(kui_state, state->scene_name_textbox, sizeof(*state), state, false, MEMORY_TAG_UNKNOWN);
+			kui_control_set_user_data(kui_state, state->scene_name_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
 			kui_control_set_on_key(kui_state, state->scene_name_textbox, scene_name_textbox_on_key);
 		}
 
@@ -268,7 +278,7 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 			kui_control_position_set(kui_state, state->scene_fog_colour_r_textbox, (vec3){state->scene_inspector_right_col_x, 100, 0});
 			KASSERT(kui_textbox_control_width_set(kui_state, state->scene_fog_colour_r_textbox, 120));
 			kui_textbox_control_colour_set(kui_state, state->scene_fog_colour_r_textbox, EDITOR_AXIS_COLOUR_R);
-			kui_control_set_user_data(kui_state, state->scene_fog_colour_r_textbox, sizeof(*state), state, false, MEMORY_TAG_UNKNOWN);
+			kui_control_set_user_data(kui_state, state->scene_fog_colour_r_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
 			kui_control_set_on_key(kui_state, state->scene_fog_colour_r_textbox, scene_fog_colour_r_textbox_on_key);
 
 			// Fog colour g textbox.
@@ -277,7 +287,7 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 			kui_control_position_set(kui_state, state->scene_fog_colour_g_textbox, (vec3){state->scene_inspector_right_col_x + 130, 100, 0});
 			KASSERT(kui_textbox_control_width_set(kui_state, state->scene_fog_colour_g_textbox, 120));
 			kui_textbox_control_colour_set(kui_state, state->scene_fog_colour_g_textbox, EDITOR_AXIS_COLOUR_G);
-			kui_control_set_user_data(kui_state, state->scene_fog_colour_g_textbox, sizeof(*state), state, false, MEMORY_TAG_UNKNOWN);
+			kui_control_set_user_data(kui_state, state->scene_fog_colour_g_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
 			kui_control_set_on_key(kui_state, state->scene_fog_colour_g_textbox, scene_fog_colour_g_textbox_on_key);
 
 			// Fog colour b textbox.
@@ -286,7 +296,7 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 			kui_control_position_set(kui_state, state->scene_fog_colour_b_textbox, (vec3){state->scene_inspector_right_col_x + 260, 100, 0});
 			KASSERT(kui_textbox_control_width_set(kui_state, state->scene_fog_colour_b_textbox, 120));
 			kui_textbox_control_colour_set(kui_state, state->scene_fog_colour_b_textbox, EDITOR_AXIS_COLOUR_B);
-			kui_control_set_user_data(kui_state, state->scene_fog_colour_b_textbox, sizeof(*state), state, false, MEMORY_TAG_UNKNOWN);
+			kui_control_set_user_data(kui_state, state->scene_fog_colour_b_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
 			kui_control_set_on_key(kui_state, state->scene_fog_colour_b_textbox, scene_fog_colour_b_textbox_on_key);
 		}
 
@@ -320,7 +330,7 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 			KASSERT(kui_system_control_add_child(kui_state, state->entity_inspector_bg_panel, state->entity_name_textbox));
 			KASSERT(kui_textbox_control_width_set(kui_state, state->entity_name_textbox, 380));
 			kui_control_position_set(kui_state, state->entity_name_textbox, (vec3){state->entity_inspector_right_col_x, 50, 0});
-			kui_control_set_user_data(kui_state, state->entity_name_textbox, sizeof(*state), state, false, MEMORY_TAG_UNKNOWN);
+			kui_control_set_user_data(kui_state, state->entity_name_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
 			kui_control_set_on_key(kui_state, state->entity_name_textbox, entity_name_textbox_on_key);
 		}
 
@@ -337,7 +347,7 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 			kui_control_position_set(kui_state, state->entity_position_x_textbox, (vec3){state->entity_inspector_right_col_x, 100, 0});
 			KASSERT(kui_textbox_control_width_set(kui_state, state->entity_position_x_textbox, 120));
 			kui_textbox_control_colour_set(kui_state, state->entity_position_x_textbox, EDITOR_AXIS_COLOUR_R);
-			kui_control_set_user_data(kui_state, state->entity_position_x_textbox, sizeof(*state), state, false, MEMORY_TAG_UNKNOWN);
+			kui_control_set_user_data(kui_state, state->entity_position_x_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
 			kui_control_set_on_key(kui_state, state->entity_position_x_textbox, entity_position_x_textbox_on_key);
 
 			// Position y textbox.
@@ -346,7 +356,7 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 			kui_control_position_set(kui_state, state->entity_position_y_textbox, (vec3){state->entity_inspector_right_col_x + 130, 100, 0});
 			KASSERT(kui_textbox_control_width_set(kui_state, state->entity_position_y_textbox, 120));
 			kui_textbox_control_colour_set(kui_state, state->entity_position_y_textbox, EDITOR_AXIS_COLOUR_G);
-			kui_control_set_user_data(kui_state, state->entity_position_y_textbox, sizeof(*state), state, false, MEMORY_TAG_UNKNOWN);
+			kui_control_set_user_data(kui_state, state->entity_position_y_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
 			kui_control_set_on_key(kui_state, state->entity_position_y_textbox, entity_position_y_textbox_on_key);
 
 			// Position z textbox.
@@ -355,7 +365,7 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 			kui_control_position_set(kui_state, state->entity_position_z_textbox, (vec3){state->entity_inspector_right_col_x + 260, 100, 0});
 			KASSERT(kui_textbox_control_width_set(kui_state, state->entity_position_z_textbox, 120));
 			kui_textbox_control_colour_set(kui_state, state->entity_position_z_textbox, EDITOR_AXIS_COLOUR_B);
-			kui_control_set_user_data(kui_state, state->entity_position_z_textbox, sizeof(*state), state, false, MEMORY_TAG_UNKNOWN);
+			kui_control_set_user_data(kui_state, state->entity_position_z_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
 			kui_control_set_on_key(kui_state, state->entity_position_z_textbox, entity_position_z_textbox_on_key);
 		}
 
@@ -371,7 +381,7 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 			KASSERT(kui_system_control_add_child(kui_state, state->entity_inspector_bg_panel, state->entity_orientation_x_textbox));
 			kui_control_position_set(kui_state, state->entity_orientation_x_textbox, (vec3){state->entity_inspector_right_col_x, 150, 0});
 			KASSERT(kui_textbox_control_width_set(kui_state, state->entity_orientation_x_textbox, 120));
-			kui_control_set_user_data(kui_state, state->entity_orientation_x_textbox, sizeof(*state), state, false, MEMORY_TAG_UNKNOWN);
+			kui_control_set_user_data(kui_state, state->entity_orientation_x_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
 			kui_control_set_on_key(kui_state, state->entity_orientation_x_textbox, entity_orientation_x_textbox_on_key);
 
 			// Orientation y textbox.
@@ -379,7 +389,7 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 			KASSERT(kui_system_control_add_child(kui_state, state->entity_inspector_bg_panel, state->entity_orientation_y_textbox));
 			kui_control_position_set(kui_state, state->entity_orientation_y_textbox, (vec3){state->entity_inspector_right_col_x + 130, 150, 0});
 			KASSERT(kui_textbox_control_width_set(kui_state, state->entity_orientation_y_textbox, 120));
-			kui_control_set_user_data(kui_state, state->entity_orientation_y_textbox, sizeof(*state), state, false, MEMORY_TAG_UNKNOWN);
+			kui_control_set_user_data(kui_state, state->entity_orientation_y_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
 			kui_control_set_on_key(kui_state, state->entity_orientation_y_textbox, entity_orientation_y_textbox_on_key);
 
 			// Orientation z textbox.
@@ -387,7 +397,7 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 			KASSERT(kui_system_control_add_child(kui_state, state->entity_inspector_bg_panel, state->entity_orientation_z_textbox));
 			kui_control_position_set(kui_state, state->entity_orientation_z_textbox, (vec3){state->entity_inspector_right_col_x + 260, 150, 0});
 			KASSERT(kui_textbox_control_width_set(kui_state, state->entity_orientation_z_textbox, 120));
-			kui_control_set_user_data(kui_state, state->entity_orientation_z_textbox, sizeof(*state), state, false, MEMORY_TAG_UNKNOWN);
+			kui_control_set_user_data(kui_state, state->entity_orientation_z_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
 			kui_control_set_on_key(kui_state, state->entity_orientation_z_textbox, entity_orientation_z_textbox_on_key);
 
 			// Orientation z textbox.
@@ -395,7 +405,7 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 			KASSERT(kui_system_control_add_child(kui_state, state->entity_inspector_bg_panel, state->entity_orientation_w_textbox));
 			kui_control_position_set(kui_state, state->entity_orientation_w_textbox, (vec3){state->entity_inspector_right_col_x + 390, 150, 0});
 			KASSERT(kui_textbox_control_width_set(kui_state, state->entity_orientation_w_textbox, 120));
-			kui_control_set_user_data(kui_state, state->entity_orientation_w_textbox, sizeof(*state), state, false, MEMORY_TAG_UNKNOWN);
+			kui_control_set_user_data(kui_state, state->entity_orientation_w_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
 			kui_control_set_on_key(kui_state, state->entity_orientation_w_textbox, entity_orientation_w_textbox_on_key);
 		}
 
@@ -412,7 +422,7 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 			kui_control_position_set(kui_state, state->entity_scale_x_textbox, (vec3){state->entity_inspector_right_col_x, 200, 0});
 			KASSERT(kui_textbox_control_width_set(kui_state, state->entity_scale_x_textbox, 120));
 			kui_textbox_control_colour_set(kui_state, state->entity_scale_x_textbox, EDITOR_AXIS_COLOUR_R);
-			kui_control_set_user_data(kui_state, state->entity_scale_x_textbox, sizeof(*state), state, false, MEMORY_TAG_UNKNOWN);
+			kui_control_set_user_data(kui_state, state->entity_scale_x_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
 			kui_control_set_on_key(kui_state, state->entity_scale_x_textbox, entity_scale_x_textbox_on_key);
 
 			// Scale y textbox.
@@ -421,7 +431,7 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 			kui_control_position_set(kui_state, state->entity_scale_y_textbox, (vec3){state->entity_inspector_right_col_x + 130, 200, 0});
 			KASSERT(kui_textbox_control_width_set(kui_state, state->entity_scale_y_textbox, 120));
 			kui_textbox_control_colour_set(kui_state, state->entity_scale_y_textbox, EDITOR_AXIS_COLOUR_G);
-			kui_control_set_user_data(kui_state, state->entity_scale_y_textbox, sizeof(*state), state, false, MEMORY_TAG_UNKNOWN);
+			kui_control_set_user_data(kui_state, state->entity_scale_y_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
 			kui_control_set_on_key(kui_state, state->entity_scale_y_textbox, entity_scale_y_textbox_on_key);
 
 			// Scale z textbox.
@@ -430,7 +440,7 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 			kui_control_position_set(kui_state, state->entity_scale_z_textbox, (vec3){state->entity_inspector_right_col_x + 260, 200, 0});
 			KASSERT(kui_textbox_control_width_set(kui_state, state->entity_scale_z_textbox, 120));
 			kui_textbox_control_colour_set(kui_state, state->entity_scale_z_textbox, EDITOR_AXIS_COLOUR_B);
-			kui_control_set_user_data(kui_state, state->entity_scale_z_textbox, sizeof(*state), state, false, MEMORY_TAG_UNKNOWN);
+			kui_control_set_user_data(kui_state, state->entity_scale_z_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
 			kui_control_set_on_key(kui_state, state->entity_scale_z_textbox, entity_scale_z_textbox_on_key);
 		}
 	}
@@ -453,7 +463,7 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 		// Base tree control.
 		state->tree_scrollable_control = kui_scrollable_control_create(kui_state, "tree_base_control", (vec2){state->tree_inspector_width, 200}, true, true);
 		KASSERT(kui_system_control_add_child(kui_state, state->tree_inspector_bg_panel, state->tree_scrollable_control));
-		kui_control_position_set(kui_state, state->tree_scrollable_control, (vec3){10, 50, 0});
+		kui_control_position_set(kui_state, state->tree_scrollable_control, (vec3){0, 50, 0});
 
 		state->tree_content_container = kui_scrollable_control_get_content_container(state->kui_state, state->tree_scrollable_control);
 
@@ -1438,7 +1448,7 @@ static b8 editor_on_drag(u16 code, void* sender, void* listener_inst, event_cont
 
 	i16 x = context.data.i16[0];
 	i16 y = context.data.i16[1];
-	u16 drag_button = context.data.u16[2];
+	u16 drag_button = context.data.u16[4];
 
 	// Only care about left button drags.
 	if (drag_button == MOUSE_BUTTON_LEFT) {
@@ -1537,7 +1547,7 @@ static b8 editor_on_button(u16 code, void* sender, void* listener_inst, event_co
 	if (code == EVENT_CODE_BUTTON_PRESSED) {
 		//
 	} else if (code == EVENT_CODE_BUTTON_RELEASED) {
-		u16 button = context.data.u16[2];
+		u16 button = context.data.u16[4];
 		switch (button) {
 		case MOUSE_BUTTON_LEFT: {
 			i16 x = context.data.i16[0];
@@ -2027,7 +2037,6 @@ static void tree_setup_node_r(editor_state* state, kscene_hierarchy_node* scene_
 		tree_node->children = KALLOC_TYPE_CARRAY(tree_hierarchy_node, tree_node->child_count);
 	}
 
-	const u32 item_height = 45;
 	const char* tree_item_name = string_format("tree_item_%i", index);
 
 	tree_node->tree_item = kui_tree_item_control_create(
@@ -2050,13 +2059,9 @@ static void tree_setup_node_r(editor_state* state, kscene_hierarchy_node* scene_
 	} else {
 		// Add to the content container of the scrollable control.
 		KASSERT(kui_system_control_add_child(kui_state, state->tree_content_container, tree_node->tree_item));
-		/* u32 len = darray_length(state->tree_base_control.children);
-		p_tree_item = state->tree_base_control.children[len - 1]; */
-
-		/* kui_control_position_set(kui_state, tree_node->tree_item, (vec3){44, *y_offset, 0}); */
 	}
 
-	*y_offset += item_height;
+	*y_offset += KUI_TREE_ITEM_HEIGHT;
 
 	hierarchy_node_context* context = KALLOC_TYPE(hierarchy_node_context, MEMORY_TAG_EDITOR);
 	context->editor = state;
@@ -2079,11 +2084,11 @@ static f32 refresh_tree_item_expansion_r(editor_state* state, tree_hierarchy_nod
 	f32 accumulated_y_offset = 0.0f;
 	kui_control_position_set(state->kui_state, node->tree_item, (vec3){44, y_offset, 0});
 
-	accumulated_y_offset += 45.0f;
+	accumulated_y_offset += KUI_TREE_ITEM_HEIGHT;
 
 	if (node->expanded && node->child_count && node->children) {
 		for (u32 i = 0; i < node->child_count; ++i) {
-			accumulated_y_offset += refresh_tree_item_expansion_r(state, &node->children[i], i * 45.0f);
+			accumulated_y_offset += refresh_tree_item_expansion_r(state, &node->children[i], i * KUI_TREE_ITEM_HEIGHT);
 		}
 	}
 
@@ -2112,12 +2117,7 @@ static void tree_clear(editor_state* state) {
 		tree.root_count = 0;
 		tree.root_nodes = KNULL;
 
-		kui_control_destroy_all_children(state->kui_state, state->tree_scrollable_control);
-
-		/* kui_base_control_destroy(state->kui_state, &state->tree_base_control);
-		state->tree_base_control = kui_base_control_create(state->kui_state, "tree_base_control", KUI_CONTROL_TYPE_BASE);
-		KASSERT(kui_system_control_add_child(state->kui_state, state->tree_inspector_bg_panel, state->tree_base_control));
-		kui_control_position_set(state->kui_state, state->tree_base_control, (vec3){10, 50, 0}); */
+		kui_control_destroy_all_children(state->kui_state, state->tree_content_container);
 	}
 }
 

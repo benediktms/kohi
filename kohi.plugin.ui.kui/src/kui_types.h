@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core_render_types.h"
 #include <core_resource_types.h>
 #include <defines.h>
 #include <input_types.h>
@@ -62,6 +63,12 @@ typedef struct kui_mouse_event {
 	mouse_buttons mouse_button;
 	i16 x;
 	i16 y;
+	i16 local_x;
+	i16 local_y;
+	i16 delta_x;
+	i16 delta_y;
+	// Mouse wheel.
+	i8 delta_z;
 } kui_mouse_event;
 
 typedef enum kui_keyboard_event_type {
@@ -111,6 +118,8 @@ typedef enum kui_control_type {
 	KUI_CONTROL_TYPE_TEXTBOX,
 	KUI_CONTROL_TYPE_TREE_ITEM,
 	KUI_CONTROL_TYPE_SCROLLABLE,
+	KUI_CONTROL_TYPE_IMAGE_BOX,
+	/* KUI_CONTROL_TYPE_CHECKBOX, */
 
 	KUI_CONTROL_TYPE_MAX = 64
 } kui_control_type;
@@ -159,6 +168,7 @@ typedef struct kui_base_control {
 	PFN_mouse_event_callback on_mouse_drag_begin;
 	PFN_mouse_event_callback on_mouse_drag;
 	PFN_mouse_event_callback on_mouse_drag_end;
+	PFN_mouse_event_callback on_mouse_wheel;
 
 	void (*on_focus)(struct kui_state* state, kui_control self);
 	void (*on_unfocus)(struct kui_state* state, kui_control self);
@@ -172,6 +182,7 @@ typedef struct kui_base_control {
 	PFN_mouse_event_callback internal_mouse_drag_begin;
 	PFN_mouse_event_callback internal_mouse_drag;
 	PFN_mouse_event_callback internal_mouse_drag_end;
+	PFN_mouse_event_callback internal_mouse_wheel;
 
 	PFN_keyboard_event_callback on_key;
 
@@ -213,6 +224,8 @@ typedef enum kui_button_type {
 	// Just a regular button - no content like text or image.
 	KUI_BUTTON_TYPE_BASIC,
 	KUI_BUTTON_TYPE_TEXT,
+	KUI_BUTTON_TYPE_UPARROW,
+	KUI_BUTTON_TYPE_DOWNARROW
 } kui_button_type;
 
 typedef struct kui_button_control {
@@ -281,7 +294,12 @@ struct kui_scrollable_control;
 typedef struct kui_scrollbar {
 	struct kui_scrollable_control* owner;
 
-	kui_control background;
+	f32 drag_button_offset_start;
+	f32 drag_button_mouse_offset;
+
+	nine_slice bg;
+	ktransform bg_transform;
+	u32 bg_binding_instance_id;
 	// up or left
 	kui_control dec_button;
 	// down or right
@@ -310,6 +328,14 @@ typedef struct kui_scrollable_control {
 	// HACK: Use proper kui events so we don't have to do this
 	struct kui_state* kui_state;
 } kui_scrollable_control;
+
+typedef struct kui_image_box_control {
+	kui_base_control base;
+	kgeometry geometry;
+	ktexture texture;
+
+	u32 binding_instance_id;
+} kui_image_box_control;
 
 // Atlas configuration
 
@@ -340,11 +366,20 @@ typedef struct kui_atlas_textbox_control_config {
 	kui_atlas_textbox_control_mode_config focused;
 } kui_atlas_textbox_control_config;
 
+typedef struct kui_atlas_scrollbar_bg_config {
+	extents_2d extents;
+	vec2 corner_size;
+	vec2 corner_px_size;
+} kui_atlas_scrollbar_bg_config;
+
 typedef struct kui_atlas_config {
 	kname image_asset_name;
 	kname image_asset_package_name;
 
 	kui_atlas_panel_control_config panel;
 	kui_atlas_button_control_config button;
+	kui_atlas_button_control_config button_uparrow;
+	kui_atlas_button_control_config button_downarrow;
 	kui_atlas_textbox_control_config textbox;
+	kui_atlas_scrollbar_bg_config scrollbar;
 } kui_atlas_config;

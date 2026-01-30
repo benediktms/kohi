@@ -1086,7 +1086,7 @@ static b8 game_on_drag(u16 code, void* sender, void* listener_inst, event_contex
 
 	/* i16 x = context.data.i16[0];
 	i16 y = context.data.i16[1]; */
-	u16 drag_button = context.data.u16[2];
+	u16 drag_button = context.data.u16[4];
 
 	// Only care about left button drags.
 	if (drag_button == MOUSE_BUTTON_LEFT) {
@@ -1101,7 +1101,7 @@ static b8 game_on_button(u16 code, void* sender, void* listener_inst, event_cont
 	if (code == EVENT_CODE_BUTTON_PRESSED) {
 		//
 	} else if (code == EVENT_CODE_BUTTON_RELEASED) {
-		u16 button = context.data.u16[0];
+		u16 button = context.data.u16[4];
 		switch (button) {
 		case MOUSE_BUTTON_LEFT: {
 			/* i16 x = context.data.i16[1]; */

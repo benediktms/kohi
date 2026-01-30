@@ -127,7 +127,7 @@ b8 debug_console_load(debug_console_state* state) {
 	// Textbox for command entry.
 	{
 		state->entry_textbox = kui_textbox_control_create(kui_state, "debug_console_entry_textbox", FONT_TYPE_SYSTEM, kname_create("Noto Sans Mono CJK JP"), font_size, "", KUI_TEXTBOX_TYPE_STRING);
-		kui_control_set_user_data(kui_state, state->entry_textbox, sizeof(debug_console_state), state, false, MEMORY_TAG_UNKNOWN);
+		kui_control_set_user_data(kui_state, state->entry_textbox, sizeof(debug_console_state), state, false, MEMORY_TAG_UI);
 		kui_control_set_on_key(kui_state, state->entry_textbox, debug_console_entry_box_on_key);
 		KASSERT(kui_system_control_add_child(kui_state, state->bg_panel, state->entry_textbox));
 		kui_textbox_control_width_set(state->kui_state, state->entry_textbox, width - 4);

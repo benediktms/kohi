@@ -198,6 +198,22 @@ KAPI kgeometry geometry_generate_line_sphere3d_typed(f32 radius, u32 segment_cou
 KAPI kgeometry geometry_generate_plane(f32 width, f32 height, u32 x_segment_count, u32 y_segment_count, f32 tile_x, f32 tile_y, kname name);
 
 /**
+ * @brief Generates a two-dimensional plane of geometry. Note that memory for the
+ * vertex and index arrays are dynamically allocated, so this should be cleaned up
+ * with geometry_destroy(). Dimensions account for the x- and y-axes, z is always 0.
+ *
+ * @param width The width of the plane (x-axis).
+ * @param height The height of the plane (y-axis).
+ * @param x_segment_count The number of segments to split the plane geometry into along the x-axis. Must be at least 1.
+ * @param y_segment_count The number of segments to split the plane geometry into along the y-axis. Must be at least 1.
+ * @param tile_x The amount of tiling of the textures on the face of the plane on the x-axis. 1.0 means the texture is stretched across the entire surface. 2.0 means it's repeated, etc.
+ * @param tile_y The amount of tiling of the textures on the face of the plane on the y-axis. 1.0 means the texture is stretched across the entire surface. 2.0 means it's repeated, etc.
+ * @param name The name of the geometry.
+ * @returns The newly-created geometry.
+ */
+KAPI kgeometry geometry_generate_plane_2d(f32 width, f32 height, u32 x_segment_count, u32 y_segment_count, f32 tile_x, f32 tile_y, kname name, b8 centered);
+
+/**
  * @brief Recalculates the vertices in the given geometry based off the given points.
  *
  * @param geometry A pointer to the geometry to modify.

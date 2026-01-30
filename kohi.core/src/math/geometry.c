@@ -500,6 +500,108 @@ kgeometry geometry_generate_plane(f32 width, f32 height, u32 x_segment_count, u3
 	return out_geometry;
 }
 
+kgeometry geometry_generate_plane_2d(f32 width, f32 height, u32 x_segment_count, u32 y_segment_count, f32 tile_x, f32 tile_y, kname name, b8 centered) {
+	if (width == 0) {
+		KWARN("Width must be nonzero. Defaulting to one.");
+		width = 1.0f;
+	}
+	if (height == 0) {
+		KWARN("Height must be nonzero. Defaulting to one.");
+		height = 1.0f;
+	}
+	if (x_segment_count < 1) {
+		KWARN("x_segment_count must be a positive number. Defaulting to one.");
+		x_segment_count = 1;
+	}
+	if (y_segment_count < 1) {
+		KWARN("y_segment_count must be a positive number. Defaulting to one.");
+		y_segment_count = 1;
+	}
+
+	if (tile_x == 0) {
+		KWARN("tile_x must be nonzero. Defaulting to one.");
+		tile_x = 1.0f;
+	}
+	if (tile_y == 0) {
+		KWARN("tile_y must be nonzero. Defaulting to one.");
+		tile_y = 1.0f;
+	}
+
+	f32 half_width = width * 0.5f;
+	f32 half_height = height * 0.5f;
+
+	kgeometry out_geometry = {0};
+	out_geometry.name = name;
+	out_geometry.type = KGEOMETRY_TYPE_2D_STATIC;
+	out_geometry.generation = INVALID_ID_U16; // NOTE: generation is 0 because this is technically the first "update"
+	out_geometry.extents.min = centered ? (vec3){-half_width, -half_height, 0.0f} : vec3_zero();
+	out_geometry.extents.max = centered ? (vec3){half_width, half_height, 0.0f} : (vec3){width, height, 0.0f};
+	// Always 0 since min/max of each axis are -/+ half of the size.
+	out_geometry.center = vec3_zero();
+	out_geometry.vertex_element_size = sizeof(vertex_2d);
+	out_geometry.vertex_count = x_segment_count * y_segment_count * 4; // 4 verts per segment
+	out_geometry.vertices = KALLOC_TYPE_CARRAY(vertex_2d, out_geometry.vertex_count);
+	out_geometry.vertex_buffer_offset = INVALID_ID_U64;
+	out_geometry.index_element_size = sizeof(u32);
+	out_geometry.index_count = x_segment_count * y_segment_count * 6; // 6 indices per segment
+	out_geometry.indices = KALLOC_TYPE_CARRAY(u32, out_geometry.index_count);
+	out_geometry.index_buffer_offset = INVALID_ID_U64;
+
+	// TODO: This generates extra vertices, but we can always deduplicate them later.
+	f32 seg_width = width / x_segment_count;
+	f32 seg_height = height / y_segment_count;
+	for (u32 y = 0; y < y_segment_count; ++y) {
+		for (u32 x = 0; x < x_segment_count; ++x) {
+			// Generate vertices
+			f32 min_x = (x * seg_width) - (centered ? half_width : 0);
+			f32 min_y = (y * seg_height) - (centered ? half_height : 0);
+			f32 max_x = min_x + seg_width;
+			f32 max_y = min_y + seg_height;
+			f32 min_uvx = (x / (f32)x_segment_count) * tile_x;
+			f32 min_uvy = (y / (f32)y_segment_count) * tile_y;
+			f32 max_uvx = ((x + 1) / (f32)x_segment_count) * tile_x;
+			f32 max_uvy = ((y + 1) / (f32)y_segment_count) * tile_y;
+
+			u32 v_offset = ((y * x_segment_count) + x) * 4;
+			vertex_2d* v0 = &((vertex_2d*)out_geometry.vertices)[v_offset + 0];
+			vertex_2d* v1 = &((vertex_2d*)out_geometry.vertices)[v_offset + 1];
+			vertex_2d* v2 = &((vertex_2d*)out_geometry.vertices)[v_offset + 2];
+			vertex_2d* v3 = &((vertex_2d*)out_geometry.vertices)[v_offset + 3];
+
+			v0->position.x = min_x;
+			v0->position.y = min_y;
+			v0->texcoord.x = min_uvx;
+			v0->texcoord.y = min_uvy;
+
+			v1->position.x = max_x;
+			v1->position.y = max_y;
+			v1->texcoord.x = max_uvx;
+			v1->texcoord.y = max_uvy;
+
+			v2->position.x = min_x;
+			v2->position.y = max_y;
+			v2->texcoord.x = min_uvx;
+			v2->texcoord.y = max_uvy;
+
+			v3->position.x = max_x;
+			v3->position.y = min_y;
+			v3->texcoord.x = max_uvx;
+			v3->texcoord.y = min_uvy;
+
+			// Generate indices
+			u32 i_offset = ((y * x_segment_count) + x) * 6;
+			((u32*)out_geometry.indices)[i_offset + 0] = v_offset + 0;
+			((u32*)out_geometry.indices)[i_offset + 1] = v_offset + 1;
+			((u32*)out_geometry.indices)[i_offset + 2] = v_offset + 2;
+			((u32*)out_geometry.indices)[i_offset + 3] = v_offset + 0;
+			((u32*)out_geometry.indices)[i_offset + 4] = v_offset + 3;
+			((u32*)out_geometry.indices)[i_offset + 5] = v_offset + 1;
+		}
+	}
+
+	return out_geometry;
+}
+
 void geometry_recalculate_line_box3d_by_points(kgeometry* geometry, vec3 points[8]) {
 	if (geometry->type == KGEOMETRY_TYPE_3D_STATIC_COLOUR) {
 		// Front lines

@@ -382,6 +382,11 @@ b8 ktransform_parent_set(ktransform t, ktransform parent) {
 		return false;
 	}
 
+	// Ensure no circular references.
+	if (parent != KTRANSFORM_INVALID) {
+		KASSERT(state->parents[parent] != t);
+	}
+
 	state->parents[t] = parent;
 	// Update the depth too.
 	state->depths[t] = parent == KTRANSFORM_INVALID ? 0 : state->depths[parent] + 1;
@@ -903,10 +908,14 @@ static void handle_destroy(ktransform_system_state* state, ktransform* t) {
 
 	if (*t != KTRANSFORM_INVALID) {
 		KTRACE("Destroying transform handle %u", *t);
-		FLAG_SET(state->flags[*t], KTRANSFORM_FLAG_FREE, true);
+		if(state->flags) {
+			state->flags[*t] = 0;
+			FLAG_SET(state->flags[*t], KTRANSFORM_FLAG_FREE, true);
+		}
 		// Ensure the parent is invalid.
-		state->parents[*t] = KTRANSFORM_INVALID;
-		state->depths[*t] = 0;
+		if(state->parents) {
+			state->parents[*t] = KTRANSFORM_INVALID;
+		}
 		state->allocated--;
 		*t = KTRANSFORM_INVALID;
 	}

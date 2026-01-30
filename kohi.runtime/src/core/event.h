@@ -155,7 +155,9 @@ typedef enum system_event_code {
 	 * Context usage:
 	 * u16 x = data.data.i16[0];
 	 * u16 y = data.data.i16[1];
-	 * u16 button = data.data.u16[2];
+	 * u16 delta_x = data.data.i16[2];
+	 * u16 delta_y = data.data.i16[3];
+	 * u16 button = data.data.u16[4];
 	 */
 	EVENT_CODE_BUTTON_PRESSED = 0x04,
 
@@ -163,7 +165,9 @@ typedef enum system_event_code {
 	 * Context usage:
 	 * u16 x = data.data.i16[0];
 	 * u16 y = data.data.i16[1];
-	 * u16 button = data.data.u16[2];
+	 * u16 delta_x = data.data.i16[2];
+	 * u16 delta_y = data.data.i16[3];
+	 * u16 button = data.data.u16[4];
 	 */
 	EVENT_CODE_BUTTON_RELEASED = 0x05,
 
@@ -171,7 +175,9 @@ typedef enum system_event_code {
 	 * Context usage:
 	 * u16 x = data.data.i16[0];
 	 * u16 y = data.data.i16[1];
-	 * u16 button = data.data.u16[2];
+	 * u16 delta_x = data.data.i16[2];
+	 * u16 delta_y = data.data.i16[3];
+	 * u16 button = data.data.u16[4];
 	 */
 	EVENT_CODE_BUTTON_CLICKED = 0x06,
 
@@ -179,12 +185,18 @@ typedef enum system_event_code {
 	 * Context usage:
 	 * u16 x = data.data.i16[0];
 	 * u16 y = data.data.i16[1];
+	 * u16 delta_x = data.data.i16[2];
+	 * u16 delta_y = data.data.i16[3];
 	 */
 	EVENT_CODE_MOUSE_MOVED = 0x07,
 
 	/** @brief Mouse moved.
 	 * Context usage:
-	 * ui z_delta = data.data.i8[0];
+	 * u16 x = data.data.i16[0];
+	 * u16 y = data.data.i16[1];
+	 * u16 delta_x = data.data.i16[2];
+	 * u16 delta_y = data.data.i16[3];
+	 * ui z_delta = data.data.i8[8];
 	 */
 	EVENT_CODE_MOUSE_WHEEL = 0x08,
 
@@ -286,7 +298,9 @@ typedef enum system_event_code {
 	 * Context usage:
 	 * i16 x = context.data.i16[0]
 	 * i16 y = context.data.i16[1]
-	 * u16 button = context.data.u16[2]
+	 * i16 delta_x = context.data.i16[2]
+	 * i16 delta_y = context.data.i16[3]
+	 * u16 button = context.data.u16[4]
 	 */
 	EVENT_CODE_MOUSE_DRAGGED = 0x30,
 
@@ -297,7 +311,9 @@ typedef enum system_event_code {
 	 * Context usage:
 	 * i16 x = context.data.i16[0]
 	 * i16 y = context.data.i16[1]
-	 * u16 button = context.data.u16[2]
+	 * i16 delta_x = context.data.i16[2]
+	 * i16 delta_y = context.data.i16[3]
+	 * u16 button = context.data.u16[4]
 	 */
 	EVENT_CODE_MOUSE_DRAG_BEGIN = 0x31,
 
@@ -307,7 +323,9 @@ typedef enum system_event_code {
 	 * Context usage:
 	 * i16 x = context.data.i16[0]
 	 * i16 y = context.data.i16[1]
-	 * u16 button = context.data.u16[2]
+	 * i16 delta_x = context.data.i16[2]
+	 * i16 delta_y = context.data.i16[3]
+	 * u16 button = context.data.u16[4]
 	 */
 	EVENT_CODE_MOUSE_DRAG_END = 0x32,
 

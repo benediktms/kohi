@@ -215,7 +215,9 @@ void input_process_button(mouse_buttons button, b8 pressed) {
 		event_context context;
 		context.data.i16[0] = state_ptr->mouse_current.x;
 		context.data.i16[1] = state_ptr->mouse_current.y;
-		context.data.u16[2] = button;
+		context.data.i16[2] = state_ptr->mouse_current.x - state_ptr->mouse_previous.x;
+		context.data.i16[3] = state_ptr->mouse_current.y - state_ptr->mouse_previous.y;
+		context.data.u16[4] = button;
 		event_fire(pressed ? EVENT_CODE_BUTTON_PRESSED : EVENT_CODE_BUTTON_RELEASED, 0, context);
 	}
 
@@ -230,7 +232,9 @@ void input_process_button(mouse_buttons button, b8 pressed) {
 			event_context context;
 			context.data.i16[0] = state_ptr->mouse_current.x;
 			context.data.i16[1] = state_ptr->mouse_current.y;
-			context.data.u16[2] = button;
+			context.data.i16[2] = state_ptr->mouse_current.x - state_ptr->mouse_previous.x;
+			context.data.i16[3] = state_ptr->mouse_current.y - state_ptr->mouse_previous.y;
+			context.data.u16[4] = button;
 			event_fire(EVENT_CODE_MOUSE_DRAG_END, 0, context);
 		} else {
 			// If not a drag release, then it is a click.
@@ -239,7 +243,9 @@ void input_process_button(mouse_buttons button, b8 pressed) {
 			event_context context;
 			context.data.i16[0] = state_ptr->mouse_current.x;
 			context.data.i16[1] = state_ptr->mouse_current.y;
-			context.data.u16[2] = button;
+			context.data.i16[2] = state_ptr->mouse_current.x - state_ptr->mouse_previous.x;
+			context.data.i16[3] = state_ptr->mouse_current.y - state_ptr->mouse_previous.y;
+			context.data.u16[4] = button;
 			event_fire(EVENT_CODE_BUTTON_CLICKED, 0, context);
 		}
 	}
@@ -259,6 +265,8 @@ void input_process_mouse_move(i16 x, i16 y) {
 		event_context context;
 		context.data.i16[0] = x;
 		context.data.i16[1] = y;
+		context.data.i16[2] = state_ptr->mouse_current.x - state_ptr->mouse_previous.x;
+		context.data.i16[3] = state_ptr->mouse_current.y - state_ptr->mouse_previous.y;
 		event_fire(EVENT_CODE_MOUSE_MOVED, 0, context);
 
 		for (u16 i = 0; i < MOUSE_BUTTON_MAX; ++i) {
@@ -272,7 +280,9 @@ void input_process_mouse_move(i16 x, i16 y) {
 					event_context drag_context;
 					drag_context.data.i16[0] = state_ptr->mouse_current.x;
 					drag_context.data.i16[1] = state_ptr->mouse_current.y;
-					drag_context.data.u16[2] = i;
+					drag_context.data.i16[2] = state_ptr->mouse_current.x - state_ptr->mouse_previous.x;
+					drag_context.data.i16[3] = state_ptr->mouse_current.y - state_ptr->mouse_previous.y;
+					drag_context.data.u16[4] = i;
 					event_fire(EVENT_CODE_MOUSE_DRAG_BEGIN, 0, drag_context);
 					// KTRACE("mouse drag began at: x:%hi, y:%hi, button: %hu", state_ptr->mouse_current.x, state_ptr->mouse_current.y, i);
 				} else if (state_ptr->mouse_current.dragging[i]) {
@@ -280,7 +290,9 @@ void input_process_mouse_move(i16 x, i16 y) {
 					event_context drag_context;
 					drag_context.data.i16[0] = state_ptr->mouse_current.x;
 					drag_context.data.i16[1] = state_ptr->mouse_current.y;
-					drag_context.data.u16[2] = i;
+					drag_context.data.i16[2] = state_ptr->mouse_current.x - state_ptr->mouse_previous.x;
+					drag_context.data.i16[3] = state_ptr->mouse_current.y - state_ptr->mouse_previous.y;
+					drag_context.data.u16[4] = i;
 					event_fire(EVENT_CODE_MOUSE_DRAGGED, 0, drag_context);
 					// KTRACE("mouse drag continued at: x:%hi, y:%hi, button: %hu", state_ptr->mouse_current.x, state_ptr->mouse_current.y, i);
 				}
@@ -294,7 +306,11 @@ void input_process_mouse_wheel(i8 z_delta) {
 
 	// Fire the event.
 	event_context context;
-	context.data.i8[0] = z_delta;
+	context.data.i16[0] = state_ptr->mouse_current.x;
+	context.data.i16[1] = state_ptr->mouse_current.y;
+	context.data.i16[2] = state_ptr->mouse_current.x - state_ptr->mouse_previous.x;
+	context.data.i16[3] = state_ptr->mouse_current.y - state_ptr->mouse_previous.y;
+	context.data.i8[8] = z_delta;
 	event_fire(EVENT_CODE_MOUSE_WHEEL, 0, context);
 }
 

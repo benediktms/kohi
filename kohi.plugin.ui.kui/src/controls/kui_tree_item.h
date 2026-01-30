@@ -12,6 +12,9 @@ KAPI kui_control kui_tree_item_control_create(
 	u16 font_size,
 	const char* text,
 	b8 show_toggle_button);
+
+#define KUI_TREE_ITEM_HEIGHT 40.0f
+
 KAPI void kui_tree_item_control_destroy(kui_state* state, kui_control* self);
 KAPI b8 kui_tree_item_control_update(kui_state* state, kui_control self, struct frame_data* p_frame_data);
 KAPI b8 kui_tree_item_control_render(kui_state* state, kui_control self, struct frame_data* p_frame_data, kui_render_data* render_data);

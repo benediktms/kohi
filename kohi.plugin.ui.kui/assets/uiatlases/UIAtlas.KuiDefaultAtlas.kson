@@ -38,6 +38,64 @@ controls = [
 		}
 	}
 	{
+		type = "button_uparrow"
+		modes = {
+			normal = {
+				extents = {
+					min = "229 4"
+					max = "258 33"
+				}
+				corner_px_size = "7 7"
+				corner_size = "7 7"
+			}
+			hover = {
+				extents = {
+					min = "291 4"
+					max = "320 33"
+				}
+				corner_px_size = "7 7"
+				corner_size = "7 7"
+			}
+			pressed = {
+				extents = {
+					min = "260 4"
+					max = "289 33"
+				}
+				corner_px_size = "7 7"
+				corner_size = "7 7"
+			}
+		}
+	}
+	{
+		type = "button_downarrow"
+		modes = {
+			normal = {
+				extents = {
+					min = "229 35"
+					max = "258 64"
+				}
+				corner_px_size = "7 7"
+				corner_size = "7 7"
+			}
+			hover = {
+				extents = {
+					min = "291 35"
+					max = "320 64"
+				}
+				corner_px_size = "7 7"
+				corner_size = "7 7"
+			}
+			pressed = {
+				extents = {
+					min = "260 35"
+					max = "289 64"
+				}
+				corner_px_size = "7 7"
+				corner_size = "7 7"
+			}
+		}
+	}
+	{
 		type = "textbox"
 		modes = {
 			normal = {
@@ -57,5 +115,15 @@ controls = [
 				corner_size = "7 7"
 			}
 		}
+	}
+	{
+		type = "scrollbar"
+		comment = "using the textbox graphic as the border/background"
+		bg_extents = {
+			min = "117 91"
+			max = "227 134"
+		}
+		bg_corner_px_size = "7 7"
+		bg_corner_size = "7 7"
 	}
 ]

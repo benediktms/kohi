@@ -4,7 +4,6 @@
 #include "debug/kassert.h"
 #include "kui_system.h"
 #include "kui_types.h"
-#include "logger.h"
 #include "strings/kstring.h"
 #include "systems/ktransform_system.h"
 
@@ -36,7 +35,7 @@ kui_control kui_tree_item_control_create(
 	kui_base_control* toggle_base = kui_system_get_base(state, typed_control->toggle_button);
 	KASSERT(toggle_base);
 	kui_system_control_add_child(state, base_handle, typed_control->toggle_button);
-	kui_control_position_set(state, typed_control->toggle_button, (vec3){-37.0f, 7.0f, 0});
+	kui_control_position_set(state, typed_control->toggle_button, (vec3){-37.0f, 5.0f, 0});
 	kui_button_control_width_set(state, typed_control->toggle_button, 30);	// FIXME: hardcoded
 	kui_button_control_height_set(state, typed_control->toggle_button, 30); // FIXME: hardcoded
 	toggle_base->on_click = toggle_on_clicked;
@@ -49,12 +48,12 @@ kui_control kui_tree_item_control_create(
 	kui_base_control* label_base = kui_system_get_base(state, typed_control->label);
 	KASSERT(label_base);
 	kui_system_control_add_child(state, base_handle, typed_control->label);
-	kui_control_position_set(state, typed_control->label, (vec3){0.0f, -2.0f, 0}); // FIXME: hardcoded
+	kui_control_position_set(state, typed_control->label, (vec3){0.0f, font_size * -0.2f, 0}); // FIXME: hardcoded
 	FLAG_SET(label_base->flags, KUI_CONTROL_FLAG_CAN_MOUSE_INTERACT_BIT, true);
 	label_base->internal_click = label_on_clicked;
 
 	base->bounds.width = initial_width;
-	base->bounds.height = 40; // FIXME: hardcoded crap
+	base->bounds.height = KUI_TREE_ITEM_HEIGHT;
 
 	FLAG_SET(base->flags, KUI_CONTROL_FLAG_CAN_MOUSE_INTERACT_BIT, false);
 
@@ -64,7 +63,7 @@ kui_control kui_tree_item_control_create(
 	kui_base_control* container_base = kui_system_get_base(state, typed_control->label);
 	KASSERT(container_base);
 	kui_system_control_add_child(state, base_handle, typed_control->child_container);
-	kui_control_position_set(state, typed_control->child_container, (vec3){0.0f, 40.0f, 0});
+	kui_control_position_set(state, typed_control->child_container, (vec3){0.0f, KUI_TREE_ITEM_HEIGHT, 0});
 	kui_control_set_is_visible(state, typed_control->child_container, false);
 
 	string_free(toggle_button_name);
@@ -153,7 +152,7 @@ void kui_tree_item_set_on_collapsed(kui_state* state, kui_control self, PFN_mous
 }
 
 static b8 label_on_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event) {
-	KDEBUG("inner label clicked");
+	/* KDEBUG("inner label clicked"); */
 	kui_base_control* base = kui_system_get_base(state, self);
 	KASSERT(base);
 	kui_base_control* parent_base = kui_system_get_base(state, base->parent);

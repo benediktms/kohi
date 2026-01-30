@@ -27,6 +27,7 @@
 #include <utils/ksort.h>
 
 #include "assets/kasset_types.h"
+#include "controls/image_box_control.h"
 #include "controls/kui_button.h"
 #include "controls/kui_label.h"
 #include "controls/kui_panel.h"
@@ -46,6 +47,7 @@ static b8 kui_base_internal_click(kui_state* state, kui_control self, struct kui
 static b8 kui_base_internal_mouse_over(kui_state* state, kui_control self, struct kui_mouse_event event);
 static b8 kui_base_internal_mouse_out(kui_state* state, kui_control self, struct kui_mouse_event event);
 static b8 kui_base_internal_mouse_move(kui_state* state, kui_control self, struct kui_mouse_event event);
+static b8 kui_base_internal_mouse_wheel(kui_state* state, kui_control self, struct kui_mouse_event event);
 static b8 kui_base_internal_mouse_drag_begin(kui_state* state, kui_control self, struct kui_mouse_event event);
 static b8 kui_base_internal_mouse_drag(kui_state* state, kui_control self, struct kui_mouse_event event);
 static b8 kui_base_internal_mouse_drag_end(kui_state* state, kui_control self, struct kui_mouse_event event);
@@ -59,6 +61,7 @@ static b8 kui_system_mouse_down(u16 code, void* sender, void* listener_inst, eve
 static b8 kui_system_mouse_up(u16 code, void* sender, void* listener_inst, event_context context);
 static b8 kui_system_click(u16 code, void* sender, void* listener_inst, event_context context);
 static b8 kui_system_mouse_move(u16 code, void* sender, void* listener_inst, event_context context);
+static b8 kui_system_mouse_wheel(u16 code, void* sender, void* listener_inst, event_context context);
 static b8 kui_system_drag(u16 code, void* sender, void* listener_inst, event_context context);
 
 static void register_control(kui_state* state, kui_control control);
@@ -91,7 +94,7 @@ b8 kui_system_initialize(u64* memory_requirement, kui_state* state, kui_system_c
 	state->font_system = engine_systems_get()->font_system;
 
 	state->focused_base_colour = KCOLOUR4_WHITE;
-	state->unfocused_base_colour = KCOLOUR4_WHITE_50;
+	state->unfocused_base_colour = KCOLOUR4_WHITE;
 
 	kasset_text* atlas_asset = asset_system_request_text_from_package_sync(engine_systems_get()->asset_state, PACKAGE_NAME_KUI, KUI_DEFAULT_ATLAS_ASSET_NAME);
 	b8 asset_parse_result = parse_atlas_config(atlas_asset->content, &state->atlas);
@@ -114,12 +117,13 @@ b8 kui_system_initialize(u64* memory_requirement, kui_state* state, kui_system_c
 	state->inactive_controls = darray_create(kui_control);
 
 	state->base_controls = darray_create(kui_base_control);
-	state->panel_controls = darray_create(kui_panel_control);
+	state->image_box_controls = darray_create(kui_image_box_control);
 	state->label_controls = darray_create(kui_label_control);
 	state->button_controls = darray_create(kui_button_control);
 	state->textbox_controls = darray_create(kui_textbox_control);
 	state->tree_item_controls = darray_create(kui_tree_item_control);
 	state->scrollable_controls = darray_create(kui_scrollable_control);
+	state->panel_controls = darray_create(kui_panel_control);
 
 	state->root = kui_base_control_create(state, "__ROOT__", KUI_CONTROL_TYPE_BASE);
 
@@ -141,6 +145,7 @@ b8 kui_system_initialize(u64* memory_requirement, kui_state* state, kui_system_c
 	event_register(EVENT_CODE_MOUSE_DRAG_END, state, kui_system_drag);
 	event_register(EVENT_CODE_BUTTON_PRESSED, state, kui_system_mouse_down);
 	event_register(EVENT_CODE_BUTTON_RELEASED, state, kui_system_mouse_up);
+	event_register(EVENT_CODE_MOUSE_WHEEL, state, kui_system_mouse_wheel);
 
 	state->vertex_buffer = renderer_renderbuffer_get(state->renderer, kname_create(KRENDERBUFFER_NAME_VERTEX_STANDARD));
 	state->index_buffer = renderer_renderbuffer_get(state->renderer, kname_create(KRENDERBUFFER_NAME_INDEX_STANDARD));
@@ -149,7 +154,7 @@ b8 kui_system_initialize(u64* memory_requirement, kui_state* state, kui_system_c
 
 	state->running = true;
 
-	KTRACE("Initialized standard UI system (%s).", KVERSION);
+	KDEBUG("Initialized standard UI system (%s).", KVERSION);
 
 	return true;
 }
@@ -167,6 +172,7 @@ void kui_system_shutdown(kui_state* state) {
 		event_unregister(EVENT_CODE_MOUSE_DRAG_END, state, kui_system_drag);
 		event_unregister(EVENT_CODE_BUTTON_PRESSED, state, kui_system_mouse_down);
 		event_unregister(EVENT_CODE_BUTTON_RELEASED, state, kui_system_mouse_up);
+		event_unregister(EVENT_CODE_MOUSE_WHEEL, state, kui_system_mouse_wheel);
 
 		// Unload all controls by type
 		{
@@ -237,6 +243,16 @@ void kui_system_shutdown(kui_state* state) {
 				}
 			}
 			darray_destroy(state->scrollable_controls);
+		}
+
+		{
+			u32 len = darray_length(state->image_box_controls);
+			for (u32 i = 0; i < len; ++i) {
+				if (state->image_box_controls[i].base.handle.val != INVALID_KUI_CONTROL.val) {
+					kui_image_box_control_destroy(state, &state->image_box_controls[i].base.handle);
+				}
+			}
+			darray_destroy(state->image_box_controls);
 		}
 
 		darray_destroy(state->inactive_controls);
@@ -515,6 +531,7 @@ kui_control kui_base_control_create(kui_state* state, const char* name, kui_cont
 	out_control->internal_mouse_over = kui_base_internal_mouse_over;
 	out_control->internal_mouse_out = kui_base_internal_mouse_out;
 	out_control->internal_mouse_move = kui_base_internal_mouse_move;
+	out_control->internal_mouse_wheel = kui_base_internal_mouse_wheel;
 	out_control->internal_mouse_drag_begin = kui_base_internal_mouse_drag_begin;
 	out_control->internal_mouse_drag = kui_base_internal_mouse_drag;
 	out_control->internal_mouse_drag_end = kui_base_internal_mouse_drag_end;
@@ -533,6 +550,11 @@ void kui_base_control_destroy(kui_state* state, kui_control* self) {
 		return;
 	}
 
+	if (base->name) {
+		string_free(base->name);
+		base->name = KNULL;
+	}
+
 	// Don't recurse if shutting down.
 	if (state->running) {
 		unregister_control(state, *self);
@@ -540,6 +562,8 @@ void kui_base_control_destroy(kui_state* state, kui_control* self) {
 		if (base->parent.val != INVALID_KUI_CONTROL.val) {
 			kui_system_control_remove_child(state, base->parent, *self);
 		}
+
+		ktransform_destroy(&base->ktransform);
 
 		u32 len = darray_length(base->children);
 		for (u32 i = 0; i < len; ++i) {
@@ -558,12 +582,9 @@ void kui_base_control_destroy(kui_state* state, kui_control* self) {
 		}
 	}
 
-	if (base->name) {
-		string_free(base->name);
-		base->name = KNULL;
-	}
 	darray_destroy(base->children);
 	base->children = KNULL;
+
 	if (state->running) {
 		release_handle(state, self);
 	}
@@ -612,13 +633,13 @@ b8 kui_control_is_visible(kui_state* state, kui_control self) {
 void kui_control_set_is_visible(kui_state* state, kui_control self, b8 is_visible) {
 	kui_base_control* base = get_base(state, self);
 	FLAG_SET(base->flags, KUI_CONTROL_FLAG_VISIBLE_BIT, is_visible);
-	KTRACE("Control '%s' set to %s.", base->name, is_visible ? "visible" : "invisible");
+	/* KTRACE("Control '%s' set to %s.", base->name, is_visible ? "visible" : "invisible"); */
 }
 void kui_control_set_is_active(kui_state* state, kui_control self, b8 is_active) {
 	kui_base_control* base = get_base(state, self);
 	kui_system_update_active(state, self);
 	FLAG_SET(base->flags, KUI_CONTROL_FLAG_ACTIVE_BIT, is_active);
-	KTRACE("Control '%s' set to %s.", base->name, is_active ? "active" : "inactive");
+	/* KTRACE("Control '%s' set to %s.", base->name, is_active ? "active" : "inactive"); */
 }
 
 void kui_control_set_user_data(kui_state* state, kui_control self, u32 data_size, void* data, b8 free_on_destroy, memory_tag tag) {
@@ -626,6 +647,7 @@ void kui_control_set_user_data(kui_state* state, kui_control self, u32 data_size
 	FLAG_SET(base->flags, KUI_CONTROL_FLAG_USER_DATA_FREE_ON_DESTROY, free_on_destroy);
 	base->user_data = data;
 	base->user_data_size = data_size;
+	base->user_data_memory_tag = tag;
 }
 void* kui_control_get_user_data(kui_state* state, kui_control self) {
 	kui_base_control* base = get_base(state, self);
@@ -727,6 +749,16 @@ static b8 kui_base_internal_mouse_move(kui_state* state, kui_control self, struc
 	return base->on_mouse_move ? base->on_mouse_move(state, self, event) : false;
 }
 
+static b8 kui_base_internal_mouse_wheel(kui_state* state, kui_control self, struct kui_mouse_event event) {
+	if (self.val == INVALID_KUI_CONTROL.val) {
+		return true;
+	}
+	kui_base_control* base = get_base(state, self);
+
+	// Allow event propagation by default. User events can override this.
+	return base->on_mouse_wheel ? base->on_mouse_wheel(state, self, event) : true;
+}
+
 static b8 kui_base_internal_mouse_drag_begin(kui_state* state, kui_control self, struct kui_mouse_event event) {
 	if (self.val == INVALID_KUI_CONTROL.val) {
 		return true;
@@ -824,9 +856,11 @@ static b8 kui_system_mouse_down(u16 code, void* sender, void* listener_inst, eve
 	kui_state* typed_state = (kui_state*)listener_inst;
 	b8 block_propagation = false;
 	kui_mouse_event evt = {
-		.mouse_button = (mouse_buttons)context.data.i16[2],
+		.mouse_button = (mouse_buttons)context.data.i16[4],
 		.x = context.data.i16[0],
 		.y = context.data.i16[1],
+		.delta_x = context.data.i16[2],
+		.delta_y = context.data.i16[3],
 	};
 
 	// Active, visible controls that the event intersects.
@@ -854,7 +888,7 @@ static b8 kui_system_mouse_down(u16 code, void* sender, void* listener_inst, eve
 		}
 		if (base->internal_mouse_down) {
 			if (!base->internal_mouse_down(typed_state, control, evt)) {
-				KTRACE("ui mouse down on '%s', blocking propagation.", base->name);
+				/* KTRACE("ui mouse down on '%s', blocking propagation.", base->name); */
 				block_propagation = true;
 				// If propagation is blocked, don't look any further.
 				break;
@@ -863,7 +897,7 @@ static b8 kui_system_mouse_down(u16 code, void* sender, void* listener_inst, eve
 	}
 	darray_destroy(intersecting_controls);
 
-	KTRACE("ui mouse down, block_propagation = %s", block_propagation ? "yes" : "no");
+	/* KTRACE("ui mouse down, block_propagation = %s", block_propagation ? "yes" : "no"); */
 
 	// If no control was hit, make sure there is no focused control.
 	if (!hit_count) {
@@ -878,9 +912,11 @@ static b8 kui_system_mouse_up(u16 code, void* sender, void* listener_inst, event
 	kui_state* typed_state = (kui_state*)listener_inst;
 	b8 block_propagation = false;
 	kui_mouse_event evt = {
-		.mouse_button = (mouse_buttons)context.data.i16[2],
+		.mouse_button = (mouse_buttons)context.data.i16[4],
 		.x = context.data.i16[0],
 		.y = context.data.i16[1],
+		.delta_x = context.data.i16[2],
+		.delta_y = context.data.i16[3],
 	};
 
 	// Active, visible controls that the event intersects.
@@ -932,9 +968,11 @@ static b8 kui_system_click(u16 code, void* sender, void* listener_inst, event_co
 	kui_state* typed_state = (kui_state*)listener_inst;
 	b8 block_propagation = false;
 	kui_mouse_event evt = {
-		.mouse_button = (mouse_buttons)context.data.i16[2],
+		.mouse_button = (mouse_buttons)context.data.i16[4],
 		.x = context.data.i16[0],
 		.y = context.data.i16[1],
+		.delta_x = context.data.i16[2],
+		.delta_y = context.data.i16[3],
 	};
 
 	// Active, visible controls that the event intersects.
@@ -986,9 +1024,11 @@ static b8 kui_system_mouse_move(u16 code, void* sender, void* listener_inst, eve
 	kui_state* typed_state = (kui_state*)listener_inst;
 	b8 block_propagation = false;
 	kui_mouse_event evt = {
-		.mouse_button = (mouse_buttons)context.data.i16[2],
+		.mouse_button = (mouse_buttons)context.data.i16[4],
 		.x = context.data.i16[0],
 		.y = context.data.i16[1],
+		.delta_x = context.data.i16[2],
+		.delta_y = context.data.i16[3],
 	};
 
 	// Active, visible controls that the event intersects.
@@ -1065,13 +1105,57 @@ static b8 kui_system_mouse_move(u16 code, void* sender, void* listener_inst, eve
 	return block_propagation;
 }
 
+static b8 kui_system_mouse_wheel(u16 code, void* sender, void* listener_inst, event_context context) {
+	kui_state* typed_state = (kui_state*)listener_inst;
+	b8 block_propagation = false;
+	kui_mouse_event evt = {
+		.x = context.data.i16[0],
+		.y = context.data.i16[1],
+		.delta_x = context.data.i16[2],
+		.delta_y = context.data.i16[3],
+		.delta_z = context.data.i8[8],
+	};
+
+	// Active, visible controls that the event intersects.
+	kui_control* intersecting_controls = darray_create(kui_control);
+	u32 active_control_count = darray_length(typed_state->active_controls);
+	for (u32 i = 0; i < active_control_count; ++i) {
+		kui_control control = typed_state->active_controls[i];
+		if (control_event_intersects(typed_state, control, evt)) {
+			darray_push(intersecting_controls, control);
+		}
+	}
+
+	// Sort and get the topmost elements first.
+	u32 hit_count = darray_length(intersecting_controls);
+	kquick_sort_with_context(sizeof(kui_control), intersecting_controls, 0, hit_count - 1, kui_control_depth_compare_desc, typed_state);
+	for (u32 i = 0; i < hit_count; ++i) {
+		kui_control control = intersecting_controls[i];
+		kui_base_control* base = get_base(typed_state, control);
+
+		if (!base->internal_mouse_wheel(typed_state, control, evt)) {
+			block_propagation = true;
+			// If propagation is blocked, don't look any further.
+			break;
+		}
+	}
+	darray_destroy(intersecting_controls);
+
+	/* KTRACE("ui mouse wheel, block_propagation = %s", block_propagation ? "yes" : "no"); */
+
+	// If a control was hit, block the event from going any futher.
+	return block_propagation;
+}
+
 static b8 kui_system_drag(u16 code, void* sender, void* listener_inst, event_context context) {
 	kui_state* typed_state = (kui_state*)listener_inst;
 	b8 block_propagation = false;
 	kui_mouse_event evt = {
-		.mouse_button = (mouse_buttons)context.data.i16[2],
+		.mouse_button = (mouse_buttons)context.data.i16[4],
 		.x = context.data.i16[0],
 		.y = context.data.i16[1],
+		.delta_x = context.data.i16[2],
+		.delta_y = context.data.i16[3],
 	};
 
 	// Active, visible controls that the event intersects.
@@ -1104,12 +1188,26 @@ static b8 kui_system_drag(u16 code, void* sender, void* listener_inst, event_con
 		if (code == EVENT_CODE_MOUSE_DRAG_BEGIN) {
 			// Drag begin must start within the control.
 			if (base->internal_mouse_drag_begin) {
+
+				mat4 model = ktransform_world_get(base->ktransform);
+				mat4 inv = mat4_inverse(model);
+				vec3 transformed_evt = vec3_transform((vec3){evt.x, evt.y, 0.0f}, 1.0f, inv);
+				evt.local_x = transformed_evt.x;
+				evt.local_y = transformed_evt.y;
+
 				if (!base->internal_mouse_drag_begin(typed_state, control, evt)) {
 					block_propagation = true;
 				}
 			}
 		} else if (code == EVENT_CODE_MOUSE_DRAGGED) {
 			// Drag event can occur inside or outside the control.
+
+			mat4 model = ktransform_world_get(base->ktransform);
+			mat4 inv = mat4_inverse(model);
+			vec3 transformed_evt = vec3_transform((vec3){evt.x, evt.y, 0.0f}, 1.0f, inv);
+			evt.local_x = transformed_evt.x;
+			evt.local_y = transformed_evt.y;
+
 			if (base->internal_mouse_drag) {
 				if (!base->internal_mouse_drag(typed_state, control, evt)) {
 					block_propagation = true;
@@ -1117,6 +1215,13 @@ static b8 kui_system_drag(u16 code, void* sender, void* listener_inst, event_con
 			}
 		} else if (code == EVENT_CODE_MOUSE_DRAG_END) {
 			// Drag end event can occur inside or outside the control.
+
+			mat4 model = ktransform_world_get(base->ktransform);
+			mat4 inv = mat4_inverse(model);
+			vec3 transformed_evt = vec3_transform((vec3){evt.x, evt.y, 0.0f}, 1.0f, inv);
+			evt.local_x = transformed_evt.x;
+			evt.local_y = transformed_evt.y;
+
 			if (base->internal_mouse_drag_end) {
 				if (!base->internal_mouse_drag_end(typed_state, control, evt)) {
 					block_propagation = true;
@@ -1144,16 +1249,16 @@ static b8 kui_system_drag(u16 code, void* sender, void* listener_inst, event_con
 		if (code == EVENT_CODE_MOUSE_DRAGGED) {
 			// Drag event can occur inside or outside the control.
 			if (base->internal_mouse_drag) {
-				if (!base->internal_mouse_drag(typed_state, control, evt)) {
-					block_propagation = true;
-				}
+				// if (!base->internal_mouse_drag(typed_state, control, evt)) {
+				// 	block_propagation = true;
+				// }
 			}
 		} else if (code == EVENT_CODE_MOUSE_DRAG_END) {
 			// Drag end event can occur inside or outside the control.
 			if (base->internal_mouse_drag_end) {
-				if (!base->internal_mouse_drag_end(typed_state, control, evt)) {
-					block_propagation = true;
-				}
+				// if (!base->internal_mouse_drag_end(typed_state, control, evt)) {
+				// 	block_propagation = true;
+				// }
 			}
 		}
 
@@ -1261,6 +1366,10 @@ static kui_base_control* get_base(kui_state* state, kui_control control) {
 	case KUI_CONTROL_TYPE_SCROLLABLE:
 		len = darray_length(state->scrollable_controls);
 		base = type_index < len ? &state->scrollable_controls[type_index].base : KNULL;
+		break;
+	case KUI_CONTROL_TYPE_IMAGE_BOX:
+		len = darray_length(state->image_box_controls);
+		base = type_index < len ? &state->image_box_controls[type_index].base : KNULL;
 		break;
 	// TODO: user type support
 	case KUI_CONTROL_TYPE_MAX:
@@ -1374,6 +1483,20 @@ static kui_control create_handle(kui_state* state, kui_control_type type) {
 		}
 		base = &state->scrollable_controls[type_index].base;
 		break;
+	case KUI_CONTROL_TYPE_IMAGE_BOX:
+		len = darray_length(state->image_box_controls);
+		for (u32 i = 0; i < len; ++i) {
+			if (state->image_box_controls[i].base.type == KUI_CONTROL_TYPE_NONE) {
+				type_index = i;
+				break;
+			}
+		}
+		if (type_index == INVALID_ID_U16) {
+			type_index = len;
+			darray_push(state->image_box_controls, (kui_image_box_control){0});
+		}
+		base = &state->image_box_controls[type_index].base;
+		break;
 		// TODO: user type support
 	case KUI_CONTROL_TYPE_MAX:
 	case KUI_CONTROL_TYPE_NONE:
@@ -1388,41 +1511,50 @@ static kui_control create_handle(kui_state* state, kui_control_type type) {
 static void release_handle(kui_state* state, kui_control* handle) {
 	kui_control_type type;
 	u16 type_index;
+	kui_base_control* base = KNULL;
 	if (decode_handle(*handle, &type, &type_index)) {
 		switch (type) {
 		case KUI_CONTROL_TYPE_BASE:
 			kzero_memory(&state->base_controls[type_index], sizeof(kui_base_control));
-			state->base_controls[type_index].handle = INVALID_KUI_CONTROL;
+			base = &state->base_controls[type_index];
 			break;
 		case KUI_CONTROL_TYPE_PANEL:
 			kzero_memory(&state->panel_controls[type_index], sizeof(kui_panel_control));
-			state->panel_controls[type_index].base.handle = INVALID_KUI_CONTROL;
+			base = &state->panel_controls[type_index].base;
 			break;
 		case KUI_CONTROL_TYPE_LABEL:
 			kzero_memory(&state->label_controls[type_index], sizeof(kui_label_control));
-			state->label_controls[type_index].base.handle = INVALID_KUI_CONTROL;
+			base = &state->label_controls[type_index].base;
 			break;
 		case KUI_CONTROL_TYPE_BUTTON:
 			kzero_memory(&state->button_controls[type_index], sizeof(kui_button_control));
-			state->button_controls[type_index].base.handle = INVALID_KUI_CONTROL;
+			base = &state->button_controls[type_index].base;
 			break;
 		case KUI_CONTROL_TYPE_TEXTBOX:
 			kzero_memory(&state->textbox_controls[type_index], sizeof(kui_textbox_control));
-			state->textbox_controls[type_index].base.handle = INVALID_KUI_CONTROL;
+			base = &state->textbox_controls[type_index].base;
 			break;
 		case KUI_CONTROL_TYPE_TREE_ITEM:
 			kzero_memory(&state->tree_item_controls[type_index], sizeof(kui_tree_item_control));
-			state->tree_item_controls[type_index].base.handle = INVALID_KUI_CONTROL;
+			base = &state->tree_item_controls[type_index].base;
 			break;
 		case KUI_CONTROL_TYPE_SCROLLABLE:
 			kzero_memory(&state->scrollable_controls[type_index], sizeof(kui_scrollable_control));
-			state->scrollable_controls[type_index].base.handle = INVALID_KUI_CONTROL;
+			base = &state->scrollable_controls[type_index].base;
+			break;
+		case KUI_CONTROL_TYPE_IMAGE_BOX:
+			kzero_memory(&state->image_box_controls[type_index], sizeof(kui_image_box_control));
+			base = &state->image_box_controls[type_index].base;
 			break;
 		case KUI_CONTROL_TYPE_MAX:
 		case KUI_CONTROL_TYPE_NONE:
 			// TODO: user type support
 			break; // do nothing
 		}
+
+		base->handle = INVALID_KUI_CONTROL;
+		base->parent = INVALID_KUI_CONTROL;
+		base->ktransform = KTRANSFORM_INVALID;
 	}
 	*handle = INVALID_KUI_CONTROL;
 }
@@ -1501,6 +1633,64 @@ static b8 parse_atlas_config(const char* config_source, kui_atlas_config* out_co
 			kson_object_property_value_get_vec2(&pressed_obj, "corner_size", &out_config->button.pressed.corner_size);
 			kson_object_property_value_get_vec2(&pressed_obj, "corner_px_size", &out_config->button.pressed.corner_px_size);
 
+		} else if (strings_equali(name_str, "button_uparrow")) {
+			// Process button_uparrow properties
+			kson_object modes_obj;
+			if (!kson_object_property_value_get_object(&control_obj, "modes", &modes_obj)) {
+				KERROR("%s - Required property 'modes' found from controls[%u].", __FUNCTION__, i);
+				goto parse_atlas_config_cleanup;
+			}
+
+			// Normal
+			kson_object normal_obj;
+			kson_object_property_value_get_object(&modes_obj, "normal", &normal_obj);
+			kson_object_property_value_get_extents_2d(&normal_obj, "extents", &out_config->button_uparrow.normal.extents);
+			kson_object_property_value_get_vec2(&normal_obj, "corner_size", &out_config->button_uparrow.normal.corner_size);
+			kson_object_property_value_get_vec2(&normal_obj, "corner_px_size", &out_config->button_uparrow.normal.corner_px_size);
+
+			// Hover
+			kson_object hover_obj;
+			kson_object_property_value_get_object(&modes_obj, "hover", &hover_obj);
+			kson_object_property_value_get_extents_2d(&hover_obj, "extents", &out_config->button_uparrow.hover.extents);
+			kson_object_property_value_get_vec2(&hover_obj, "corner_size", &out_config->button_uparrow.hover.corner_size);
+			kson_object_property_value_get_vec2(&hover_obj, "corner_px_size", &out_config->button_uparrow.hover.corner_px_size);
+
+			// Pressed
+			kson_object pressed_obj;
+			kson_object_property_value_get_object(&modes_obj, "pressed", &pressed_obj);
+			kson_object_property_value_get_extents_2d(&pressed_obj, "extents", &out_config->button_uparrow.pressed.extents);
+			kson_object_property_value_get_vec2(&pressed_obj, "corner_size", &out_config->button_uparrow.pressed.corner_size);
+			kson_object_property_value_get_vec2(&pressed_obj, "corner_px_size", &out_config->button_uparrow.pressed.corner_px_size);
+
+		} else if (strings_equali(name_str, "button_downarrow")) {
+			// Process button_downarrow properties
+			kson_object modes_obj;
+			if (!kson_object_property_value_get_object(&control_obj, "modes", &modes_obj)) {
+				KERROR("%s - Required property 'modes' found from controls[%u].", __FUNCTION__, i);
+				goto parse_atlas_config_cleanup;
+			}
+
+			// Normal
+			kson_object normal_obj;
+			kson_object_property_value_get_object(&modes_obj, "normal", &normal_obj);
+			kson_object_property_value_get_extents_2d(&normal_obj, "extents", &out_config->button_downarrow.normal.extents);
+			kson_object_property_value_get_vec2(&normal_obj, "corner_size", &out_config->button_downarrow.normal.corner_size);
+			kson_object_property_value_get_vec2(&normal_obj, "corner_px_size", &out_config->button_downarrow.normal.corner_px_size);
+
+			// Hover
+			kson_object hover_obj;
+			kson_object_property_value_get_object(&modes_obj, "hover", &hover_obj);
+			kson_object_property_value_get_extents_2d(&hover_obj, "extents", &out_config->button_downarrow.hover.extents);
+			kson_object_property_value_get_vec2(&hover_obj, "corner_size", &out_config->button_downarrow.hover.corner_size);
+			kson_object_property_value_get_vec2(&hover_obj, "corner_px_size", &out_config->button_downarrow.hover.corner_px_size);
+
+			// Pressed
+			kson_object pressed_obj;
+			kson_object_property_value_get_object(&modes_obj, "pressed", &pressed_obj);
+			kson_object_property_value_get_extents_2d(&pressed_obj, "extents", &out_config->button_downarrow.pressed.extents);
+			kson_object_property_value_get_vec2(&pressed_obj, "corner_size", &out_config->button_downarrow.pressed.corner_size);
+			kson_object_property_value_get_vec2(&pressed_obj, "corner_px_size", &out_config->button_downarrow.pressed.corner_px_size);
+
 		} else if (strings_equali(name_str, "textbox")) {
 			// TODO: Process textbox properties
 			kson_object modes_obj;
@@ -1522,6 +1712,12 @@ static b8 parse_atlas_config(const char* config_source, kui_atlas_config* out_co
 			kson_object_property_value_get_extents_2d(&focused_obj, "extents", &out_config->textbox.focused.extents);
 			kson_object_property_value_get_vec2(&focused_obj, "corner_size", &out_config->textbox.focused.corner_size);
 			kson_object_property_value_get_vec2(&focused_obj, "corner_px_size", &out_config->textbox.focused.corner_px_size);
+		} else if (strings_equali(name_str, "scrollbar")) {
+
+			// bg nine-slice
+			kson_object_property_value_get_extents_2d(&control_obj, "bg_extents", &out_config->scrollbar.extents);
+			kson_object_property_value_get_vec2(&control_obj, "bg_corner_size", &out_config->scrollbar.corner_size);
+			kson_object_property_value_get_vec2(&control_obj, "bg_corner_px_size", &out_config->scrollbar.corner_px_size);
 		} else {
 			KERROR("%s - Unknown type '%s' found from controls[%u]. It will be ignored", __FUNCTION__, name_str, i);
 		}

@@ -6,6 +6,8 @@
 #include <systems/font_system.h>
 
 KAPI kui_control kui_button_control_create(kui_state* state, const char* name);
+KAPI kui_control kui_button_control_create_uparrow(kui_state* state, const char* name);
+KAPI kui_control kui_button_control_create_downarrow(kui_state* state, const char* name);
 KAPI kui_control kui_button_control_create_with_text(kui_state* state, const char* name, font_type type, kname font_name, u16 font_size, const char* text_content);
 KAPI void kui_button_control_destroy(kui_state* state, kui_control* self);
 
