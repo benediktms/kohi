@@ -125,6 +125,11 @@ b8 vulkan_loader_load_device(krhi_vulkan* rhi, VkDevice device) {
 	RHI_DEVICE_FUNCTION(vkCmdSetDepthWriteEnable);
 	RHI_DEVICE_FUNCTION(vkCmdSetDepthBias);
 	RHI_DEVICE_FUNCTION(vkCmdSetDepthBiasEnable);
+	// FIXME: for macOS, need to get this from extension, or always enable perhaps.
+	// Because MoltenVK apparently doesn't provide this.
+	if(!rhi->kvkCmdSetDepthBiasEnable) {
+		rhi->kvkCmdSetDepthBiasEnable = (PFN_vkCmdSetDepthBiasEnable)rhi->kvkGetDeviceProcAddr(rhi->device, "vkCmdSetDepthBiasEnableEXT");
+	}
 	RHI_DEVICE_FUNCTION(vkCmdSetStencilReference);
 	RHI_DEVICE_FUNCTION(vkCmdSetStencilOp);
 	RHI_DEVICE_FUNCTION(vkCmdBeginRendering);

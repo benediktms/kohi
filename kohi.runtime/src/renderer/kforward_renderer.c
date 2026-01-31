@@ -523,6 +523,13 @@ static b8 scene_pass(
 	draw_geo_list(renderer, p_frame_data, directional_light, view_index, clipping_plane, pass_data->animated_opaque_meshes_by_material_count, pass_data->animated_opaque_meshes_by_material);
 
 	// Draw the water planes
+	if (do_depth_prepass) {
+		// Don't need to write these again.
+		renderer_set_depth_write_enabled(false);
+		renderer_set_depth_test_enabled(true);
+		renderer_set_depth_bias_enabled(true);
+		renderer_set_depth_bias(0.00f, 0.0f, -1.0f);
+	}
 	if (water_plane_count && water_planes) {
 		renderer_begin_debug_label("water planes", (vec3){0, 0, 1});
 
@@ -589,6 +596,13 @@ static b8 scene_pass(
 		}
 
 		renderer_end_debug_label();
+	}
+	if (do_depth_prepass) {
+		// Switch back on.
+		renderer_set_depth_write_enabled(true);
+		renderer_set_depth_test_enabled(true);
+		renderer_set_depth_bias_enabled(false);
+		renderer_set_depth_bias(0.0f, 0.0f, 0.0f);
 	}
 
 	// Transparent geometries done similar to above
