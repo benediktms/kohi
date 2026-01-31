@@ -85,8 +85,9 @@ typedef struct editor_state {
 	kui_control mode_entity_button;
 	kui_control mode_scene_button;
 	kui_control mode_tree_button;
-	// HACK: testing stuff
-	kui_control test_image_box;
+	kui_control view_debug_checkbox;
+	kui_control view_bvh_checkbox;
+	kui_control view_grid_checkbox;
 
 	// Scene Inspector window
 	f32 scene_inspector_width;

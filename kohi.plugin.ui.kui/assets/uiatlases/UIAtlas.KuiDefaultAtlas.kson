@@ -126,4 +126,13 @@ controls = [
 		bg_corner_px_size = "7 7"
 		bg_corner_size = "7 7"
 	}
+	{
+		type = "checkbox"
+		comment = "set image_asset_name and image_asset_package_name to use a custom image."
+		image_box_size = "26 26"
+		enabled_unchecked_rect = "117 46 26 26"
+		disabled_unchecked_rect = "144 46 26 26"
+		enabled_checked_rect = "171 46 26 26"
+		disabled_checked_rect = "198 46 26 26"
+	}
 ]

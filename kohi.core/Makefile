@@ -56,8 +56,8 @@ endif
 .PHONY: link link-win32 link-linux link-macos
 .PHONY: clean clean-win32 clean-linux clean-macos
 
-all-release: scaffold genversion gen_compile_flags flags-release compile link
-all-debug: scaffold genversion gen_compile_flags flags-debug compile link
+all-release: scaffold genversion gen_compile_flags-release flags-release compile link
+all-debug: scaffold genversion gen_compile_flags-debug flags-debug compile link
 
 flags-debug: DEFINES += -D_DEBUG
 flags-debug: CFLAGS += -g -MD -O0 -fno-omit-frame-pointer
@@ -144,6 +144,12 @@ obj/%.m.o: %.m
 	@clang $< $(CFLAGS) -c -o $@ $(DEFINES) $(INCLUDE_FLAGS)
 
 -include $(OBJ_FILES:.o=.d)
+
+.PHONY: gen_compile_flags-debug
+gen_compile_flags-debug: DEFINES += -D_DEBUG
+gen_compile_flags-debug: gen_compile_flags
+
+gen_compile_flags-release: gen_compile_flags
 
 .PHONY: gen_compile_flags
 gen_compile_flags:

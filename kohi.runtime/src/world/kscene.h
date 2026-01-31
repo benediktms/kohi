@@ -42,6 +42,7 @@ typedef enum kscene_flag_bits {
 #if KOHI_DEBUG
 	KSCENE_FLAG_DEBUG_ENABLED_BIT = 1 << 0,
 	KSCENE_FLAG_DEBUG_GRID_ENABLED_BIT = 1 << 1,
+	KSCENE_FLAG_DEBUG_BVH_ENABLED_BIT = 1 << 2,
 #endif
 } kscene_flag_bits;
 
@@ -59,6 +60,11 @@ KAPI b8 kscene_update(struct kscene* scene, struct frame_data* p_frame_data);
 KAPI b8 kscene_frame_prepare(struct kscene* scene, struct frame_data* p_frame_data, u32 render_mode, kcamera current_camera);
 
 KAPI kscene_state kscene_state_get(const struct kscene* scene);
+
+KAPI kscene_flags kscene_get_flags(const struct kscene* scene);
+KAPI b8 kscene_get_flag(const struct kscene* scene, kscene_flag_bits flag);
+KAPI void kscene_set_flags(struct kscene* scene, kscene_flags flags);
+KAPI void kscene_set_flag(struct kscene* scene, kscene_flags flag, b8 enabled);
 
 KAPI const char* kscene_get_name(const struct kscene* scene);
 KAPI void kscene_set_name(struct kscene* scene, const char* name);

@@ -68,6 +68,7 @@ typedef struct kui_state {
 	kui_tree_item_control* tree_item_controls;
 	kui_scrollable_control* scrollable_controls;
 	kui_image_box_control* image_box_controls;
+	kui_checkbox_control* checkbox_controls;
 } kui_state;
 
 /**
@@ -96,7 +97,7 @@ KAPI b8 kui_system_render(kui_state* state, kui_control root, struct frame_data*
 
 KAPI kui_base_control* kui_system_get_base(kui_state* state, kui_control control);
 
-KAPI b8 kui_system_update_active(kui_state* state, kui_control control);
+KAPI b8 toggle_active(kui_state* state, kui_control control);
 
 KAPI b8 kui_system_control_add_child(kui_state* state, kui_control parent, kui_control child);
 
@@ -135,6 +136,9 @@ KAPI b8 kui_control_is_visible(kui_state* state, kui_control self);
 
 KAPI void kui_control_set_is_visible(kui_state* state, kui_control self, b8 is_visible);
 KAPI void kui_control_set_is_active(kui_state* state, kui_control self, b8 is_active);
+
+KAPI b8 kui_control_get_flag(kui_state* state, kui_control self, kui_control_flag_bits flag);
+KAPI void kui_control_set_flag(kui_state* state, kui_control self, kui_control_flag_bits flag, b8 enabled);
 
 KAPI void kui_control_set_user_data(kui_state* state, kui_control self, u32 data_size, void* data, b8 free_on_destroy, memory_tag tag);
 KAPI void* kui_control_get_user_data(kui_state* state, kui_control self);

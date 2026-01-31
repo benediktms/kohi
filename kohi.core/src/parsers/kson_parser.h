@@ -264,6 +264,15 @@ KAPI b8 kson_array_value_add_string(kson_array* array, const char* value);
 KAPI b8 kson_array_value_add_mat4(kson_array* array, mat4 value);
 
 /**
+ * @brief Adds an unnamed rect_2di value to the provided array.
+ *
+ * @param array A pointer to the array to add the property to.
+ * @param value The value to be set.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 kson_array_value_add_rect_2di(kson_array* array, rect_2di value);
+
+/**
  * @brief Adds an unnamed vec4 value to the provided array.
  *
  * @param array A pointer to the array to add the property to.
@@ -393,6 +402,16 @@ KAPI b8 kson_object_value_add_string(kson_object* object, const char* name, cons
  * @return True on success; otherwise false.
  */
 KAPI b8 kson_object_value_add_mat4(kson_object* object, const char* name, mat4 value);
+
+/**
+ * @brief Adds a named rect_2di value to the provided object.
+ *
+ * @param object A pointer to the object to add the property to.
+ * @param name A constant pointer to the name to be used. Required.
+ * @param value The value to be set.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 kson_object_value_add_rect_2di(kson_object* object, const char* name, rect_2di value);
 
 /**
  * @brief Adds a named vec4 value to the provided object.
@@ -557,6 +576,17 @@ KAPI b8 kson_array_element_value_get_string(const kson_array* array, u32 index, 
 KAPI b8 kson_array_element_value_get_mat4(const kson_array* array, u32 index, mat4* out_value);
 
 /**
+ * @brief Attempts to retrieve the array element's value at the provided index as a rect_2di. Fails if out of range
+ * or on type mismatch (these are stored as strings).
+ *
+ * @param array A constant pointer to the array to search. Required.
+ * @param index The array index to search for. Required.
+ * @param out_value A pointer to hold the object property's value.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 kson_array_element_value_get_rect_2di(const kson_array* array, u32 index, rect_2di* out_value);
+
+/**
  * @brief Attempts to retrieve the array element's value at the provided index as a vec4. Fails if out of range
  * or on type mismatch (these are stored as strings).
  *
@@ -716,6 +746,17 @@ KAPI b8 kson_object_property_value_get_string(const kson_object* object, const c
  * @return True on success; otherwise false.
  */
 KAPI b8 kson_object_property_value_get_mat4(const kson_object* object, const char* name, mat4* out_value);
+
+/**
+ * @brief Attempts to retrieve the given object's property value by name as a rect_2di. Fails if not found
+ * or on type mismatch (these are always stored as strings).
+ *
+ * @param object A constant pointer to the object to search. Required.
+ * @param name The property name to search for. Required.
+ * @param out_value A pointer to hold the object property's value.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 kson_object_property_value_get_rect_2di(const kson_object* object, const char* name, rect_2di* out_value);
 
 /**
  * @brief Attempts to retrieve the given object's property value by name as a vec4. Fails if not found

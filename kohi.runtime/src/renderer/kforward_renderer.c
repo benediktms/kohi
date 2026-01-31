@@ -333,7 +333,7 @@ static b8 scene_pass(
 
 		kshader_system_use(renderer->depth_prepass.depth_prepass_shader, VERTEX_LAYOUT_INDEX_STATIC);
 
-		renderer_cull_mode_set(RENDERER_CULL_MODE_NONE);
+		renderer_cull_mode_set(RENDERER_CULL_MODE_BACK);
 
 		renderer_set_depth_test_enabled(true);
 		renderer_set_depth_write_enabled(true);
@@ -1156,7 +1156,7 @@ b8 kforward_renderer_render_frame(kforward_renderer* renderer, frame_data* p_fra
 			}
 
 			// Render the grid, but using the colour shader.
-			{
+			if (render_data->world_debug_data.draw_grid) {
 				kshader_system_use_with_topology(renderer->world_debug_pass.colour_shader, PRIMITIVE_TOPOLOGY_TYPE_LINE_LIST_BIT, VERTEX_LAYOUT_INDEX_STATIC);
 				renderer_cull_mode_set(RENDERER_CULL_MODE_NONE);
 

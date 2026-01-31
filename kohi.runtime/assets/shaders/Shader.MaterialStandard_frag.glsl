@@ -559,9 +559,11 @@ void main() {
         // Apply emissive at the end.
         colour.rgb += (emissive * 1.0); // adjust for intensity
 
-        // Apply fog
-        float f = clamp((in_dto.view_depth - global_settings.fog_start) / (global_settings.fog_end - global_settings.fog_start), 0.0, 1.0);
-        colour = mix(colour.rgb, global_settings.fog_colour, f);
+        // Apply fog, but only in "regular" mode
+        if(global_settings.render_mode == 0) {
+            float f = clamp((in_dto.view_depth - global_settings.fog_start) / (global_settings.fog_end - global_settings.fog_start), 0.0, 1.0);
+            colour = mix(colour.rgb, global_settings.fog_colour, f);
+        }
 
         out_colour = vec4(colour, alpha);
     } else if(global_settings.render_mode == 2) {

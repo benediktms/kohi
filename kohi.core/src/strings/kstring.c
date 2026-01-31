@@ -1017,6 +1017,20 @@ const char* mat4_to_string(mat4 m) {
 						 d[15]);
 }
 
+b8 string_to_rect_2di(const char* str, rect_2di* rect) {
+	if (!str || !rect) {
+		return false;
+	}
+
+	kzero_memory(rect, sizeof(rect_2di));
+	i32 result = sscanf(str, "%d %d %d %d", &rect->x, &rect->y, &rect->z, &rect->w);
+	return result != -1;
+}
+
+const char* rect_2di_to_string(rect_2di rect) {
+	return string_format("%d %d %d %d", rect.x, rect.y, rect.z, rect.w);
+}
+
 b8 string_to_vec4(const char* str, vec4* out_vector) {
 	if (!str || !out_vector) {
 		return false;

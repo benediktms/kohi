@@ -615,7 +615,8 @@ KINLINE vec2 vec2_max(vec2 vector_0, vec2 vector_1) {
  * @param z The z value.
  * @return A new 3-element vector.
  */
-KINLINE vec3 vec3_create(f32 x, f32 y, f32 z) { return (vec3){x, y, z}; }
+#define vec3_create(x, y, z) \
+	(vec3) { x, y, z }
 
 /**
  * @brief Creates and returns a new 3-element vector using the supplied scalar for all components.

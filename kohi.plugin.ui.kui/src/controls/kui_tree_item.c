@@ -48,7 +48,7 @@ kui_control kui_tree_item_control_create(
 	kui_base_control* label_base = kui_system_get_base(state, typed_control->label);
 	KASSERT(label_base);
 	kui_system_control_add_child(state, base_handle, typed_control->label);
-	kui_control_position_set(state, typed_control->label, (vec3){0.0f, font_size * -0.2f, 0}); // FIXME: hardcoded
+	kui_control_position_set(state, typed_control->label, (vec3){0.0f, font_size * -0.2f, 0});
 	FLAG_SET(label_base->flags, KUI_CONTROL_FLAG_CAN_MOUSE_INTERACT_BIT, true);
 	label_base->internal_click = label_on_clicked;
 

@@ -349,6 +349,24 @@ KAPI b8 string_to_mat4(const char* str, mat4* out_mat);
 KAPI const char* mat4_to_string(mat4 m);
 
 /**
+ * @brief Attempts to parse a rect_2di from the provided string.
+ *
+ * @param str The string to parse from. Should be space-delimited. (i.e. "1 2 3 4")
+ * @param out_vector A pointer to the rect to write to.
+ * @return True if parsed successfully; otherwise false.
+ */
+KAPI b8 string_to_rect_2di(const char* str, rect_2di* rect);
+
+/**
+ * @brief Creates a string representation of the provided rectangle.
+ * NOTE: string is dynamically allocated, so the caller should free it.
+ *
+ * @param v The rectangle to convert to string.
+ * @return The string representation of the rectangle.
+ */
+KAPI const char* rect_2di_to_string(rect_2di rect);
+
+/**
  * @brief Attempts to parse a vector from the provided string.
  *
  * @param str The string to parse from. Should be space-delimited. (i.e. "1.0 2.0 3.0 4.0")

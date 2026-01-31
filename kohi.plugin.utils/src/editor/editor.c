@@ -2,6 +2,7 @@
 
 #include "assets/kasset_types.h"
 #include "audio/audio_frontend.h"
+#include "controls/checkbox_control.h"
 #include "controls/image_box_control.h"
 #include "controls/kui_scrollable.h"
 #include "controls/kui_tree_item.h"
@@ -92,6 +93,10 @@ static b8 save_button_clicked(struct kui_state* state, kui_control self, struct 
 static b8 mode_scene_button_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event);
 static b8 mode_entity_button_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event);
 static b8 mode_tree_button_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event);
+
+static void show_bvh_checkbox_check_changed(struct kui_state* state, kui_control self, struct kui_checkbox_event event);
+static void show_grid_checkbox_check_changed(struct kui_state* state, kui_control self, struct kui_checkbox_event event);
+static void show_debug_checkbox_check_changed(struct kui_state* state, kui_control self, struct kui_checkbox_event event);
 
 static void scene_name_textbox_on_key(kui_state* state, kui_control self, kui_keyboard_event evt);
 static void scene_fog_colour_r_textbox_on_key(kui_state* state, kui_control self, kui_keyboard_event evt);
@@ -224,13 +229,33 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 			kui_control_set_on_click(kui_state, state->mode_tree_button, mode_tree_button_clicked);
 		}
 
-		// HACK: testing stuff.
+		// Toggle options
+
+		// Toggle visiblity of general debug data. If this is disabled, so are the other debug options.
 		{
-			state->test_image_box = kui_image_box_control_create(kui_state, "rubbish and bollocks", (vec2i){100, 100});
-			/* kui_image_box_control_texture_set_by_name(kui_state, state->test_image_box, kname_create("cobblestone"), kname_create("ShadowsOfIllumina")); */
-			kui_image_box_control_set_rect(kui_state, state->test_image_box, (rect_2di){117, 46, 26, 26});
-			KASSERT(kui_system_control_add_child(kui_state, state->main_bg_panel, state->test_image_box));
-			kui_control_position_set(kui_state, state->test_image_box, (vec3){5, 350, 0});
+			state->view_debug_checkbox = kui_checkbox_control_create(kui_state, "view_debug_checkbox", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Show Debug");
+			KASSERT(kui_system_control_add_child(kui_state, state->main_bg_panel, state->view_debug_checkbox));
+			kui_control_position_set(kui_state, state->view_debug_checkbox, (vec3){5, 300, 0});
+			kui_control_set_user_data(kui_state, state->view_debug_checkbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
+			kui_checkbox_set_on_checked(kui_state, state->view_debug_checkbox, show_debug_checkbox_check_changed);
+		}
+
+		// Toggle visiblity of BVH debug data.
+		{
+			state->view_bvh_checkbox = kui_checkbox_control_create(kui_state, "view_bvh_checkbox", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Show BVH");
+			KASSERT(kui_system_control_add_child(kui_state, state->main_bg_panel, state->view_bvh_checkbox));
+			kui_control_position_set(kui_state, state->view_bvh_checkbox, (vec3){35, 330, 0});
+			kui_control_set_user_data(kui_state, state->view_bvh_checkbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
+			kui_checkbox_set_on_checked(kui_state, state->view_bvh_checkbox, show_bvh_checkbox_check_changed);
+		}
+
+		// Toggle visiblity of debug grid.
+		{
+			state->view_grid_checkbox = kui_checkbox_control_create(kui_state, "view_grid_checkbox", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Show Grid");
+			KASSERT(kui_system_control_add_child(kui_state, state->main_bg_panel, state->view_grid_checkbox));
+			kui_control_position_set(kui_state, state->view_grid_checkbox, (vec3){35, 360, 0});
+			kui_control_set_user_data(kui_state, state->view_grid_checkbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
+			kui_checkbox_set_on_checked(kui_state, state->view_grid_checkbox, show_grid_checkbox_check_changed);
 		}
 	}
 
@@ -518,6 +543,14 @@ b8 editor_open(struct editor_state* state, kname scene_name, kname scene_package
 		KERROR("%s - Failed to create and load scene. See logs for details.", __FUNCTION__);
 		return false;
 	}
+
+	// Reset checkboxes
+	b8 debug_enabled = kscene_get_flag(state->edit_scene, KSCENE_FLAG_DEBUG_ENABLED_BIT);
+	kui_checkbox_set_checked(state->kui_state, state->view_debug_checkbox, debug_enabled);
+	kui_control_set_is_active(state->kui_state, state->view_bvh_checkbox, debug_enabled);
+	kui_control_set_is_active(state->kui_state, state->view_grid_checkbox, debug_enabled);
+	kui_checkbox_set_checked(state->kui_state, state->view_bvh_checkbox, kscene_get_flag(state->edit_scene, KSCENE_FLAG_DEBUG_BVH_ENABLED_BIT));
+	kui_checkbox_set_checked(state->kui_state, state->view_grid_checkbox, kscene_get_flag(state->edit_scene, KSCENE_FLAG_DEBUG_GRID_ENABLED_BIT));
 
 	const char* scene_name_str = kscene_get_name(state->edit_scene);
 	kui_textbox_text_set(state->kui_state, state->scene_name_textbox, scene_name_str ? scene_name_str : "");
@@ -1408,6 +1441,29 @@ static b8 mode_tree_button_clicked(struct kui_state* state, kui_control self, st
 	}
 	// Don't allow the event to popagate.
 	return false;
+}
+
+static void show_bvh_checkbox_check_changed(struct kui_state* state, kui_control self, struct kui_checkbox_event event) {
+	kui_base_control* base = kui_system_get_base(state, self);
+	editor_state* edit_state = base->user_data;
+
+	kscene_set_flag(edit_state->edit_scene, KSCENE_FLAG_DEBUG_BVH_ENABLED_BIT, event.checked);
+}
+
+static void show_grid_checkbox_check_changed(struct kui_state* state, kui_control self, struct kui_checkbox_event event) {
+	kui_base_control* base = kui_system_get_base(state, self);
+	editor_state* edit_state = base->user_data;
+
+	kscene_set_flag(edit_state->edit_scene, KSCENE_FLAG_DEBUG_GRID_ENABLED_BIT, event.checked);
+}
+
+static void show_debug_checkbox_check_changed(struct kui_state* state, kui_control self, struct kui_checkbox_event event) {
+	kui_base_control* base = kui_system_get_base(state, self);
+	editor_state* edit_state = base->user_data;
+
+	kscene_set_flag(edit_state->edit_scene, KSCENE_FLAG_DEBUG_ENABLED_BIT, event.checked);
+	kui_control_set_is_active(edit_state->kui_state, edit_state->view_bvh_checkbox, event.checked);
+	kui_control_set_is_active(edit_state->kui_state, edit_state->view_grid_checkbox, event.checked);
 }
 
 static b8 editor_on_mouse_move(u16 code, void* sender, void* listener_inst, event_context context) {

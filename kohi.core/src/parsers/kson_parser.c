@@ -1284,6 +1284,17 @@ b8 kson_array_value_add_mat4(kson_array* array, mat4 value) {
 	return result;
 }
 
+b8 kson_array_value_add_rect_2di(kson_array* array, rect_2di value) {
+	const char* temp_str = rect_2di_to_string(value);
+	if (!temp_str) {
+		KWARN("kson_array_value_add_rect_2di failed to convert value to string.");
+		return false;
+	}
+	b8 result = kson_array_value_add_string(array, temp_str);
+	string_free(temp_str);
+	return result;
+}
+
 b8 kson_array_value_add_vec4(kson_array* array, vec4 value) {
 	const char* temp_str = vec4_to_string(value);
 	if (!temp_str) {
@@ -1412,6 +1423,17 @@ b8 kson_object_value_add_mat4(kson_object* object, const char* name, mat4 value)
 	const char* temp_str = mat4_to_string(value);
 	if (!temp_str) {
 		KWARN("kson_object_value_add_mat4 failed to convert value to string.");
+		return false;
+	}
+	b8 result = kson_object_value_add_string(object, name, temp_str);
+	string_free(temp_str);
+	return result;
+}
+
+b8 kson_object_value_add_rect_2di(kson_object* object, const char* name, rect_2di value) {
+	const char* temp_str = rect_2di_to_string(value);
+	if (!temp_str) {
+		KWARN("kson_object_value_add_rect_2di failed to convert value to string.");
 		return false;
 	}
 	b8 result = kson_object_value_add_string(object, name, temp_str);
@@ -1618,6 +1640,17 @@ b8 kson_array_element_value_get_mat4(const kson_array* array, u32 index, mat4* o
 
 	const char* str = array->properties[index].value.s;
 	return string_to_mat4(str, out_value);
+}
+
+b8 kson_array_element_value_get_rect_2di(const kson_array* array, u32 index, rect_2di* out_value) {
+	if (!out_value || !kson_array_index_in_range(array, index)) {
+		return false;
+	}
+
+	KASSERT_MSG(array->properties[index].type == KSON_PROPERTY_TYPE_STRING, "Array element is not stored as a string.");
+
+	const char* str = array->properties[index].value.s;
+	return string_to_rect_2di(str, out_value);
 }
 
 b8 kson_array_element_value_get_vec4(const kson_array* array, u32 index, vec4* out_value) {
@@ -1905,6 +1938,15 @@ b8 kson_object_property_value_get_mat4(const kson_object* object, const char* na
 
 	const char* str = kson_object_property_value_get_string_reference(object, name, "mat4");
 	return string_to_mat4(str, out_value);
+}
+
+b8 kson_object_property_value_get_rect_2di(const kson_object* object, const char* name, rect_2di* out_value) {
+	if (!out_value) {
+		return false;
+	}
+
+	const char* str = kson_object_property_value_get_string_reference(object, name, "vec4");
+	return string_to_rect_2di(str, out_value);
 }
 
 b8 kson_object_property_value_get_vec4(const kson_object* object, const char* name, vec4* out_value) {

@@ -27,6 +27,7 @@
 #include <utils/ksort.h>
 
 #include "assets/kasset_types.h"
+#include "controls/checkbox_control.h"
 #include "controls/image_box_control.h"
 #include "controls/kui_button.h"
 #include "controls/kui_label.h"
@@ -117,13 +118,14 @@ b8 kui_system_initialize(u64* memory_requirement, kui_state* state, kui_system_c
 	state->inactive_controls = darray_create(kui_control);
 
 	state->base_controls = darray_create(kui_base_control);
-	state->image_box_controls = darray_create(kui_image_box_control);
+	state->panel_controls = darray_create(kui_panel_control);
 	state->label_controls = darray_create(kui_label_control);
 	state->button_controls = darray_create(kui_button_control);
 	state->textbox_controls = darray_create(kui_textbox_control);
 	state->tree_item_controls = darray_create(kui_tree_item_control);
 	state->scrollable_controls = darray_create(kui_scrollable_control);
-	state->panel_controls = darray_create(kui_panel_control);
+	state->image_box_controls = darray_create(kui_image_box_control);
+	state->checkbox_controls = darray_create(kui_checkbox_control);
 
 	state->root = kui_base_control_create(state, "__ROOT__", KUI_CONTROL_TYPE_BASE);
 
@@ -255,6 +257,16 @@ void kui_system_shutdown(kui_state* state) {
 			darray_destroy(state->image_box_controls);
 		}
 
+		{
+			u32 len = darray_length(state->checkbox_controls);
+			for (u32 i = 0; i < len; ++i) {
+				if (state->checkbox_controls[i].base.handle.val != INVALID_KUI_CONTROL.val) {
+					kui_checkbox_control_destroy(state, &state->checkbox_controls[i].base.handle);
+				}
+			}
+			darray_destroy(state->checkbox_controls);
+		}
+
 		darray_destroy(state->inactive_controls);
 		state->inactive_controls = KNULL;
 
@@ -350,7 +362,7 @@ kui_base_control* kui_system_get_base(kui_state* state, kui_control control) {
 	return get_base(state, control);
 }
 
-b8 kui_system_update_active(kui_state* state, kui_control control) {
+b8 toggle_active(kui_state* state, kui_control control) {
 	if (!state) {
 		return false;
 	}
@@ -358,27 +370,32 @@ b8 kui_system_update_active(kui_state* state, kui_control control) {
 	kui_base_control* base = get_base(state, control);
 	b8 control_is_active = FLAG_GET(base->flags, KUI_CONTROL_FLAG_ACTIVE_BIT);
 
-	kui_control* src_array = control_is_active ? state->inactive_controls : state->active_controls;
-	u32 src_count = darray_length(src_array);
-	kui_control* dst_array = control_is_active ? state->active_controls : state->inactive_controls;
-	u32 dst_count = darray_length(dst_array);
+	kui_control** src_array = control_is_active ? &state->active_controls : &state->inactive_controls;
+	u32 src_count = darray_length(*src_array);
+	kui_control** dst_array = control_is_active ? &state->inactive_controls : &state->active_controls;
+	u32 dst_count = darray_length(*dst_array);
 	for (u32 i = 0; i < src_count; ++i) {
-		if (src_array[i].val == control.val) {
-			darray_pop_at(src_array, i, KNULL);
-			darray_push(dst_array, control);
+		if ((*src_array)[i].val == control.val) {
+			darray_pop_at(*src_array, i, KNULL);
+			darray_push(*dst_array, control);
+
+			FLAG_SET(base->flags, KUI_CONTROL_FLAG_ACTIVE_BIT, !control_is_active);
+			if (base->active_changed) {
+				base->active_changed(state, base->handle, !control_is_active);
+			}
 			return true;
 		}
 	}
 
 	// Check the destination and see if it's already there (i.e. it doesn't need an update)
 	for (u32 i = 0; i < dst_count; ++i) {
-		if (dst_array[i].val == control.val) {
-			KTRACE("%s - Control already in the appropriate array for its active state. Nothing to do.", __FUNCTION__);
-			return true;
+		if ((*dst_array)[i].val == control.val) {
+			KFATAL("%s - Control already in the appropriate array for its active state. This should never happen.", __FUNCTION__);
+			return false;
 		}
 	}
 
-	KERROR("Unable to find control to update active on, maybe control is not registered?");
+	KFATAL("Unable to find control to update active on, maybe control is not registered?");
 	return false;
 }
 
@@ -637,9 +654,20 @@ void kui_control_set_is_visible(kui_state* state, kui_control self, b8 is_visibl
 }
 void kui_control_set_is_active(kui_state* state, kui_control self, b8 is_active) {
 	kui_base_control* base = get_base(state, self);
-	kui_system_update_active(state, self);
-	FLAG_SET(base->flags, KUI_CONTROL_FLAG_ACTIVE_BIT, is_active);
+	b8 control_is_active = FLAG_GET(base->flags, KUI_CONTROL_FLAG_ACTIVE_BIT);
+	if (is_active != control_is_active) {
+		toggle_active(state, self);
+	}
 	/* KTRACE("Control '%s' set to %s.", base->name, is_active ? "active" : "inactive"); */
+}
+
+b8 kui_control_get_flag(kui_state* state, kui_control self, kui_control_flag_bits flag) {
+	kui_base_control* base = get_base(state, self);
+	return FLAG_GET(base->flags, flag);
+}
+void kui_control_set_flag(kui_state* state, kui_control self, kui_control_flag_bits flag, b8 enabled) {
+	kui_base_control* base = get_base(state, self);
+	FLAG_SET(base->flags, flag, enabled);
 }
 
 void kui_control_set_user_data(kui_state* state, kui_control self, u32 data_size, void* data, b8 free_on_destroy, memory_tag tag) {
@@ -1371,6 +1399,10 @@ static kui_base_control* get_base(kui_state* state, kui_control control) {
 		len = darray_length(state->image_box_controls);
 		base = type_index < len ? &state->image_box_controls[type_index].base : KNULL;
 		break;
+	case KUI_CONTROL_TYPE_CHECKBOX:
+		len = darray_length(state->checkbox_controls);
+		base = type_index < len ? &state->checkbox_controls[type_index].base : KNULL;
+		break;
 	// TODO: user type support
 	case KUI_CONTROL_TYPE_MAX:
 	case KUI_CONTROL_TYPE_NONE:
@@ -1497,6 +1529,20 @@ static kui_control create_handle(kui_state* state, kui_control_type type) {
 		}
 		base = &state->image_box_controls[type_index].base;
 		break;
+	case KUI_CONTROL_TYPE_CHECKBOX:
+		len = darray_length(state->checkbox_controls);
+		for (u32 i = 0; i < len; ++i) {
+			if (state->checkbox_controls[i].base.type == KUI_CONTROL_TYPE_NONE) {
+				type_index = i;
+				break;
+			}
+		}
+		if (type_index == INVALID_ID_U16) {
+			type_index = len;
+			darray_push(state->checkbox_controls, (kui_checkbox_control){0});
+		}
+		base = &state->checkbox_controls[type_index].base;
+		break;
 		// TODO: user type support
 	case KUI_CONTROL_TYPE_MAX:
 	case KUI_CONTROL_TYPE_NONE:
@@ -1545,6 +1591,10 @@ static void release_handle(kui_state* state, kui_control* handle) {
 		case KUI_CONTROL_TYPE_IMAGE_BOX:
 			kzero_memory(&state->image_box_controls[type_index], sizeof(kui_image_box_control));
 			base = &state->image_box_controls[type_index].base;
+			break;
+		case KUI_CONTROL_TYPE_CHECKBOX:
+			kzero_memory(&state->checkbox_controls[type_index], sizeof(kui_checkbox_control));
+			base = &state->checkbox_controls[type_index].base;
 			break;
 		case KUI_CONTROL_TYPE_MAX:
 		case KUI_CONTROL_TYPE_NONE:
@@ -1718,9 +1768,21 @@ static b8 parse_atlas_config(const char* config_source, kui_atlas_config* out_co
 			kson_object_property_value_get_extents_2d(&control_obj, "bg_extents", &out_config->scrollbar.extents);
 			kson_object_property_value_get_vec2(&control_obj, "bg_corner_size", &out_config->scrollbar.corner_size);
 			kson_object_property_value_get_vec2(&control_obj, "bg_corner_px_size", &out_config->scrollbar.corner_px_size);
+		} else if (strings_equali(name_str, "checkbox")) {
+			kson_object_property_value_get_rect_2di(&control_obj, "enabled_unchecked_rect", &out_config->checkbox.enabled_unchecked_rect);
+			kson_object_property_value_get_rect_2di(&control_obj, "enabled_checked_rect", &out_config->checkbox.enabled_checked_rect);
+			kson_object_property_value_get_rect_2di(&control_obj, "disabled_unchecked_rect", &out_config->checkbox.disabled_unchecked_rect);
+			kson_object_property_value_get_rect_2di(&control_obj, "disabled_checked_rect", &out_config->checkbox.disabled_checked_rect);
+
+			vec2 size = vec2_zero();
+			kson_object_property_value_get_vec2(&control_obj, "image_box_size", &size);
+			out_config->checkbox.image_box_size = (vec2i){.x = size.x, .y = size.y};
 		} else {
 			KERROR("%s - Unknown type '%s' found from controls[%u]. It will be ignored", __FUNCTION__, name_str, i);
 		}
+
+		string_free(name_str);
+		name_str = KNULL;
 	}
 
 	success = true;

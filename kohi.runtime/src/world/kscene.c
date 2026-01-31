@@ -444,6 +444,13 @@ struct kscene* kscene_create(const char* config, PFN_scene_loaded loaded_callbac
 
 #endif
 
+#if KOHI_DEBUG
+	// Enable general debug
+	FLAG_SET(scene->flags, KSCENE_FLAG_DEBUG_ENABLED_BIT, true);
+	FLAG_SET(scene->flags, KSCENE_FLAG_DEBUG_BVH_ENABLED_BIT, false);
+	FLAG_SET(scene->flags, KSCENE_FLAG_DEBUG_GRID_ENABLED_BIT, true);
+#endif
+
 	scene->root_entities = darray_create(kentity);
 
 	// "typeless" entities
@@ -1382,6 +1389,7 @@ b8 kscene_frame_prepare(struct kscene* scene, struct frame_data* p_frame_data, u
 
 			// Add grid geometry.
 			kgeometry* gg = &scene->grid.geometry;
+			render_data->world_debug_data.draw_grid = FLAG_GET(scene->flags, KSCENE_FLAG_DEBUG_GRID_ENABLED_BIT);
 			render_data->world_debug_data.grid_geometry = (kdebug_geometry_render_data){
 				.geo = {
 					.animation_id = INVALID_ID_U16,
@@ -1452,6 +1460,20 @@ kscene_state kscene_state_get(const struct kscene* scene) {
 	KASSERT_DEBUG(scene);
 	return scene->state;
 }
+
+kscene_flags kscene_get_flags(const struct kscene* scene) {
+	return scene->flags;
+}
+b8 kscene_get_flag(const struct kscene* scene, kscene_flag_bits flag) {
+	return FLAG_GET(scene->flags, flag);
+}
+void kscene_set_flags(struct kscene* scene, kscene_flags flags) {
+	scene->flags = flags;
+}
+void kscene_set_flag(struct kscene* scene, kscene_flags flag, b8 enabled) {
+	FLAG_SET(scene->flags, flag, enabled);
+}
+
 const char* kscene_get_name(const struct kscene* scene) {
 	return scene->name;
 }
@@ -2684,6 +2706,12 @@ kdebug_geometry_render_data* kscene_get_debug_render_data(
 	u32 flags,
 	u16* out_geometry_count) {
 
+	// If debug in general is not enabled, skip it.
+	if (!FLAG_GET(scene->flags, KSCENE_FLAG_DEBUG_ENABLED_BIT)) {
+		*out_geometry_count = 0;
+		return KNULL;
+	}
+
 	u16 debug_data_count = darray_length(scene->debug_datas);
 	if (!debug_data_count) {
 		*out_geometry_count = 0;
@@ -2717,24 +2745,24 @@ kdebug_geometry_render_data* kscene_get_debug_render_data(
 		}
 	}
 
-// render BVH AABBs
-#	if 1
-	for (u32 i = 0; i < scene->bvh_tree.capacity; ++i) {
-		bvh_node* n = &scene->bvh_tree.nodes[i];
-		scene_bvh_debug_data* data = &scene->bvh_debug_pool[i];
-		if (n->height >= 0) {
-			kdebug_geometry_render_data* rd = &out_render_data[rd_idx];
-			rd->geo.index_count = data->geo.index_count;
-			rd->geo.index_offset = data->geo.index_buffer_offset;
-			rd->geo.vertex_count = data->geo.vertex_count;
-			rd->geo.vertex_offset = data->geo.vertex_buffer_offset;
-			rd->geo.transform = scene->bvh_transform;
-			rd->colour = n->height ? (colour4){1.0f - (n->height * 0.1f), 0, 0, 1} : (colour4)vec4_create(0, 1, 1, 1);
-			rd->model = data->model;
-			rd_idx++;
+	// render BVH AABBs
+	if (scene->flags & KSCENE_FLAG_DEBUG_BVH_ENABLED_BIT) {
+		for (u32 i = 0; i < scene->bvh_tree.capacity; ++i) {
+			bvh_node* n = &scene->bvh_tree.nodes[i];
+			scene_bvh_debug_data* data = &scene->bvh_debug_pool[i];
+			if (n->height >= 0) {
+				kdebug_geometry_render_data* rd = &out_render_data[rd_idx];
+				rd->geo.index_count = data->geo.index_count;
+				rd->geo.index_offset = data->geo.index_buffer_offset;
+				rd->geo.vertex_count = data->geo.vertex_count;
+				rd->geo.vertex_offset = data->geo.vertex_buffer_offset;
+				rd->geo.transform = scene->bvh_transform;
+				rd->colour = n->height ? (colour4){1.0f - (n->height * 0.1f), 0, 0, 1} : (colour4)vec4_create(0, 1, 1, 1);
+				rd->model = data->model;
+				rd_idx++;
+			}
 		}
 	}
-#	endif
 
 	*out_geometry_count = rd_idx - 1;
 

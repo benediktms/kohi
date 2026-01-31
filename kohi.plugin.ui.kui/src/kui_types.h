@@ -81,6 +81,10 @@ typedef struct kui_keyboard_event {
 	kui_keyboard_event_type type;
 } kui_keyboard_event;
 
+typedef struct kui_checkbox_event {
+	b8 checked;
+} kui_checkbox_event;
+
 typedef struct kui_clip_mask {
 	u32 reference_id;
 	ktransform clip_ktransform;
@@ -108,6 +112,7 @@ typedef u32 kui_control_flags;
  */
 typedef b8 (*PFN_mouse_event_callback)(struct kui_state* state, kui_control self, struct kui_mouse_event event);
 typedef void (*PFN_keyboard_event_callback)(struct kui_state* state, kui_control self, struct kui_keyboard_event event);
+typedef void (*PFN_checkbox_event_callback)(struct kui_state* state, kui_control self, kui_checkbox_event event);
 
 typedef enum kui_control_type {
 	KUI_CONTROL_TYPE_NONE, // indicates a "free" slot in the internal arrays
@@ -119,7 +124,7 @@ typedef enum kui_control_type {
 	KUI_CONTROL_TYPE_TREE_ITEM,
 	KUI_CONTROL_TYPE_SCROLLABLE,
 	KUI_CONTROL_TYPE_IMAGE_BOX,
-	/* KUI_CONTROL_TYPE_CHECKBOX, */
+	KUI_CONTROL_TYPE_CHECKBOX,
 
 	KUI_CONTROL_TYPE_MAX = 64
 } kui_control_type;
@@ -152,6 +157,8 @@ typedef struct kui_base_control {
 
 	b8 (*update)(struct kui_state* state, kui_control self, struct frame_data* p_frame_data);
 	b8 (*render)(struct kui_state* state, kui_control self, struct frame_data* p_frame_data, struct kui_render_data* reneder_data);
+
+	void (*active_changed)(struct kui_state* state, kui_control self, b8 is_active);
 
 	/**
 	 * The click handler for a control.
@@ -337,6 +344,24 @@ typedef struct kui_image_box_control {
 	u32 binding_instance_id;
 } kui_image_box_control;
 
+typedef enum kui_checkbox_state {
+	KUI_CHECKBOX_STATE_ENABLED_UNCHECKED,
+	KUI_CHECKBOX_STATE_ENABLED_CHECKED,
+	KUI_CHECKBOX_STATE_DISABLED_UNCHECKED,
+	KUI_CHECKBOX_STATE_DISABLED_CHECKED,
+} kui_checkbox_state;
+
+typedef struct kui_checkbox_control {
+	kui_base_control base;
+
+	kui_control check_image;
+	kui_control label;
+
+	PFN_checkbox_event_callback on_checked_changed;
+
+	kui_checkbox_state state;
+} kui_checkbox_control;
+
 // Atlas configuration
 
 typedef struct kui_atlas_panel_control_config {
@@ -372,6 +397,14 @@ typedef struct kui_atlas_scrollbar_bg_config {
 	vec2 corner_px_size;
 } kui_atlas_scrollbar_bg_config;
 
+typedef struct kui_atlas_checkbox_config {
+	vec2i image_box_size;
+	rect_2di enabled_unchecked_rect;
+	rect_2di enabled_checked_rect;
+	rect_2di disabled_unchecked_rect;
+	rect_2di disabled_checked_rect;
+} kui_atlas_checkbox_config;
+
 typedef struct kui_atlas_config {
 	kname image_asset_name;
 	kname image_asset_package_name;
@@ -382,4 +415,5 @@ typedef struct kui_atlas_config {
 	kui_atlas_button_control_config button_downarrow;
 	kui_atlas_textbox_control_config textbox;
 	kui_atlas_scrollbar_bg_config scrollbar;
+	kui_atlas_checkbox_config checkbox;
 } kui_atlas_config;
