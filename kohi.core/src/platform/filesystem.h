@@ -16,18 +16,18 @@
 
 /** @brief Holds a handle to a file. */
 typedef struct file_handle {
-    /** @brief Opaque handle to internal file handle. */
-    void* handle;
-    /** @brief Indicates if this handle is valid. */
-    b8 is_valid;
+	/** @brief Opaque handle to internal file handle. */
+	void* handle;
+	/** @brief Indicates if this handle is valid. */
+	b8 is_valid;
 } file_handle;
 
 /** @brief File open modes. Can be combined. */
 typedef enum file_modes {
-    /** Read mode */
-    FILE_MODE_READ = 0x1,
-    /** Write mode */
-    FILE_MODE_WRITE = 0x2
+	/** Read mode */
+	FILE_MODE_READ = 0x1,
+	/** Write mode */
+	FILE_MODE_WRITE = 0x2
 } file_modes;
 
 /**
@@ -39,11 +39,11 @@ typedef enum file_modes {
  * @returns False if the provided function fails.
  */
 #define CLOSE_IF_FAILED(func, handle)     \
-    if (!func) {                          \
-        KERROR("File operation failed."); \
-        filesystem_close(handle);         \
-        return false;                     \
-    }
+	if (!func) {                          \
+		KERROR("File operation failed."); \
+		filesystem_close(handle);         \
+		return false;                     \
+	}
 
 /**
  * @brief Checks if a file with the given path exists.

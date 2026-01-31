@@ -1,5 +1,7 @@
 @echo off
-REM convenience build script for Windows
-echo "Building for Windows..."
-build-all.bat windows build release
 
+if not exist misc\ktime.exe (
+    make setup
+)
+
+misc\ktime.exe make build-release

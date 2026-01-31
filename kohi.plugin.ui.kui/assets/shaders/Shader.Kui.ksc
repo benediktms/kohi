@@ -1,0 +1,83 @@
+version = 1
+
+cull_mode="none"
+depth_test=false
+depth_write=false
+stencil_test=true
+stencil_write=true
+
+attachments = {
+	colour = [
+		{
+			name = "colour_buffer"
+			format = "RGBA8"
+		}
+	]
+	depth = {
+		name = "depth_buffer"
+		format = "D24"
+	}
+	stencil = {
+		name = "stencil_buffer"
+		format = "S8"
+	}
+}
+
+pipelines = [
+	{
+		name = "static geometry"
+		stages = [
+			{
+				type = "vertex"
+				source_asset_name = "Shader.Kui_vert"
+				package_name = "Kohi.Plugin.Ui.Kui"
+			}
+			{
+				type = "fragment"
+				source_asset_name = "Shader.Kui_frag"
+				package_name = "Kohi.Plugin.Ui.Kui"
+			}
+		]
+
+		attributes = [
+			{
+				name = "in_position"
+				type = "vec2"
+			}
+			{
+				name = "in_texcoord"
+				type = "vec2"
+			}
+		]
+	}
+]
+
+binding_sets = [
+    {
+        name = "sui global binding set"
+        max_instance_count = 1
+        bindings = [
+            {
+                name = "sui_global_ubo"
+                type = "ubo"
+                data_size = 128
+            }
+        ]
+    }
+    {
+        name = "sui per-control binding set"
+        max_instance_count = 512
+        bindings = [
+            {
+                name = "atlas_texture"
+                type = "texture"
+                texture_type = "2d"
+            }
+            {
+                name = "atlas_sampler"
+                type = "sampler"
+                sampler_type = "2d"
+            }
+        ]
+    }
+]

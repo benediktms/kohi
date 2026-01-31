@@ -10,41 +10,40 @@
 #include "openal_backend.h"
 
 // Plugin entry point.
-b8 kplugin_create(kruntime_plugin* out_plugin) {
-    out_plugin->plugin_state_size = sizeof(kaudio_backend_interface);
-    out_plugin->plugin_state = kallocate(out_plugin->plugin_state_size, MEMORY_TAG_AUDIO);
+b8 kohi_plugin_audio_openal_create(kruntime_plugin* out_plugin) {
+	out_plugin->plugin_state_size = sizeof(kaudio_backend_interface);
+	out_plugin->plugin_state = kallocate(out_plugin->plugin_state_size, MEMORY_TAG_AUDIO);
 
-    kaudio_backend_interface* backend = out_plugin->plugin_state;
+	kaudio_backend_interface* backend = out_plugin->plugin_state;
 
-    // Assign function pointers.
-    backend->initialize = openal_backend_initialize;
-    backend->shutdown = openal_backend_shutdown;
-    backend->update = openal_backend_update;
+	// Assign function pointers.
+	backend->initialize = openal_backend_initialize;
+	backend->shutdown = openal_backend_shutdown;
+	backend->update = openal_backend_update;
 
-    backend->listener_position_set = openal_backend_listener_position_set;
-    backend->listener_orientation_set = openal_backend_listener_orientation_set;
-    backend->channel_gain_set = openal_backend_channel_gain_set;
-    backend->channel_pitch_set = openal_backend_channel_pitch_set;
-    backend->channel_position_set = openal_backend_channel_position_set;
-    backend->channel_looping_set = openal_backend_channel_looping_set;
+	backend->listener_position_set = openal_backend_listener_position_set;
+	backend->listener_orientation_set = openal_backend_listener_orientation_set;
+	backend->channel_gain_set = openal_backend_channel_gain_set;
+	backend->channel_pitch_set = openal_backend_channel_pitch_set;
+	backend->channel_position_set = openal_backend_channel_position_set;
+	backend->channel_looping_set = openal_backend_channel_looping_set;
 
-    backend->load = openal_backend_load;
-    backend->unload = openal_backend_unload;
+	backend->load = openal_backend_load;
+	backend->unload = openal_backend_unload;
 
-    backend->channel_play = openal_backend_channel_play;
-    backend->channel_play_resource = openal_backend_channel_play_audio;
+	backend->channel_play = openal_backend_channel_play;
+	backend->channel_play_resource = openal_backend_channel_play_audio;
 
-    backend->channel_stop = openal_backend_channel_stop;
-    backend->channel_pause = openal_backend_channel_pause;
-    backend->channel_resume = openal_backend_channel_resume;
+	backend->channel_stop = openal_backend_channel_stop;
+	backend->channel_pause = openal_backend_channel_pause;
+	backend->channel_resume = openal_backend_channel_resume;
 
-    KINFO("OpenAL Plugin Creation successful (%s).", KVERSION);
-    return true;
+	KINFO("OpenAL Plugin Creation successful (%s).", KVERSION);
+	return true;
 }
 
-void kplugin_destroy(kruntime_plugin* plugin) {
-    if (plugin && plugin->plugin_state) {
-        kfree(plugin->plugin_state, plugin->plugin_state_size, MEMORY_TAG_AUDIO);
-    }
-    kzero_memory(plugin, sizeof(kruntime_plugin));
+void kohi_plugin_audio_openal_destroy(kruntime_plugin* plugin) {
+	if (plugin && plugin->plugin_state) {
+		kfree(plugin->plugin_state, plugin->plugin_state_size, MEMORY_TAG_AUDIO);
+	}
 }

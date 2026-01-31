@@ -11,69 +11,90 @@
  */
 #pragma once
 
-#include "defines.h"
-#include "math/math_types.h"
-#include "strings/kname.h"
+#include <defines.h>
+#include <math/math_types.h>
 
-typedef struct directional_light_data {
-    /** @brief The light colour. */
-    vec4 colour;
-    /** @brief The direction of the light. The w component is ignored.*/
-    vec4 direction;
+#include "core/engine.h"
+#include "core/frame_data.h"
+#include "core_resource_types.h"
+#include "renderer/renderer_types.h"
+#include "utils/kcolour.h"
 
-    f32 shadow_distance;
-    f32 shadow_fade_distance;
-    f32 shadow_split_mult;
-    f32 padding;
-} directional_light_data;
+#define KRENDERBUFFER_NAME_LIGHTING_GLOBAL "Kohi.StorageBuffer.LightingGlobal"
 
-/**
- * @brief A directional light, typically used to emulate sun/moon light.
- */
-typedef struct directional_light {
-    /** @brief The name of the directional light. */
-    kname name;
+typedef struct klight_attenuation {
+	f32 constant_f;
+	f32 linear;
+	f32 quadratic;
+} klight_attenuation;
 
-    /** @bried The generation of the light, incremented on change. Can be used to tell when a shader upload is required. */
-    u32 generation;
-    /** @brief The directional light shader data. */
-    directional_light_data data;
-    /** @brief Debug data assigned to the light. */
-    void* debug_data;
-} directional_light;
+typedef enum klight_type {
+	KLIGHT_TYPE_UNDEFINED,
+	KLIGHT_TYPE_POINT,
+	KLIGHT_TYPE_DIRECTIONAL
+} klight_type;
 
-typedef struct point_light_data {
-    /** @brief The light colour. */
-    vec4 colour;
-    /** @brief The position of the light in the world. The w component is ignored.*/
-    vec4 position;
-    /** @brief Usually 1, make sure denominator never gets smaller than 1 */
-    f32 constant_f;
-    /** @brief Reduces light intensity linearly */
-    f32 linear;
-    /** @brief Makes the light fall off slower at longer distances. */
-    f32 quadratic;
-    /** @brief Additional padding used for memory alignment purposes. Ignored. */
-    f32 padding;
-} point_light_data;
+typedef struct klight_data {
+	klight_type type;
+	colour3 colour;
+	union {
+		vec3 position;
+		vec3 direction;
+	};
+	klight_attenuation attenuation;
+} klight_data;
 
-/**
- * @brief A point light, the most common light source, which radiates out from the
- * given position.
- */
-typedef struct point_light {
-    /** @brief The name of the light. */
-    kname name;
-    /** @brief The generation of the light, incremented on every update. Can be used to detect when a shader upload is required. */
-    u32 generation;
-    /** @brief The shader data for the point light. */
-    point_light_data data;
-    /** @brief Debug data assigned to the light. */
-    void* debug_data;
+typedef u8 klight;
+#define KLIGHT_INVALID INVALID_ID_U8
 
-    // The positional offset from whatever this may be attached to.
-    vec4 position;
-} point_light;
+typedef struct klight_render_data {
+	klight light;
+	ktransform transform;
+} klight_render_data;
+
+typedef struct kdirectional_light_data {
+	klight light;
+	vec3 direction;
+} kdirectional_light_data;
+
+// NOTE: If the size of this changes, then klight will need to be a u16 AND the material renderer packed indices
+// will have to be upgraded to u16s, effectively doubling the memory requirement for indices in immediates.
+#define MAX_GLOBAL_SSBO_LIGHTS 256
+
+// Used as either point or directional light data.
+typedef struct light_shader_data {
+	/**
+	 * Directional light: .rgb = colour, .a = ignored
+	 * Point light: .rgb = colour, .a = linear
+	 */
+	vec4 colour;
+
+	union {
+		/**
+		 * Used for point lights.
+		 * .xyz = position, .w = quadratic
+		 */
+		vec4 position;
+
+		/**
+		 * Used for directionl lights.
+		 * .xyz = direction, .w = ignored
+		 */
+		vec4 direction;
+	};
+} light_shader_data;
+
+// The large structure of data that lives in the SSBO. This is also
+// used to manage the light system itself.
+typedef struct light_global_ssbo_data {
+	light_shader_data lights[MAX_GLOBAL_SSBO_LIGHTS];
+} light_global_ssbo_data;
+
+typedef struct light_system_state {
+	krenderbuffer lighting_global_ssbo;
+
+	klight_data* lights;
+} light_system_state;
 
 /**
  * @brief Initializes the light system. As with most systems, this should be called
@@ -85,71 +106,30 @@ typedef struct point_light {
  * @param config Configuration for this system. Currently unused.
  * @return True on success; otherwise false.
  */
-b8 light_system_initialize(u64* memory_requirement, void* memory, void* config);
+b8 light_system_initialize(u64* memory_requirement, light_system_state* memory, void* config);
 
 /**
  * @brief Shuts down the light system, releasing all resources.
  *
  * @param state The state/memory block for the system.
  */
-void light_system_shutdown(void* state);
+void light_system_shutdown(light_system_state* state);
 
-/**
- * @brief Attempts to add a directional light to the system. Only one may be present
- * at once, and is overwritten when one is passed here.
- *
- * @param light A pointer to the light to be added.
- * @return True on success; otherwise false.
- */
-KAPI b8 light_system_directional_add(directional_light* light);
+void light_system_frame_prepare(light_system_state* state, frame_data* p_frame_data);
 
-/**
- * @brief Attempts to add a point light to the system.
- *
- * @param light A pointer to the light to be added.
- * @return True on success; otherwise false.
- */
-KAPI b8 light_system_point_add(point_light* light);
+KAPI klight point_light_create(light_system_state* state, vec3 position, colour3 colour, f32 constant_f, f32 linear, f32 quadratic);
+KAPI klight directional_light_create(light_system_state* state, vec3 direction, colour3 colour);
 
-/**
- * @brief Attempts to remove the given light from the system. A pointer comparison
- * is done, meaning the light to be removed must be the original that was added.
- *
- * @param light A pointer to the light to be removed.
- * @return True on successful removal; otherwise false.
- */
-KAPI b8 light_system_directional_remove(directional_light* light);
+KAPI vec3 directional_light_get_direction(light_system_state* state, klight light);
+KAPI colour3 directional_light_get_colour(light_system_state* state, klight light);
+KAPI vec3 point_light_get_position(light_system_state* state, klight light);
+KAPI colour3 point_light_get_colour(light_system_state* state, klight light);
 
-/**
- * @brief Attempts to remove the given light from the system. A pointer comparison
- * is done, meaning the light to be removed must be the original that was added.
- *
- * @param light A pointer to the light to be removed.
- * @return True on successful removal; otherwise false.
- */
-KAPI b8 light_system_point_remove(point_light* light);
+KAPI void directional_light_set_direction(light_system_state* state, klight light, vec3 direction);
+KAPI void point_light_set_position(light_system_state* state, klight light, vec3 position);
+KAPI void point_light_set_colour(light_system_state* state, klight light, colour3 colour);
+KAPI f32 point_light_radius_get(light_system_state* state, klight light);
 
-/**
- * @brief Obtains a pointer to the current directional light. Can be NULL if one
- * has not been added.
- *
- * @return A pointer to the current directional light.
- */
-KAPI directional_light* light_system_directional_light_get(void);
+KAPI void light_destroy(light_system_state* state, klight light);
 
-/**
- * @brief Returns the total number of point lights currently in the system.
- *
- * @return The total number of point lights currently in the system.
- */
-KAPI u32 light_system_point_light_count(void);
-
-/**
- * @brief Fills in the required array of point lights within the system. Array
- * must already exist and have at least enough space as determined by a call to
- * light_system_point_light_count().
- *
- * @param p_lights An array of point lights. These lights are *copies* of the original.
- * @return True on success; otherwise false.
- */
-KAPI b8 light_system_point_lights_get(point_light* p_lights);
+KAPI klight_data light_get_data(light_system_state* state, klight light);

@@ -3,28 +3,9 @@
         {
             "type": "shell",
             "label": "Build Everything (Debug)",
-            "command": "${workspaceFolder}/build-all.sh",
+            "command": "${workspaceFolder}/build-debug.sh",
             "windows": {
-                "command": "${workspaceFolder}/build-all.bat",
-                "args": [
-                    "windows",
-                    "build",
-                    "debug"
-                ]
-            },
-            "linux": {
-                "args": [
-                    "linux",
-                    "build",
-                    "debug"
-                ]
-            },
-            "osx": {
-                "args": [
-                    "macos",
-                    "build",
-                    "debug"
-                ]
+                "command": "${workspaceFolder}/build-debug.bat",
             },
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -40,28 +21,9 @@
         {
             "type": "shell",
             "label": "Build Everything (Release)",
-            "command": "${workspaceFolder}/build-all.sh",
+            "command": "${workspaceFolder}/build-release.sh",
             "windows": {
-                "command": "${workspaceFolder}/build-all.bat",
-                "args": [
-                    "windows",
-                    "build",
-                    "release"
-                ]
-            },
-            "linux": {
-                "args": [
-                    "linux",
-                    "build",
-                    "release"
-                ]
-            },
-            "osx": {
-                "args": [
-                    "macos",
-                    "build",
-                    "release"
-                ]
+                "command": "${workspaceFolder}/build-release.bat",
             },
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -76,46 +38,15 @@
         {
             "type": "shell",
             "label": "Clean Everything",
-            "command": "${workspaceFolder}/build-all.sh",
+            "command": "${workspaceFolder}/clean.sh",
             "windows": {
-                "command": "${workspaceFolder}\\build-all.bat",
-                "args": [
-                    "windows",
-                    "clean",
-                    "all"
-                ]
-            },
-            "linux": {
-                "args": [
-                    "linux",
-                    "clean",
-                    "all"
-                ]
-            },
-            "osx": {
-                "args": [
-                    "macos",
-                    "clean",
-                    "all"
-                ]
+                "command": "${workspaceFolder}\\clean.bat",
             },
             "options": {
                 "cwd": "${workspaceFolder}"
             },
             "group": "build"
         },
-        {
-            "type": "shell",
-            "label": "Post-Build",
-            "command": "${workspaceFolder}/post-build.sh",
-            "windows": {
-                "command": "${workspaceFolder}/post-build.bat",
-            },
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "group": "build"
-        }
     ],
     "version": "2.0.0"
 }

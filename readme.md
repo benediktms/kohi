@@ -63,6 +63,8 @@ NOTE: This project _does not_ work under WSL, nor will it in the forseeable futu
 - Visual Studio Build Tools: `winget install Microsoft.VisualStudio.2022.BuildTools`
 - Git for Windows: `winget install git.git` OR https://gitforwindows.org/
 - Vulkan SDK: `winget install khronosgroup.vulkansdk` OR download from https://vulkan.lunarg.com/
+- Assimp: Go here to get an installer: `https://www.assimp.org/`, then downloads. Yes it takes you to an itch.io page, but it's legit.
+  - After the installer runs, reboot, then add the install dir to PATH (probably `C:\Program Files\Assimp`)
 
 ### Prerequisites for Linux
 
@@ -71,6 +73,7 @@ Install these via package manager:
 - `sudo apt install llvm` or `sudo pacman -S llvm`
 - `sudo apt install git` or `sudo pacman -S git`
 - `sudo apt install make`
+- Assimp (for tooling/model imports): `sudo apt install assimp` or `sudo pacman -S assimp`
 
 Required for X11:
 
@@ -89,6 +92,7 @@ Install these via homebrew (brew) or other package manager:
 
 - Git: `brew install git`
 - Make: `brew install make`
+- Assimp (for tooling/model imports): `brew install assimp`
 
 The Vulkan SDK
 
@@ -120,7 +124,9 @@ The audio plugin requires an installatiion of OpenAL.
 
 # Start
 
-To get started, get all of the prerequisites for your current platform (see above). After this, clone the repository: `git clone https://github.com/travisvroman/kohi`.
+To get started, get all of the prerequisites for your current platform (see above).
+NOTE: Kohi's tools (i.e. importers) now requires Assimp. The runtime does not require this, however. In the future the tools will likely be split into a separate repo to avoid this dependency in the main repo.
+After this, clone the repository recursively: `git clone --recurse-submodules https://github.com/travisvroman/kohi`.
 
 Note that you are free to use other compilers (such as gcc), but they are not officially supported at this time (although it shouldn't be much work to get them setup).
 
@@ -130,13 +136,8 @@ See the setup videos in the series for Windows or Linux for details. macOS setup
 
 There are 2 build types available, Debug and Release. Debug includes debug symbols and is optimal for development and exploration, while Release is ideal for performance. There is also a "clean" available to clean out the built files, which is useful when switching between Debug/Release, or when strange linking errors occur because of missing files (i.e. switching branches).
 
-## Building: Windows
-
-Open up a command prompt or Powershell instance and run the `build-debug.bat` file for a debug build, or `build-release.bat` for a release build. There is also a `clean.bat` available.
-
-## Building: Linux/macOS
-
-Open up a terminal and run the `build-debug.sh` file for a debug build, or `build-release.sh` for a release build. There is also a `clean.sh` available.
+On all platforms, you can simply browse to the root directory of the project in a terminal/command prompt and run either `make all-debug`, `make all-release`, or `make clean`.
+There are alternative shell script (macOS/Linux) and batch files (Windows) available for convenience here as well.
 
 # Running
 
@@ -149,13 +150,14 @@ This structure breakdown is based on the root folder of the repository. Some fil
 - `kohi.core` - Shared library/.dll. Contains types, containers, string lib, math lib, utils, etc. as well as the platform layer (Win32, Linux, macOS).
 - `kohi.core.tests` - A small collection of unit tests for the core library. Needs to be expanded.
 - `kohi.runtime` - Shared library/.dll. Contains the core engine logic as well as many of the core engine systems.
+- `kohi.runtime.tests` - A small collection of unit tests for the runtime library. Needs to be expanded.
 - `kohi.plugin.audio.openal` - Shared library/.dll. Contains the audio plugin which uses OpenAL as the audio backend.
 - `kohi.plugin.renderer.vulkan` - Shared library/.dll. Contains the Vulkan renderer plugin, which serves as the renderer backend to the engine for Vulkan.
-- `kohi.plugin.ui.standard` - Shared library/.dll. Contains the Kohi Standard UI, which contains a general-use collection of controls such as buttons, labels, textboxes, etc. This is a retained-mode UI.
+- `kohi.plugin.ui.kui` - Shared library/.dll. Contains the Kohi UI, which contains a general-use collection of controls such as buttons, labels, textboxes, etc. This is a retained-mode UI.
 - `testbed.kapp` - Application/.exe. The consuming application executable, loads up testbed.klib, configures/uses plugins and other Kohi libraries.
 - `testbed.klib` = Shared library/.dll. Contains the application code (or "game code") specific to the application. Hot-reloadable.
-- `kohi.tools.versiongen` - Application/.exe. A small utility which generates a version using passed-in major and minor version numbers, and auto-generated build and revision numbers based on date and time. Used to version builds of Kohi and plugins.
 - `kohi.tools` - A collection of command-line tools. Mostly empty at the moment, but will be expended when editor development begins.
+- `utils` - A collection of build utilities required to build Kohi. These only require the C compiler, so no additional dependencies are needed.
 - `.vscode` A folder containing VS Code-specific project setup.
 
 ## Roadmap

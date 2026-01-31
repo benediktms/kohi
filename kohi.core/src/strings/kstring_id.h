@@ -55,3 +55,5 @@ KAPI kstring_id kstring_id_create(const char* str);
  * @returns A constant pointer to the string if found, otherwise 0/null. NOTE: Do *NOT* free this string!
  */
 KAPI const char* kstring_id_string_get(kstring_id stringid);
+
+KAPI void kstring_id_shutdown(void);

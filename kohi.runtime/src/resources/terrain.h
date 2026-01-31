@@ -6,7 +6,8 @@
 #include <math/math_types.h>
 #include <strings/kname.h>
 
-#include "resources/resource_types.h"
+#define TERRAIN_MAX_MATERIAL_COUNT 4
+
 /*
 Need to modify the geometry structure/functions to allow for multiple materials.
 Write shader to handle 8 material weights/blending
@@ -18,101 +19,101 @@ structure) New material type? (terrain/multi material)
 */
 
 typedef struct terrain_vertex {
-    /** @brief The position of the vertex */
-    vec3 position;
-    /** @brief The normal of the vertex. */
-    vec3 normal;
-    /** @brief The texture coordinate of the vertex. */
-    vec2 texcoord;
-    /** @brief The colour of the vertex. */
-    vec4 colour;
-    /** @brief The tangent of the vertex. */
-    vec4 tangent;
+	/** @brief The position of the vertex */
+	vec3 position;
+	/** @brief The normal of the vertex. */
+	vec3 normal;
+	/** @brief The texture coordinate of the vertex. */
+	vec2 texcoord;
+	/** @brief The colour of the vertex. */
+	vec4 colour;
+	/** @brief The tangent of the vertex. */
+	vec4 tangent;
 
-    /** @brief A collection of material weights for this vertex. */
-    f32 material_weights[TERRAIN_MAX_MATERIAL_COUNT];
+	/** @brief A collection of material weights for this vertex. */
+	f32 material_weights[TERRAIN_MAX_MATERIAL_COUNT];
 } terrain_vertex;
 
 typedef struct terrain_vertex_data {
-    f32 height;
+	f32 height;
 } terrain_vertex_data;
 
 typedef struct terrain_chunk_lod {
-    /** @brief The index count for the chunk surface. */
-    u32 surface_index_count;
+	/** @brief The index count for the chunk surface. */
+	u32 surface_index_count;
 
-    /** @brief The total index count, including those for side skirts. */
-    u32 total_index_count;
-    /** @brief The index data. */
-    u32* indices;
-    /** @brief The offset from the beginning of the index buffer. */
-    u64 index_buffer_offset;
+	/** @brief The total index count, including those for side skirts. */
+	u32 total_index_count;
+	/** @brief The index data. */
+	u32* indices;
+	/** @brief The offset from the beginning of the index buffer. */
+	u64 index_buffer_offset;
 } terrain_chunk_lod;
 
 typedef struct terrain_chunk {
-    /** @brief The chunk generation. Incremented every time the geometry changes. */
-    u16 generation;
-    u32 surface_vertex_count;
-    u32 total_vertex_count;
-    terrain_vertex* vertices;
-    u64 vertex_buffer_offset;
+	/** @brief The chunk generation. Incremented every time the geometry changes. */
+	u16 generation;
+	u32 surface_vertex_count;
+	u32 total_vertex_count;
+	terrain_vertex* vertices;
+	u64 vertex_buffer_offset;
 
-    terrain_chunk_lod* lods;
+	terrain_chunk_lod* lods;
 
-    /** @brief The center of the geometry in local coordinates. */
-    vec3 center;
-    /** @brief The extents of the geometry in local coordinates. */
-    extents_3d extents;
+	/** @brief The center of the geometry in local coordinates. */
+	vec3 center;
+	/** @brief The extents of the geometry in local coordinates. */
+	extents_3d extents;
 
-    /** @brief The material instance associated with this geometry. */
-    material_instance material;
+	/** @brief The material instance associated with this geometry. */
+	kmaterial_instance material;
 
-    u8 current_lod;
+	u8 current_lod;
 } terrain_chunk;
 
 typedef enum terrain_state {
-    TERRAIN_STATE_UNDEFINED,
-    TERRAIN_STATE_CREATED,
-    TERRAIN_STATE_INITIALIZED,
-    TERRAIN_STATE_LOADING,
-    TERRAIN_STATE_LOADED
+	TERRAIN_STATE_UNDEFINED,
+	TERRAIN_STATE_CREATED,
+	TERRAIN_STATE_INITIALIZED,
+	TERRAIN_STATE_LOADING,
+	TERRAIN_STATE_LOADED
 } terrain_state;
 
 typedef struct terrain {
-    identifier id;
-    u32 generation;
-    terrain_state state;
-    kname name;
-    kasset_heightmap_terrain* asset;
-    kname material_name;
-    u32 tile_count_x;
-    u32 tile_count_z;
-    // How large each tile is on the x axis.
-    f32 tile_scale_x;
-    // How large each tile is on the z axis.
-    f32 tile_scale_z;
-    // The max height of the generated terrain.
-    f32 scale_y;
+	identifier id;
+	u32 generation;
+	terrain_state state;
+	kname name;
+	kasset_heightmap_terrain* asset;
+	kname material_name;
+	u32 tile_count_x;
+	u32 tile_count_z;
+	// How large each tile is on the x axis.
+	f32 tile_scale_x;
+	// How large each tile is on the z axis.
+	f32 tile_scale_z;
+	// The max height of the generated terrain.
+	f32 scale_y;
 
-    u32 chunk_size;
+	u32 chunk_size;
 
-    u32 vertex_data_length;
-    terrain_vertex_data* vertex_datas;
+	u32 vertex_data_length;
+	terrain_vertex_data* vertex_datas;
 
-    extents_3d extents;
-    vec3 origin;
+	extents_3d extents;
+	vec3 origin;
 
-    u32 chunk_count;
-    // row by row, then column
-    // 0, 1, 2, 3
-    // 4, 5, 6, 7
-    // 8, 9, ...
-    terrain_chunk* chunks;
+	u32 chunk_count;
+	// row by row, then column
+	// 0, 1, 2, 3
+	// 4, 5, 6, 7
+	// 8, 9, ...
+	terrain_chunk* chunks;
 
-    u8 lod_count;
+	u8 lod_count;
 
-    u32 material_count;
-    kname* material_names;
+	u32 material_count;
+	kname* material_names;
 } terrain;
 
 KAPI b8 terrain_create(kasset_heightmap_terrain* asset, terrain* out_terrain);

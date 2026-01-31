@@ -15,8 +15,8 @@
 #define STATE_VECTOR_M 397
 
 typedef struct mtrand_state {
-    u64 mt[STATE_VECTOR_LENGTH];
-    i32 index;
+	u64 mt[STATE_VECTOR_LENGTH];
+	i32 index;
 } mtrand_state;
 
 /**

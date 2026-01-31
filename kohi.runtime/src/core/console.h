@@ -29,8 +29,8 @@ typedef b8 (*PFN_console_consumer_write)(void* inst, log_level level, const char
  * processing.
  */
 typedef struct console_command_argument {
-    /** @brief The argument's value. */
-    const char* value;
+	/** @brief The argument's value. */
+	const char* value;
 } console_command_argument;
 
 /**
@@ -38,18 +38,18 @@ typedef struct console_command_argument {
  * command (i.e. arguments to the command).
  */
 typedef struct console_command_context {
-    /** @brief The full, original console command. */
-    const char* command;
+	/** @brief The full, original console command. */
+	const char* command;
 
-    /** @brief The console command name only. */
-    const char* command_name;
+	/** @brief The console command name only. */
+	const char* command_name;
 
-    /** @brief The number of arguments passed.*/
-    u8 argument_count;
-    /** @brief The arguments array. */
-    console_command_argument* arguments;
-    /** @brief A pointer to a listener, if required. */
-    void* listener;
+	/** @brief The number of arguments passed.*/
+	u8 argument_count;
+	/** @brief The arguments array. */
+	console_command_argument* arguments;
+	/** @brief A pointer to a listener, if required. */
+	void* listener;
 } console_command_context;
 
 /**
@@ -90,6 +90,7 @@ void console_shutdown(struct console_state* state);
  */
 KAPI void console_consumer_register(void* inst, PFN_console_consumer_write callback, u8* out_consumer_id);
 
+KAPI void console_consumer_unregister(u8 consumer_id);
 /**
  * @brief Updates the instance and callback for the consumer with the given identifier.
  *
@@ -112,12 +113,13 @@ void console_write(log_level level, const char* message);
  * @brief Registers a console command with the console system.
  *
  * @param command The name of the command.
- * @param arg_count The number of required arguments.
+ * @param min_arg_count The minimum number of required arguments.
+ * @param max_arg_count The maximum number of required arguments.
  * @param listener A pointer to a listener, if needed.
  * @param func The function pointer to be invoked.
  * @return True on success; otherwise false.
  */
-KAPI b8 console_command_register(const char* command, u8 arg_count, void* listener, PFN_console_command func);
+KAPI b8 console_command_register(const char* command, u8 min_arg_count, u8 max_arg_count, void* listener, PFN_console_command func);
 
 /**
  * @brief Unregisters the given command.
@@ -136,11 +138,11 @@ KAPI b8 console_command_unregister(const char* command);
 KAPI b8 console_command_execute(const char* command);
 
 typedef enum console_object_type {
-    CONSOLE_OBJECT_TYPE_INT32,
-    CONSOLE_OBJECT_TYPE_UINT32,
-    CONSOLE_OBJECT_TYPE_F32,
-    CONSOLE_OBJECT_TYPE_BOOL,
-    CONSOLE_OBJECT_TYPE_STRUCT
+	CONSOLE_OBJECT_TYPE_INT32,
+	CONSOLE_OBJECT_TYPE_UINT32,
+	CONSOLE_OBJECT_TYPE_F32,
+	CONSOLE_OBJECT_TYPE_BOOL,
+	CONSOLE_OBJECT_TYPE_STRUCT
 } console_object_type;
 
 KAPI b8 console_object_register(const char* object_name, void* object, console_object_type type);

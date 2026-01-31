@@ -13,6 +13,10 @@
 
 #include "defines.h"
 #include "math/math_types.h"
+#include "strings/kname.h"
+#include "strings/kstring_id.h"
+
+#include <stdio.h>
 
 /**
  * @brief Gets the number of bytes of the given string, minus the null terminator.
@@ -139,6 +143,12 @@ KAPI b8 strings_nequali(const char* str0, const char* str1, u32 max_len);
 
 /**
  * @brief Performs string formatting against the given format string and parameters.
+ *
+ * Accepts custom format options:
+ *   Vector types - %V#[D][.N], where # is number of elements, D optionally converts radians
+ *     to degrees before printing, and .N is the number of places after the decimal point, clamped to 8.
+ *     Ex: %V3D.4 displays a vec3, converts to degrees and uses 4 decimal places.
+ *   KNames - %k, pass a kname argument and kname_string_get is called automatically.
  * NOTE: that this performs a dynamic allocation and should be freed by the caller.
  *
  * @param format The format string to use for the operation
@@ -152,10 +162,10 @@ KAPI char* string_format(const char* format, ...);
  * NOTE: that this performs a dynamic allocation and should be freed by the caller.
  *
  * @param format The string to be formatted.
- * @param va_list The variadic argument list.
+ * @param va_listp The variadic argument list.
  * @returns The newly-formatted string (dynamically allocated).
  */
-KAPI char* string_format_v(const char* format, void* va_list);
+KAPI char* string_format_v(const char* format, va_list va_listp);
 
 /**
  * @brief Performs string formatting to dest given format string and parameters.
@@ -166,7 +176,7 @@ KAPI char* string_format_v(const char* format, void* va_list);
  * @param ... The format arguments.
  * @returns The length of the newly-formatted string.
  */
-KDEPRECATED("This version of string format is legacy, and unsafe. Use string_format() instead.")
+KDEPRECATED("This version of string format is legacy, and unsafe. Use string_nformat() or string_format() instead.")
 KAPI i32 string_format_unsafe(char* dest, const char* format, ...);
 
 /**
@@ -178,8 +188,30 @@ KAPI i32 string_format_unsafe(char* dest, const char* format, ...);
  * @param va_list The variadic argument list.
  * @returns The size of the data written.
  */
-KDEPRECATED("This version of string format variadic is legacy, and unsafe. Use string_format_v() instead.")
+KDEPRECATED("This version of string format variadic is legacy, and unsafe. Use string_nformat_v() or string_format_v() instead.")
 KAPI i32 string_format_v_unsafe(char* dest, const char* format, void* va_list);
+
+/**
+ * @brief Performs string formatting to dest given format string up to max_len length in bytes and parameters.
+ *
+ * @param dest A pointer to the destination buffer. Must be at least max_len large.
+ * @param max_len The maximum number of bytes to be output.
+ * @param format The string to be formatted.
+ * @param ... The format arguments.
+ * @returns The size of the data written. -1 if failed.
+ */
+KAPI i32 string_nformat(char* dest, u32 max_len, const char* format, ...);
+
+/**
+ * @brief Performs variadic string formatting to dest given format string up to max_len length in bytes and va_list.
+ *
+ * @param dest A pointer to the destination buffer. Must be at least max_len large.
+ * @param max_len The maximum number of bytes to be output.
+ * @param format The string to be formatted.
+ * @param va_list The variadic argument list.
+ * @returns The size of the data written. -1 if failed.
+ */
+KAPI i32 string_nformat_v(char* dest, u32 max_len, const char* format, void* va_list);
 
 /**
  * @brief Empties the provided string by setting the first character to 0.
@@ -277,6 +309,28 @@ KAPI void string_insert_str_at(char* dest, const char* src, u32 pos, const char*
 KAPI void string_remove_at(char* dest, const char* src, u32 pos, u32 length);
 
 /**
+ * @brief Replaces the first instance of char find with the one provided (replace).
+ * Done in place.
+ *
+ * @param str The string to be operated on.
+ * @param find The character to search for.
+ * @param replace The character to replace find with.
+ * @return Index of the replaced char, or -1 if not found.
+ */
+KAPI i32 string_replace_char(char* str, char find, char replace);
+
+/**
+ * @brief Replaces all instances of char find with the one provided (replace).
+ * Done in place.
+ *
+ * @param str The string to be operated on.
+ * @param find The character to search for.
+ * @param replace The character to replace find with.
+ * @return Count of instances found and replaced.
+ */
+KAPI u32 string_replace_char_all(char* str, char find, char replace);
+
+/**
  * @brief Attempts to parse a 4x4 matrix from the provided string.
  *
  * @param str The string to parse from. Should be space delimited. (i.e "1.0 1.0 ... 1.0")
@@ -293,6 +347,24 @@ KAPI b8 string_to_mat4(const char* str, mat4* out_mat);
  * @return The string representation of the matrix.
  */
 KAPI const char* mat4_to_string(mat4 m);
+
+/**
+ * @brief Attempts to parse a rect_2di from the provided string.
+ *
+ * @param str The string to parse from. Should be space-delimited. (i.e. "1 2 3 4")
+ * @param out_vector A pointer to the rect to write to.
+ * @return True if parsed successfully; otherwise false.
+ */
+KAPI b8 string_to_rect_2di(const char* str, rect_2di* rect);
+
+/**
+ * @brief Creates a string representation of the provided rectangle.
+ * NOTE: string is dynamically allocated, so the caller should free it.
+ *
+ * @param v The rectangle to convert to string.
+ * @return The string representation of the rectangle.
+ */
+KAPI const char* rect_2di_to_string(rect_2di rect);
 
 /**
  * @brief Attempts to parse a vector from the provided string.
@@ -558,9 +630,10 @@ KAPI const char* bool_to_string(b8 b);
  * @param str_darray A pointer to a darray of char arrays to hold the entries. NOTE: must be a darray.
  * @param trim_entries Trims each entry if true.
  * @param include_empty Indicates if empty entries should be included.
+ * @param escape_strings If a double-quote is run across, don't split delimiter inside it.
  * @return The number of entries yielded by the split operation.
  */
-KAPI u32 string_split(const char* str, char delimiter, char*** str_darray, b8 trim_entries, b8 include_empty);
+KAPI u32 string_split(const char* str, char delimiter, char*** str_darray, b8 trim_entries, b8 include_empty, b8 escape_strings);
 
 /**
  * @brief Cleans up string allocations in str_darray, but does not
@@ -663,6 +736,10 @@ KAPI void string_append_char(char* dest, const char* source, char c);
  */
 KAPI char* string_join(const char** strings, u32 count, char delimiter);
 
+KAPI char* kstring_id_join(const kstring_id* strings, u32 count, char delimiter);
+
+KAPI char* kname_join(const kname* strings, u32 count, char delimiter);
+
 /**
  * @brief Extracts the directory from a full file path.
  *
@@ -743,12 +820,12 @@ KAPI void string_to_upper(char* str);
  * internal operations.
  */
 typedef struct kstring {
-    /** @brief The current length of the string in bytes. */
-    u32 length;
-    /** @brief The amount of currently allocated memory. Always accounts for a null terminator. */
-    u32 allocated;
-    /** @brief The raw string data. */
-    char* data;
+	/** @brief The current length of the string in bytes. */
+	u32 length;
+	/** @brief The amount of currently allocated memory. Always accounts for a null terminator. */
+	u32 allocated;
+	/** @brief The raw string data. */
+	char* data;
 } kstring;
 
 KAPI void kstring_create(kstring* out_string);

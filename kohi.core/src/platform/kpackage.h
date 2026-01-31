@@ -4,46 +4,46 @@
 #include "strings/kname.h"
 
 typedef struct asset_manifest_asset {
-    kname name;
-    // TODO: If loaded from binary, this might be null?
-    const char* path;
-    const char* source_path;
+	kname name;
+	// TODO: If loaded from binary, this might be null?
+	const char* path;
+	const char* source_path;
 } asset_manifest_asset;
 
 /**
  * @brief A reference to another package in an asset manifest.
  */
 typedef struct asset_manifest_reference {
-    kname name;
-    const char* path;
+	kname name;
+	const char* path;
 } asset_manifest_reference;
 
 typedef struct asset_manifest {
-    kname name;
-    // Path to .kpackage file. Null if loading from disk.
-    const char* file_path;
-    // Path containing the .kpackage file, without the filename itself.
-    const char* path;
+	kname name;
+	// Path to .kpackage file. Null if loading from disk.
+	const char* file_path;
+	// Path containing the .kpackage file, without the filename itself.
+	const char* path;
 
-    // darray
-    asset_manifest_asset* assets;
+	// darray
+	asset_manifest_asset* assets;
 
-    // darray
-    asset_manifest_reference* references;
+	// darray
+	asset_manifest_reference* references;
 } asset_manifest;
 
 struct kpackage_internal;
 
 typedef struct kpackage {
-    kname name;
-    b8 is_binary;
-    struct kpackage_internal* internal_data;
+	kname name;
+	b8 is_binary;
+	struct kpackage_internal* internal_data;
 } kpackage;
 
 typedef enum kpackage_result {
-    KPACKAGE_RESULT_SUCCESS = 0,
-    KPACKAGE_RESULT_ASSET_GET_FAILURE,
-    KPACKAGE_RESULT_INTERNAL_FAILURE
+	KPACKAGE_RESULT_SUCCESS = 0,
+	KPACKAGE_RESULT_ASSET_GET_FAILURE,
+	KPACKAGE_RESULT_INTERNAL_FAILURE
 } kpackage_result;
 
 KAPI b8 kpackage_create_from_manifest(const asset_manifest* manifest, kpackage* out_package);

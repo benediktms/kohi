@@ -17,33 +17,35 @@
 #include "input_types.h"
 #include "logger.h"
 
+typedef u64 kunix_time_ns;
+
 typedef struct platform_system_config {
-    /** @brief application_name The name of the application. */
-    const char* application_name;
+	/** @brief application_name The name of the application. */
+	const char* application_name;
 } platform_system_config;
 
 typedef struct dynamic_library_function {
-    const char* name;
-    void* pfn;
+	const char* name;
+	void* pfn;
 } dynamic_library_function;
 
 typedef struct dynamic_library {
-    const char* name;
-    const char* filename;
-    u64 internal_data_size;
-    void* internal_data;
-    u32 watch_id;
+	const char* name;
+	const char* filename;
+	u64 internal_data_size;
+	void* internal_data;
+	u32 watch_id;
 
-    // darray
-    dynamic_library_function* functions;
+	// darray
+	dynamic_library_function* functions;
 } dynamic_library;
 
 typedef enum platform_error_code {
-    PLATFORM_ERROR_SUCCESS = 0,
-    PLATFORM_ERROR_UNKNOWN = 1,
-    PLATFORM_ERROR_FILE_NOT_FOUND = 2,
-    PLATFORM_ERROR_FILE_LOCKED = 3,
-    PLATFORM_ERROR_FILE_EXISTS = 4
+	PLATFORM_ERROR_SUCCESS = 0,
+	PLATFORM_ERROR_UNKNOWN = 1,
+	PLATFORM_ERROR_FILE_NOT_FOUND = 2,
+	PLATFORM_ERROR_FILE_LOCKED = 3,
+	PLATFORM_ERROR_FILE_EXISTS = 4
 } platform_error_code;
 
 struct platform_state;
@@ -52,12 +54,12 @@ struct platform_state;
  * @brief A configuration structure used to create new windows.
  */
 typedef struct kwindow_config {
-    i32 position_x;
-    i32 position_y;
-    u32 width;
-    u32 height;
-    const char* title;
-    const char* name;
+	i32 position_x;
+	i32 position_y;
+	u32 width;
+	u32 height;
+	const char* title;
+	const char* name;
 } kwindow_config;
 
 struct kwindow_platform_state;
@@ -67,42 +69,146 @@ struct kwindow_renderer_state;
  * @brief Represents a window in the application.
  */
 typedef struct kwindow {
-    /** @brief The internal name of the window. */
-    const char* name;
-    /** @brief The title of the window. */
-    const char* title;
+	/** @brief The internal name of the window. */
+	const char* name;
+	/** @brief The title of the window. */
+	const char* title;
 
-    /** @brief The width of the window in pixels */
-    u16 width;
-    /** @brief The height of the window in pixels */
-    u16 height;
+	/** @brief The width of the window in pixels */
+	u16 width;
+	/** @brief The height of the window in pixels */
+	u16 height;
 
-    /**
-     * @brief Represents the pixel density of this window. Should only ever be
-     * read from, as the platform layer is responsible for determining this.
-     */
-    f32 device_pixel_ratio;
+	/**
+	 * @brief Represents the pixel density of this window. Should only ever be
+	 * read from, as the platform layer is responsible for determining this.
+	 */
+	f32 device_pixel_ratio;
 
-    /** @brief Indicates if this window is currently being resized. */
-    b8 resizing;
-    /** @brief Indicates the number of frames that have passed since the last resize event. */
-    u16 frames_since_resize;
+	/** @brief Indicates if this window is currently being resized. */
+	b8 resizing;
+	/** @brief Indicates the number of frames that have passed since the last resize event. */
+	u16 frames_since_resize;
 
-    /** @brief Holds platform-specific data. */
-    struct kwindow_platform_state* platform_state;
+	/** @brief Holds platform-specific data. */
+	struct kwindow_platform_state* platform_state;
 
-    /** @brief Holds renderer-specific data. */
-    struct kwindow_renderer_state* renderer_state;
+	/** @brief Holds renderer-specific data. */
+	struct kwindow_renderer_state* renderer_state;
 } kwindow;
+
+typedef enum ksystem_info_flags {
+	KSYSTEM_INFO_FLAGS_NONE = 0,
+	KSYSTEM_INFO_FLAGS_IS_64_BIT_BIT = 1 << 0,
+	KSYSTEM_INFO_FLAGS_IS_VITRUALIZED_BIT = 1 << 1,
+	KSYSTEM_INFO_FLAGS_DEBUGGER_ATTACHED_BIT = 1 << 2,
+} ksystem_info_flags;
+
+typedef u32 ksystem_info_flag_bits;
+
+typedef enum kcpu_feature_flags {
+	KCPU_FEATURE_FLAGS_NONE = 0,
+	KCPU_FEATURE_FLAG_SSE_BIT = 1 << 0,
+	KCPU_FEATURE_FLAG_SSE2_BIT = 1 << 1,
+	KCPU_FEATURE_FLAG_SSE3_BIT = 1 << 2,
+	KCPU_FEATURE_FLAG_SSSE3_BIT = 1 << 3,
+	KCPU_FEATURE_FLAG_SSE41_BIT = 1 << 4,
+	KCPU_FEATURE_FLAG_SSE42_BIT = 1 << 5,
+	KCPU_FEATURE_FLAG_AVX_BIT = 1 << 6,
+	KCPU_FEATURE_FLAG_AVX2_BIT = 1 << 7,
+	KCPU_FEATURE_FLAG_NEON_BIT = 1 << 8
+} kcpu_feature_flags;
+
+typedef u32 kcpu_feature_flag_bits;
+
+#define KMAX_STORAGE_DEVICES 32
+#define KMAX_PATH_LEN 256
+
+typedef enum kdrive_type {
+	KDRIVE_TYPE_UNKNOWN = 0,
+	KDRIVE_TYPE_NO_ROOT_DIR = 1,
+	KDRIVE_TYPE_REMOVABLE = 2,
+	KDRIVE_TYPE_FIXED = 3,
+	KDRIVE_TYPE_REMOTE = 4,
+	KDRIVE_TYPE_CDROM = 5,
+	KDRIVE_TYPE_RAMDISK = 6
+} kdrive_type;
+
+KINLINE const char* kdrive_type_to_string(kdrive_type type) {
+	switch (type) {
+	default:
+	case KDRIVE_TYPE_UNKNOWN:
+	case KDRIVE_TYPE_NO_ROOT_DIR:
+		return "KDRIVE_TYPE_UNKNOWN";
+	case KDRIVE_TYPE_REMOVABLE:
+		return "KDRIVE_TYPE_REMOVABLE";
+	case KDRIVE_TYPE_FIXED:
+		return "KDRIVE_TYPE_FIXED";
+	case KDRIVE_TYPE_REMOTE:
+		return "KDRIVE_TYPE_REMOTE";
+	case KDRIVE_TYPE_CDROM:
+		return "KDRIVE_TYPE_CDROM";
+	case KDRIVE_TYPE_RAMDISK:
+		return "KDRIVE_TYPE_RAMDISK";
+	}
+}
+
+typedef struct kstorage_info {
+	char name[KMAX_PATH_LEN];
+	char mount_point[KMAX_PATH_LEN];
+	u64 total_bytes;
+	u64 free_bytes;
+	kdrive_type type;
+	b8 is_ssd;
+} kstorage_info;
+
+typedef struct ksystem_info {
+	char cpu_name[128];
+	u32 cpu_mhz;
+	u32 logical_cores;
+	u32 physical_cores;
+	char cpu_arch[10];
+
+	u64 ram_total_bytes;
+	u64 ram_available_bytes;
+	u32 ram_speed_mhz; // 0 if unknown
+
+	char os_name[64];
+	char os_version[64];
+	char os_build[64];
+	char kernel_version[256];
+	char distro[64]; // linux only
+
+	ksystem_info_flag_bits flags;
+
+	kcpu_feature_flag_bits features;
+
+	kstorage_info storage[KMAX_STORAGE_DEVICES];
+	u32 storage_count;
+} ksystem_info;
+
+typedef enum kclipboard_content_type {
+	KCLIPBOARD_CONTENT_TYPE_STRING,
+	KCLIPBOARD_CONTENT_TYPE_IMAGE,
+	KCLIPBOARD_CONTENT_TYPE_BINARY
+} kclipboard_content_type;
+
+typedef struct kclipboard_context {
+	kclipboard_content_type content_type;
+	kwindow* requesting_window;
+	u64 size;
+	const void* content;
+} kclipboard_context;
 
 typedef void (*platform_filewatcher_file_deleted_callback)(u32 watcher_id, void* context);
 typedef void (*platform_filewatcher_file_written_callback)(u32 watcher_id, const char* file_path, b8 is_binary, void* context);
 typedef void (*platform_window_closed_callback)(const struct kwindow* window);
 typedef void (*platform_window_resized_callback)(const struct kwindow* window);
-typedef void (*platform_process_key)(keys key, b8 pressed);
+typedef void (*platform_process_key)(keys key, b8 pressed, b8 is_repeat);
 typedef void (*platform_process_mouse_button)(mouse_buttons button, b8 pressed);
 typedef void (*platform_process_mouse_move)(i16 x, i16 y);
 typedef void (*platform_process_mouse_wheel)(i8 z_delta);
+typedef void (*platform_clipboard_on_paste_callback)(kclipboard_context context);
 
 /**
  * @brief Performs startup routines within the platform layer. Should be called twice,
@@ -369,8 +475,15 @@ KAPI void platform_register_process_mouse_move_callback(platform_process_mouse_m
 KAPI void platform_register_process_mouse_wheel_callback(platform_process_mouse_wheel callback);
 
 /**
+ * @brief Registers the system-level handler for content being ready to paste from the clipboard.
+ *
+ * @param callback A pointer to the handler function.
+ */
+KAPI void platform_register_clipboard_paste_callback(platform_clipboard_on_paste_callback callback);
+
+/**
  * @brief Watch a file at the given path.
- * 
+ *
  * @param file_path The file path. Required.
  * @param is_binary Indicates if the file being watched is binary (if not, then text).
  * @param watcher_written_callback Callback to be invoked when the watched file is written to.
@@ -378,16 +491,16 @@ KAPI void platform_register_process_mouse_wheel_callback(platform_process_mouse_
  * @param watcher_deleted_callback Callback to be invoked when the watched file is deleted from disk.
  * @param watcher_deleted_context Context to be passed along when a file deletion occurs.
  * @param out_watch_id A pointer to hold the watch identifier.
- * @return True on success; otherwise false. 
+ * @return True on success; otherwise false.
  */
 KAPI b8 platform_watch_file(
-    const char* file_path,
-    b8 is_binary,
-    platform_filewatcher_file_written_callback watcher_written_callback,
-    void* watcher_written_context,
-    platform_filewatcher_file_deleted_callback watcher_deleted_callback,
-    void* watcher_deleted_context,
-    u32* out_watch_id);
+	const char* file_path,
+	b8 is_binary,
+	platform_filewatcher_file_written_callback watcher_written_callback,
+	void* watcher_written_context,
+	platform_filewatcher_file_deleted_callback watcher_deleted_callback,
+	void* watcher_deleted_context,
+	u32* out_watch_id);
 /**
  * @brief Stops watching the file with the given watch identifier.
  *
@@ -395,3 +508,16 @@ KAPI b8 platform_watch_file(
  * @return True on success; otherwise false.
  */
 KAPI b8 platform_unwatch_file(u32 watch_id);
+
+/**
+ * @brief Returns the last-modified timestamp in unix time, or 0 if the file is not found.
+ */
+KAPI kunix_time_ns platform_get_file_mtime(const char* path);
+
+KAPI b8 platform_system_info_collect(ksystem_info* out_info);
+
+// Used for pasting into the application.
+KAPI void platform_request_clipboard_content(kwindow* window);
+
+// Used for copying from the application.
+KAPI void platform_clipboard_content_set(kwindow* window, kclipboard_content_type type, u32 size, void* content);

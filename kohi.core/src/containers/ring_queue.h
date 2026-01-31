@@ -7,20 +7,20 @@
  * Naturally, this is a first in, first out structure.
  */
 typedef struct ring_queue {
-    /** @brief The current number of elements contained. */
-    u32 length;
-    /** @brief The size of each element in bytes. */
-    u32 stride;
-    /** @brief The total number of elements available. */
-    u32 capacity;
-    /** @brief The block of memory to hold the data. */
-    void* block;
-    /** @brief Indicates if the queue owns its memory block. */
-    b8 owns_memory;
-    /** @brief The index of the head of the list. */
-    i32 head;
-    /** @brief The index of the tail of the list. */
-    i32 tail;
+	/** @brief The current number of elements contained. */
+	u32 length;
+	/** @brief The size of each element in bytes. */
+	u32 stride;
+	/** @brief The total number of elements available. */
+	u32 capacity;
+	/** @brief The block of memory to hold the data. */
+	void* block;
+	/** @brief Indicates if the queue owns its memory block. */
+	b8 owns_memory;
+	/** @brief The index of the head of the list. */
+	i32 head;
+	/** @brief The index of the tail of the list. */
+	i32 tail;
 } ring_queue;
 
 /**

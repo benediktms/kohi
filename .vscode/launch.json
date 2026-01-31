@@ -5,32 +5,6 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Launch Overdrive 2069",
-            "type": "cppdbg",
-            "request": "launch",
-            "stopAtEntry": false,
-            "cwd": "${workspaceFolder}/bin/",
-            "environment": [],
-            "program": "${workspaceFolder}/bin/overdrive2069.kapp",
-            "osx": {
-                "MIMode": "lldb",
-                "targetArchitecture": "arm64",
-                "externalConsole": false,
-            },
-            "linux": {
-                "externalConsole": false,
-                // "environment": [
-                //     { "name": "VK_LOADER_DEBUG", "value": "all"}
-                // ]
-            },
-            "windows": {
-                "type": "cppvsdbg",
-                "program": "${workspaceFolder}/bin/overdrive2069.kapp.exe",
-                // cppvsdbg requires this instead of externalConsole
-                "console": "integratedTerminal",
-            },
-        },
-        {
             "name": "Launch TestBed",
             "type": "cppdbg",
             "request": "launch",
@@ -51,10 +25,134 @@
             },
             "windows": {
                 "type": "cppvsdbg",
-                "program": "${workspaceFolder}/bin/testbed.kapp.exe",
+                "program": "${workspaceFolder}\\bin\\testbed.kapp.exe",
                 // cppvsdbg requires this instead of externalConsole
                 "console": "integratedTerminal",
             },
+        },
+        {
+            "name": "Testbed - Import updated assets from manifest",
+            "type": "cppdbg",
+            "request": "launch",
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/bin/",
+            "environment": [],
+            "program": "${workspaceFolder}/bin/kohi.tools",
+            "args": [
+                "importmanifest",
+                "${workspaceFolder}/testbed.kapp/asset_manifest.kson",
+                "--updated-only"
+            ],
+            "osx": {
+                "MIMode": "lldb",
+                "targetArchitecture": "arm64",
+                "externalConsole": false
+            },
+            "linux": {
+                "externalConsole": false
+                // "environment": [
+                //     { "name": "VK_LOADER_DEBUG", "value": "all"}
+                // ]
+            },
+            "windows": {
+                "type": "cppvsdbg",
+                "program": "${workspaceFolder}/bin/kohi.tools.exe",
+                // cppvsdbg requires this instead of externalConsole
+                "console": "integratedTerminal"
+            }
+        },
+        {
+            "name": "Kohi Runtime - Import updated assets from manifest",
+            "type": "cppdbg",
+            "request": "launch",
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/bin/",
+            "environment": [],
+            "program": "${workspaceFolder}/bin/kohi.tools",
+            "args": [
+                "importmanifest",
+                "${workspaceFolder}/kohi.runtime/asset_manifest.kson",
+                "--updated-only"
+            ],
+            "osx": {
+                "MIMode": "lldb",
+                "targetArchitecture": "arm64",
+                "externalConsole": false
+            },
+            "linux": {
+                "externalConsole": false
+                // "environment": [
+                //     { "name": "VK_LOADER_DEBUG", "value": "all"}
+                // ]
+            },
+            "windows": {
+                "type": "cppvsdbg",
+                "program": "${workspaceFolder}/bin/kohi.tools.exe",
+                // cppvsdbg requires this instead of externalConsole
+                "console": "integratedTerminal"
+            }
+        },
+        {
+            "name": "Kohi Standard UI - Import updated assets from manifest",
+            "type": "cppdbg",
+            "request": "launch",
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/bin/",
+            "environment": [],
+            "program": "${workspaceFolder}/bin/kohi.tools",
+            "args": [
+                "importmanifest",
+                "${workspaceFolder}/kohi.plugin.ui.kui/asset_manifest.kson",
+                "--updated-only"
+            ],
+            "osx": {
+                "MIMode": "lldb",
+                "targetArchitecture": "arm64",
+                "externalConsole": false
+            },
+            "linux": {
+                "externalConsole": false
+                // "environment": [
+                //     { "name": "VK_LOADER_DEBUG", "value": "all"}
+                // ]
+            },
+            "windows": {
+                "type": "cppvsdbg",
+                "program": "${workspaceFolder}/bin/kohi.tools.exe",
+                // cppvsdbg requires this instead of externalConsole
+                "console": "integratedTerminal"
+            }
+        },
+        {
+            "name": "Kohi Utils Plugin - Import updated assets from manifest",
+            "type": "cppdbg",
+            "request": "launch",
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/bin/",
+            "environment": [],
+            "program": "${workspaceFolder}/bin/kohi.tools",
+            "args": [
+                "importmanifest",
+                "${workspaceFolder}/kohi.plugin.utils/asset_manifest.kson",
+                "--updated-only"
+            ],
+            "osx": {
+                "MIMode": "lldb",
+                "targetArchitecture": "arm64",
+                "externalConsole": false
+            },
+            "linux": {
+                "externalConsole": false
+                // "environment": [
+                //     { "name": "VK_LOADER_DEBUG", "value": "all"}
+                // ]
+            },
+            "windows": {
+                "type": "cppvsdbg",
+                "program": "${workspaceFolder}/bin/kohi.tools.exe",
+                // cppvsdbg requires this instead of externalConsole
+                "console": "integratedTerminal"
+            }
         },
         {
             "name": "Launch Core Unit Tests",

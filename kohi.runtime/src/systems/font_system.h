@@ -4,9 +4,9 @@
  * @brief A system responsible for the management of bitmap
  * and system fonts.
  * @version 2.0
- * @date 2023-01-18
+ * @date 2026-01-06
  *
- * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2024
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
  *
  * A "bitmap" font uses an image containing pre-rendered glyphs which are then referenced
  * in an internal lookup table by character codepoint. The display of characters for this
@@ -23,17 +23,44 @@
  */
 #pragma once
 
-#include "identifiers/khandle.h"
-#include "kresources/kresource_types.h"
-#include "math/math_types.h"
-#include "strings/kname.h"
+#include <containers/array.h>
+#include <core_render_types.h>
+#include <identifiers/khandle.h>
+#include <math/math_types.h>
+#include <strings/kname.h>
 
 struct font_system_state;
 
 typedef enum font_type {
-    FONT_TYPE_BITMAP,
-    FONT_TYPE_SYSTEM
+	FONT_TYPE_BITMAP,
+	FONT_TYPE_SYSTEM
 } font_type;
+
+typedef struct font_glyph {
+	i32 codepoint;
+	u16 x;
+	u16 y;
+	u16 width;
+	u16 height;
+	i16 x_offset;
+	i16 y_offset;
+	i16 x_advance;
+	u8 page_id;
+} font_glyph;
+
+typedef struct font_kerning {
+	i32 codepoint_0;
+	i32 codepoint_1;
+	i16 amount;
+} font_kerning;
+
+typedef struct font_page {
+	kname image_asset_name;
+} font_page;
+
+ARRAY_TYPE(font_glyph);
+ARRAY_TYPE(font_kerning);
+ARRAY_TYPE(font_page);
 
 /**
  * Represents a system font size variant and its "base" font.
@@ -41,32 +68,32 @@ typedef enum font_type {
  * and contains handles to both.
  */
 typedef struct system_font_variant {
-    // Handle to the base font.
-    khandle base_font;
-    // Handle to the font size variant.
-    khandle variant;
+	// Handle to the base font.
+	khandle base_font;
+	// Handle to the font size variant.
+	khandle variant;
 } system_font_variant;
 
 /**
  * @brief The configuration for a bitmap font in the font system config.
  */
 typedef struct font_system_bitmap_font_config {
-    // The resource name.
-    kname resource_name;
-    // The resource name.
-    kname package_name;
+	// The resource name.
+	kname resource_name;
+	// The resource name.
+	kname package_name;
 } font_system_bitmap_font_config;
 
 /**
  * @brief The configuration for a system font in the font system config.
  */
 typedef struct font_system_system_font_config {
-    // The resource name.
-    kname resource_name;
-    // The resource name.
-    kname package_name;
-    // The default font size to be used with the system font.
-    u16 default_size;
+	// The resource name.
+	kname resource_name;
+	// The resource name.
+	kname package_name;
+	// The default font size to be used with the system font.
+	u16 default_size;
 } font_system_system_font_config;
 
 /**
@@ -75,36 +102,36 @@ typedef struct font_system_system_font_config {
  * process.
  */
 typedef struct font_system_config {
-    /** @brief The max number of bitmap fonts that can be loaded. */
-    u8 max_bitmap_font_count;
-    /** @brief The max number of system fonts that can be loaded. */
-    u8 max_system_font_count;
+	/** @brief The max number of bitmap fonts that can be loaded. */
+	u8 max_bitmap_font_count;
+	/** @brief The max number of system fonts that can be loaded. */
+	u8 max_system_font_count;
 
-    /** @brief The number of bitmap fonts configured in the system. */
-    u8 bitmap_font_count;
-    /** @brief A collection of bitmap fonts configured in the system. */
-    font_system_bitmap_font_config* bitmap_fonts;
+	/** @brief The number of bitmap fonts configured in the system. */
+	u8 bitmap_font_count;
+	/** @brief A collection of bitmap fonts configured in the system. */
+	font_system_bitmap_font_config* bitmap_fonts;
 
-    /** @brief The number of system fonts configured in the system. */
-    u8 system_font_count;
-    /** @brief A collection of system fonts configured in the system. */
-    font_system_system_font_config* system_fonts;
+	/** @brief The number of system fonts configured in the system. */
+	u8 system_font_count;
+	/** @brief A collection of system fonts configured in the system. */
+	font_system_system_font_config* system_fonts;
 } font_system_config;
 
 /**
  * Geometry generated from either a bitmap or system font.
  */
 typedef struct font_geometry {
-    /** @brief The number of quads to be drawn. */
-    u32 quad_count;
-    /** @brief The size of the vertex buffer data in bytes. */
-    u64 vertex_buffer_size;
-    /** @brief The size of the index buffer data in bytes. */
-    u64 index_buffer_size;
-    /** @brief The vertex buffer data. */
-    vertex_2d* vertex_buffer_data;
-    /** @brief The index buffer data. */
-    u32* index_buffer_data;
+	/** @brief The number of quads to be drawn. */
+	u32 quad_count;
+	/** @brief The size of the vertex buffer data in bytes. */
+	u64 vertex_buffer_size;
+	/** @brief The size of the index buffer data in bytes. */
+	u64 index_buffer_size;
+	/** @brief The vertex buffer data. */
+	vertex_2d* vertex_buffer_data;
+	/** @brief The index buffer data. */
+	u32* index_buffer_data;
 } font_geometry;
 
 /**

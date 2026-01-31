@@ -25,48 +25,48 @@
  * and matched as required by the developer.
  * */
 typedef struct event_context {
-    // 128 bytes
-    union {
-        /** @brief An array of 2 64-bit signed integers. */
-        i64 i64[2];
-        /** @brief An array of 2 64-bit unsigned integers. */
-        u64 u64[2];
+	// 128 bytes
+	union {
+		/** @brief An array of 2 64-bit signed integers. */
+		i64 i64[2];
+		/** @brief An array of 2 64-bit unsigned integers. */
+		u64 u64[2];
 
-        /** @brief An array of 2 64-bit floating-point numbers. */
-        f64 f64[2];
+		/** @brief An array of 2 64-bit floating-point numbers. */
+		f64 f64[2];
 
-        /** @brief An array of 4 32-bit signed integers. */
-        i32 i32[4];
-        /** @brief An array of 4 32-bit unsigned integers. */
-        u32 u32[4];
-        /** @brief An array of 4 32-bit floating-point numbers. */
-        f32 f32[4];
+		/** @brief An array of 4 32-bit signed integers. */
+		i32 i32[4];
+		/** @brief An array of 4 32-bit unsigned integers. */
+		u32 u32[4];
+		/** @brief An array of 4 32-bit floating-point numbers. */
+		f32 f32[4];
 
-        /** @brief An array of 8 16-bit signed integers. */
-        i16 i16[8];
+		/** @brief An array of 8 16-bit signed integers. */
+		i16 i16[8];
 
-        /** @brief An array of 8 16-bit unsigned integers. */
-        u16 u16[8];
+		/** @brief An array of 8 16-bit unsigned integers. */
+		u16 u16[8];
 
-        /** @brief An array of 16 8-bit signed integers. */
-        i8 i8[16];
-        /** @brief An array of 16 8-bit unsigned integers. */
-        u8 u8[16];
+		/** @brief An array of 16 8-bit signed integers. */
+		i8 i8[16];
+		/** @brief An array of 16 8-bit unsigned integers. */
+		u8 u8[16];
 
-        /**
-         * @brief Allows a pointer to arbitrary data to be passed. Also includes size info.
-         * NOTE: If used, should be freed by the sender or listener.
-         */
-        struct {
-            // The size of the data pointed to.
-            u64 size;
-            // A pointer to a memory block of data to be included with the event.
-            void* data;
-        } custom_data;
+		/**
+		 * @brief Allows a pointer to arbitrary data to be passed. Also includes size info.
+		 * NOTE: If used, should be freed by the sender or listener.
+		 */
+		struct {
+			// The size of the data pointed to.
+			u64 size;
+			// A pointer to a memory block of data to be included with the event.
+			void* data;
+		} custom_data;
 
-        /** @brief A free-form string. If used, should be freed by sender or listener. */
-        const char* s;
-    } data;
+		/** @brief A free-form string. If used, should be freed by sender or listener. */
+		const char* s;
+	} data;
 } event_context;
 
 /**
@@ -101,6 +101,18 @@ void event_system_shutdown(void* state);
 KAPI b8 event_register(u16 code, void* listener, PFN_on_event on_event);
 
 /**
+ * @brief Register to listen for when a single event is sent with the provided code. Events with duplicate
+ * listener/callback combos will not be registered again and will cause this to return false.
+ * @note: the event is automatically unregistered once fired a single time.
+ *
+ * @param code The event code to listen for.
+ * @param listener A pointer to a listener instance. Can be 0/NULL.
+ * @param on_event The callback function pointer to be invoked when the event code is fired.
+ * @returns True if the event is successfully registered; otherwise false.
+ */
+KAPI b8 event_register_single(u16 code, void* listener, PFN_on_event on_event);
+
+/**
  * @brief Unregister from listening for when events are sent with the provided code. If no matching
  * registration is found, this function returns false.
  * @param code The event code to stop listening for.
@@ -122,175 +134,234 @@ KAPI b8 event_fire(u16 code, void* sender, event_context context);
 
 /** @brief System internal event codes. Application should use codes beyond 255. */
 typedef enum system_event_code {
-    /** @brief Shuts the application down on the next frame. */
-    EVENT_CODE_APPLICATION_QUIT = 0x01,
+	/** @brief Shuts the application down on the next frame. */
+	EVENT_CODE_APPLICATION_QUIT = 0x01,
 
-    /** @brief Keyboard key pressed.
-     * Context usage:
-     * u16 key_code = data.data.u16[0];
-     * u16 repeat_count = data.data.u16[1];
-     */
-    EVENT_CODE_KEY_PRESSED = 0x02,
+	/** @brief Keyboard key pressed.
+	 * Context usage:
+	 * u16 key_code = data.data.u16[0];
+	 * u16 repeat_count = data.data.u16[1];
+	 */
+	EVENT_CODE_KEY_PRESSED = 0x02,
 
-    /** @brief Keyboard key released.
-     * Context usage:
-     * u16 key_code = data.data.u16[0];
-     * u16 repeat_count = data.data.u16[1];
-     */
-    EVENT_CODE_KEY_RELEASED = 0x03,
+	/** @brief Keyboard key released.
+	 * Context usage:
+	 * u16 key_code = data.data.u16[0];
+	 * u16 repeat_count = data.data.u16[1];
+	 */
+	EVENT_CODE_KEY_RELEASED = 0x03,
 
-    /** @brief Mouse button pressed.
-     * Context usage:
-     * u16 button = data.data.u16[0];
-     * u16 x = data.data.i16[1];
-     * u16 y = data.data.i16[2];
-     */
-    EVENT_CODE_BUTTON_PRESSED = 0x04,
+	/** @brief Mouse button pressed.
+	 * Context usage:
+	 * u16 x = data.data.i16[0];
+	 * u16 y = data.data.i16[1];
+	 * u16 delta_x = data.data.i16[2];
+	 * u16 delta_y = data.data.i16[3];
+	 * u16 button = data.data.u16[4];
+	 */
+	EVENT_CODE_BUTTON_PRESSED = 0x04,
 
-    /** @brief Mouse button released.
-     * Context usage:
-     * u16 button = data.data.u16[0];
-     * u16 x = data.data.i16[1];
-     * u16 y = data.data.i16[2];
-     */
-    EVENT_CODE_BUTTON_RELEASED = 0x05,
+	/** @brief Mouse button released.
+	 * Context usage:
+	 * u16 x = data.data.i16[0];
+	 * u16 y = data.data.i16[1];
+	 * u16 delta_x = data.data.i16[2];
+	 * u16 delta_y = data.data.i16[3];
+	 * u16 button = data.data.u16[4];
+	 */
+	EVENT_CODE_BUTTON_RELEASED = 0x05,
 
-    /** @brief Mouse button pressed then released.
-     * Context usage:
-     * u16 button = data.data.u16[0];
-     * u16 x = data.data.i16[1];
-     * u16 y = data.data.i16[2];
-     */
-    EVENT_CODE_BUTTON_CLICKED = 0x06,
+	/** @brief Mouse button pressed then released.
+	 * Context usage:
+	 * u16 x = data.data.i16[0];
+	 * u16 y = data.data.i16[1];
+	 * u16 delta_x = data.data.i16[2];
+	 * u16 delta_y = data.data.i16[3];
+	 * u16 button = data.data.u16[4];
+	 */
+	EVENT_CODE_BUTTON_CLICKED = 0x06,
 
-    /** @brief Mouse moved.
-     * Context usage:
-     * u16 x = data.data.i16[0];
-     * u16 y = data.data.i16[1];
-     */
-    EVENT_CODE_MOUSE_MOVED = 0x07,
+	/** @brief Mouse moved.
+	 * Context usage:
+	 * u16 x = data.data.i16[0];
+	 * u16 y = data.data.i16[1];
+	 * u16 delta_x = data.data.i16[2];
+	 * u16 delta_y = data.data.i16[3];
+	 */
+	EVENT_CODE_MOUSE_MOVED = 0x07,
 
-    /** @brief Mouse moved.
-     * Context usage:
-     * ui z_delta = data.data.i8[0];
-     */
-    EVENT_CODE_MOUSE_WHEEL = 0x08,
+	/** @brief Mouse moved.
+	 * Context usage:
+	 * u16 x = data.data.i16[0];
+	 * u16 y = data.data.i16[1];
+	 * u16 delta_x = data.data.i16[2];
+	 * u16 delta_y = data.data.i16[3];
+	 * ui z_delta = data.data.i8[8];
+	 */
+	EVENT_CODE_MOUSE_WHEEL = 0x08,
 
-    /** @brief Resized/resolution of a window changed from the OS.
-     * Context usage:
-     * u16 width = data.data.u16[0];
-     * u16 height = data.data.u16[1];
-     * Sender is the window itself.
-     */
-    EVENT_CODE_WINDOW_RESIZED = 0x09,
+	/** @brief Resized/resolution of a window changed from the OS.
+	 * Context usage:
+	 * u16 width = data.data.u16[0];
+	 * u16 height = data.data.u16[1];
+	 * Sender is the window itself.
+	 */
+	EVENT_CODE_WINDOW_RESIZED = 0x09,
 
-    // Change the render mode for debugging purposes.
-    /* Context usage:
-     * i32 mode = context.data.i32[0];
-     */
-    EVENT_CODE_SET_RENDER_MODE = 0x0A,
+	// Change the render mode for debugging purposes.
+	/* Context usage:
+	 * i32 mode = context.data.i32[0];
+	 */
+	EVENT_CODE_SET_RENDER_MODE = 0x0A,
 
-    /** @brief Special-purpose debugging event. Context will vary over time. */
-    EVENT_CODE_DEBUG0 = 0x10,
-    /** @brief Special-purpose debugging event. Context will vary over time. */
-    EVENT_CODE_DEBUG1 = 0x11,
-    /** @brief Special-purpose debugging event. Context will vary over time. */
-    EVENT_CODE_DEBUG2 = 0x12,
-    /** @brief Special-purpose debugging event. Context will vary over time. */
-    EVENT_CODE_DEBUG3 = 0x13,
-    /** @brief Special-purpose debugging event. Context will vary over time. */
-    EVENT_CODE_DEBUG4 = 0x14,
+	/** @brief Clipboard content is ready to be retrieved.
+	 * NOTE: data is freed by the platform immediately after this event is fired.
+	 *
+	 * Context usage:
+	 * struct clipboard_context* = context.data.custom_data.data, (sizeof clipboard_context)
+	 */
+	EVENT_CODE_CLIPBOARD_PASTE = 0x0B,
 
-    EVENT_CODE_DEBUG5 = 0x15,
-    EVENT_CODE_DEBUG6 = 0x16,
-    EVENT_CODE_DEBUG7 = 0x17,
-    EVENT_CODE_DEBUG8 = 0x18,
-    EVENT_CODE_DEBUG9 = 0x19,
-    EVENT_CODE_DEBUG10 = 0x1A,
-    EVENT_CODE_DEBUG11 = 0x1B,
-    EVENT_CODE_DEBUG12 = 0x1C,
-    EVENT_CODE_DEBUG13 = 0x1D,
-    EVENT_CODE_DEBUG14 = 0x1E,
-    EVENT_CODE_DEBUG15 = 0x1F,
+	/** @brief Special-purpose debugging event. Context will vary over time. */
+	EVENT_CODE_DEBUG0 = 0x10,
+	/** @brief Special-purpose debugging event. Context will vary over time. */
+	EVENT_CODE_DEBUG1 = 0x11,
+	/** @brief Special-purpose debugging event. Context will vary over time. */
+	EVENT_CODE_DEBUG2 = 0x12,
+	/** @brief Special-purpose debugging event. Context will vary over time. */
+	EVENT_CODE_DEBUG3 = 0x13,
+	/** @brief Special-purpose debugging event. Context will vary over time. */
+	EVENT_CODE_DEBUG4 = 0x14,
 
-    /** @brief The hovered-over object id, if there is one.
-     * Context usage:
-     * i32 id = context.data.u32[0]; - will be INVALID ID if nothing is hovered over.
-     */
-    EVENT_CODE_OBJECT_HOVER_ID_CHANGED = 0x20,
+	EVENT_CODE_DEBUG5 = 0x15,
+	EVENT_CODE_DEBUG6 = 0x16,
+	EVENT_CODE_DEBUG7 = 0x17,
+	EVENT_CODE_DEBUG8 = 0x18,
+	EVENT_CODE_DEBUG9 = 0x19,
+	EVENT_CODE_DEBUG10 = 0x1A,
+	EVENT_CODE_DEBUG11 = 0x1B,
+	EVENT_CODE_DEBUG12 = 0x1C,
+	EVENT_CODE_DEBUG13 = 0x1D,
+	EVENT_CODE_DEBUG14 = 0x1E,
+	EVENT_CODE_DEBUG15 = 0x1F,
 
-    /**
-     * @brief An event fired by the renderer backend to indicate when any render targets
-     * associated with the default window resources need to be refreshed (i.e. a window resize)
-     */
-    EVENT_CODE_DEFAULT_RENDERTARGET_REFRESH_REQUIRED = 0x21,
+	/** @brief The hovered-over object id, if there is one.
+	 * Context usage:
+	 * i32 id = context.data.u32[0]; - will be INVALID ID if nothing is hovered over.
+	 */
+	EVENT_CODE_OBJECT_HOVER_ID_CHANGED = 0x20,
 
-    /**
-     * @brief An event fired by the kvar system when a kvar has been updated.
-     * Context usage:
-     * kvar_change* change = context.data.custom_data.data;
-     */
-    EVENT_CODE_KVAR_CHANGED = 0x22,
+	/**
+	 * @brief An event fired by the renderer backend to indicate when any render targets
+	 * associated with the default window resources need to be refreshed (i.e. a window resize)
+	 */
+	EVENT_CODE_DEFAULT_RENDERTARGET_REFRESH_REQUIRED = 0x21,
+
+	/**
+	 * @brief An event fired by the kvar system when a kvar has been updated.
+	 * Context usage:
+	 * kvar_change* change = context.data.custom_data.data;
+	 */
+	EVENT_CODE_KVAR_CHANGED = 0x22,
 
 #if KOHI_HOT_RELOAD
-    /**
-     * @brief An event fired from the asset system when a watched asset file has been written to.
-     * Context usage:
-     * u32 watch_id = context.data.u32[0];
-     * kasset* = sender;
-     */
-    EVENT_CODE_ASSET_HOT_RELOADED = 0x23,
+	/**
+	 * @brief An event fired from the asset system when a watched asset file has been written to.
+	 * Context usage:
+	 * u32 watch_id = context.data.u32[0];
+	 * kasset* = sender;
+	 */
+	EVENT_CODE_ASSET_HOT_RELOADED = 0x23,
 
-    /**
-     * @brief An event fired when a watched file has written to disk.
-     * Context usage:
-     * u32 watch_id = context.data.u32[0];
-     * vfs_asset_data* = sender
-     */
-    EVENT_CODE_VFS_FILE_WRITTEN_TO_DISK = 0x24,
+	/**
+	 * @brief An event fired when a watched file has written to disk.
+	 * Context usage:
+	 * u32 watch_id = context.data.u32[0];
+	 * vfs_asset_data* = sender
+	 */
+	EVENT_CODE_VFS_FILE_WRITTEN_TO_DISK = 0x24,
 
-    /**
-     * @brief An event fired when a watched file has been removed from disk.
-     * No asset data is included (obviously)
-     * Context usage:
-     * u32 watch_id = context.data.u32[0];
-     */
-    EVENT_CODE_VFS_FILE_DELETED_FROM_DISK = 0x25,
+	/**
+	 * @brief An event fired when a watched file has been removed from disk.
+	 * No asset data is included (obviously)
+	 * Context usage:
+	 * u32 watch_id = context.data.u32[0];
+	 */
+	EVENT_CODE_VFS_FILE_DELETED_FROM_DISK = 0x25,
 
 #endif
 
-    /**
-     * @brief An event fired while a button is being held down and the
-     * mouse is moved.
-     *
-     * Context usage:
-     * i16 x = context.data.i16[0]
-     * i16 y = context.data.i16[1]
-     * u16 button = context.data.u16[2]
-     */
-    EVENT_CODE_MOUSE_DRAGGED = 0x30,
+	/**
+	 * @brief An event fired while a button is being held down and the
+	 * mouse is moved.
+	 *
+	 * Context usage:
+	 * i16 x = context.data.i16[0]
+	 * i16 y = context.data.i16[1]
+	 * i16 delta_x = context.data.i16[2]
+	 * i16 delta_y = context.data.i16[3]
+	 * u16 button = context.data.u16[4]
+	 */
+	EVENT_CODE_MOUSE_DRAGGED = 0x30,
 
-    /**
-     * @brief An event fired when a button is pressed and a mouse movement
-     * is done while it is pressed.
-     *
-     * Context usage:
-     * i16 x = context.data.i16[0]
-     * i16 y = context.data.i16[1]
-     * u16 button = context.data.u16[2]
-     */
-    EVENT_CODE_MOUSE_DRAG_BEGIN = 0x31,
+	/**
+	 * @brief An event fired when a button is pressed and a mouse movement
+	 * is done while it is pressed.
+	 *
+	 * Context usage:
+	 * i16 x = context.data.i16[0]
+	 * i16 y = context.data.i16[1]
+	 * i16 delta_x = context.data.i16[2]
+	 * i16 delta_y = context.data.i16[3]
+	 * u16 button = context.data.u16[4]
+	 */
+	EVENT_CODE_MOUSE_DRAG_BEGIN = 0x31,
 
-    /**
-     * @brief An event fired when a button is released was previously dragging.
-     *
-     * Context usage:
-     * i16 x = context.data.i16[0]
-     * i16 y = context.data.i16[1]
-     * u16 button = context.data.u16[2]
-     */
-    EVENT_CODE_MOUSE_DRAG_END = 0x32,
+	/**
+	 * @brief An event fired when a button is released was previously dragging.
+	 *
+	 * Context usage:
+	 * i16 x = context.data.i16[0]
+	 * i16 y = context.data.i16[1]
+	 * i16 delta_x = context.data.i16[2]
+	 * i16 delta_y = context.data.i16[3]
+	 * u16 button = context.data.u16[4]
+	 */
+	EVENT_CODE_MOUSE_DRAG_END = 0x32,
 
-    /** @brief The maximum event code that can be used internally. */
-    MAX_EVENT_CODE = 0xFF
+	/**
+	 * @brief An event fired when an animation starts.
+	 *
+	 * Context usage:
+	 * kname animation_name = context.data.u64[0]
+	 */
+	EVENT_CODE_ANIMATION_STARTED = 0x33,
+
+	/**
+	 * @brief An event fired when an animation completes.
+	 *
+	 * Context usage:
+	 * kname animation_name = context.data.u64[0]
+	 */
+	EVENT_CODE_ANIMATION_COMPLETE = 0x34,
+
+	/**
+	 * @brief An event fired when an audio starts playing.
+	 *
+	 * Context usage:
+	 * kname animation_name = context.data.u64[0]
+	 */
+	EVENT_CODE_AUDIO_STARTED = 0x35,
+
+	/**
+	 * @brief An event fired when an audio completes.
+	 *
+	 * Context usage:
+	 * kaudio base = context.data.u16[0]
+	 * instance_id = context.data.u16[1]
+	 */
+	EVENT_CODE_AUDIO_COMPLETE = 0x36,
+
+	/** @brief The maximum event code that can be used internally. */
+	MAX_EVENT_CODE = 0xFF
 } system_event_code;

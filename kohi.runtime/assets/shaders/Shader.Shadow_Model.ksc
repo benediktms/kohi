@@ -1,0 +1,142 @@
+version = 1
+depth_test=true
+depth_write=true
+colour_read=false
+colour_write=false
+cull_mode="none"
+max_groups=256
+max_draw_ids=1024
+
+attachments = {
+	depth = {
+		name = "depth_buffer"
+		format = "D24"
+	}
+	stencil = {
+		name = "stencil_buffer"
+		format = "S8"
+	}
+}
+
+pipelines = [
+	{
+		name = "static geometry"
+		stages = [
+			{
+				type = "vertex"
+				source_asset_name = "Shader.Shadow_Model_vert"
+				package_name = "Kohi.Runtime"
+			}
+			{
+				type = "fragment"
+				source_asset_name = "Shader.Shadow_Model_frag"
+				package_name = "Kohi.Runtime"
+			}
+		]
+		attributes = [
+			{
+				name = "in_position"
+				type = "vec3"
+			}
+			{
+				name = "in_normal"
+				type = "vec3"
+			}
+			{
+				name = "in_texcoord"
+				type = "vec2"
+			}
+			{
+				name = "in_colour"
+				type = "vec4"
+			}
+			{
+				name = "in_tangent"
+				type = "vec4"
+			}
+		]
+	}	
+	{
+		name = "skinned geometry"
+		stages = [
+			{
+				type = "vertex"
+				source_asset_name = "Shader.Shadow_ModelSkinned_vert"
+				package_name = "Kohi.Runtime"
+			}
+			{
+				type = "fragment"
+				source_asset_name = "Shader.Shadow_Model_frag"
+				package_name = "Kohi.Runtime"
+			}
+		]
+		attributes = [
+			{
+				name = "in_position"
+				type = "vec3"
+			}
+			{
+				name = "in_normal"
+				type = "vec3"
+			}
+			{
+				name = "in_texcoord"
+				type = "vec2"
+			}
+			{
+				name = "in_colour"
+				type = "vec4"
+			}
+			{
+				name = "in_tangent"
+				type = "vec4"
+			}
+			{
+				name = "in_bone_ids"
+				type = "ivec4"
+			}
+			{
+				name = "in_weights"
+				type = "vec4"
+			}
+		]
+	}	
+]
+
+binding_sets = [
+    {
+        name = "shadow model global binding set"
+        max_instance_count = 1
+        bindings = [
+            {
+                name = "shadow model global UBO"
+                type = "UBO"
+                data_size = 256
+            }
+            {
+                name = "Kohi.StorageBuffer.TransformsGlobal"
+                type = "storage"
+            }
+            {
+                name = "Kohi.StorageBuffer.AnimationsGlobal"
+                type = "SSBO"
+            }
+        ]
+    }
+    {
+        name = "shadow model material binding set"
+        max_instance_count = 256
+        bindings = [
+            {
+                name = "base_colour_texture"
+                type = "texture"
+                texture_type = "2d"
+            }
+            {
+                name = "base_colour_sampler"
+                type = "sampler"
+                sampler_type = "2d"
+            }
+        ]
+    }
+]

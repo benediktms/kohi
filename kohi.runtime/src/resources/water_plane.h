@@ -1,24 +1,20 @@
 #pragma once
 
-#include "defines.h"
-#include "math/math_types.h"
-#include "systems/material_system.h"
+#include <core_render_types.h>
+#include <defines.h>
+#include <math/math_types.h>
 
 struct texture_map;
 
-typedef struct water_plane_vertex {
-    vec4 position;
-} water_plane_vertex;
-
 typedef struct water_plane {
-    mat4 model;
-    water_plane_vertex vertices[4];
-    u32 indices[6];
-    u64 index_buffer_offset;
-    u64 vertex_buffer_offset;
+	mat4 model;
+	vertex_3d vertices[4];
+	u32 indices[6];
+	u64 index_buffer_offset;
+	u64 vertex_buffer_offset;
 
-    // Instance of water material.
-    material_instance material;
+	// Instance of water material.
+	kmaterial_instance material;
 
 } water_plane;
 

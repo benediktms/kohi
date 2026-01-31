@@ -18,14 +18,14 @@
  * off of the stack only.
  */
 typedef struct stack {
-    /** @brief The element size in bytes.*/
-    u32 element_size;
-    /** @brief The current element count. */
-    u32 element_count;
-    /** @brief The total amount of currently-allocated memory.*/
-    u32 allocated;
-    /** @brief The allocated memory block. */
-    void* memory;
+	/** @brief The element size in bytes.*/
+	u32 element_size;
+	/** @brief The current element count. */
+	u32 element_count;
+	/** @brief The total amount of currently-allocated memory.*/
+	u32 allocated;
+	/** @brief The allocated memory block. */
+	void* memory;
 } stack;
 
 /**

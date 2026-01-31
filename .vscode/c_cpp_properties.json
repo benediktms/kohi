@@ -6,7 +6,7 @@
                 "${workspaceFolder}/kohi.core/src/**",
                 "${workspaceFolder}/kohi.runtime/src/**",
                 "${workspaceFolder}/kohi.plugin.renderer.vulkan/src/**",
-                "${workspaceFolder}/kohi.plugin.ui.standard/src/**",
+                "${workspaceFolder}/kohi.plugin.ui.kui/src/**",
                 "${workspaceFolder}/kohi.plugin.audio.openal/src/**",
                 "${workspaceFolder}/testbed.klib/src/**",
                 "${VULKAN_SDK}/include"
@@ -36,7 +36,7 @@
                 "${workspaceFolder}/kohi.core/src/**",
                 "${workspaceFolder}/kohi.runtime/src/**",
                 "${workspaceFolder}/kohi.plugin.renderer.vulkan/src/**",
-                "${workspaceFolder}/kohi.plugin.ui.standard/src/**",
+                "${workspaceFolder}/kohi.plugin.ui.kui/src/**",
                 "${workspaceFolder}/kohi.plugin.audio.openal/src/**",
                 "${workspaceFolder}/testbed.klib/src/**",
                 "${VULKAN_SDK}/include"
@@ -58,7 +58,7 @@
                 "${workspaceFolder}/kohi.core/src/**",
                 "${workspaceFolder}/kohi.runtime/src/**",
                 "${workspaceFolder}/kohi.plugin.renderer.vulkan/src/**",
-                "${workspaceFolder}/kohi.plugin.ui.standard/src/**",
+                "${workspaceFolder}/kohi.plugin.ui.kui/src/**",
                 "${workspaceFolder}/kohi.plugin.audio.openal/src/**",
                 "${workspaceFolder}/testbed.klib/src/**",
                 "${VULKAN_SDK}/include"

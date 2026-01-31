@@ -18,60 +18,62 @@
 #include "strings/kstring_id.h"
 
 typedef enum kson_token_type {
-    KSON_TOKEN_TYPE_UNKNOWN,
-    KSON_TOKEN_TYPE_WHITESPACE,
-    KSON_TOKEN_TYPE_COMMENT,
-    KSON_TOKEN_TYPE_IDENTIFIER,
-    KSON_TOKEN_TYPE_OPERATOR_EQUAL,
-    KSON_TOKEN_TYPE_OPERATOR_MINUS,
-    KSON_TOKEN_TYPE_OPERATOR_PLUS,
-    KSON_TOKEN_TYPE_OPERATOR_SLASH,
-    KSON_TOKEN_TYPE_OPERATOR_ASTERISK,
-    KSON_TOKEN_TYPE_OPERATOR_DOT,
-    KSON_TOKEN_TYPE_STRING_LITERAL,
-    KSON_TOKEN_TYPE_NUMERIC_LITERAL,
-    KSON_TOKEN_TYPE_BOOLEAN,
-    KSON_TOKEN_TYPE_CURLY_BRACE_OPEN,
-    KSON_TOKEN_TYPE_CURLY_BRACE_CLOSE,
-    KSON_TOKEN_TYPE_BRACKET_OPEN,
-    KSON_TOKEN_TYPE_BRACKET_CLOSE,
-    KSON_TOKEN_TYPE_NEWLINE,
-    KSON_TOKEN_TYPE_EOF
+	KSON_TOKEN_TYPE_UNKNOWN,
+	KSON_TOKEN_TYPE_WHITESPACE,
+	KSON_TOKEN_TYPE_COMMENT,
+	KSON_TOKEN_TYPE_IDENTIFIER,
+	KSON_TOKEN_TYPE_OPERATOR_EQUAL,
+	KSON_TOKEN_TYPE_OPERATOR_MINUS,
+	KSON_TOKEN_TYPE_OPERATOR_PLUS,
+	KSON_TOKEN_TYPE_OPERATOR_SLASH,
+	KSON_TOKEN_TYPE_OPERATOR_ASTERISK,
+	KSON_TOKEN_TYPE_OPERATOR_DOT,
+	KSON_TOKEN_TYPE_STRING_LITERAL,
+	KSON_TOKEN_TYPE_NUMERIC_LITERAL,
+	KSON_TOKEN_TYPE_BOOLEAN,
+	KSON_TOKEN_TYPE_CURLY_BRACE_OPEN,
+	KSON_TOKEN_TYPE_CURLY_BRACE_CLOSE,
+	KSON_TOKEN_TYPE_BRACKET_OPEN,
+	KSON_TOKEN_TYPE_BRACKET_CLOSE,
+	KSON_TOKEN_TYPE_NEWLINE,
+	KSON_TOKEN_TYPE_EOF
 } kson_token_type;
 
 typedef struct kson_token {
-    kson_token_type type;
-    u32 start;
-    u32 end;
+	kson_token_type type;
+	u32 start;
+	u32 end;
 #ifdef KOHI_DEBUG
-    const char* content;
+	const char* content;
 #endif
 } kson_token;
 
 typedef struct kson_parser {
-    const char* file_content;
-    u32 position;
+	const char* file_content;
+	u32 position;
+	u32 current_line;
+	u32 current_col;
 
-    // darray
-    kson_token* tokens;
+	// darray
+	kson_token* tokens;
 } kson_parser;
 
 typedef enum kson_property_type {
-    // TODO: Do we want to support undefined/null types. If so, pick one and just use that, no defining both.
-    KSON_PROPERTY_TYPE_UNKNOWN,
-    KSON_PROPERTY_TYPE_INT,
-    KSON_PROPERTY_TYPE_FLOAT,
-    KSON_PROPERTY_TYPE_STRING,
-    KSON_PROPERTY_TYPE_OBJECT,
-    KSON_PROPERTY_TYPE_ARRAY,
-    KSON_PROPERTY_TYPE_BOOLEAN,
+	// TODO: Do we want to support undefined/null types. If so, pick one and just use that, no defining both.
+	KSON_PROPERTY_TYPE_UNKNOWN,
+	KSON_PROPERTY_TYPE_INT,
+	KSON_PROPERTY_TYPE_FLOAT,
+	KSON_PROPERTY_TYPE_STRING,
+	KSON_PROPERTY_TYPE_OBJECT,
+	KSON_PROPERTY_TYPE_ARRAY,
+	KSON_PROPERTY_TYPE_BOOLEAN,
 } kson_property_type;
 
 struct kson_property;
 
 typedef enum kson_object_type {
-    KSON_OBJECT_TYPE_OBJECT,
-    KSON_OBJECT_TYPE_ARRAY
+	KSON_OBJECT_TYPE_OBJECT,
+	KSON_OBJECT_TYPE_ARRAY
 } kson_object_type;
 
 // An object which can contain properties. Objects
@@ -80,9 +82,9 @@ typedef enum kson_object_type {
 // difference: An object's properties are required to
 // be named, whereas array properties are unnamed.
 typedef struct kson_object {
-    kson_object_type type;
-    // darray
-    struct kson_property* properties;
+	kson_object_type type;
+	// darray
+	struct kson_property* properties;
 } kson_object;
 
 // An alias to represent kson arrays, which are really just
@@ -91,37 +93,44 @@ typedef kson_object kson_array;
 
 // Represents a property value for a kson property.
 typedef union kson_property_value {
-    // Signed 64-bit int value.
-    i64 i;
-    // 32-bit float value.
-    f32 f;
-    // String value.
-    const char* s;
-    // Array or object value.
-    kson_object o;
-    // Boolean value.
-    b8 b;
+	// Signed 64-bit int value.
+	i64 i;
+	// 32-bit float value.
+	f32 f;
+	// String value.
+	const char* s;
+	// Array or object value.
+	kson_object o;
+	// Boolean value.
+	b8 b;
 } kson_property_value;
 
 // Represents a singe property for a kson object or array.
 typedef struct kson_property {
-    // The type of property.
-    kson_property_type type;
-    // The name of the property. If this belongs to an array, it should be INVALID_KSTRING_ID.
-    kstring_id name;
+	// The type of property.
+	kson_property_type type;
+	// The name of the property. If this belongs to an array, it should be INVALID_KSTRING_ID.
+	kstring_id name;
 #ifdef KOHI_DEBUG
-    // The original named string. Only used in debug builds.
-    const char* name_str;
+	// The original named string. Only used in debug builds.
+	const char* name_str;
 #endif
-    // The property value.
-    kson_property_value value;
+	// The property value.
+	kson_property_value value;
 } kson_property;
 
 // Represents a hierarchy of kson objects.
 typedef struct kson_tree {
-    // The root object, which always must exist.
-    kson_object root;
+	// The root object, which always must exist.
+	kson_object root;
 } kson_tree;
+
+typedef struct kson_tree_to_string_options {
+	// Use tabs instead of spaces?
+	b8 use_tabs;
+	// Number of tabs/space characters per indent level.
+	u8 indent_count;
+} kson_tree_to_string_options;
 
 /**
  * @brief Gets the given property type as a constant string. NOTE: Caller should *NOT* attempt to free this string.
@@ -187,6 +196,15 @@ KAPI b8 kson_tree_from_string(const char* source, kson_tree* out_tree);
 KAPI const char* kson_tree_to_string(kson_tree* tree);
 
 /**
+ * Takes the provided kson_tree and writes it to a kson-formatted string using the provided options.
+ *
+ * @param tree A pointer to the kson_tree to use. Required.
+ * @param options Options to customize serialization.
+ * @returns A string on success; otherwise false.
+ */
+KAPI const char* kson_tree_to_string_with_options(kson_tree* tree, kson_tree_to_string_options options);
+
+/**
  * @brief Cleans up the given kson object and its properties recursively.
  *
  * @param obj A pointer to the object to be cleaned up. Required.
@@ -244,6 +262,15 @@ KAPI b8 kson_array_value_add_string(kson_array* array, const char* value);
  * @return True on success; otherwise false.
  */
 KAPI b8 kson_array_value_add_mat4(kson_array* array, mat4 value);
+
+/**
+ * @brief Adds an unnamed rect_2di value to the provided array.
+ *
+ * @param array A pointer to the array to add the property to.
+ * @param value The value to be set.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 kson_array_value_add_rect_2di(kson_array* array, rect_2di value);
 
 /**
  * @brief Adds an unnamed vec4 value to the provided array.
@@ -375,6 +402,16 @@ KAPI b8 kson_object_value_add_string(kson_object* object, const char* name, cons
  * @return True on success; otherwise false.
  */
 KAPI b8 kson_object_value_add_mat4(kson_object* object, const char* name, mat4 value);
+
+/**
+ * @brief Adds a named rect_2di value to the provided object.
+ *
+ * @param object A pointer to the object to add the property to.
+ * @param name A constant pointer to the name to be used. Required.
+ * @param value The value to be set.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 kson_object_value_add_rect_2di(kson_object* object, const char* name, rect_2di value);
 
 /**
  * @brief Adds a named vec4 value to the provided object.
@@ -539,6 +576,17 @@ KAPI b8 kson_array_element_value_get_string(const kson_array* array, u32 index, 
 KAPI b8 kson_array_element_value_get_mat4(const kson_array* array, u32 index, mat4* out_value);
 
 /**
+ * @brief Attempts to retrieve the array element's value at the provided index as a rect_2di. Fails if out of range
+ * or on type mismatch (these are stored as strings).
+ *
+ * @param array A constant pointer to the array to search. Required.
+ * @param index The array index to search for. Required.
+ * @param out_value A pointer to hold the object property's value.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 kson_array_element_value_get_rect_2di(const kson_array* array, u32 index, rect_2di* out_value);
+
+/**
  * @brief Attempts to retrieve the array element's value at the provided index as a vec4. Fails if out of range
  * or on type mismatch (these are stored as strings).
  *
@@ -700,6 +748,17 @@ KAPI b8 kson_object_property_value_get_string(const kson_object* object, const c
 KAPI b8 kson_object_property_value_get_mat4(const kson_object* object, const char* name, mat4* out_value);
 
 /**
+ * @brief Attempts to retrieve the given object's property value by name as a rect_2di. Fails if not found
+ * or on type mismatch (these are always stored as strings).
+ *
+ * @param object A constant pointer to the object to search. Required.
+ * @param name The property name to search for. Required.
+ * @param out_value A pointer to hold the object property's value.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 kson_object_property_value_get_rect_2di(const kson_object* object, const char* name, rect_2di* out_value);
+
+/**
  * @brief Attempts to retrieve the given object's property value by name as a vec4. Fails if not found
  * or on type mismatch (these are always stored as strings).
  *
@@ -731,6 +790,28 @@ KAPI b8 kson_object_property_value_get_vec3(const kson_object* object, const cha
  * @return True on success; otherwise false.
  */
 KAPI b8 kson_object_property_value_get_vec2(const kson_object* object, const char* name, vec2* out_value);
+
+/**
+ * @brief Attempts to retrieve the given object's property value by name as a extents_3d. Fails if not found
+ * or on type mismatch (these are always stored as an object containing min/max values as strings, i.e. {min = "x y z" max = "x y z"}).
+ *
+ * @param object A constant pointer to the object to search. Required.
+ * @param name The property name to search for. Required.
+ * @param out_value A pointer to hold the object property's value.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 kson_object_property_value_get_extents_3d(const kson_object* object, const char* name, extents_3d* out_value);
+
+/**
+ * @brief Attempts to retrieve the given object's property value by name as a extents_2d. Fails if not found
+ * or on type mismatch (these are always stored as an object containing min/max values as strings, i.e. {min = "x y" max = "x y"}).
+ *
+ * @param object A constant pointer to the object to search. Required.
+ * @param name The property name to search for. Required.
+ * @param out_value A pointer to hold the object property's value.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 kson_object_property_value_get_extents_2d(const kson_object* object, const char* name, extents_2d* out_value);
 
 /**
  * @brief Attempts to retrieve the given object's property value by name as a kname. Fails if not found

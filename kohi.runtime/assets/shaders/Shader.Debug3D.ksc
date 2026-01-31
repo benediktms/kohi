@@ -1,0 +1,66 @@
+version=1
+
+depth_test=true
+depth_write=true
+max_draw_ids = 256
+
+topology_types = [
+    "line_list"
+    "triangle_list"
+]
+
+attachments = {
+	colour = [
+		{
+			name = "colour_buffer"
+			format = "RGBA8"
+		}
+	]
+	depth = {
+		name = "depth_buffer"
+		format = "D24"
+	}
+	stencil = {
+		name = "stencil_buffer"
+		format = "S8"
+	}
+}
+
+pipelines = [
+	{
+		name = "static geometry"
+		stages = [
+			{
+				type = "vertex"
+				source_asset_name = "Shader.Debug3D_vert"
+				package_name = "Kohi.Runtime"
+			}
+			{
+				type = "fragment"
+				source_asset_name = "Shader.Debug3D_frag"
+				package_name = "Kohi.Runtime"
+			}
+		]
+		attributes = [
+			{
+				name = "in_position"
+				type = "vec4"
+			}
+		]
+	}
+]
+
+binding_sets = [
+    {
+        name = "Debug3D global binding set"
+        max_instance_count = 256
+        bindings = [
+            {
+                name = "Debug3D global UBO"
+                type = "UBO"
+                data_size = 128
+            }
+        ]
+    }
+]
+

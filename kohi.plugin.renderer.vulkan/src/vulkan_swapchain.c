@@ -1,19 +1,18 @@
 #include "vulkan_swapchain.h"
-#include "identifiers/khandle.h"
-#include "kresources/kresource_types.h"
-#include "platform/vulkan_platform.h"
-#include "vulkan_backend.h"
 
 #include <vulkan/vulkan_core.h>
 
+#include <core_render_types.h>
+#include <debug/kassert.h>
 #include <defines.h>
 #include <logger.h>
 #include <memory/kmemory.h>
 #include <platform/platform.h>
+#include <platform/vulkan_platform.h>
 #include <renderer/renderer_frontend.h>
 #include <renderer/renderer_types.h>
-#include <resources/resource_types.h>
 #include <strings/kstring.h>
+#include <systems/texture_system.h>
 #include <vulkan_device.h>
 #include <vulkan_types.h>
 #include <vulkan_utils.h>
@@ -22,279 +21,284 @@ static b8 create(renderer_backend_interface* backend, kwindow* window, renderer_
 static void destroy(renderer_backend_interface* backend, vulkan_swapchain* swapchain);
 
 b8 vulkan_swapchain_create(
-    struct renderer_backend_interface* backend,
-    kwindow* window,
-    renderer_config_flags flags,
-    vulkan_swapchain* out_swapchain) {
-    // Simply create a new one.
-    out_swapchain->swapchain_colour_texture = khandle_invalid();
-    return create(backend, window, flags, out_swapchain);
+	struct renderer_backend_interface* backend,
+	kwindow* window,
+	renderer_config_flags flags,
+	vulkan_swapchain* out_swapchain) {
+	// Simply create a new one.
+	out_swapchain->swapchain_colour_texture = INVALID_KTEXTURE;
+	return create(backend, window, flags, out_swapchain);
 }
 
 b8 vulkan_swapchain_recreate(
-    struct renderer_backend_interface* backend,
-    kwindow* window,
-    vulkan_swapchain* swapchain) {
-    // Destroy the old and create a new one.
-    destroy(backend, swapchain);
-    return create(backend, window, swapchain->flags, swapchain);
+	struct renderer_backend_interface* backend,
+	kwindow* window,
+	vulkan_swapchain* swapchain) {
+	// Destroy the old and create a new one.
+	destroy(backend, swapchain);
+	return create(backend, window, swapchain->flags, swapchain);
 }
 
 void vulkan_swapchain_destroy(renderer_backend_interface* backend, vulkan_swapchain* swapchain) {
-    destroy(backend, swapchain);
+	destroy(backend, swapchain);
 }
 
 static b8 create(renderer_backend_interface* backend, kwindow* window, renderer_config_flags flags, vulkan_swapchain* swapchain) {
-    vulkan_context* context = backend->internal_context;
-    krhi_vulkan* rhi = &context->rhi;
-    kwindow_renderer_state* window_internal = window->renderer_state;
-    kwindow_renderer_backend_state* window_backend = window_internal->backend_state;
+	vulkan_context* context = backend->internal_context;
+	krhi_vulkan* rhi = &context->rhi;
+	kwindow_renderer_state* window_internal = window->renderer_state;
+	kwindow_renderer_backend_state* window_backend = window_internal->backend_state;
 
-    VkExtent2D swapchain_extent = {window->width, window->height};
+	VkExtent2D swapchain_extent = {window->width, window->height};
 
-    // Requery swapchain support.
-    vulkan_device_query_swapchain_support(
-        context,
-        context->device.physical_device,
-        window_backend->surface,
-        &context->device.swapchain_support);
+	// Requery swapchain support.
+	vulkan_device_query_swapchain_support(
+		context,
+		context->device.physical_device,
+		window_backend->surface,
+		&context->device.swapchain_support);
 
-    // Choose a swap surface format.
-    b8 found = false;
-    for (u32 i = 0; i < context->device.swapchain_support.format_count; ++i) {
-        VkSurfaceFormatKHR format = context->device.swapchain_support.formats[i];
-        // Preferred formats
-        if (format.format == VK_FORMAT_B8G8R8A8_UNORM &&
-            format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
-            swapchain->image_format = format;
-            found = true;
-            break;
-        }
-    }
+	// Choose a swap surface format.
+	b8 found = false;
+	for (u32 i = 0; i < context->device.swapchain_support.format_count; ++i) {
+		VkSurfaceFormatKHR format = context->device.swapchain_support.formats[i];
+		// Preferred formats
+		if (format.format == VK_FORMAT_B8G8R8A8_UNORM &&
+			format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+			swapchain->image_format = format;
+			found = true;
+			break;
+		}
+	}
 
-    if (!found) {
-        swapchain->image_format = context->device.swapchain_support.formats[0];
-    }
+	if (!found) {
+		swapchain->image_format = context->device.swapchain_support.formats[0];
+	}
 
-    // Query swapchain image format properties to see if it can be a src/destination for blitting.
-    VkFormatProperties format_properties = {0};
-    rhi->kvkGetPhysicalDeviceFormatProperties(context->device.physical_device, swapchain->image_format.format, &format_properties);
-    swapchain->supports_blit_dest = (format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_BLIT_DST_BIT) != 0;
-    swapchain->supports_blit_src = (format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_BLIT_SRC_BIT) != 0;
-    KDEBUG("Swapchain image format %s be a blit destination.", swapchain->supports_blit_dest ? "CAN" : "CANNOT");
-    KDEBUG("Swapchain image format %s be a blit source.", swapchain->supports_blit_src ? "CAN" : "CANNOT");
+	// Query swapchain image format properties to see if it can be a src/destination for blitting.
+	VkFormatProperties format_properties = {0};
+	rhi->kvkGetPhysicalDeviceFormatProperties(context->device.physical_device, swapchain->image_format.format, &format_properties);
+	swapchain->supports_blit_dest = (format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_BLIT_DST_BIT) != 0;
+	swapchain->supports_blit_src = (format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_BLIT_SRC_BIT) != 0;
+	KDEBUG("Swapchain image format %s be a blit destination.", swapchain->supports_blit_dest ? "CAN" : "CANNOT");
+	KDEBUG("Swapchain image format %s be a blit source.", swapchain->supports_blit_src ? "CAN" : "CANNOT");
 
-    // FIFO and MAILBOX support vsync, IMMEDIATE does not.
-    swapchain->flags = flags;
-    VkPresentModeKHR present_mode;
-    if (flags & RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT) {
-        present_mode = VK_PRESENT_MODE_FIFO_KHR;
-        // Only try for mailbox mode if not in power-saving mode.
-        if ((flags & RENDERER_CONFIG_FLAG_POWER_SAVING_BIT) == 0) {
-            for (u32 i = 0; i < context->device.swapchain_support.present_mode_count; ++i) {
-                VkPresentModeKHR mode = context->device.swapchain_support.present_modes[i];
-                if (mode == VK_PRESENT_MODE_MAILBOX_KHR) {
-                    present_mode = mode;
-                    break;
-                }
-            }
-        }
-    } else {
-        present_mode = VK_PRESENT_MODE_IMMEDIATE_KHR;
-    }
+	// FIFO and MAILBOX support vsync, IMMEDIATE does not.
+	swapchain->flags = flags;
+	VkPresentModeKHR present_mode;
+	if (flags & RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT) {
+		present_mode = VK_PRESENT_MODE_FIFO_KHR;
+		// Only try for mailbox mode if not in power-saving mode.
+		if ((flags & RENDERER_CONFIG_FLAG_POWER_SAVING_BIT) == 0) {
+			for (u32 i = 0; i < context->device.swapchain_support.present_mode_count; ++i) {
+				VkPresentModeKHR mode = context->device.swapchain_support.present_modes[i];
+				if (mode == VK_PRESENT_MODE_MAILBOX_KHR) {
+					present_mode = mode;
+					break;
+				}
+			}
+		}
+	} else {
+		present_mode = VK_PRESENT_MODE_IMMEDIATE_KHR;
+	}
 
-    vulkan_swapchain_support_info* swapchain_support = &context->device.swapchain_support;
-    if (swapchain_support->format_count < 1 || swapchain_support->present_mode_count < 1) {
-        if (swapchain_support->formats) {
-            kfree(swapchain_support->formats, sizeof(VkSurfaceFormatKHR) * swapchain_support->format_count, MEMORY_TAG_RENDERER);
-        }
-        if (swapchain_support->present_modes) {
-            kfree(swapchain_support->present_modes, sizeof(VkPresentModeKHR) * swapchain_support->present_mode_count, MEMORY_TAG_RENDERER);
-        }
-        KINFO("Required swapchain support not present, skipping device.");
-        return false;
-    }
+	// Swapchain extent
+	if (context->device.swapchain_support.capabilities.currentExtent.width != U32_MAX) {
+		swapchain_extent = context->device.swapchain_support.capabilities.currentExtent;
+	}
 
-    // Swapchain extent
-    if (context->device.swapchain_support.capabilities.currentExtent.width != U32_MAX) {
-        swapchain_extent = context->device.swapchain_support.capabilities.currentExtent;
-    }
+	// Clamp to the value allowed by the GPU.
+	VkExtent2D min = context->device.swapchain_support.capabilities.minImageExtent;
+	VkExtent2D max = context->device.swapchain_support.capabilities.maxImageExtent;
+	swapchain_extent.width = KCLAMP(swapchain_extent.width, min.width, max.width);
+	swapchain_extent.height = KCLAMP(swapchain_extent.height, min.height, max.height);
 
-    // Clamp to the value allowed by the GPU.
-    VkExtent2D min = context->device.swapchain_support.capabilities.minImageExtent;
-    VkExtent2D max = context->device.swapchain_support.capabilities.maxImageExtent;
-    swapchain_extent.width = KCLAMP(swapchain_extent.width, min.width, max.width);
-    swapchain_extent.height = KCLAMP(swapchain_extent.height, min.height, max.height);
+	u32 image_count = context->device.swapchain_support.capabilities.minImageCount + 1;
+	if (context->device.swapchain_support.capabilities.maxImageCount > 0 && image_count > context->device.swapchain_support.capabilities.maxImageCount) {
+		image_count = context->device.swapchain_support.capabilities.maxImageCount;
+	}
 
-    u32 image_count = context->device.swapchain_support.capabilities.minImageCount + 1;
-    if (context->device.swapchain_support.capabilities.maxImageCount > 0 && image_count > context->device.swapchain_support.capabilities.maxImageCount) {
-        image_count = context->device.swapchain_support.capabilities.maxImageCount;
-    }
+	// Swapchain create info
+	VkSwapchainCreateInfoKHR swapchain_create_info = {VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR};
+	swapchain_create_info.surface = window_backend->surface;
+	swapchain_create_info.minImageCount = image_count;
+	swapchain_create_info.imageFormat = swapchain->image_format.format;
+	swapchain_create_info.imageColorSpace = swapchain->image_format.colorSpace;
+	swapchain_create_info.imageExtent = swapchain_extent;
+	swapchain_create_info.imageArrayLayers = 1;
+	swapchain_create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 
-    // Swapchain create info
-    VkSwapchainCreateInfoKHR swapchain_create_info = {VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR};
-    swapchain_create_info.surface = window_backend->surface;
-    swapchain_create_info.minImageCount = image_count;
-    swapchain_create_info.imageFormat = swapchain->image_format.format;
-    swapchain_create_info.imageColorSpace = swapchain->image_format.colorSpace;
-    swapchain_create_info.imageExtent = swapchain_extent;
-    swapchain_create_info.imageArrayLayers = 1;
-    swapchain_create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+	// Setup the queue family indices
+	if (context->device.graphics_queue_index != context->device.present_queue_index) {
+		u32 queueFamilyIndices[] = {
+			(u32)context->device.graphics_queue_index,
+			(u32)context->device.present_queue_index};
+		swapchain_create_info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+		swapchain_create_info.queueFamilyIndexCount = 2;
+		swapchain_create_info.pQueueFamilyIndices = queueFamilyIndices;
+	} else {
+		swapchain_create_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		swapchain_create_info.queueFamilyIndexCount = 0;
+		swapchain_create_info.pQueueFamilyIndices = 0;
+	}
 
-    // Setup the queue family indices
-    if (context->device.graphics_queue_index != context->device.present_queue_index) {
-        u32 queueFamilyIndices[] = {
-            (u32)context->device.graphics_queue_index,
-            (u32)context->device.present_queue_index};
-        swapchain_create_info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
-        swapchain_create_info.queueFamilyIndexCount = 2;
-        swapchain_create_info.pQueueFamilyIndices = queueFamilyIndices;
-    } else {
-        swapchain_create_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-        swapchain_create_info.queueFamilyIndexCount = 0;
-        swapchain_create_info.pQueueFamilyIndices = 0;
-    }
+	swapchain_create_info.preTransform = context->device.swapchain_support.capabilities.currentTransform;
+	swapchain_create_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+	swapchain_create_info.presentMode = present_mode;
+	swapchain_create_info.clipped = VK_TRUE;
+	swapchain_create_info.oldSwapchain = 0;
 
-    swapchain_create_info.preTransform = context->device.swapchain_support.capabilities.currentTransform;
-    swapchain_create_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-    swapchain_create_info.presentMode = present_mode;
-    swapchain_create_info.clipped = VK_TRUE;
-    swapchain_create_info.oldSwapchain = 0;
+	// Verify the swapchain creation.
+	VkResult result = rhi->kvkCreateSwapchainKHR(context->device.logical_device, &swapchain_create_info, context->allocator, &swapchain->handle);
+	if (!vulkan_result_is_success(result)) {
+		const char* result_str = vulkan_result_string(result, true);
+		KFATAL("Failed to create Vulkan swapchain with the error: '%s'.", result_str);
+		return false;
+	}
 
-    // Verify the swapchain creation.
-    VkResult result = rhi->kvkCreateSwapchainKHR(context->device.logical_device, &swapchain_create_info, context->allocator, &swapchain->handle);
-    if (!vulkan_result_is_success(result)) {
-        const char* result_str = vulkan_result_string(result, true);
-        KFATAL("Failed to create Vulkan swapchain with the error: '%s'.", result_str);
-        return false;
-    }
+	// Get image count from swapchain.
+	swapchain->image_count = 0;
+	result = rhi->kvkGetSwapchainImagesKHR(context->device.logical_device, swapchain->handle, &swapchain->image_count, 0);
+	if (!vulkan_result_is_success(result)) {
+		const char* result_str = vulkan_result_string(result, true);
+		KFATAL("Failed to obtain image count from Vulkan swapchain with the error: '%s'.", result_str);
+		return false;
+	}
 
-    // Start with an invalid handle.
-    // swapchain->swapchain_colour_texture = khandle_invalid();
+	// Get the actual images from swapchain.
+	VkImage swapchain_images[32];
+	result = rhi->kvkGetSwapchainImagesKHR(context->device.logical_device, swapchain->handle, &swapchain->image_count, swapchain_images);
+	if (!vulkan_result_is_success(result)) {
+		const char* result_str = vulkan_result_string(result, true);
+		KFATAL("Failed to obtain images from Vulkan swapchain with the error: '%s'.", result_str);
+		return false;
+	}
 
-    // Get image count from swapchain.
-    swapchain->image_count = 0;
-    result = rhi->kvkGetSwapchainImagesKHR(context->device.logical_device, swapchain->handle, &swapchain->image_count, 0);
-    if (!vulkan_result_is_success(result)) {
-        const char* result_str = vulkan_result_string(result, true);
-        KFATAL("Failed to obtain image count from Vulkan swapchain with the error: '%s'.", result_str);
-        return false;
-    }
+	// Swapchain images are stored in the backend data of the swapchain's colour texture.
+	// NOTE: The window should create a separate set of images to render to, then blit to these.
+	if (swapchain->swapchain_colour_texture == INVALID_KTEXTURE) {
 
-    // Get the actual images from swapchain.
-    VkImage swapchain_images[32];
-    result = rhi->kvkGetSwapchainImagesKHR(context->device.logical_device, swapchain->handle, &swapchain->image_count, swapchain_images);
-    if (!vulkan_result_is_success(result)) {
-        const char* result_str = vulkan_result_string(result, true);
-        KFATAL("Failed to obtain images from Vulkan swapchain with the error: '%s'.", result_str);
-        return false;
-    }
+		/* // If invalid, then a new one needs to be created. This does not reach out to the
+		// texture system to create this, but handles it internally instead. This is because
+		// the process for this varies greatly between backends.
+		if (!vulkan_renderer_texture_resources_acquire(
+				backend,
+				"__swapchain_colour_texture__",
+				KTEXTURE_TYPE_2D,
+				swapchain_extent.width,
+				swapchain_extent.height,
+				4,
+				1,
+				1,
+				// NOTE: This should be a wrapped texture, so the frontend does not try to
+				// acquire the resources we already have here.
+				KTEXTURE_FLAG_IS_WRAPPED | KTEXTURE_FLAG_IS_WRITEABLE | KTEXTURE_FLAG_RENDERER_BUFFERING,
+				&swapchain->swapchain_colour_texture)) {
+			KFATAL("Failed to acquire internal texture resources for swapchain colour texture.");
+			return false;
+		} */
 
-    // Swapchain images are stored in the backend data of the swapchain's colour texture.
-    // NOTE: The window should create a separate set of images to render to, then blit to these.
-    if (khandle_is_invalid(swapchain->swapchain_colour_texture)) {
-        // If invalid, then a new one needs to be created. This does not reach out to the
-        // texture system to create this, but handles it internally instead. This is because
-        // the process for this varies greatly between backends.
-        if (!vulkan_renderer_texture_resources_acquire(
-                backend,
-                "__swapchain_colour_texture__",
-                KTEXTURE_TYPE_2D,
-                swapchain_extent.width,
-                swapchain_extent.height,
-                4,
-                1,
-                1,
-                // NOTE: This should be a wrapped texture, so the frontend does not try to
-                // acquire the resources we already have here.
-                KTEXTURE_FLAG_IS_WRAPPED | KTEXTURE_FLAG_IS_WRITEABLE | KTEXTURE_FLAG_RENDERER_BUFFERING,
-                &swapchain->swapchain_colour_texture)) {
-            KFATAL("Failed to acquire internal texture resources for swapchain colour texture.");
-            return false;
-        }
-    }
+		ktexture_load_options options = {
+			.is_wrapped = true,
+			.multiframe_buffering = true,
+			.is_writeable = true,
+			.name = kname_create("__swapchain_colour_texture__"),
+			.type = KTEXTURE_TYPE_2D,
+			.width = swapchain_extent.width,
+			.height = swapchain_extent.height,
+			.format = KPIXEL_FORMAT_RGBA8,
+			.layer_count = 1,
+			.mip_levels = 1};
+		swapchain->swapchain_colour_texture = texture_acquire_with_options_sync(options);
+		KASSERT_DEBUG(swapchain->swapchain_colour_texture != INVALID_KTEXTURE);
+	}
 
-    // Get the texture_internal_data based on the existing or newly-created handle above.
-    // Use that to setup the internal images/views for the colourbuffer texture.
-    vulkan_texture_handle_data* texture_data = &context->textures[swapchain->swapchain_colour_texture.handle_index];
-    if (!texture_data) {
-        KFATAL("Unable to get internal data for swapchain colour image. Swapchain creation failed.");
-        return false;
-    }
+	// Get the texture_internal_data based on the existing or newly-created handle above.
+	// Use that to setup the internal images/views for the colourbuffer texture.
+	vulkan_texture_handle_data* texture_data = &context->textures[swapchain->swapchain_colour_texture];
+	if (!texture_data) {
+		KFATAL("Unable to get internal data for swapchain colour image. Swapchain creation failed.");
+		return false;
+	}
 
-    texture_data->image_count = swapchain->image_count;
-    texture_data->images = KALLOC_TYPE_CARRAY(vulkan_image, texture_data->image_count);
+	if (texture_data->image_count && texture_data->images) {
+		for (u32 i = 0; i < swapchain->image_count; ++i) {
+			vulkan_image* image = &texture_data->images[i];
+			string_free(image->name);
+			rhi->kvkDestroyImageView(context->device.logical_device, image->view, context->allocator);
+		}
+		KFREE_TYPE_CARRAY(texture_data->images, vulkan_image, swapchain->image_count);
+		texture_data->images = KNULL;
+	}
 
-    // Set initial parameters for each.
-    for (u32 i = 0; i < texture_data->image_count; ++i) {
-        vulkan_image* image = &texture_data->images[i];
+	texture_data->image_count = swapchain->image_count;
+	texture_data->images = KALLOC_TYPE_CARRAY(vulkan_image, texture_data->image_count);
 
-        // Construct a unique name for each image.
-        image->name = string_format("__internal_vulkan_swapchain_image_%u__", i);
+	// Set initial parameters for each.
+	for (u32 i = 0; i < texture_data->image_count; ++i) {
+		vulkan_image* image = &texture_data->images[i];
 
-        // Set initial parameters for each.
-        image->memory_flags = 0; // Doesn't really apply anyway/not needed.
-        image->mip_levels = 1;
-        image->format = swapchain->image_format.format;
-        image->layer_count = 1;
-        image->layer_views = 0;
-    }
+		// Construct a unique name for each image.
+		image->name = string_format("__internal_vulkan_swapchain_image_%u__", i);
 
-    // Update the parameters and setup a view for each image.
-    for (u32 i = 0; i < texture_data->image_count; ++i) {
-        vulkan_image* image = &texture_data->images[i];
+		// Set initial parameters for each.
+		image->memory_flags = 0; // Doesn't really apply anyway/not needed.
+		image->mip_levels = 1;
+		image->format = swapchain->image_format.format;
+		image->layer_count = 1;
+		image->layer_views = 0;
 
-        // Update the internal handle and dimensions.
-        image->handle = swapchain_images[i];
-        image->width = swapchain_extent.width;
-        image->height = swapchain_extent.height;
-        image->format = swapchain->image_format.format; // Technically possible that the format changes...
-        // Setup a debug name for the image.
-        VK_SET_DEBUG_OBJECT_NAME(context, VK_OBJECT_TYPE_IMAGE, image->handle, image->name);
+		// Update the internal handle and dimensions.
+		image->handle = swapchain_images[i];
+		image->width = swapchain_extent.width;
+		image->height = swapchain_extent.height;
+		// Setup a debug name for the image.
+		VK_SET_DEBUG_OBJECT_NAME(context, VK_OBJECT_TYPE_IMAGE, image->handle, image->name);
 
-        // Create the view for this image.
-        VkImageViewCreateInfo view_create_info = {VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
-        view_create_info.image = image->handle;
-        view_create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
-        view_create_info.format = swapchain->image_format.format;
-        image->view_subresource_range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT; // | VK_IMAGE_USAGE_SAMPLED_BIT;
-        image->view_subresource_range.baseMipLevel = 0;
-        image->view_subresource_range.levelCount = 1;
-        image->view_subresource_range.baseArrayLayer = 0;
-        image->view_subresource_range.layerCount = 1;
-        view_create_info.subresourceRange = image->view_subresource_range;
+		// Create the view for this image.
+		VkImageViewCreateInfo view_create_info = {VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
+		view_create_info.image = image->handle;
+		view_create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+		view_create_info.format = swapchain->image_format.format;
+		image->view_subresource_range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT; // | VK_IMAGE_USAGE_SAMPLED_BIT;
+		image->view_subresource_range.baseMipLevel = 0;
+		image->view_subresource_range.levelCount = 1;
+		image->view_subresource_range.baseArrayLayer = 0;
+		image->view_subresource_range.layerCount = 1;
+		view_create_info.subresourceRange = image->view_subresource_range;
 
-        VK_CHECK(rhi->kvkCreateImageView(context->device.logical_device, &view_create_info, context->allocator, &image->view));
-    }
+		VK_CHECK(rhi->kvkCreateImageView(context->device.logical_device, &view_create_info, context->allocator, &image->view));
+	}
 
-    KINFO("Swapchain created successfully.");
-    return true;
+	KINFO("Swapchain created successfully.");
+	return true;
 }
 
 static void destroy(renderer_backend_interface* backend, vulkan_swapchain* swapchain) {
-    vulkan_context* context = backend->internal_context;
-    krhi_vulkan* rhi = &context->rhi;
+	vulkan_context* context = backend->internal_context;
+	krhi_vulkan* rhi = &context->rhi;
 
-    if (khandle_is_invalid(swapchain->swapchain_colour_texture)) {
-        KFATAL("Swapchain internal colour texture has an invalid handle.");
-    }
+	if (swapchain->swapchain_colour_texture == INVALID_KTEXTURE) {
+		KFATAL("Swapchain internal colour texture has an invalid handle.");
+	}
 
-    vulkan_texture_handle_data* texture_data = &context->textures[swapchain->swapchain_colour_texture.handle_index];
-    if (!texture_data) {
-        KFATAL("Unable to get internal data for colourbuffer image. Swapchain destruction failed.");
-        return;
-    }
+	vulkan_texture_handle_data* texture_data = &context->textures[swapchain->swapchain_colour_texture];
+	if (!texture_data) {
+		KFATAL("Unable to get internal data for colourbuffer image. Swapchain destruction failed.");
+		return;
+	}
 
-    rhi->kvkDeviceWaitIdle(context->device.logical_device);
+	rhi->kvkDeviceWaitIdle(context->device.logical_device);
 
-    // Only destroy the colourbuffer views, not the images, since those are owned by the swapchain and are thus
-    // destroyed when it is.
-    for (u32 i = 0; i < swapchain->image_count; ++i) {
-        vulkan_image* image = &texture_data->images[i];
-        rhi->kvkDestroyImageView(context->device.logical_device, image->view, context->allocator);
-    }
-    KFREE_TYPE_CARRAY(texture_data->images, vulkan_image, swapchain->image_count);
-    texture_data->images = 0;
+	// Only destroy the colourbuffer views, not the images, since those are owned by the swapchain and are thus
+	// destroyed when it is.
+	for (u32 i = 0; i < swapchain->image_count; ++i) {
+		vulkan_image* image = &texture_data->images[i];
+		string_free(image->name);
+		rhi->kvkDestroyImageView(context->device.logical_device, image->view, context->allocator);
+	}
+	KFREE_TYPE_CARRAY(texture_data->images, vulkan_image, swapchain->image_count);
+	texture_data->images = KNULL;
 
-    rhi->kvkDestroySwapchainKHR(context->device.logical_device, swapchain->handle, context->allocator);
+	rhi->kvkDestroySwapchainKHR(context->device.logical_device, swapchain->handle, context->allocator);
 }

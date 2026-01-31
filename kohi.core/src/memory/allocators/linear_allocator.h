@@ -23,17 +23,17 @@
  * @brief The data structure for a linear allocator.
  */
 typedef struct linear_allocator {
-    /** @brief The total size of memory in the allocator. */
-    u64 total_size;
-    /** @brief The amount of memory currently allocated. */
-    u64 allocated;
-    /** @brief The internal block of memory used by the allocator. */
-    void* memory;
-    /**
-     * @brief Indicates if the allocator owns the memory (meaning it
-     * performed the allocation itself) or whether it was provided by an outside source.
-     */
-    b8 owns_memory;
+	/** @brief The total size of memory in the allocator. */
+	u64 total_size;
+	/** @brief The amount of memory currently allocated. */
+	u64 allocated;
+	/** @brief The internal block of memory used by the allocator. */
+	void* memory;
+	/**
+	 * @brief Indicates if the allocator owns the memory (meaning it
+	 * performed the allocation itself) or whether it was provided by an outside source.
+	 */
+	b8 owns_memory;
 } linear_allocator;
 
 /**

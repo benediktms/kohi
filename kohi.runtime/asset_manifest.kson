@@ -11,8 +11,28 @@ assets = [
         path = "assets/shaders/Shader.Colour3D_frag.glsl"
     }
     {
+        name = "Shader.Depth_Prepass"
+        path = "assets/shaders/Shader.Depth_Prepass.ksc"
+    }
+    {
+        name = "Shader.Depth_Prepass_vert"
+        path = "assets/shaders/Shader.Depth_Prepass_vert.glsl"
+    }
+    {
         name = "Shader.Colour3D_vert"
         path = "assets/shaders/Shader.Colour3D_vert.glsl"
+    }
+    {
+        name = "Shader.Debug3D"
+        path = "assets/shaders/Shader.Debug3D.ksc"
+    }
+    {
+        name = "Shader.Debug3D_vert"
+        path = "assets/shaders/Shader.Debug3D_vert.glsl"
+    }
+    {
+        name = "Shader.Debug3D_frag"
+        path = "assets/shaders/Shader.Debug3D_frag.glsl"
     }
     {
         name = "Shader.MaterialStandard_frag"
@@ -21,6 +41,10 @@ assets = [
     {
         name = "Shader.MaterialStandard_vert"
         path = "assets/shaders/Shader.MaterialStandard_vert.glsl"
+    }
+    {
+        name = "Shader.MaterialStandardSkinned_vert"
+        path = "assets/shaders/Shader.MaterialStandardSkinned_vert.glsl"
     }
     {
         name = "Shader.PBR_Terrain"
@@ -35,40 +59,20 @@ assets = [
         path = "assets/shaders/Shader.PBR_Terrain_vert.glsl"
     }
     {
-        name = "Shader.Pick_StaticMesh"
-        path = "assets/shaders/Shader.Pick_StaticMesh.ksc"
+        name = "Shader.Shadow_Model"
+        path = "assets/shaders/Shader.Shadow_Model.ksc"
     }
     {
-        name = "Shader.Pick_StaticMesh_frag"
-        path = "assets/shaders/Shader.Pick_StaticMesh_frag.glsl"
+        name = "Shader.Shadow_Model_frag"
+        path = "assets/shaders/Shader.Shadow_Model_frag.glsl"
     }
     {
-        name = "Shader.Pick_StaticMesh_vert"
-        path = "assets/shaders/Shader.Pick_StaticMesh_vert.glsl"
+        name = "Shader.Shadow_Model_vert"
+        path = "assets/shaders/Shader.Shadow_Model_vert.glsl"
     }
     {
-        name = "Shader.Pick_Terrain"
-        path = "assets/shaders/Shader.Pick_Terrain.ksc"
-    }
-    {
-        name = "Shader.Pick_Terrain_frag"
-        path = "assets/shaders/Shader.Pick_Terrain_frag.glsl"
-    }
-    {
-        name = "Shader.Pick_Terrain_vert"
-        path = "assets/shaders/Shader.Pick_Terrain_vert.glsl"
-    }
-    {
-        name = "Shader.Shadow_StaticMesh"
-        path = "assets/shaders/Shader.Shadow_StaticMesh.ksc"
-    }
-    {
-        name = "Shader.Shadow_StaticMesh_frag"
-        path = "assets/shaders/Shader.Shadow_StaticMesh_frag.glsl"
-    }
-    {
-        name = "Shader.Shadow_StaticMesh_vert"
-        path = "assets/shaders/Shader.Shadow_StaticMesh_vert.glsl"
+        name = "Shader.Shadow_ModelSkinned_vert"
+        path = "assets/shaders/Shader.Shadow_ModelSkinned_vert.glsl"
     }
     {
         name = "Shader.Shadow_Terrain"
@@ -93,14 +97,6 @@ assets = [
     {
         name = "Shader.Skybox_vert"
         path = "assets/shaders/Shader.Skybox_vert.glsl"
-    }
-    {
-        name = "Shader.MaterialWater_frag"
-        path = "assets/shaders/Shader.MaterialWater_frag.glsl"
-    }
-    {
-        name = "Shader.MaterialWater_vert"
-        path = "assets/shaders/Shader.MaterialWater_vert.glsl"
     }
     {
         name = "Texture.DefaultWaterDUDV"
@@ -139,6 +135,14 @@ assets = [
     {
         name = "Binary.SystemFont.NotoSansCJK-Regular"
         path = "./assets/fonts/Binary.SystemFont.NotoSansCJK-Regular.ttc"
+    }
+    {
+        name = "SystemFont.NotoSansCJK-Bold"
+        path = "./assets/fonts/SystemFont.NotoSansCJK-Bold.ksf"
+    }
+    {
+        name = "Binary.SystemFont.NotoSansCJK-Bold"
+        path = "./assets/fonts/Binary.SystemFont.NotoSansCJK-Bold.ttc"
     }
     {
         name = "SystemFont.UbuntuMono"

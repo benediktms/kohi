@@ -1,30 +1,29 @@
 #pragma once
 
-#include "kresources/kresource_types.h"
-#include "math/geometry.h"
+#include <core_render_types.h>
+#include <math/geometry.h>
 
 typedef struct skybox_config {
-    /** @brief The name of the cubemap to be used for the skybox. */
-    kname cubemap_name;
+	/** @brief The name of the cubemap to be used for the skybox. */
+	kname cubemap_name;
 } skybox_config;
 
 typedef enum skybox_state {
-    SKYBOX_STATE_UNDEFINED,
-    SKYBOX_STATE_CREATED,
-    SKYBOX_STATE_INITIALIZED,
-    SKYBOX_STATE_LOADING,
-    SKYBOX_STATE_LOADED
+	SKYBOX_STATE_UNDEFINED,
+	SKYBOX_STATE_CREATED,
+	SKYBOX_STATE_INITIALIZED,
+	SKYBOX_STATE_LOADING,
+	SKYBOX_STATE_LOADED
 } skybox_state;
 
 typedef struct skybox {
-    skybox_state state;
+	skybox_state state;
 
-    kname cubemap_name;
-    ktexture cubemap;
+	kname cubemap_name;
+	ktexture cubemap;
 
-    kgeometry geometry;
-    u32 group_id;
-    u32 draw_id;
+	kgeometry geometry;
+	u32 shader_set0_instance_id;
 } skybox;
 
 /**

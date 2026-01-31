@@ -11,13 +11,13 @@ struct kwindow_config;
  * @brief Configuration for an application runtime plugin.
  */
 typedef struct application_plugin_config {
-    /** @brief The name of the plugin */
-    const char* name;
-    /**
-     * @brief The configuration of the plugin in string format, to be parsed by the plugin itself.
-     * Can be 0/null if not required by the plugin.
-     * */
-    const char* configuration_str;
+	/** @brief The name of the plugin */
+	const char* name;
+	/**
+	 * @brief The configuration of the plugin in string format, to be parsed by the plugin itself.
+	 * Can be 0/null if not required by the plugin.
+	 * */
+	const char* configuration_str;
 } application_plugin_config;
 
 /**
@@ -26,18 +26,11 @@ typedef struct application_plugin_config {
  * is provided here in string format. Systems not requiring config can simply not set this.
  */
 typedef struct application_system_config {
-    /** The name of the system */
-    const char* name;
-    /** @brief The configuration of the system in string format, to be parsed by the system iteself. */
-    const char* configuration_str;
+	/** The name of the system */
+	const char* name;
+	/** @brief The configuration of the system in string format, to be parsed by the system iteself. */
+	const char* configuration_str;
 } application_system_config;
-
-typedef struct application_rendergraph_config {
-    /** @brief The name of the rendergraph. */
-    const char* name;
-    /** @brief The configuration of the rendergraph in string format, to be parsed by the rendergraph system. */
-    const char* configuration_str;
-} application_rendergraph_config;
 
 /**
  * @brief Represents configuration for the application. The application config
@@ -45,35 +38,29 @@ typedef struct application_rendergraph_config {
  */
 typedef struct application_config {
 
-    /** @brief The application name used in windowing, if applicable. */
-    const char* name;
+	/** @brief The application name used in windowing, if applicable. */
+	const char* name;
 
-    /** @brief The name of the audio plugin. Must match one of the plugins in the supplied list. */
-    const char* audio_plugin_name;
+	/** @brief The name of the audio plugin. Must match one of the plugins in the supplied list. */
+	const char* audio_plugin_name;
 
-    // darray of window configurations for the application.
-    struct kwindow_config* windows;
+	// darray of window configurations for the application.
+	struct kwindow_config* windows;
 
-    // darray of configurations for core engine systems.
-    application_system_config* systems;
+	// darray of configurations for core engine systems.
+	application_system_config* systems;
 
-    // darray of rendergraph configurations.
-    application_rendergraph_config* rendergraphs;
+	/** @brief The size of the engine's frame allocator. */
+	u64 frame_allocator_size;
 
-    /** @brief The size of the engine's frame allocator. */
-    u64 frame_allocator_size;
+	/** @brief The size of the application-specific frame data. Set to 0 if not used. */
+	u64 app_frame_data_size;
 
-    /** @brief The size of the application-specific frame data. Set to 0 if not used. */
-    u64 app_frame_data_size;
+	/** @brief The asset manifest file path. */
+	const char* manifest_file_path;
 
-    /** @brief The asset manifest file path. */
-    const char* manifest_file_path;
-
-    /** @brief The name of the default package to be used when loading assets, if one is not provided. */
-    const char* default_package_name_str;
-
-    /** @brief The name of the default package to be used when loading assets, if one is not provided. */
-    kname default_package_name;
+	/** @brief The name of the default package to be used when loading assets, if one is not provided. */
+	kname default_package_name;
 } application_config;
 
 /**
@@ -85,6 +72,8 @@ typedef struct application_config {
  * @returns True on success; otherwise false.
  */
 KAPI b8 application_config_parse_file_content(const char* file_content, application_config* out_config);
+
+KAPI void application_config_destroy(application_config* config);
 
 /**
  * @brief Attempts to get the generic-level configuration for the system with the provided name.

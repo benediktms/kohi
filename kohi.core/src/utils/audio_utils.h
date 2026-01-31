@@ -59,4 +59,4 @@ KAPI f32 calculate_spatial_gain(f32 distance, f32 inner_radius, f32 outer_radius
  *
  * @returns A dynamically-allocated array of downmixed mono data on success; otherwise 0/null.
  */
-KAPI i16* kaudio_downmix_stereo_to_mono(const i16* stereo_data, u32 sample_count) ;
+KAPI i16* kaudio_downmix_stereo_to_mono(const i16* stereo_data, u32 sample_count);

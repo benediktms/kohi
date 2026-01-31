@@ -1,7 +1,6 @@
 #pragma once
 
 #include <defines.h>
-#include <identifiers/khandle.h>
 #include <math/math_types.h>
 #include <strings/kname.h>
 
@@ -17,6 +16,9 @@
 struct kaudio_system_state;
 struct frame_data;
 
+typedef u16 kaudio_emitter;
+#define KAUDIO_EMITTER_INVALID INVALID_ID_U16
+
 b8 kaudio_system_initialize(u64* memory_requirement, void* memory, const char* config_str);
 void kaudio_system_shutdown(struct kaudio_system_state* state);
 
@@ -24,6 +26,10 @@ void kaudio_system_shutdown(struct kaudio_system_state* state);
  * @brief Updates the audio system. Should happen once an update cycle.
  */
 b8 kaudio_system_update(struct kaudio_system_state* state, struct frame_data* p_frame_data);
+
+// To be invoked by the audio plugin when a non-looping audio has completed play.
+// Should not be called anywhere except by the plugin.
+KAPI void _kaudio_system_play_completed(struct kaudio_system_state* state, kaudio audio, u16 instance_id);
 
 /**
  * Sets the orientation of the listener. Typically linked to the current camera in the world.
@@ -37,6 +43,10 @@ KAPI void kaudio_system_listener_orientation_set(struct kaudio_system_state* sta
 KAPI void kaudio_master_volume_set(struct kaudio_system_state* state, f32 volume);
 KAPI f32 kaudio_system_master_volume_get(struct kaudio_system_state* state);
 
+// Preloads audio only, does not create instance.
+KAPI kaudio kaudio_preload(struct kaudio_system_state* state, kname asset_name, b8 is_streaming);
+KAPI kaudio kaudio_preload_from_package(struct kaudio_system_state* state, kname asset_name, kname package_name, b8 is_streaming);
+KAPI kaudio_instance kaudio_acquire_from_base(struct kaudio_system_state* state, kaudio base, kaudio_space audio_space);
 KAPI kaudio_instance kaudio_acquire(struct kaudio_system_state* state, kname asset_name, b8 is_streaming, kaudio_space audio_space);
 KAPI kaudio_instance kaudio_acquire_from_package(struct kaudio_system_state* state, kname asset_name, kname package_name, b8 is_streaming, kaudio_space audio_space);
 KAPI void kaudio_release(struct kaudio_system_state* state, kaudio_instance* instance);
@@ -97,10 +107,8 @@ KAPI f32 kaudio_channel_volume_get(struct kaudio_system_state* state, u8 channel
  */
 KAPI b8 kaudio_channel_volume_set(struct kaudio_system_state* state, u8 channel_index, f32 volume);
 
-KAPI b8 kaudio_emitter_create(struct kaudio_system_state* state, f32 inner_radius, f32 outer_radius, f32 volume, f32 falloff, b8 is_looping, b8 is_streaming, kname audio_resource_name, kname package_name, khandle* out_emitter);
+KAPI b8 kaudio_emitter_create(struct kaudio_system_state* state, f32 inner_radius, f32 outer_radius, f32 volume, f32 falloff, b8 is_looping, b8 is_streaming, kname audio_resource_name, kname package_name, kaudio_emitter* out_emitter);
 
-KAPI b8 kaudio_emitter_load(struct kaudio_system_state* state, khandle emitter);
+KAPI b8 kaudio_emitter_destroy(struct kaudio_system_state* state, kaudio_emitter* emitter);
 
-KAPI b8 kaudio_emitter_unload(struct kaudio_system_state* state, khandle emitter_handle);
-
-KAPI b8 kaudio_emitter_world_position_set(struct kaudio_system_state* state, khandle emitter_handle, vec3 world_position);
+KAPI b8 kaudio_emitter_world_position_set(struct kaudio_system_state* state, kaudio_emitter emitter_handle, vec3 world_position);

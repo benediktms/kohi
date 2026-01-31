@@ -1,0 +1,19 @@
+// Font configuration file
+version=1
+ttf_asset_name="Binary.SystemFont.NotoSansCJK-Bold"
+ttf_asset_package_name = "Kohi.Runtime"
+// Font faces provide names for each index, which are loaded into a lookup table.
+// Doing this because the way names are stored in the file can vary wildly and be 
+// somewhat unpredictable, if even provided in the first place.
+faces = [
+    "Noto Sans CJK JP, Bold"
+    "Noto Sans CJK KR Bold"
+    "Noto Sans CJK SC Bold"
+    "Noto Sans CJK TC Bold"
+    "Noto Sans CJK HK Bold"
+    "Noto Sans Mono CJK JP Bold"
+    "Noto Sans Mono CJK KR Bold"
+    "Noto Sans Mono CJK SC Bold"
+    "Noto Sans Mono CJK TC Bold"
+    "Noto Sans Mono CJK HK Bold"
+]

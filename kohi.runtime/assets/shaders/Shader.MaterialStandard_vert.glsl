@@ -2,93 +2,32 @@
 
 // TODO: All these types should be defined in some #include file when #includes are implemented.
 
-const uint MATERIAL_MAX_SHADOW_CASCADES = 4;
-const uint MATERIAL_MAX_POINT_LIGHTS = 10;
-const uint MATERIAL_MAX_VIEWS = 4;
+const uint KMATERIAL_UBO_MAX_SHADOW_CASCADES = 4;
+const uint KMATERIAL_UBO_MAX_VIEWS = 16;
+const uint KMATERIAL_UBO_MAX_PROJECTIONS = 4;
 
-// Option indices
-const uint MAT_OPTION_IDX_RENDER_MODE = 0;
-const uint MAT_OPTION_IDX_USE_PCF = 1;
-const uint MAT_OPTION_IDX_UNUSED_0 = 2;
-const uint MAT_OPTION_IDX_UNUSED_1 = 3;
+const uint KANIMATION_SSBO_MAX_BONES_PER_MESH = 64;
 
-// Param indices
-const uint MAT_PARAM_IDX_SHADOW_BIAS = 0;
-const uint MAT_PARAM_IDX_DELTA_TIME = 1;
-const uint MAT_PARAM_IDX_GAME_TIME = 2;
-const uint MAT_PARAM_IDX_UNUSED_0 = 3;
-
-struct directional_light {
+struct light_data {
+    // Directional light: .rgb = colour, .w = ignored - Point lights: .rgb = colour, .a = linear 
     vec4 colour;
-    vec4 direction;
-    float shadow_distance;
-    float shadow_fade_distance;
-    float shadow_split_mult;
-    float padding;
-};
-
-struct point_light {
-    vec4 colour;
+    // Directional Light: .xyz = direction, .w = ignored - Point lights: .xyz = position, .w = quadratic
     vec4 position;
-    // Usually 1, make sure denominator never gets smaller than 1
-    float constant_f;
-    // Reduces light intensity linearly
-    float linear;
-    // Makes the light fall off slower at longer distances.
-    float quadratic;
-    float padding;
 };
 
-/** 
- * Used to convert from NDC -> UVW by taking the x/y components and transforming them:
- * 
- *   xy *= 0.5 + 0.5
- */
-const mat4 ndc_to_uvw = mat4( 
-	0.5, 0.0, 0.0, 0.0,
-	0.0, 0.5, 0.0, 0.0,
-	0.0, 0.0, 1.0, 0.0,
-	0.5, 0.5, 0.0, 1.0 
-);
-
-// =========================================================
-// Inputs
-// =========================================================
-
-// Vertex inputs
-layout(location = 0) in vec3 in_position;
-layout(location = 1) in vec3 in_normal;
-layout(location = 2) in vec2 in_texcoord;
-layout(location = 3) in vec4 in_colour;
-layout(location = 4) in vec4 in_tangent;
-
-// per-frame
-layout(std140, set = 0, binding = 0) uniform per_frame_ubo {
-    // Light space for shadow mapping. Per cascade
-    mat4 directional_light_spaces[MATERIAL_MAX_SHADOW_CASCADES]; // 256 bytes
-    mat4 views[MATERIAL_MAX_VIEWS];
-    mat4 projection;
-    vec4 view_positions[MATERIAL_MAX_VIEWS];
-    vec4 cascade_splits;// TODO: support for something other than 4[MATERIAL_MAX_SHADOW_CASCADES];
-
-    // [shadow_bias, delta_time, game_time, padding]
-    vec4 params;
-    // [render_mode, use_pcf, padding, padding]
-    uvec4 options;
-    vec4 padding;  // 16 bytes
-} material_frame_ubo;
-
-// per-group
-layout(set = 1, binding = 0) uniform per_group_ubo {
-    directional_light dir_light;            // 48 bytes
-    point_light p_lights[MATERIAL_MAX_POINT_LIGHTS]; // 48 bytes each
-    uint num_p_lights;
+struct base_material_data {
+    uint metallic_texture_channel;
+    uint roughness_texture_channel;
+    uint ao_texture_channel;
     /** @brief The material lighting model. */
     uint lighting_model;
+
     // Base set of flags for the material. Copied to the material instance when created.
     uint flags;
     // Texture use flags
     uint tex_flags;
+    float refraction_scale;
+    uint material_type; // 0 = standard, 1 = water
 
     vec4 base_colour;
     vec4 emissive;
@@ -103,24 +42,103 @@ layout(set = 1, binding = 0) uniform per_group_ubo {
     // Multiplied against uv coords of vertex data. Overridden by instance data.
     vec3 uv_scale;
     float emissive_texture_intensity;
+};
 
-    float refraction_scale;
-    // Packed texture channels for various maps requiring it.
-    uint texture_channels; // [metallic, roughness, ao, unused]
-    vec2 padding;
-    vec4 padding2;
-    vec4 padding3;
-    vec4 padding4;
-} material_group_ubo;
+struct animation_skin_data {
+    mat4 bones[KANIMATION_SSBO_MAX_BONES_PER_MESH];
+};
 
-// per-draw
-layout(push_constant) uniform per_draw_ubo {
-    mat4 model;
-    vec4 clipping_plane;
+// =========================================================
+// Inputs
+// =========================================================
+
+// Vertex inputs
+
+// Standard vertex data
+layout(location = 0) in vec3 in_position;
+layout(location = 1) in vec3 in_normal;
+layout(location = 2) in vec2 in_texcoord;
+layout(location = 3) in vec4 in_colour;
+layout(location = 4) in vec4 in_tangent;
+
+// Binding Set 0
+
+// Global settings for the scene.
+layout(std140, set = 0, binding = 0) uniform kmaterial_settings_ubo {
+    mat4 views[KMATERIAL_UBO_MAX_VIEWS]; // indexed by out_dto.view_index
+    mat4 projections[KMATERIAL_UBO_MAX_PROJECTIONS]; // indexed by out_dto.projection_index
+    mat4 directional_light_spaces[KMATERIAL_UBO_MAX_SHADOW_CASCADES]; // 256 bytes
+    vec4 view_positions[KMATERIAL_UBO_MAX_VIEWS]; // indexed by out_dto.view_index
+    vec4 cascade_splits;                                         // 16 bytes
+
+    float delta_time;
+    float game_time;
+    uint render_mode;
+    uint use_pcf;
+
+    // Shadow settings
+    float shadow_bias;
+    float shadow_distance;
+    float shadow_fade_distance;
+    float shadow_split_mult;
+
+    vec3 fog_colour;
+    float fog_start;
+    vec3 padding;
+    float fog_end;
+} global_settings;
+
+// All transforms
+layout(std430, set = 0, binding = 1) readonly buffer global_transforms_ssbo {
+    mat4 transforms[]; // indexed by immediate.transform_index
+} global_transforms;
+
+// All lighting
+layout(std430, set = 0, binding = 2) readonly buffer global_lighting_ssbo {
+    light_data lights[]; // indexed by immediate.packed_point_light_indices (needs unpacking to 16x u8s)
+} global_lighting;
+
+// All materials
+layout(std430, set = 0, binding = 3) readonly buffer global_materials_ssbo {
+    base_material_data base_materials[]; // indexed by immediate.transform_index
+} global_materials;
+
+// All animation data
+layout(std430, set = 0, binding = 4) readonly buffer global_animations_ssbo {
+    animation_skin_data animations[]; // indexed by immediate.animation_index;
+} global_animations;
+
+
+// Immediate data
+layout(push_constant) uniform immediate_data {
+    // bytes 0-15
     uint view_index;
+    uint projection_index;
+    uint animation_index;
+    uint base_material_index;
+
+    // bytes 16-31
+    // Index into the global point lights array. Up to 16 indices as u8s packed into 2 uints.
+    uvec2 packed_point_light_indices; // 8 bytes
+    uint num_p_lights;
+    // Index into global irradiance cubemap texture array
     uint irradiance_cubemap_index;
+
+    // bytes 32-47
+    vec4 clipping_plane;
+
+    // bytes 48-63
+    uint dir_light_index; // probably zero
+    float tiling;          // only used for water materials
+    float wave_strength;   // only used for water materials
+    float wave_speed;      // only used for water materials
+
+    // bytes 64-79
+    uint transform_index;
+    uint geo_type; // 0=static, 1=animated
     vec2 padding;
-} material_draw_ubo;
+    // 80-128 available
+} immediate;
 
 // =========================================================
 // Outputs
@@ -129,47 +147,60 @@ layout(push_constant) uniform per_draw_ubo {
 // Data Transfer Object to fragment shader.
 layout(location = 0) out dto {
 	vec4 frag_position;
-	vec4 light_space_frag_pos[MATERIAL_MAX_SHADOW_CASCADES];
+    vec4 clip_space;
+	vec4 light_space_frag_pos[KMATERIAL_UBO_MAX_SHADOW_CASCADES];
     vec4 vertex_colour;
+	vec4 tangent;
 	vec3 normal;
-    uint metallic_texture_channel;
-	vec3 tangent;
-    uint roughness_texture_channel;
+    float view_depth;
+    vec3 world_to_camera;
 	vec2 tex_coord;
-    uint ao_texture_channel;
-    uint unused_texture_channel;
 } out_dto;
 
-void unpack_u32(uint n, out uint x, out uint y, out uint z, out uint w);
+/** 
+ * Used to convert from NDC -> UVW by taking the x/y components and transforming them:
+ * 
+ *   xy *= 0.5 + 0.5
+ */
+const mat4 ndc_to_uvw = mat4( 
+	0.5, 0.0, 0.0, 0.0,
+	0.0, 0.5, 0.0, 0.0,
+	0.0, 0.0, 1.0, 0.0,
+	0.5, 0.5, 0.0, 1.0 
+);
 
 void main() {
-	out_dto.tex_coord = in_texcoord;
+    mat4 model = global_transforms.transforms[immediate.transform_index];
+    mat4 view = global_settings.views[immediate.view_index];
+    mat4 projection = global_settings.projections[immediate.projection_index];
+    base_material_data base_material = global_materials.base_materials[immediate.base_material_index];
+
+    if(base_material.material_type == 0) {
+	    out_dto.tex_coord = in_texcoord;
+    } else if (base_material.material_type == 1) {
+	    out_dto.tex_coord = vec2((in_position.x * 0.5) + 0.5, (in_position.z * 0.5) + 0.5) * immediate.tiling;
+    }
     out_dto.vertex_colour = in_colour;
 	// Fragment position in world space.
-	out_dto.frag_position = material_draw_ubo.model * vec4(in_position, 1.0);
+	out_dto.frag_position = model * vec4(in_position, 1.0);
 	// Copy the normal over.
-	mat3 m3_model = mat3(material_draw_ubo.model);
+	mat3 m3_model = mat3(model);
 	out_dto.normal = normalize(m3_model * in_normal);
-	out_dto.tangent = normalize(m3_model * vec3(in_tangent));
-    gl_Position = material_frame_ubo.projection * material_frame_ubo.views[material_draw_ubo.view_index] * material_draw_ubo.model * vec4(in_position, 1.0);
+	out_dto.tangent.xyz = normalize(m3_model * vec3(in_tangent));
+    out_dto.tangent.w = in_tangent.w;
+    vec4 view_position = view * out_dto.frag_position;
+    out_dto.view_depth = -view_position.z;
+    out_dto.clip_space = projection * view_position;
+    gl_Position = out_dto.clip_space;
 
 	// Apply clipping plane
-	vec4 world_position = material_draw_ubo.model * vec4(in_position, 1.0);
-	gl_ClipDistance[0] = dot(world_position, material_draw_ubo.clipping_plane);
+	gl_ClipDistance[0] = dot(out_dto.frag_position, immediate.clipping_plane);
 
 	// Get a light-space-transformed fragment positions.
-    for(int i = 0; i < MATERIAL_MAX_SHADOW_CASCADES; ++i) {
-	    out_dto.light_space_frag_pos[i] = (ndc_to_uvw * material_frame_ubo.directional_light_spaces[i]) * out_dto.frag_position;
+    for(int i = 0; i < KMATERIAL_UBO_MAX_SHADOW_CASCADES; ++i) {
+	    out_dto.light_space_frag_pos[i] = (ndc_to_uvw * global_settings.directional_light_spaces[i]) * out_dto.frag_position;
     }
 
-    // Unpack texture map channels
-    unpack_u32(material_group_ubo.texture_channels, out_dto.metallic_texture_channel, out_dto.roughness_texture_channel, out_dto.ao_texture_channel, out_dto.unused_texture_channel);
-}
-
-void unpack_u32(uint n, out uint x, out uint y, out uint z, out uint w) {
-    x = (n >> 24) & 0xFF;
-    y = (n >> 16) & 0xFF;
-    z = (n >> 8) & 0xFF;
-    w = n & 0xFF;
+	out_dto.world_to_camera = global_settings.view_positions[immediate.view_index].xyz - out_dto.frag_position.xyz;
 }
 

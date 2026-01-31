@@ -6,7 +6,7 @@
  * @brief A universally unique identifier (UUID).
  */
 typedef struct uuid {
-    char value[37];
+	char value[37];
 } uuid;
 
 /**

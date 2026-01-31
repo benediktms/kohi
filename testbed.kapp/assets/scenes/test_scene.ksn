@@ -1,147 +1,101 @@
-version = 2
+version = 1
 name = "test_scene"
 description = "A simple test scene, yo."
-nodes = [
-    {
-        name = "environment"
-        attachments = [
-            {
-                type = "skybox"
-                cubemap_image_asset_name = "skybox"
-                package_name = "Testbed"
-            }
-            {
-                type = "directional_light"
-                colour = "0.400000 0.400000 0.300000 1.000000"
-                direction = "-0.577350 -0.577350 0.577350 0.000000"
-                shadow_distance = 100.000000
-                shadow_fade_distance = 5.000000
-                shadow_split_mult = 0.750000
-            }
-        ]
-    }
-    {
-        name = "sponza"
-        xform = "21.480885 -4.243200 -15.837330 0.000000 0.000000 0.000000 1.000000 0.010000 0.010000 0.010000"
-        attachments = [
-            {
-                type = "static_mesh"
-                asset_name = "sponza"
-                package_name = "Testbed"
-            }
-        ]
-        children = [
-            {
-                name = "tree"
-                xform = "481.726868 79.999954 1343.031372 0.000000 0.817741 0.000000 0.575589 200.000000 200.000000 200.000000"
-                attachments = [
-                    {
-                        type = "static_mesh"
-                        asset_name = "Tree"
-                        package_name = "Testbed"
-                    }
-                ]
-            }
-        ]
-    }
-    {
-        name = "simple_hut"
-        xform = "3.244813 0.611967 17.673908 0.000000 0.883185 0.000000 -0.469032 0.697788 0.697788 0.697788"
-        attachments = [
-            {
-                type = "static_mesh"
-                asset_name = "v_simple_hut_LOD0"
-                package_name = "Testbed"
-            }
-        ]
-    }
-    {
-        name = "tree2"
-        xform = "3.887442 0.536942 13.040905 0.000000 0.817741 0.000000 0.575589 2.000000 2.000000 2.000000"
-        attachments = [
-            {
-                type = "static_mesh"
-                asset_name = "Tree"
-                package_name = "Testbed"
-            }
-        ]
-    }
-    {
-        name = "falcon"
-        xform = "7.685925 -0.363394 5.845236 0.065921 0.919960 -0.104160 0.372138 0.350000 0.350000 0.350000"
-        attachments = [
-            {
-                type = "static_mesh"
-                asset_name = "falcon"
-                package_name = "Testbed"
-            }
-            {
-                type = "point_light"
-                colour = "1.000000 0.000000 0.000000 1.000000"
-                position = "2.500000 1.250000 -8.000000 0.000000"
-                constant_f = 1.000000
-                linear = 0.350000
-                quadratic = 0.440000
-            }
-        ]
-        children = [
-            {
-                name = "music"
-                xform = "1.000000 1.000000 1.000000 0.000000 0.000000 0.000000 1.000000 1.000000 1.000000 1.000000"
-                attachments = [
-                    {
-                        type = "audio_emitter"
-                        name = "music emitter"
-                        audio_resource_name = "Woodland Fantasy"
-                        audio_resource_package_name = "Testbed"
-                        inner_radius = 5.0
-                        outer_radius = 10.0
-                        falloff = 1.0
-                        is_streaming = true
-                        volume = 0.7
-                        is_looping = true
-                    }
-                ]
-            }
-        ]
-    }
-    {
-        name = "terrain"
-        xform = "-50.000000 -3.900000 -50.000000 0.000000 0.000000 0.000000 1.000000 1.000000 1.000000 1.000000"
-        attachments = [
-            {
-                type = "heightmap_terrain"
-                name = "test_terrain"
-                asset_name = "test_terrain"
-                package_name = "Testbed"
-            }
-        ]
-    }
-    {
-        name = "test water"
-        xform = "206.000000 -0.000000 206.000000 0.000000 0.000000 0.000000 1.000000 1.000000 1.000000 1.000000"
-        attachments = [
-            {
-                type = "water_plane"
-            }
-        ]
-    }
-    {
-        name = "fire"
-        xform = "1.000000 1.000000 1.000000 0.000000 0.000000 0.000000 1.000000 1.000000 1.000000 1.000000"
-        attachments = [
-            {
-                type = "audio_emitter"
-                name = "fire emitter"
-                audio_resource_name = "Fire_loop"
-                audio_resource_package_name = "Testbed"
-                inner_radius = 5.0
-                outer_radius = 15.0
-                falloff = 1.0
-                is_streaming = false
-                volume = 1.0
-                is_looping = true
-            }
-        ]
-    }
+skybox_asset_name = "skybox"
+skybox_asset_package_name = "Testbed"
+directional_light_colour = "0.800000 0.800000 0.600000 1.000000"
+directional_light_direction = "-0.577350 -0.577350 0.577350 0.000000"
+shadow_distance = 100.000000
+shadow_fade_distance = 5.000000
+shadow_split_mult = 0.750000
+shadow_bias = 0.000700
+fog_colour = "0.6 0.7 0.8"
+fog_near = 1.0 
+fog_far = 100.0
+entities = [
+	{
+		name = "sponza"
+		type = "model"
+		transform = "21.480885 -4.243200 -15.837330 0.000000 0.000000 0.000000 1.000000 0.010000 0.010000 0.010000"
+		asset_name = "sponza"
+		asset_package_name = "Testbed"
+		children = [
+			{
+				name = "tree"
+				type = "model"
+				transform = "481.726868 79.999954 1343.031372 0.000000 0.817741 0.000000 0.575589 200.000000 200.000000 200.000000"
+				asset_name = "Tree"
+				asset_package_name = "Testbed"
+			}
+		]
+	}
+	{
+		name = "simple_hut"
+		type = "model"
+		transform = "3.244813 0.611967 17.673908 0.000000 0.883185 0.000000 -0.469032 0.697788 0.697788 0.697788"
+		asset_name = "v_simple_hut_LOD0"
+		asset_package_name = "Testbed"
+	}
+	{
+		name = "tree2"
+		type = "model"
+		transform = "3.887442 0.536942 13.040905 0.000000 0.817741 0.000000 0.575589 2.000000 2.000000 2.000000"
+		asset_name = "Tree"
+		package_name = "Testbed"
+	}
+	{
+		name = "falcon"
+		transform = "7.685925 -0.363394 5.845236 0.065921 0.919960 -0.104160 0.372138 0.350000 0.350000 0.350000"
+		asset_name = "falcon"
+		asset_package_name = "Testbed"
+		children = [
+			{
+				name = "red_light"
+				type = "point_light"
+				colour = "1.000000 0.000000 0.000000 1.000000"
+				position = "2.500000 1.250000 -8.000000 0.000000"
+				linear = 0.350000
+				quadratic = 0.440000
+			}
+			{
+				name = "music emitter"
+				transform = "1.000000 1.000000 1.000000 0.000000 0.000000 0.000000 1.000000 1.000000 1.000000 1.000000"
+				type = "audio_emitter"
+				asset_name = "Woodland Fantasy"
+				asset_package_name = "Testbed"
+				inner_radius = 5.0
+				outer_radius = 10.0
+				falloff = 1.0
+				is_streaming = false
+				volume = 0.7
+				is_looping = true
+			}
+		]
+	}
+	{
+		name = "test_terrain"
+		comment = "set this to heightmap_terrain when terrains are working again"
+		transform = "-50.000000 -3.900000 -50.000000 0.000000 0.000000 0.000000 1.000000 1.000000 1.000000 1.000000"
+		asset_name = "test_terrain"
+		asset_package_name = "Testbed"
+	}
+	{
+		name = "test water"
+		type = "water_plane"
+		transform = "0.000000 0.000000 0.000000 0.000000 0.000000 0.000000 1.000000 1.000000 1.000000 1.000000"
+		size = 256
+	}
+	{
+		name = "fire_emitter"
+		type = "audio_emitter"
+		ktransform = "1.000000 1.000000 1.000000 0.000000 0.000000 0.000000 1.000000 1.000000 1.000000 1.000000"
+		asset_name = "Fire_loop"
+		asset_package_name = "Testbed"
+		inner_radius = 5.0
+		outer_radius = 15.0
+		falloff = 1.0
+		is_streaming = false
+		volume = 1.0
+		is_looping = true
+	}
 ]

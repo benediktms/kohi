@@ -1,6 +1,7 @@
 #include <logger.h>
 
 #include "containers/array_tests.h"
+#include "containers/binary_string_table_tests.h"
 #include "containers/darray_tests.h"
 #include "containers/freelist_tests.h"
 #include "containers/hashtable_tests.h"
@@ -12,25 +13,26 @@
 #include "test_manager.h"
 
 int main(void) {
-    // Always initalize the test manager first.
-    test_manager_init();
+	// Always initalize the test manager first.
+	test_manager_init();
 
-    // TODO: add test registrations here.
-    string_register_tests();
-    array_register_tests();
-    darray_register_tests();
-    stackarray_register_tests();
-    kson_parser_register_tests();
-    linear_allocator_register_tests();
-    hashtable_register_tests();
-    freelist_register_tests();
-    dynamic_allocator_register_tests();
-    string_register_tests();
+	// TODO: add test registrations here.
+	binary_string_table_register_tests();
+	string_register_tests();
+	array_register_tests();
+	darray_register_tests();
+	stackarray_register_tests();
+	kson_parser_register_tests();
+	linear_allocator_register_tests();
+	hashtable_register_tests();
+	freelist_register_tests();
+	dynamic_allocator_register_tests();
+	string_register_tests();
 
-    KDEBUG("Starting tests...");
+	KDEBUG("Starting tests...");
 
-    // Execute tests
-    test_manager_run_tests();
+	// Execute tests
+	test_manager_run_tests();
 
-    return 0;
+	return 0;
 }

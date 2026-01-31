@@ -23,10 +23,10 @@
  * avoid using raw pointers where possible.
  */
 typedef struct khandle {
-    /** @brief Index into a resource table. Considered null if == INVALID_ID */
-    u32 handle_index;
-    /** @brief A globally unique identifier */
-    identifier unique_id;
+	/** @brief Index into a resource table. Considered null if == INVALID_ID */
+	u32 handle_index;
+	/** @brief A globally unique identifier */
+	identifier unique_id;
 } khandle;
 
 /**
@@ -65,13 +65,13 @@ KAPI b8 khandle_is_pristine(khandle handle, u64 uniqueid);
  * maximum array size for anything this references.
  */
 typedef struct khandle16 {
-    /** @brief Index into a resource table. Considered invalid if == INVALID_ID_U16 */
-    u16 handle_index;
-    /**
-     * @brief A generation used to indicate if a handle is stale. Typically incremented
-     * when a resource is updated. Considered invalid if == INVALID_ID_U16.
-     */
-    u16 generation;
+	/** @brief Index into a resource table. Considered invalid if == INVALID_ID_U16 */
+	u16 handle_index;
+	/**
+	 * @brief A generation used to indicate if a handle is stale. Typically incremented
+	 * when a resource is updated. Considered invalid if == INVALID_ID_U16.
+	 */
+	u16 generation;
 } khandle16;
 
 /**

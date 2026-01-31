@@ -1,0 +1,138 @@
+image_asset_name = "Texture.KuiDefaultAtlas"
+image_asset_package_name = "Kohi.Plugin.Ui.Kui"
+controls = [
+	{
+		type = "panel"
+		extents = {
+			min = "44 7"
+			max = "73 36"
+		}
+	}
+	{
+		type = "button"
+		modes = {
+			normal = {
+				extents = {
+					min = "5 46"
+					max = "115 89"
+				}
+				corner_px_size = "7 7"
+				corner_size = "7 7"
+			}
+			hover = {
+				extents = {
+					min = "5 136"
+					max = "115 179"
+				}
+				corner_px_size = "7 7"
+				corner_size = "7 7"
+			}
+			pressed = {
+				extents = {
+					min = "5 91"
+					max = "115 134"
+				}
+				corner_px_size = "7 7"
+				corner_size = "7 7"
+			}
+		}
+	}
+	{
+		type = "button_uparrow"
+		modes = {
+			normal = {
+				extents = {
+					min = "229 4"
+					max = "258 33"
+				}
+				corner_px_size = "7 7"
+				corner_size = "7 7"
+			}
+			hover = {
+				extents = {
+					min = "291 4"
+					max = "320 33"
+				}
+				corner_px_size = "7 7"
+				corner_size = "7 7"
+			}
+			pressed = {
+				extents = {
+					min = "260 4"
+					max = "289 33"
+				}
+				corner_px_size = "7 7"
+				corner_size = "7 7"
+			}
+		}
+	}
+	{
+		type = "button_downarrow"
+		modes = {
+			normal = {
+				extents = {
+					min = "229 35"
+					max = "258 64"
+				}
+				corner_px_size = "7 7"
+				corner_size = "7 7"
+			}
+			hover = {
+				extents = {
+					min = "291 35"
+					max = "320 64"
+				}
+				corner_px_size = "7 7"
+				corner_size = "7 7"
+			}
+			pressed = {
+				extents = {
+					min = "260 35"
+					max = "289 64"
+				}
+				corner_px_size = "7 7"
+				corner_size = "7 7"
+			}
+		}
+	}
+	{
+		type = "textbox"
+		modes = {
+			normal = {
+				extents = {
+					min = "117 91"
+					max = "227 134"
+				}
+				corner_px_size = "7 7"
+				corner_size = "7 7"
+			}
+			focused = {
+				extents = {
+					min = "117 136"
+					max = "227 179"
+				}
+				corner_px_size = "7 7"
+				corner_size = "7 7"
+			}
+		}
+	}
+	{
+		type = "scrollbar"
+		comment = "using the textbox graphic as the border/background"
+		bg_extents = {
+			min = "117 91"
+			max = "227 134"
+		}
+		bg_corner_px_size = "7 7"
+		bg_corner_size = "7 7"
+	}
+	{
+		type = "checkbox"
+		comment = "set image_asset_name and image_asset_package_name to use a custom image."
+		image_box_size = "26 26"
+		enabled_unchecked_rect = "117 46 26 26"
+		disabled_unchecked_rect = "144 46 26 26"
+		enabled_checked_rect = "171 46 26 26"
+		disabled_checked_rect = "198 46 26 26"
+	}
+]
